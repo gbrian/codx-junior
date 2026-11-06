@@ -4,6 +4,7 @@ import RepoFileDiff from '@/components/repo/RepoFileDiff.vue'
 import GitGraph from '@/components/repo/GitGraph.vue'
 import CommitDetail from '@/components/repo/CommitDetail.vue'
 import GitValidator from '@/components/repo/GitValidator.vue'
+import GitConflictResolver from '@/components/repo/GitConflictResolver.vue'
 import GitContextMenu from '@/components/repo/GitContextMenu.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
@@ -18,7 +19,7 @@ const FILE_EVENT_REFRESH_DELAY = 600
 
 export default {
   name: 'GitView',
-  components: { ChangesPanel, RepoFileDiff, GitGraph, CommitDetail, GitValidator, GitContextMenu, ConfirmDialog, VerticalSplitter },
+  components: { ChangesPanel, RepoFileDiff, GitGraph, CommitDetail, GitValidator, GitConflictResolver, GitContextMenu, ConfirmDialog, VerticalSplitter },
   mixins: [contextMenuMixin],
   props: {
     params: { type: Object, default: () => ({}) }
@@ -83,6 +84,11 @@ export default {
       mergePreview: null,
       mergePreviewLoading: false,
       merging: false,
+      // Conflicts: pending merge/rebase state and the resolver modal
+      conflictState: null,
+      showConflicts: false,
+      // File to preselect when the resolver opens (from a conflict file row)
+      conflictPreselect: '',
       // Pending confirmation: { title, message, details, hint, icon, iconClass,
       // confirmLabel, confirmIcon, confirmClass, resolve }
       confirmRequest: null,
@@ -145,6 +151,22 @@ export default {
     },
     lockPath() {
       return this.info?.lock_path || ''
+    },
+    /** Conflict state reported by the backend (info and resolver share it) */
+    conflicts() {
+      return this.conflictState || this.info?.conflict_state || null
+    },
+    /** The repository has unmerged files or a pending operation */
+    hasConflicts() {
+      if (this.info?.in_conflict || this.conflicts?.in_progress) return true
+      return this.statusFiles.staged.some(file => file.code === 'U')
+        || this.statusFiles.unstaged.some(file => file.code === 'U')
+    },
+    conflictCount() {
+      return this.conflicts?.unresolved_count ?? this.conflicts?.conflict_count ?? 0
+    },
+    conflictOperationLabel() {
+      return this.conflicts?.operation_label || 'Git'
     },
     filteredBranches() {
       const filter = this.branchFilter.trim().toLowerCase()
@@ -295,6 +317,9 @@ export default {
       return this.stagedSelection.length + this.changesSelection.length
     },
     commitHint() {
+      if (this.hasConflicts) {
+        return `Resolve ${this.conflictCount || 'the'} conflict(s) before committing`
+      }
       if (this.stagedFiles.length) {
         return `${this.stagedFiles.length} staged file(s) will be committed`
       }
@@ -304,7 +329,7 @@ export default {
       return 'No changes to commit'
     },
     canCommit() {
-      return !!this.commitMessage.trim() && this.workingTreeCount > 0
+      return !!this.commitMessage.trim() && this.workingTreeCount > 0 && !this.hasConflicts
     },
     /** Length of the commit subject (first line of the message) */
     subjectLength() {
@@ -640,6 +665,9 @@ export default {
       const staged = group === 'staged'
       this.openContextMenu(event, count > 1 ? `${count} selected files` : file.path, [
         this.contextMenuItem('diff', 'Open diff', 'fa-code-compare', () => this.openDiff(group, file)),
+        ...(file.code === 'U'
+          ? [this.contextMenuItem('resolve-conflict', 'Resolve conflict…', 'fa-triangle-exclamation', () => this.openConflictResolver(file.path))]
+          : []),
         this.contextMenuItem('editor', 'Open in editor', 'fa-up-right-from-square', () => this.$ui.openProjectFile(file.path)),
         this.contextMenuDivider('file-actions'),
         this.contextMenuItem('stage', staged ? `Unstage${suffix}` : `Stage${suffix}`, staged ? 'fa-minus' : 'fa-plus', () => staged ? this.unstagePaths(paths) : this.stagePaths(paths)),
@@ -1167,6 +1195,55 @@ export default {
       return this.loadRepo()
     },
 
+    // ── Conflicts ───────────────────────────────────────────────────────
+    /** True when the path is one of the unmerged files */
+    isConflictFile(path) {
+      if (!path) return false
+      if ((this.conflicts?.conflicts || []).some(entry => entry.path === path)) {
+        return true
+      }
+      return this.stagedFiles.some(file => file.path === path && file.code === 'U')
+        || this.unstagedFiles.some(file => file.path === path && file.code === 'U')
+    },
+
+    /** Open the conflict resolver, optionally preselecting a file */
+    openConflictResolver(path = '') {
+      this.conflictPreselect = path || ''
+      this.showConflicts = true
+      this.error = null
+    },
+
+    /** The resolver refreshed the conflict state: keep the banner in sync */
+    onConflictsUpdated(state) {
+      this.conflictState = state || null
+    },
+
+    /**
+     * The resolver finished (continued, aborted or asked to commit a squash).
+     * Reload the repository and the graph so the view leaves the conflict UI.
+     */
+    async onConflictFinished({ action, result } = {}) {
+      const label = this.conflictOperationLabel.toLowerCase()
+      this.showConflicts = false
+      this.conflictPreselect = ''
+      await this.loadRepo()
+      this.graphRefreshToken += 1
+      if (result?.stash_error) {
+        this.error = `The local changes could not be restored from the stash: ${result.stash_error}`
+      }
+      if (action === 'abort') {
+        this.notice = 'Operation aborted'
+      } else if (action === 'commit-squash') {
+        this.notice = 'Squash merge resolved: review the staged changes and commit them'
+        this.$nextTick(() => this.$refs.commitBox?.focus())
+      } else if (action === 'resolved') {
+        this.notice = 'Conflicts resolved: review the staged changes and commit them'
+        this.$nextTick(() => this.$refs.commitBox?.focus())
+      } else {
+        this.notice = `Operation continued (${label})`
+      }
+    },
+
     // ── Graph ───────────────────────────────────────────────────────────
     onSelectCommit(commit) {
       this.selectedCommit = commit
@@ -1226,11 +1303,20 @@ export default {
     async stagePaths(paths) {
       const list = paths || []
       if (!list.length || !this.api) return
-      await this.runOperation(
-        () => this.api.repo.stage(list),
-        `${list.length} file(s) staged`
-      )
+      // Staging an unmerged file marks it resolved: never do that silently,
+      // send the user to the resolver so the markers are removed first.
+      const conflictPaths = list.filter(path => this.isConflictFile(path))
+      const stageable = list.filter(path => !this.isConflictFile(path))
+      if (stageable.length) {
+        await this.runOperation(
+          () => this.api.repo.stage(stageable),
+          `${stageable.length} file(s) staged`
+        )
+      }
       this.clearSelection()
+      if (conflictPaths.length) {
+        this.openConflictResolver(conflictPaths[0])
+      }
     },
 
     async unstagePaths(paths) {
@@ -1332,6 +1418,12 @@ export default {
       this.repoTree = branchesRes?.repo_tree || []
       // Repository info carries every worktree with the files changed inside it
       this.worktrees = Array.isArray(this.info.worktrees) ? this.info.worktrees : []
+      // Conflict state: the backend detects a pending merge/rebase while
+      // loading the info, so the banner appears without another request.
+      this.conflictState = this.info.conflict_state || null
+      if (this.hasConflicts && !this.showConflicts && !this.notice && this.conflictCount) {
+        this.notice = `${this.conflictOperationLabel}: ${this.conflictCount} unresolved conflict(s)`
+      }
 
       if (errors.length) {
         this.error = `Unable to load repository: ${errors.join('; ')}`
@@ -1360,11 +1452,18 @@ export default {
         const result = await fn()
         const errors = (result && Array.isArray(result.errors) ? result.errors : []).filter(Boolean)
         // Some endpoints answer 200 with success:false (e.g. stage): never
-        // report them as succeeded
-        if (result && result.success === false) {
+        // report them as succeeded. A merge/rebase stopped on conflicts is the
+        // exception: the pending state is what the resolver needs.
+        if (result && result.success === false && !result.conflicted) {
           throw new Error(errors.join('; ') || 'Git operation failed')
         }
-        if (successMessage) this.notice = successMessage
+        if (result?.conflicted) {
+          this.conflictState = result.conflict_state || this.conflictState
+          this.notice = null
+          this.showConflicts = true
+        } else if (successMessage) {
+          this.notice = successMessage
+        }
         await this.loadRepo()
         // Branches, hashes and lanes changed: reload the graph too
         this.graphRefreshToken += 1
@@ -1470,7 +1569,7 @@ export default {
       if (!accepted) return
 
       await this.runOperation(
-        () => this.api.repo.rebase({ onto_branch: branch, branch: target }),
+        () => this.api.repo.rebase({ onto_branch: branch, branch: target, keep_conflicts: true }),
         `Rebased ${target} onto ${branch}`
       )
     },
@@ -1523,6 +1622,11 @@ export default {
     async doCommit() {
       const message = this.commitMessage.trim()
       if (!message || !this.api || this.committing || !this.workingTreeCount) return
+      if (this.hasConflicts) {
+        this.error = 'Resolve the conflicts before committing'
+        this.openConflictResolver()
+        return
+      }
       // Commit what is staged; stage everything only when nothing is staged
       const stageAll = this.stagedFiles.length === 0
       this.committing = true
@@ -1625,11 +1729,22 @@ export default {
           message: this.mergeMessage.trim() || undefined,
           no_commit: this.mergeNoCommit,
           squash: this.mergeSquash,
-          delete_worktree: this.mergeDeleteWorktree
+          delete_worktree: this.mergeDeleteWorktree,
+          keep_conflicts: true
         })
-        this.notice = this.mergeNotice(result || {})
         this.showMerge = false
         this.selectedCommit = null
+        if (result?.conflicted) {
+          // The merge is left in progress: open the resolver on the new state.
+          this.conflictState = result.conflict_state || null
+          this.notice = null
+          this.showConflicts = true
+          this.conflictPreselect = result.conflicts?.[0] || ''
+          await this.loadRepo()
+          this.graphRefreshToken += 1
+          return
+        }
+        this.notice = this.mergeNotice(result || {})
         await this.loadRepo()
         this.graphRefreshToken += 1
       } catch (ex) {
@@ -1748,6 +1863,23 @@ export default {
       </button>
     </div>
 
+    <!-- ── Conflicts (pending merge/rebase/cherry-pick/revert) ───────────── -->
+    <div v-if="hasConflicts" class="alert alert-error rounded-none py-1 px-3 text-xs flex items-center gap-2 shrink-0">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span class="grow truncate">
+        <b>{{ conflictOperationLabel }} in progress</b>
+        <span class="opacity-80"> — {{ conflictCount || 'some' }} unresolved conflict(s)</span>
+        <span
+          v-if="conflicts?.stash_kept"
+          class="text-warning"
+          :title="conflicts.stash_message || 'Local changes were stashed before the operation'"
+        > · local changes kept in stash</span>
+      </span>
+      <button class="btn btn-xs btn-error gap-1 shrink-0" :disabled="busy" @click="openConflictResolver()">
+        <i class="fa-solid fa-code-merge"></i> Resolve conflicts
+      </button>
+    </div>
+
     <!-- ── No project ───────────────────────────────────────────────────── -->
     <div v-if="!project" class="grow flex flex-col items-center justify-center gap-3 text-base-content/40">
       <i class="fa-solid fa-code-branch text-4xl"></i>
@@ -1762,6 +1894,7 @@ export default {
         ref="changesPanel"
         :project="project"
         class="grow min-h-0 overflow-hidden"
+        @refresh="onFileChanged"
         @context-menu-notice="notice = $event"
         @context-menu-error="error = $event"
       />
@@ -2018,6 +2151,7 @@ export default {
           <!-- Commit composer -->
           <div class="p-2 border-b border-base-content/10 flex flex-col gap-1.5 shrink-0">
             <textarea
+              ref="commitBox"
               v-model="commitMessage"
               rows="2"
               class="textarea textarea-xs textarea-bordered w-full resize-y font-mono leading-tight"
@@ -2484,6 +2618,18 @@ export default {
         </div>
       </div>
     </div>
+
+    <!-- ── Conflict resolver (manual / AI / abort) ───────────────────────── -->
+    <GitConflictResolver
+      v-if="showConflicts && api"
+      :api="api"
+      :project="project"
+      :initial-state="conflicts"
+      :initial-path="conflictPreselect"
+      @close="showConflicts = false"
+      @updated="onConflictsUpdated"
+      @finished="onConflictFinished"
+    />
 
     <!-- ── Repository sections context menu ─────────────────────────────── -->
     <GitContextMenu

@@ -3366,6 +3366,7 @@ class GitEngine:
         squash: bool = False,
         delete_worktree: bool = False,
         commit: Optional[bool] = None,
+        keep_conflicts: bool = False,
     ) -> dict:
         """
         Merge a branch into another one, with optional squash / no-commit modes.
@@ -3392,7 +3393,10 @@ class GitEngine:
 
         Conflicting merges are aborted (or reset, for a squash merge, which has
         no merge state) and the conflicting paths are reported in
-        ``conflicts``. Nothing is pushed.
+        ``conflicts``. With ``keep_conflicts=True`` the merge is left in
+        progress instead, so the conflict resolver can finish it manually or
+        with AI; the result then carries ``conflicted=True`` and the pending
+        ``conflict_state``. Nothing is pushed.
 
         Args:
             from_branch: Branch to merge (source).
@@ -3409,11 +3413,14 @@ class GitEngine:
                 discarded (the UI warns about them first).
             commit: Compatibility alias for ``no_commit``: ``commit=False``
                 merges without committing.
+            keep_conflicts: Leave the merge stopped on conflicts instead of
+                aborting it, so the user can resolve them and continue.
 
         Returns:
             Operation result dict with 'from_branch', 'to_branch', 'commit',
             'committed', 'squashed', 'no_commit', 'up_to_date', 'conflicts',
-            'branch_deleted', 'worktree_removed' and 'steps'.
+            'conflicted', 'conflict_state', 'branch_deleted',
+            'worktree_removed' and 'steps'.
 
         Example:
             >>> engine.merge_branches("codx-junior/fix-login", "main")
@@ -3467,6 +3474,9 @@ class GitEngine:
             "no_commit": bool(no_commit),
             "up_to_date": False,
             "conflicts": [],
+            "conflicted": False,
+            "conflict_state": {},
+            "stash_kept": False,
             "branch_deleted": False,
             "worktree_removed": False,
             "worktree_path": "",
@@ -3498,6 +3508,9 @@ class GitEngine:
             else f"Merge branch '{source}' into '{target}'"
         )
         stashed = False
+        # A conflict left in progress keeps the auto-stash: popping it on top
+        # of the unresolved merge would fail and could hide local changes.
+        keep_stash = False
         try:
             if status["dirty"]:
                 stash = self._run_git(
@@ -3551,16 +3564,31 @@ class GitEngine:
                 result["conflicts"] = [
                     f.strip() for f in conflicts["output"].split("\n") if f.strip()
                 ]
+                result["errors"].append(
+                    f"Could not merge '{source}' into '{target}': "
+                    f"{merge['error'] or merge['output']}"
+                )
+                if keep_conflicts and result["conflicts"]:
+                    # Leave MERGE_HEAD / SQUASH_MSG in place: the conflict
+                    # resolver stages the resolutions and continues (or aborts)
+                    # the merge. The auto-stash stays untouched for the same
+                    # reason and is reported so the user can restore it later.
+                    result["conflicted"] = True
+                    keep_stash = stashed
+                    result["stash_kept"] = stashed
+                    get_conflicts = getattr(self, "get_conflicts", None)
+                    if callable(get_conflicts):
+                        result["conflict_state"] = get_conflicts(
+                            include_content=False
+                        )
+                    return result
+
                 # A squash merge never writes MERGE_HEAD, so `merge --abort`
                 # cannot clean it up: reset the index/worktree instead.
                 if self._ref_exists("MERGE_HEAD", cwd=repo_path):
                     self._run_git(["merge", "--abort"], cwd=repo_path)
                 else:
                     self._run_git(["reset", "--merge", "HEAD"], cwd=repo_path)
-                result["errors"].append(
-                    f"Could not merge '{source}' into '{target}': "
-                    f"{merge['error'] or merge['output']}"
-                )
                 return result
 
             staged = self._run_git(
@@ -3620,7 +3648,7 @@ class GitEngine:
 
             return result
         finally:
-            if stashed:
+            if stashed and not keep_stash:
                 pop = self._run_git(["stash", "pop"], cwd=repo_path)
                 result["steps"].append({"name": "stash-pop", **pop})
                 if not pop["ok"]:
@@ -3628,6 +3656,15 @@ class GitEngine:
                         "Could not restore stashed local changes. "
                         "Run 'git stash pop' manually."
                     )
+            elif keep_stash:
+                result["steps"].append(
+                    {
+                        "name": "stash-kept",
+                        "ok": True,
+                        "output": "local changes kept in the stash until the "
+                        "merge is continued or aborted",
+                    }
+                )
             result["success"] = not result["errors"]
 
     def reset_project_file(self, file_path: str) -> None:

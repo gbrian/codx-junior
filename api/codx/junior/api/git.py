@@ -11,18 +11,25 @@ Exposes the repository management endpoints consumed by the git view:
   discard files, commit, merge (merge commit, squash or no-commit, optionally
   removing the source worktree), remove a worktree, rebase, commit message
   generation and the local PR lifecycle (create, close, abandon).
+- Conflicts: detect a pending merge/rebase/cherry-pick/revert, resolve the
+  unmerged files manually (write the merged content, take ours/theirs, stage an
+  already edited file) or with the project LLM, and continue or abort the
+  operation.
 - AI: the Validator section reviews the selected changes with the project LLM
   using the profiles associated with the changed files (or a user selection).
 
 All operations are delegated to
-:class:`codx.junior.engine.git_commit_message.GitCommitMessageEngine` (a
-:class:`codx.junior.engine.git_graph.GitGraphEngine` with the commit message
-generation, itself a
-:class:`codx.junior.engine.git_workspace.GitWorkspaceEngine` with the graph read
-operations and a :class:`codx.junior.engine.git_engine.GitEngine` with file
-level operations). Routes are mounted under ``/api`` by the dynamic router
-loader (``codx.junior.api.discover_routers``), so the final paths look like
-``/api/git/repo/branches``.
+:class:`codx.junior.engine.git_conflicts.GitConflictEngine` (a
+:class:`codx.junior.engine.git_validator.GitValidatorEngine` with conflict
+detection/resolution, itself a
+:class:`codx.junior.engine.git_commit_message.GitCommitMessageEngine` with the
+commit message generation, a
+:class:`codx.junior.engine.git_graph.GitGraphEngine` with the graph read
+operations and a :class:`codx.junior.engine.git_workspace.GitWorkspaceEngine`
+with the working tree operations on top of a
+:class:`codx.junior.engine.git_engine.GitEngine`). Routes are mounted under
+``/api`` by the dynamic router loader (``codx.junior.api.discover_routers``),
+so the final paths look like ``/api/git/repo/branches``.
 
 Staging is the only write operation that never fails as a whole: each path is
 staged on its own, so a failing path is reported in ``errors`` while the
@@ -106,9 +113,9 @@ from pydantic import BaseModel
 from codx.junior.engine.git_commit_message import (
     COMMIT_MESSAGE_MAX_DIFF_CHARS,
 )
+from codx.junior.engine.git_conflicts import GitConflictEngine
 from codx.junior.engine.git_validator import (
     VALIDATOR_MAX_DIFF_CHARS,
-    GitValidatorEngine,
 )
 from codx.junior.model.model import CodxUser
 from codx.junior.security.user_management import get_authenticated_user
@@ -171,6 +178,9 @@ class MergeRequest(BaseModel):
     squash: bool = False
     delete_worktree: bool = False
     commit: Optional[bool] = None
+    # Leave a conflicted merge in progress (instead of aborting it) so the
+    # conflict resolver can finish it manually or with AI.
+    keep_conflicts: bool = True
 
 
 class RebaseRequest(BaseModel):
@@ -178,6 +188,43 @@ class RebaseRequest(BaseModel):
 
     onto_branch: str
     branch: Optional[str] = None
+    # Leave a conflicted rebase in progress for the conflict resolver.
+    keep_conflicts: bool = True
+
+
+class ResolveConflictRequest(BaseModel):
+    """Payload to resolve one conflicted file.
+
+    ``strategy`` is ``manual``/``content`` (write ``content``), ``ours`` or
+    ``theirs`` (take that side), ``stage`` (keep the file already edited on
+    disk) or ``delete`` (remove the file and mark the deletion resolved).
+    """
+
+    path: str
+    content: Optional[str] = None
+    strategy: str = "manual"
+    stage: bool = True
+    allow_markers: bool = False
+
+
+class AIResolveConflictsRequest(BaseModel):
+    """Payload to resolve conflicts with the project LLM.
+
+    ``paths`` defaults to every conflicted file; ``apply`` writes and stages
+    the answers (False only returns suggestions) and ``continue_operation``
+    finishes the merge/rebase once no conflict is left.
+    """
+
+    paths: Optional[List[str]] = None
+    instructions: Optional[str] = None
+    apply: bool = True
+    continue_operation: bool = False
+
+
+class ContinueOperationRequest(BaseModel):
+    """Payload to finish the pending merge/rebase after resolving conflicts."""
+
+    message: Optional[str] = None
 
 
 class RemoveWorktreeRequest(BaseModel):
@@ -245,9 +292,9 @@ class ValidateChangesRequest(BaseModel):
 # -----------------------------------------------------------------------------
 
 
-def _git_engine(request: Request) -> GitValidatorEngine:
+def _git_engine(request: Request) -> GitConflictEngine:
     """
-    Build the git engine (graph + commit message + validator) for the session.
+    Build the git engine (conflicts + validator + graph + commit) for the session.
 
     Args:
         request: Incoming HTTP request holding the session in its state.
@@ -264,7 +311,7 @@ def _git_engine(request: Request) -> GitValidatorEngine:
             status_code=400,
             detail="CODXJuniorSession not found in request state.",
         )
-    return GitValidatorEngine(session=session)
+    return GitConflictEngine(session=session)
 
 
 def _ensure_success(result: dict) -> dict:
@@ -312,6 +359,55 @@ def api_git_repo_status(
 ):
     """Return the working tree status (dirty flag, staged and unstaged files)."""
     return _git_engine(request).get_repo_status()
+
+
+@router.get("/git/repo/conflicts")
+def api_git_repo_conflicts(
+    request: Request,
+    include_content: bool = Query(
+        True,
+        description="Include the working tree content of every conflicted file",
+    ),
+    include_sides: bool = Query(
+        False,
+        description="Include the base/ours/theirs blobs (used by AI tools)",
+    ),
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Return the conflict state of the repository.
+
+    Detects a merge, rebase, cherry-pick, revert or stalled squash merge in
+    progress and describes every unmerged path: porcelain code, human readable
+    status, conflict marker blocks and (unless ``include_content`` is false) the
+    working tree content.
+
+    A repository without conflicts answers **200** with ``in_progress=false``
+    and an empty ``conflicts`` list: this endpoint is also the polling hook the
+    git view uses after every write operation.
+
+    Example:
+        GET /api/git/repo/conflicts
+
+        200 OK
+        {
+          "in_progress": true,
+          "operation": "merge",
+          "operation_label": "Merge",
+          "conflicts": [{
+            "path": "app.py",
+            "code": "UU",
+            "status_label": "both modified",
+            "marker_count": 1,
+            "content": "<<<<<<< HEAD\\nours\\n=======\\ntheirs\\n>>>>>>> feature\\n"
+          }],
+          "unresolved_count": 1,
+          "can_continue": false
+        }
+    """
+    return _git_engine(request).get_conflicts(
+        include_content=include_content, include_sides=include_sides
+    )
 
 
 @router.get("/git/repo/branches")
@@ -1088,19 +1184,28 @@ def api_git_repo_merge(
 
     ``squash`` and ``no_commit`` can be combined to stage a squashed merge
     without creating any commit. Nothing is pushed.
+
+    With ``keep_conflicts=true`` (the default) a conflicting merge is left in
+    progress instead of aborted: the answer is **200** with ``conflicted=true``
+    and ``conflict_state``, so the view can open the conflict resolver. Set
+    ``keep_conflicts=false`` for the old abort-on-conflict behaviour.
     """
-    return _ensure_success(
-        _git_engine(request).merge_branches(
-            from_branch=payload.from_branch,
-            to_branch=payload.to_branch,
-            message=payload.message,
-            delete_branch=payload.delete_branch,
-            no_commit=payload.no_commit,
-            squash=payload.squash,
-            delete_worktree=payload.delete_worktree,
-            commit=payload.commit,
-        )
+    result = _git_engine(request).merge_branches(
+        from_branch=payload.from_branch,
+        to_branch=payload.to_branch,
+        message=payload.message,
+        delete_branch=payload.delete_branch,
+        no_commit=payload.no_commit,
+        squash=payload.squash,
+        delete_worktree=payload.delete_worktree,
+        commit=payload.commit,
+        keep_conflicts=payload.keep_conflicts,
     )
+    # A stopped merge is not a server error: the client needs the conflict
+    # state to offer manual/AI resolution and continue/abort.
+    if result.get("conflicted"):
+        return result
+    return _ensure_success(result)
 
 
 @router.post("/git/repo/rebase")
@@ -1113,13 +1218,16 @@ def api_git_repo_rebase(
     Rebase a branch onto another one (graph "rebase current onto this branch").
 
     The rebase rewrites the history of the rebased branch: its commits get new
-    hashes. Conflicting rebases are aborted and the conflicting files are
-    returned in ``conflicts`` (through the 400 detail) so nothing is left in the
-    middle of a rebase.
+    hashes. Conflicting rebases are left in progress when
+    ``keep_conflicts=true`` (the default): the answer is **200** with
+    ``conflicted=true`` and ``conflict_state``, so the view can resolve the
+    files and continue the rebase. With ``keep_conflicts=false`` the rebase is
+    aborted and the conflicting files are returned in ``conflicts``.
 
     Args:
-        payload: ``onto_branch`` (branch to rebase onto) and ``branch``
-            (branch to rebase, defaults to the checked out one).
+        payload: ``onto_branch`` (branch to rebase onto), ``branch``
+            (branch to rebase, defaults to the checked out one) and
+            ``keep_conflicts``.
 
     Example:
         POST /api/git/repo/rebase {"onto_branch": "main", "branch": "fix-login"}
@@ -1136,12 +1244,140 @@ def api_git_repo_rebase(
           "conflicts": []
         }
     """
+    result = _git_engine(request).rebase_branch(
+        onto_branch=payload.onto_branch,
+        branch=payload.branch,
+        keep_conflicts=payload.keep_conflicts,
+    )
+    if result.get("conflicted"):
+        return result
+    return _ensure_success(result)
+
+
+# -----------------------------------------------------------------------------
+# Conflict resolution
+# -----------------------------------------------------------------------------
+
+
+@router.post("/git/repo/conflicts/resolve")
+def api_git_repo_resolve_conflict(
+    request: Request,
+    payload: ResolveConflictRequest,
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Resolve one conflicted file.
+
+    Strategies:
+
+    * ``manual`` / ``content``: write ``content`` as the merged file. The
+      content must not hold conflict markers unless ``allow_markers`` is true.
+    * ``ours`` / ``theirs``: take that side of the conflict (including a
+      deletion when that side deleted the file).
+    * ``stage``: keep the file already edited on disk and mark it resolved.
+    * ``delete``: remove the file and mark the deletion resolved.
+
+    The file is staged after resolving it, so it stops being unmerged. The
+    answer carries the refreshed conflict state and the number of remaining
+    conflicts.
+
+    Example:
+        POST /api/git/repo/conflicts/resolve
+        {"path": "app.py", "content": "print('merged')\\n"}
+
+        200 OK
+        {"success": true, "path": "app.py", "resolved": true, "remaining": 0,
+         "state": {"can_continue": true, ...}}
+    """
     return _ensure_success(
-        _git_engine(request).rebase_branch(
-            onto_branch=payload.onto_branch,
-            branch=payload.branch,
+        _git_engine(request).resolve_conflict(
+            path=payload.path,
+            content=payload.content,
+            strategy=payload.strategy,
+            stage=payload.stage,
+            allow_markers=payload.allow_markers,
         )
     )
+
+
+@router.post("/git/repo/conflicts/ai")
+async def api_git_repo_resolve_conflicts_ai(
+    request: Request,
+    payload: AIResolveConflictsRequest,
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Resolve conflicts with the project LLM (manual and AI resolution).
+
+    Each conflicted file is sent to the model with its base/ours/theirs
+    versions and the working tree markers. The model must answer the complete
+    merged file; answers that still contain conflict markers are rejected and
+    never written.
+
+    The answer is **200** even when some or all files fail: ``files`` carries
+    one entry per path with the applied resolution or the reason it was not
+    applied, so the UI can show partial progress. ``apply=false`` returns the
+    suggestions without touching the repository.
+
+    Args:
+        payload: ``paths`` (defaults to every conflict), ``instructions``,
+            ``apply`` and ``continue_operation`` (continue the merge/rebase
+            once every conflict is resolved).
+
+    Example:
+        POST /api/git/repo/conflicts/ai
+        {"paths": ["app.py"], "instructions": "keep both logging calls"}
+
+        200 OK
+        {"success": true, "applied": true,
+         "files": [{"path": "app.py", "applied": true, "content": "..."}],
+         "state": {"unresolved_count": 0, "can_continue": true}}
+    """
+    return await _git_engine(request).resolve_conflicts_with_ai(
+        paths=payload.paths,
+        instructions=payload.instructions or "",
+        apply=payload.apply,
+        continue_operation=payload.continue_operation,
+    )
+
+
+@router.post("/git/repo/conflicts/continue")
+def api_git_repo_continue_operation(
+    request: Request,
+    payload: ContinueOperationRequest,
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Continue the pending merge/rebase/cherry-pick/revert.
+
+    Every conflict must be resolved and staged first. A rebase can stop again
+    on the next commit: the answer then carries ``conflicted=true`` and the
+    refreshed conflict state.
+
+    Args:
+        payload: Optional ``message`` for the merge (or squash) commit.
+    """
+    result = _git_engine(request).continue_operation(message=payload.message)
+    # A rebase that stops on the next commit is a valid outcome: the answer
+    # carries the new conflict state instead of a 400.
+    if result.get("conflicted"):
+        return result
+    return _ensure_success(result)
+
+
+@router.post("/git/repo/conflicts/abort")
+def api_git_repo_abort_operation(
+    request: Request,
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Abort the pending merge/rebase/cherry-pick/revert.
+
+    This is destructive for the conflict resolutions already written: the
+    repository returns to the state it had before the operation. Nothing is
+    pushed.
+    """
+    return _ensure_success(_git_engine(request).abort_operation())
 
 
 # -----------------------------------------------------------------------------

@@ -24,11 +24,14 @@
  *   GET    /api/git/repo/file/history
  *   GET    /api/git/repo/lock
  *   GET    /api/git/repo/staged
+ *   GET    /api/git/repo/conflicts
  *   GET    /api/git/files/content
  *   POST   /api/git/repo/validate
  *   POST   /api/git/repo/stage | unstage | discard | commit | commit/message
  *   POST   /api/git/repo/fetch | pull | push
  *   POST   /api/git/repo/lock/release
+ *   POST   /api/git/repo/conflicts/resolve | conflicts/ai | conflicts/continue
+ *   POST   /api/git/repo/conflicts/abort
  *   POST   /api/git/repo/branch | branch/checkout | merge | rebase
  *   DELETE /api/git/repo/branch
  *   POST   /api/git/repo/pr | pr/close | pr/abandon
@@ -419,6 +422,138 @@ export const repoModule = (API) => ({
     })
   },
 
+  // ── Conflicts ─────────────────────────────────────────────────────────────
+
+  /**
+   * Conflict state of the repository.
+   *
+   * Detects a pending merge/rebase/cherry-pick/revert (and a stalled squash
+   * merge) and lists every unmerged path with its status, conflict markers and
+   * content. `info()` already carries the same summary as `conflict_state`, so
+   * the view can detect a conflict while loading and only call this endpoint
+   * when it needs the file contents.
+   *
+   * @param {Object} [params] - Options.
+   * @param {boolean} [params.include_content] - Include each file content.
+   * @param {boolean} [params.include_sides] - Include base/ours/theirs blobs.
+   * @returns {Promise<Object>} `{ in_progress, operation, conflicts, ... }`.
+   *
+   * @example
+   * const state = await api.repo.conflicts()
+   * state.conflicts[0].markers // conflict blocks with ours/theirs text
+   */
+  conflicts({ include_content = true, include_sides = false } = {}) {
+    return API.get(
+      `/api/git/repo/conflicts${toQuery({
+        include_content: include_content ? 1 : 0,
+        include_sides: include_sides ? 1 : 0
+      })}`
+    )
+  },
+
+  /**
+   * Resolve one conflicted file (manual resolution / side selection).
+   *
+   * @param {Object} params - Options.
+   * @param {string} params.path - Conflicted file path.
+   * @param {string} [params.content] - Full merged content (manual strategy).
+   * @param {'manual'|'ours'|'theirs'|'stage'|'delete'} [params.strategy] -
+   * Resolution strategy (`stage` keeps the file edited outside the view).
+   * @param {boolean} [params.stage] - Stage the file after resolving it.
+   * @param {boolean} [params.allow_markers] - Allow leftover conflict markers.
+   * @returns {Promise<Object>} `{ success, path, resolved, remaining, state }`.
+   *
+   * @example
+   * await api.repo.resolveConflict({ path, content: mergedText })
+   * await api.repo.resolveConflict({ path, strategy: 'theirs' })
+   */
+  resolveConflict({
+    path,
+    content,
+    strategy = 'manual',
+    stage = true,
+    allow_markers = false
+  } = {}) {
+    return API.post('/api/git/repo/conflicts/resolve', {
+      path,
+      content,
+      strategy,
+      stage,
+      allow_markers
+    }).then((result) => {
+      invalidateDiffs(API)
+      return result
+    })
+  },
+
+  /**
+   * Resolve conflicts with the project LLM.
+   *
+   * The backend sends the base/ours/theirs versions and the working tree
+   * markers to the model, validates the answer (no leftover markers) and, when
+   * `apply` is true, writes and stages the merged file. One failing file never
+   * discards the resolutions already applied to the others.
+   *
+   * @param {Object} [params] - Options.
+   * @param {string[]} [params.paths] - Conflicts to resolve (all when omitted).
+   * @param {string} [params.instructions] - Guidance for the merge decision.
+   * @param {boolean} [params.apply] - Write and stage the answers.
+   * @param {boolean} [params.continue_operation] - Continue once all resolved.
+   * @returns {Promise<Object>} `{ success, applied, files, continued, state }`.
+   *
+   * @example
+   * const result = await api.repo.resolveConflictsWithAI({
+   *   instructions: 'keep both logging calls'
+   * })
+   */
+  resolveConflictsWithAI({
+    paths,
+    instructions,
+    apply = true,
+    continue_operation = false
+  } = {}) {
+    return API.post('/api/git/repo/conflicts/ai', {
+      paths: paths?.length ? paths : null,
+      instructions: instructions || null,
+      apply,
+      continue_operation
+    }).then((result) => {
+      invalidateDiffs(API)
+      return result
+    })
+  },
+
+  /**
+   * Finish the pending merge/rebase/cherry-pick/revert.
+   *
+   * Every conflict must be resolved and staged first. A rebase may stop again
+   * on the next commit; the answer then carries `conflicted = true`.
+   *
+   * @param {Object} [params] - Options.
+   * @param {string} [params.message] - Merge commit message.
+   * @returns {Promise<Object>} `{ success, operation, commit, conflicted, state }`.
+   */
+  continueOperation({ message } = {}) {
+    return API.post('/api/git/repo/conflicts/continue', {
+      message: message || null
+    }).then((result) => {
+      invalidateDiffs(API)
+      return result
+    })
+  },
+
+  /**
+   * Abort the pending operation (destructive for the resolutions already made).
+   *
+   * @returns {Promise<Object>} `{ success, operation, state }`.
+   */
+  abortOperation() {
+    return API.post('/api/git/repo/conflicts/abort', {}).then((result) => {
+      invalidateDiffs(API)
+      return result
+    })
+  },
+
   /**
    * Repository lock state (a stale `.git/index.lock` blocks every write).
    *
@@ -567,11 +702,14 @@ export const repoModule = (API) => ({
    *   Combining both stages a squashed merge without creating a commit.
    * - `delete_worktree`: remove the source branch worktree after merging.
    * - `delete_branch`: remove the source worktree (when present) and the branch.
+   * - `keep_conflicts`: leave a conflicting merge in progress (default) instead
+   *   of aborting it, so the conflict resolver can finish it. The result then
+   *   carries `conflicted = true` and `conflict_state`.
    *
    * @param {Object} params - `{ from_branch, to_branch, message, delete_branch,
-   * no_commit, squash, delete_worktree }`.
+   * no_commit, squash, delete_worktree, keep_conflicts }`.
    * @returns {Promise<Object>} Operation result with `committed`, `squashed`,
-   * `no_commit`, `up_to_date` and `worktree_removed`.
+   * `no_commit`, `up_to_date`, `conflicted` and `worktree_removed`.
    */
   merge({
     from_branch,
@@ -580,7 +718,8 @@ export const repoModule = (API) => ({
     delete_branch = false,
     no_commit = false,
     squash = false,
-    delete_worktree = false
+    delete_worktree = false,
+    keep_conflicts = true
   } = {}) {
     return API.post('/api/git/repo/merge', {
       from_branch,
@@ -589,7 +728,8 @@ export const repoModule = (API) => ({
       delete_branch,
       no_commit,
       squash,
-      delete_worktree
+      delete_worktree,
+      keep_conflicts
     }).then((result) => {
       // The merge changes the index / working tree (and, with no_commit, leaves
       // the result staged): cached file diffs must not survive it.
@@ -602,19 +742,22 @@ export const repoModule = (API) => ({
    * Rebase a branch onto another one.
    *
    * Rewrites the history of the rebased branch, so the UI must confirm it
-   * with the user first.
+   * with the user first. A conflicting rebase is left in progress
+   * (`keep_conflicts`, default true) for the conflict resolver.
    *
-   * @param {Object} params - `{ onto_branch, branch }`; `branch` defaults to
-   * the checked out branch.
-   * @returns {Promise<Object>} `{ branch, onto_branch, commit, up_to_date, conflicts }`.
+   * @param {Object} params - `{ onto_branch, branch, keep_conflicts }`;
+   * `branch` defaults to the checked out branch.
+   * @returns {Promise<Object>} `{ branch, onto_branch, commit, up_to_date,
+   * conflicts, conflicted, conflict_state }`.
    *
    * @example
    * await api.repo.rebase({ onto_branch: 'main', branch: 'fix-login' })
    */
-  rebase({ onto_branch, branch } = {}) {
+  rebase({ onto_branch, branch, keep_conflicts = true } = {}) {
     return API.post('/api/git/repo/rebase', {
       onto_branch,
-      branch: branch || undefined
+      branch: branch || undefined,
+      keep_conflicts
     })
   },
 

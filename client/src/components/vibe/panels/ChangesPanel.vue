@@ -2,6 +2,7 @@
 import PRView from '@/components/repo/PRView.vue'
 import PRViewer from '@/components/repo/PRViewer.vue'
 import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
+import GitConflictResolver from '@/components/repo/GitConflictResolver.vue'
 </script>
 
 <template>
@@ -46,6 +47,19 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
           </a>
         </li>
       </div>
+    </div>
+
+    <!-- Pending merge/rebase conflict: the chat's git manager detects it and
+         offers the same manual/AI resolution as the git view -->
+    <div v-if="hasConflicts" class="alert alert-error rounded-none py-1 px-3 text-xs flex items-center gap-2 shrink-0">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span class="grow truncate">
+        <b>{{ conflictState.operation_label || 'Git' }} in progress</b>
+        <span class="opacity-80"> — {{ conflictCount || 'some' }} unresolved conflict(s)</span>
+      </span>
+      <button class="btn btn-xs btn-error gap-1 shrink-0" :disabled="loadingChanges" @click="openConflictResolver">
+        <i class="fa-solid fa-code-merge"></i> Resolve conflicts
+      </button>
     </div>
 
     <!-- Loading state: only replaces the panel while there is nothing to show yet,
@@ -207,6 +221,17 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
         </div>
       </template>
     </template>
+
+    <!-- Conflict resolver (manual / AI / abort) -->
+    <GitConflictResolver
+      v-if="showConflicts && selectedProject?.$api"
+      :api="selectedProject.$api"
+      :project="selectedProject"
+      :initial-state="conflictState"
+      @close="showConflicts = false"
+      @updated="onConflictsUpdated"
+      @finished="onConflictFinished"
+    />
   </div>
 </template>
 
@@ -234,7 +259,11 @@ export default {
       // Review the uncommitted working tree against the current branch instead
       // of comparing two branches.
       localReview: false,
-      showAddProjectdropdown: false
+      showAddProjectdropdown: false,
+      // Pending merge/rebase conflict state of the selected project ("git
+      // manager" surface: the chat's changes panel detects it too)
+      conflictState: null,
+      showConflicts: false
     }
   },
   computed: {
@@ -302,6 +331,17 @@ export default {
       return this.branchesByProject[this.selectedProjectId] || []
     },
 
+    /** The selected project has an unresolved merge/rebase conflict */
+    hasConflicts() {
+      return !!this.conflictState?.in_progress
+    },
+
+    conflictCount() {
+      return this.conflictState?.unresolved_count
+        ?? this.conflictState?.conflict_count
+        ?? 0
+    },
+
     // Left selector: source branch (from_branch) - what will be merged
     fromBranch() {
       return this.branchSelectionByProject[this.selectedProjectId]?.from || 'main'
@@ -335,6 +375,11 @@ export default {
     selectedProjectId(id) {
       if (id && !this.cachedRepoChanges) {
         this.loadChangesForProject(id)
+      }
+      if (id) {
+        this.loadConflictStateForProject(
+          this.$storex.projects.allProjectsById?.[id]
+        )
       }
     },
     fromBranch() {
@@ -400,6 +445,46 @@ export default {
       }
     },
 
+    /**
+     * Detect a pending merge/rebase conflict for a project.
+     *
+     * The changes panel is the git management surface of the vibe/chat view, so
+     * it must offer the same conflict resolution as the git view. Only the
+     * summary is loaded here: the resolver fetches the conflict content when
+     * the user opens it.
+     *
+     * @param {Object} project - Project owning the repository.
+     */
+    async loadConflictStateForProject(project) {
+      const api = project?.$api
+      if (!api || !project) return
+      try {
+        const state = await api.repo.conflicts({ include_content: false })
+        if (this.projId(project) === this.selectedProjectId) {
+          this.conflictState = state || null
+        }
+      } catch {
+        if (this.projId(project) === this.selectedProjectId) {
+          this.conflictState = null
+        }
+      }
+    },
+
+    openConflictResolver() {
+      if (!this.selectedProject?.$api) return
+      this.showConflicts = true
+    },
+
+    onConflictsUpdated(state) {
+      this.conflictState = state || null
+    },
+
+    async onConflictFinished() {
+      this.showConflicts = false
+      await this.loadConflictStateForProject(this.selectedProject)
+      this.$emit('refresh')
+    },
+
     async loadAllProjects() {
       if (!this.activeProjectIds.length) return
       this.loadingChanges = true
@@ -428,6 +513,7 @@ export default {
         // Select first project if none selected
         const first = this.projectsWithBranches[0]
         this.selectedProjectId = first ? this.projId(first) : null
+        if (first) await this.loadConflictStateForProject(first)
 
       } finally {
         this.loadingChanges = false
