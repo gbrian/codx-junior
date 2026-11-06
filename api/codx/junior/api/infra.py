@@ -17,9 +17,11 @@ GET    /api/infra/containers/{cid}/stats     – CPU/memory series
 POST   /api/infra/containers/{cid}/actions   – start|stop|restart|pause|unpause|kill
 POST   /api/infra/containers                 – create & run a container
 DELETE /api/infra/containers/{cid}           – remove a container
-GET    /api/infra/stacks                     – compose projects
+GET    /api/infra/stacks                     – compose projects (runtime + project scan)
 POST   /api/infra/stacks/{name}/actions      – up|stop|restart|build|pull|down
 GET    /api/infra/stacks/{name}/logs         – aggregated compose logs
+GET    /api/infra/project/docker             – compose files + Dockerfiles of the active project
+POST   /api/infra/project/dockerfiles/build  – build one discovered Dockerfile
 GET    /api/infra/images                     – images
 GET    /api/infra/volumes                    – volumes
 GET    /api/infra/networks                   – networks
@@ -51,6 +53,18 @@ curl -X POST -b "auth=…" -H 'Content-Type: application/json' \
      "https://codx.local/api/infra/stacks/codx-junior/actions"
 curl -b "auth=…" "https://codx.local/api/infra/stacks/codx-junior/logs?tail=200"
 
+# Scan the ACTIVE project for compose files and Dockerfiles, then start a
+# compose project that has no container yet by passing its file path
+curl -b "auth=…" "https://codx.local/api/infra/project/docker?host=host-local"
+curl -X POST -b "auth=…" -H 'Content-Type: application/json' \
+     -d '{"action":"up","path":"/projects/app/docker-compose.yml"}' \
+     "https://codx.local/api/infra/stacks/app/actions"
+
+# Build one discovered Dockerfile
+curl -X POST -b "auth=…" -H 'Content-Type: application/json' \
+     -d '{"path":"/projects/app/Dockerfile","tag":"app:dev"}' \
+     "https://codx.local/api/infra/project/dockerfiles/build"
+
 # Reclaim space: dangling images older than 7 days
 curl -X POST -b "auth=…" -H 'Content-Type: application/json' \
      -d '{"target":"images","dangling_only":true,"older_than_days":7}' \
@@ -66,12 +80,16 @@ flowchart LR
     D --> E[(Docker daemon)]
     B -->|stack actions| F[compose.py]
     F -->|docker compose CLI| E
+    B -->|project scan| G[discovery.py]
+    B -->|Dockerfile build| H[dockerfiles.py]
+    H -->|docker build| E
 """
 
 import logging
-from typing import Any, Dict, NoReturn, Optional, Union
+import os
+from typing import Any, Dict, List, NoReturn, Optional, Tuple, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from codx.junior.api import require_admin
 from codx.junior.infra import (
@@ -80,17 +98,24 @@ from codx.junior.infra import (
     get_infra_manager,
 )
 from codx.junior.infra import compose as compose_stacks
+from codx.junior.infra import discovery
+from codx.junior.infra import dockerfiles as dockerfile_builder
 from codx.junior.infra.models import (
     InfraActionRequest,
     InfraContainer,
     InfraContainerList,
     InfraContainerLogs,
     InfraCreateContainerRequest,
+    InfraDockerfile,
     InfraEventList,
     InfraHostList,
     InfraImageList,
     InfraNetworkList,
     InfraOk,
+    InfraProjectDocker,
+    InfraProjectDockerfileBuildRequest,
+    InfraProjectDockerfileBuildResult,
+    InfraProjectInfo,
     InfraPruneRequest,
     InfraPruneResult,
     InfraStack,
@@ -102,6 +127,7 @@ from codx.junior.infra.models import (
     InfraVolumeList,
 )
 from codx.junior.model.model import CodxUser
+from codx.junior.project.project_discover import get_all_projects_snapshot, is_path_child_of
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +171,108 @@ def _raise_http(ex: Exception) -> NoReturn:
 
     logger.exception("Infra request failed: %s", ex)
     raise HTTPException(status_code=500, detail=str(ex)) from ex
+
+
+# ── Active project scan context ────────────────────────────────────────────────
+
+
+def _project_scan_roots(
+    request: Request,
+) -> Tuple[Optional[Any], List[discovery.ScanRoot]]:
+    """
+    Resolve the scan roots of the ACTIVE codx-junior project.
+
+    The active project is the one the request is scoped by (``codx_path`` query
+    parameter / ``x-codx-path`` header, resolved by the app middleware). The
+    roots are:
+
+    * the project checkout (``abs_project_path``);
+    * every registered project nested inside it (a "child project");
+    * every project named in ``project_dependencies`` (even when it lives
+      outside the checkout).
+
+    The global project snapshot is used instead of ``get_sub_projects()``
+    because the latter re-walks the whole checkout on every call; the snapshot
+    is already maintained by the project discovery thread.
+
+    Args:
+        request: Incoming request (``request.state.codx_junior_session``).
+
+    Returns:
+        ``(settings, roots)``; ``(None, [])`` when the request is not scoped to
+        a project, in which case the caller falls back to the runtime-only view.
+    """
+    session = getattr(request.state, "codx_junior_session", None)
+    settings = getattr(session, "settings", None)
+    if settings is None:
+        return None, []
+
+    codx_path = getattr(settings, "codx_path", "") or ""
+    root = (
+        getattr(settings, "abs_project_path", "")
+        or getattr(settings, "project_path", "")
+        or (os.path.dirname(codx_path) if codx_path else "")
+    )
+    if not root:
+        return settings, []
+
+    roots: List[discovery.ScanRoot] = [
+        discovery.ScanRoot(
+            path=root,
+            project=getattr(settings, "project_name", "") or os.path.basename(root),
+        )
+    ]
+
+    raw_dependencies = getattr(settings, "project_dependencies", "") or ""
+    if isinstance(raw_dependencies, (list, tuple, set)):
+        dependencies = {str(name).strip() for name in raw_dependencies if str(name).strip()}
+    else:
+        dependencies = {
+            name.strip() for name in str(raw_dependencies).split(",") if name.strip()
+        }
+    try:
+        snapshot = get_all_projects_snapshot() or {}
+    except Exception as ex:  # discovery must never break the Docker view
+        logger.debug("Cannot read the project snapshot: %s", ex)
+        snapshot = {}
+
+    for project in snapshot.values():
+        project_path = getattr(project, "abs_project_path", "") or ""
+        project_name = getattr(project, "project_name", "") or ""
+        if not project_path or not project_name:
+            continue
+        if project_name in dependencies or is_path_child_of(project_path, root):
+            roots.append(discovery.ScanRoot(path=project_path, project=project_name))
+
+    return settings, discovery.normalize_scan_roots(roots)
+
+
+def _project_info(settings: Any) -> InfraProjectInfo:
+    """Build the project descriptor returned by the scan endpoint."""
+    return InfraProjectInfo(
+        name=getattr(settings, "project_name", "") or "",
+        path=getattr(settings, "abs_project_path", "") or "",
+        codx_path=getattr(settings, "codx_path", "") or "",
+    )
+
+
+def _dockerfile_model(asset: discovery.DockerfileAsset) -> InfraDockerfile:
+    """Map a discovered Dockerfile dataclass into the API model."""
+    return InfraDockerfile(
+        name=asset.name,
+        path=asset.path,
+        relative_path=asset.relative_path,
+        directory=asset.directory,
+        context=asset.context,
+        project=asset.project,
+        project_root=asset.project_root,
+        base_images=list(asset.base_images),
+        stages=list(asset.stages),
+        stage_count=asset.stage_count,
+        has_dockerignore=asset.has_dockerignore,
+        compose_project=asset.compose_project,
+        compose_service=asset.compose_service,
+    )
 
 
 # ── Hosts ──────────────────────────────────────────────────────────────────────
@@ -380,17 +508,37 @@ def remove_container(
     summary="[Admin] Compose projects",
 )
 def list_stacks(
+    request: Request,
     host: Optional[str] = Query(None, description="Host id"),
+    refresh: bool = Query(
+        False, description="Bypass the project file scan cache"
+    ),
     _: CodxUser = Depends(require_admin),
 ) -> InfraStackList:
     """
-    Group containers by their ``com.docker.compose.project`` label and report
-    ``running``/``stopped``/``degraded`` status per stack.
+    List compose projects: the ones running on the host AND the compose files
+    discovered in the active project (plus its child projects).
+
+    A discovered project that was never started is reported with
+    ``status="stopped"``, ``source="project"`` and its ``declared_services``, so
+    the UI can offer "Start" (``docker compose up -d``) for it.
 
     Requires the ``admin`` role.
     """
     try:
-        return get_infra_manager().stacks(host_id=host)
+        manager = get_infra_manager()
+        runtime = manager.stacks(host_id=host)
+        _, roots = _project_scan_roots(request)
+        if not roots:
+            return runtime
+
+        scan = discovery.scan_project_docker(roots, force=refresh)
+        resolved_host = manager.host_config(host).id
+        return InfraStackList(
+            stacks=compose_stacks.merge_project_stacks(
+                runtime.stacks, scan.compose, resolved_host
+            )
+        )
     except Exception as ex:
         _raise_http(ex)
 
@@ -401,8 +549,9 @@ def list_stacks(
     summary="[Admin] Run a compose command on a stack",
 )
 def stack_action(
+    request: Request,
     name: str,
-    request: InfraStackActionRequest,
+    payload: InfraStackActionRequest,
     host: Optional[str] = Query(None, description="Host id"),
     _: CodxUser = Depends(require_admin),
 ) -> Union[InfraStack, InfraOk]:
@@ -418,8 +567,10 @@ def stack_action(
     | `pull`    | `docker compose pull`       | images only, idempotent                  |
     | `down`    | `docker compose down`       | containers + networks removed            |
 
-    The project is located through the labels of its containers, an in-process
-    cache (so ``up`` still works right after ``down``) and finally
+    The project is located through, in order: the compose file path sent in the
+    body (validated against the active project scan — this is how a project
+    that has no container yet is started), the labels of its containers, an
+    in-process cache (so ``up`` still works right after ``down``) and finally
     ``docker compose ls``. Named volumes are never removed (no ``down -v``), so
     a stack brought down can be brought back up with its data intact.
 
@@ -434,8 +585,13 @@ def stack_action(
     Requires the ``admin`` role.
     """
     try:
+        _, roots = _project_scan_roots(request)
         return compose_stacks.stack_action(
-            get_infra_manager(), name, request, host_id=host
+            get_infra_manager(),
+            name,
+            payload,
+            host_id=host,
+            project_roots=roots,
         )
     except Exception as ex:
         _raise_http(ex)
@@ -466,6 +622,112 @@ def get_stack_logs(
     try:
         return compose_stacks.stack_logs(
             get_infra_manager(), name, tail=tail, host_id=host
+        )
+    except Exception as ex:
+        _raise_http(ex)
+
+
+# ── Project Docker assets (compose files + Dockerfiles on disk) ───────────────
+
+
+@router.get(
+    "/project/docker",
+    response_model=InfraProjectDocker,
+    summary="[Admin] Docker assets scanned from the active project",
+)
+def get_project_docker(
+    request: Request,
+    host: Optional[str] = Query(None, description="Host id"),
+    refresh: bool = Query(False, description="Bypass the scan cache"),
+    _: CodxUser = Depends(require_admin),
+) -> InfraProjectDocker:
+    """
+    Scan the active project (and its child/dependency projects) for Docker
+    assets.
+
+    The response carries:
+
+    * ``compose`` — every discovered compose project, merged with the host
+      runtime so a running one has its live services and status;
+    * ``dockerfiles`` — every Dockerfile/Containerfile with its ``FROM``
+      references, stages, build context and the compose service that builds it;
+    * ``roots`` — the directories that were scanned.
+
+    A request that is not scoped to a project answers with an empty payload and
+    an explanatory ``message`` instead of failing, so the InfraView keeps
+    working even before a project is opened.
+
+    Requires the ``admin`` role.
+    """
+    try:
+        manager = get_infra_manager()
+        settings, roots = _project_scan_roots(request)
+        if settings is None:
+            return InfraProjectDocker(
+                message="No active project: the request is not scoped by codx_path"
+            )
+        if not roots:
+            return InfraProjectDocker(
+                project=_project_info(settings),
+                message="The active project has no readable checkout folder",
+            )
+
+        scan = discovery.scan_project_docker(roots, force=refresh)
+        resolved_host = manager.host_config(host).id
+        try:
+            runtime = manager.stacks(host_id=host).stacks
+        except (DockerUnavailable, DockerAPIError) as ex:
+            # The files on disk are still useful when the daemon is down: list
+            # them as stopped instead of failing the whole scan.
+            logger.warning("Cannot merge the runtime stacks into the scan: %s", ex)
+            runtime = []
+        merged = compose_stacks.merge_project_stacks(
+            runtime, scan.compose, resolved_host
+        )
+        return InfraProjectDocker(
+            project=_project_info(settings),
+            roots=[root.path for root in roots],
+            compose=[stack for stack in merged if stack.source == "project"],
+            dockerfiles=[_dockerfile_model(asset) for asset in scan.dockerfiles],
+            scanned_at=scan.scanned_at,
+            cached=scan.cached,
+            message="" if (scan.compose or scan.dockerfiles)
+            else "No compose file or Dockerfile found in the project",
+        )
+    except Exception as ex:
+        _raise_http(ex)
+
+
+@router.post(
+    "/project/dockerfiles/build",
+    response_model=InfraProjectDockerfileBuildResult,
+    summary="[Admin] Build a Dockerfile discovered in the active project",
+)
+def build_project_dockerfile(
+    request: Request,
+    payload: InfraProjectDockerfileBuildRequest,
+    _: CodxUser = Depends(require_admin),
+) -> InfraProjectDockerfileBuildResult:
+    """
+    Run ``docker build`` for one Dockerfile discovered by the project scan.
+
+    The Dockerfile must live inside the active project (or a child project);
+    an arbitrary path is rejected. ``tag`` defaults to a name derived from the
+    Dockerfile directory, ``context`` defaults to the context declared by a
+    compose ``build:`` section (or the Dockerfile directory), and ``target`` /
+    ``build_args`` map to ``--target`` / ``--build-arg``.
+
+    The call is synchronous: it answers once the build settles (up to
+    ``CODX_JUNIOR_DOCKER_BUILD_TIMEOUT``, 1800s) and returns the tail of the
+    build log. Failure is **502** with the last output lines, timeout **504**,
+    invalid input **400**, missing Docker CLI **503**.
+
+    Requires the ``admin`` role.
+    """
+    try:
+        _, roots = _project_scan_roots(request)
+        return dockerfile_builder.build_dockerfile(
+            get_infra_manager(), payload, roots
         )
     except Exception as ex:
         _raise_http(ex)

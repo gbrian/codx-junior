@@ -33,6 +33,7 @@ import { API } from '../../api/api'
 export const TABS = [
   { id: 'containers', label: 'Containers', icon: 'fa-cube' },
   { id: 'stacks', label: 'Stacks', icon: 'fa-layer-group' },
+  { id: 'project', label: 'Docker files', icon: 'fa-folder-tree' },
   { id: 'images', label: 'Images', icon: 'fa-hard-drive' },
   { id: 'volumes', label: 'Volumes', icon: 'fa-database' },
   { id: 'networks', label: 'Networks', icon: 'fa-network-wired' },
@@ -78,6 +79,8 @@ export const state = reactive({
 
   containers: [],
   stacks: [],
+  // compose files + Dockerfiles discovered in the active project (and children)
+  projectDocker: null,
   images: [],
   volumes: [],
   networks: [],
@@ -301,11 +304,53 @@ function matches(values, term) {
   return values.some(value => String(value ?? '').toLowerCase().includes(term))
 }
 
+/**
+ * Docker assets found by the project scan, flattened for the "Project files"
+ * tab: one item per compose project and one per Dockerfile.
+ *
+ * `kind` lets the panel group them without re-checking the source array, and
+ * `key` is stable across refreshes even when two folders declare the same
+ * compose project name.
+ */
+export const projectDockerAssets = computed(() => {
+  const docker = state.projectDocker || {}
+  const assets = []
+  for (const stack of docker.compose || []) {
+    assets.push({
+      ...stack,
+      kind: 'compose',
+      key: 'compose:' + (stack.path || stack.name)
+    })
+  }
+  for (const file of docker.dockerfiles || []) {
+    assets.push({
+      ...file,
+      kind: 'dockerfile',
+      key: 'dockerfile:' + file.path
+    })
+  }
+  return assets
+})
+
 export const filteredList = computed(() => {
   const term = (state.filters.q || '').trim().toLowerCase()
   const stateFilter = state.filters.state
   const stack = state.filters.stack
   const sort = state.filters.sort
+
+  if (state.route === 'project') {
+    return projectDockerAssets.value.filter((asset) => matches([
+      asset.name,
+      asset.label,
+      asset.path,
+      asset.relative_path,
+      asset.project,
+      asset.compose_project,
+      asset.compose_service,
+      ...(asset.declared_services || []),
+      ...(asset.base_images || [])
+    ], term))
+  }
 
   if (state.route === 'containers') {
     const list = state.containers.filter((c) => {
@@ -323,7 +368,10 @@ export const filteredList = computed(() => {
   if (state.route === 'stacks') {
     return state.stacks.filter((s) => {
       if (stack !== 'all' && s.name !== stack) return false
-      return matches([s.name, s.path, s.status], term)
+      return matches([
+        s.name, s.label, s.path, s.relative_path, s.status, s.project,
+        ...(s.declared_services || [])
+      ], term)
     })
   }
 
@@ -493,6 +541,7 @@ export function tabCount(tabId) {
   switch (tabId) {
     case 'containers': return state.containers.length
     case 'stacks': return state.stacks.length
+    case 'project': return projectDockerAssets.value.length
     case 'images': return state.images.length
     case 'volumes': return state.volumes.length
     case 'networks': return state.networks.length
@@ -594,7 +643,15 @@ export async function loadHosts({ force = false } = {}) {
   return hostsInFlight
 }
 
-export async function loadAll({ silent = false } = {}) {
+/**
+ * Loads the host snapshot (summary, containers, stacks, …).
+ *
+ * @param {{silent?:boolean, refreshScan?:boolean}} [options]
+ *   `silent` keeps the current view visible during a background poll.
+ *   `refreshScan` asks the backend to bypass the project file scan cache
+ *   (manual Refresh); the live poll keeps using the cache.
+ */
+export async function loadAll({ silent = false, refreshScan = false } = {}) {
   if (!silent) {
     state.error = null
     if (state.status !== 'ready') state.status = 'loading'
@@ -604,19 +661,28 @@ export async function loadAll({ silent = false } = {}) {
   const host = await loadHosts()
 
   try {
-    const [summary, containers, stacks, images, volumes, networks, events] = await Promise.all([
+    // The scan endpoint is optional for the view: an older backend (or a
+    // request not scoped to a project) must not break the Docker dashboard.
+    const projectDockerRequest = API.infra.projectDocker(host, { refresh: refreshScan })
+      .catch(() => null)
+
+    const [summary, containers, stacks, images, volumes, networks, events, projectDocker] = await Promise.all([
       API.infra.summary(host),
       API.infra.containers({ host }),
-      API.infra.stacks(host),
+      API.infra.stacks(host, { refresh: refreshScan }),
       API.infra.images(host),
       API.infra.volumes(host),
       API.infra.networks(host),
-      API.infra.events(host)
+      API.infra.events(host),
+      projectDockerRequest
     ])
 
     state.summary = summary || null
     state.containers = containers?.containers || []
     state.stacks = stacks?.stacks || []
+    // Keep the previous scan on a transient failure instead of flashing an
+    // empty "Project files" tab; only a definitive response replaces it.
+    if (projectDocker) state.projectDocker = projectDocker
     state.images = images?.images || []
     state.volumes = volumes?.volumes || []
     state.networks = networks?.networks || []

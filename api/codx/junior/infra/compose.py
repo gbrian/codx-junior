@@ -17,18 +17,31 @@ remote host is operated on that host and not on the codx-junior one.
 
 Locating a project
 ------------------
-A compose command needs the compose file(s). The labels of the project's
-containers are the source of truth, an in-process cache keeps the answer alive
-after ``down`` removed every container, and ``docker compose ls --all`` is the
-final fallback (e.g. after a codx-junior restart). When none of them knows the
-project the request is answered with **404** — that is a "this stack does not
-exist on this host" answer, not a daemon failure.
+A compose command needs the compose file(s). A request may name a compose file
+explicitly (``InfraStackActionRequest.path``): the file is then validated
+against the active-project scan roots, which is how a project that has never
+been started can be brought up. When no path is sent, the labels of the
+project's containers are the source of truth, an in-process cache keeps the
+answer alive after ``down`` removed every container, and
+``docker compose ls --all`` is the final fallback (e.g. after a codx-junior
+restart). When none of them knows the project the request is answered with
+**404** — that is a "this stack does not exist on this host" answer, not a
+daemon failure.
+
+Merging disk and runtime
+------------------------
+:func:`merge_project_stacks` overlays the runtime stacks (containers carrying
+compose labels) with the compose files discovered by
+:mod:`codx.junior.infra.discovery`. The result is what ``GET /api/infra/stacks``
+returns: a project that is merely declared on disk appears with
+``source="project"`` and ``status="stopped"`` instead of not appearing at all.
 
 Diagram
 -------
 flowchart LR
     R[POST /stacks/:name/actions] --> S[stack_action]
     S --> L{locate project}
+    L -->|request path, validated| F[discovery.resolve_compose_target]
     L -->|container labels| C[(cache)]
     L -->|compose ls| CLI
     S -->|DOCKER_HOST=host endpoint| CLI[docker compose CLI]
@@ -42,9 +55,11 @@ import shlex
 import shutil
 import subprocess
 import threading
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
+from codx.junior.infra import discovery
 from codx.junior.infra.docker_client import DockerAPIError, DockerUnavailable
 from codx.junior.infra.models import (
     InfraContainer,
@@ -53,6 +68,7 @@ from codx.junior.infra.models import (
     InfraStack,
     InfraStackActionRequest,
     InfraStackLogs,
+    InfraStackService,
 )
 
 logger = logging.getLogger(__name__)
@@ -173,7 +189,7 @@ def _compose_env(manager: Any, host_id: str) -> Dict[str, str]:
     ``unix://`` URI, which is what the CLI expects in ``DOCKER_HOST``.
     """
     endpoint = manager.host_config(host_id).endpoint
-    if not endpoint.startswith(("unix://", "tcp://", "http://", "https://")):
+    if not endpoint.startswith(("unix://", "tcp://", "http://", "https://", "ssh://")):
         endpoint = "unix://" + endpoint
 
     env = dict(os.environ)
@@ -366,6 +382,108 @@ def _run_compose(
     return result.stdout or ""
 
 
+# ── Disk + runtime merge ──────────────────────────────────────────────────────
+
+
+def _stack_status(running: int, total: int) -> str:
+    """Map the running/declared service counters to the UI status."""
+    if running <= 0:
+        return "stopped"
+    if total <= 0 or running >= total:
+        return "running"
+    return "degraded"
+
+
+def _stack_from_project(asset: discovery.ComposeProject, host_id: str) -> InfraStack:
+    """Turn a discovered compose project into the API stack model."""
+    total = len(asset.declared_services)
+    return InfraStack(
+        name=asset.name,
+        label=asset.name,
+        host_id=host_id,
+        path=asset.path,
+        status="stopped",
+        running=0,
+        total=total,
+        services=[],
+        source="project",
+        files=list(asset.files),
+        project=asset.project,
+        project_root=asset.project_root,
+        relative_path=asset.relative_path,
+        declared_services=list(asset.declared_services),
+        error=asset.error,
+    )
+
+
+def merge_project_stacks(
+    runtime_stacks: Sequence[InfraStack],
+    compose_assets: Sequence[discovery.ComposeProject],
+    host_id: str,
+) -> List[InfraStack]:
+    """
+    Overlay the compose files found on disk with the running stacks.
+
+    A compose project name is the join key (that is what Docker itself uses),
+    so a discovered file whose project is running inherits the live services,
+    counters and status. A runtime project that has no matching file on disk is
+    kept unchanged (it was probably started from another checkout).
+
+    If two directories declare the same project name, their display labels get
+    the relative path appended so the cards stay distinguishable; the compose
+    project name itself is left intact.
+
+    Args:
+        runtime_stacks: Stacks built from the container labels.
+        compose_assets: Projects discovered by the project scan.
+        host_id: Target host id used for new models.
+
+    Returns:
+        The merged stacks, sorted by ``(name, path)``.
+    """
+    by_name: Dict[str, InfraStack] = {}
+    for stack in runtime_stacks:
+        if stack.name not in by_name:
+            by_name[stack.name] = stack
+
+    merged: List[InfraStack] = []
+    for asset in compose_assets:
+        stack = _stack_from_project(asset, host_id)
+        runtime = by_name.pop(stack.name, None)
+        if runtime:
+            stack.running = runtime.running
+            stack.services = list(runtime.services)
+            stack.total = max(runtime.total or 0, stack.total)
+            stack.status = _stack_status(stack.running, stack.total)
+            stack.host_id = runtime.host_id or host_id
+        merged.append(stack)
+
+    for runtime in by_name.values():
+        if not runtime.label:
+            runtime.label = runtime.name
+        merged.append(runtime)
+
+    name_counts = Counter(stack.name for stack in merged)
+    for stack in merged:
+        if not stack.label:
+            stack.label = stack.name
+        if name_counts[stack.name] > 1 and stack.path:
+            suffix = stack.relative_path or stack.path
+            stack.label = f"{stack.name} · {suffix}"
+
+    merged.sort(key=lambda item: (item.name, item.path or ""))
+    return merged
+
+
+def compose_assets_to_stacks(
+    compose_assets: Sequence[discovery.ComposeProject], host_id: str
+) -> List[InfraStack]:
+    """Convert scan results to stack models (no runtime data)."""
+    stacks = [_stack_from_project(asset, host_id) for asset in compose_assets]
+    stacks.sort(key=lambda item: (item.name, item.path or ""))
+    return stacks
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
@@ -382,6 +500,7 @@ def stack_action(
     name: str,
     request: InfraStackActionRequest,
     host_id: Optional[str] = None,
+    project_roots: Optional[Sequence[discovery.ScanRoot]] = None,
 ) -> Union[InfraStack, InfraOk]:
     """
     Run ONE ``docker compose`` command against a project.
@@ -391,9 +510,14 @@ def stack_action(
 
     Args:
         manager: The :class:`InfraManager` (engine client + host registry).
-        name: Compose project name.
-        request: ``action`` + optional ``host_id``.
+        name: Compose project name (used when no explicit ``request.path`` is
+            given, and to answer with a useful error).
+        request: ``action``, optional ``host_id`` and optional compose ``path``.
         host_id: Target host (``request.host_id`` wins when set).
+        project_roots: Roots of the active project scan. When both this and
+            ``request.path`` are set, the file is validated against them first;
+            an invalid path silently falls back to the label/CLI lookup, so a
+            stale path never breaks an otherwise known stack.
 
     Returns:
         The refreshed :class:`InfraStack`, or ``InfraOk`` when the project has
@@ -417,13 +541,34 @@ def stack_action(
         )
 
     resolved_host = manager.host_config(request.host_id or host_id).id
-    location = _project_location(manager, project, resolved_host)
+
+    # 1. A compose file explicitly identified by the project scan. This is the
+    #    only way to operate a project that has no container yet.
+    location: Optional[Tuple[str, List[str]]] = None
+    requested_path = (request.path or "").strip()
+    if requested_path and project_roots:
+        discovered = discovery.resolve_compose_target(requested_path, project_roots)
+        if discovered:
+            project = discovered.name or project
+            location = (discovered.directory, list(discovered.files))
+            _remember(resolved_host, project, discovered.directory, discovered.files)
+        else:
+            logger.debug(
+                "Ignoring compose path %s for project %s: not part of the project scan",
+                requested_path,
+                project,
+            )
+
+    # 2. Labels → cache → `docker compose ls` (the classic lookup).
+    if not location:
+        location = _project_location(manager, project, resolved_host)
     if not location:
         raise DockerAPIError(
             404,
             f"Compose project '{project}' was not found on host "
-            f"'{resolved_host}': no container carries its compose labels and "
-            f"'docker compose ls' does not list it",
+            f"'{resolved_host}': no container carries its compose labels, "
+            f"'docker compose ls' does not list it and no scanned compose file "
+            f"was provided",
             "compose",
         )
 

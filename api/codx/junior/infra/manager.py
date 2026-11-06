@@ -739,6 +739,19 @@ def _create_body(payload: InfraCreateContainerRequest) -> Dict[str, Any]:
     return body
 
 
+def _split_compose_config_files(value: Any) -> List[str]:
+    """
+    Split the ``com.docker.compose.project.config_files`` label into paths.
+
+    Compose stores multiple ``-f`` files as a comma separated string.
+
+    Example:
+        >>> _split_compose_config_files("/srv/app/compose.yml,/srv/app/dev.yml")
+        ['/srv/app/compose.yml', '/srv/app/dev.yml']
+    """
+    return [chunk.strip() for chunk in str(value or "").split(",") if chunk.strip()]
+
+
 def _stack_from_volume_name(name: str) -> str:
     """Infer the compose project from a volume name (``project_volume``)."""
     if not name or ANONYMOUS_VOLUME_RE.match(name) or "_" not in name:
@@ -1133,7 +1146,14 @@ class InfraManager:
     # -- compose stacks ----------------------------------------------------
 
     def stacks(self, host_id: Optional[str] = None) -> InfraStackList:
-        """Group containers by their compose project labels."""
+        """
+        Group containers by their ``com.docker.compose.project`` label.
+
+        This is the *runtime* view: only projects that have at least one
+        container (running or stopped) appear here. The project file scan is
+        merged on top of it by :func:`codx.junior.infra.compose.merge_project_stacks`,
+        which is what adds compose files that were never started.
+        """
         resolved_host = self.host_config(host_id).id
         containers = self.containers(resolved_host, with_stats=False).containers
 
@@ -1143,7 +1163,7 @@ class InfraManager:
                 continue
             group = groups.setdefault(
                 container.stack,
-                {"name": container.stack, "path": "", "services": []},
+                {"name": container.stack, "path": "", "files": [], "services": []},
             )
             group["services"].append(
                 InfraStackService(
@@ -1154,11 +1174,16 @@ class InfraManager:
                     id=container.id,
                 )
             )
-            group["path"] = group["path"] or (
-                container.labels.get(COMPOSE_CONFIG_LABEL)
-                or container.labels.get(COMPOSE_WORKDIR_LABEL)
-                or ""
-            )
+            if not group["files"]:
+                group["files"] = _split_compose_config_files(
+                    container.labels.get(COMPOSE_CONFIG_LABEL)
+                )
+            if not group["path"]:
+                group["path"] = (
+                    group["files"][0]
+                    if group["files"]
+                    else (container.labels.get(COMPOSE_WORKDIR_LABEL) or "")
+                )
 
         stacks: List[InfraStack] = []
         for group in sorted(groups.values(), key=lambda item: item["name"]):
@@ -1168,12 +1193,15 @@ class InfraManager:
             stacks.append(
                 InfraStack(
                     name=group["name"],
+                    label=group["name"],
                     host_id=resolved_host,
                     path=group["path"],
                     status=status,
                     running=running,
                     total=total,
                     services=group["services"],
+                    source="runtime",
+                    files=group["files"],
                 )
             )
         return InfraStackList(stacks=stacks)

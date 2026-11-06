@@ -9,8 +9,10 @@ Modules
 docker_client.py  – HTTP client for the Docker Engine API (unix socket / tcp).
 models.py         – pydantic models mirroring the `/api/infra/*` contract.
 manager.py        – mapping + orchestration (hosts, containers, stacks, …).
+discovery.py      – scans the active project for compose files + Dockerfiles.
 compose.py        – stack commands: shells out to the `docker compose` CLI,
                     because the Engine API has no compose equivalent.
+dockerfiles.py    – `docker build` for a Dockerfile found by the project scan.
 
 Environment
 -----------
@@ -19,6 +21,10 @@ DOCKER_HOST                Docker endpoint (unix://, tcp://, http://, https://)
 CODX_JUNIOR_DOCKER_TIMEOUT Request timeout in seconds (default 10)
 CODX_JUNIOR_INFRA_HOSTS    JSON array of host definitions; overrides the local one
 CODX_JUNIOR_COMPOSE_TIMEOUT Timeout for a compose command in seconds (default 600)
+CODX_JUNIOR_DOCKER_BUILD_TIMEOUT Timeout for `docker build` in seconds (default 1800)
+CODX_JUNIOR_DOCKER_SCAN_TTL Cache TTL of the project Docker scan (default 20s)
+CODX_JUNIOR_DOCKER_SCAN_DEPTH Maximum scan depth per project (default 12)
+CODX_JUNIOR_DOCKER_SCAN_DIRS Maximum visited directories per scan (default 20000)
 
 Example
 -------
