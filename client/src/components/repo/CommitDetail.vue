@@ -6,7 +6,11 @@ import DiffViewer from '@/components/DiffViewer.vue'
 <template>
   <div class="flex flex-col h-full min-h-0 overflow-hidden bg-base-100">
     <!-- ── Commit header ────────────────────────────────────────────────── -->
-    <div class="flex items-start gap-2 px-2 py-1.5 border-b border-base-content/10 shrink-0">
+    <div
+      class="flex items-start gap-2 px-2 py-1.5 border-b border-base-content/10 shrink-0"
+      :title="`${commit.subject} — right-click for commit actions`"
+      @contextmenu.prevent.stop="openCommitContextMenu($event)"
+    >
       <i class="fa-solid fa-code-commit text-warning text-xs mt-1"></i>
       <div class="grow min-w-0">
         <div class="text-xs font-semibold truncate" :title="commit.subject">{{ commit.subject }}</div>
@@ -46,6 +50,8 @@ import DiffViewer from '@/components/DiffViewer.vue'
         v-for="ref in branchRefs"
         :key="`ref-${ref.name}`"
         class="flex items-center gap-1 px-2 py-1 border-t border-base-content/5 flex-wrap"
+        :title="`${ref.name} — right-click for branch actions`"
+        @contextmenu.prevent.stop="openRefContextMenu($event, ref)"
       >
         <span
           class="badge badge-xs gap-1 font-mono shrink-0 max-w-[180px]"
@@ -118,8 +124,9 @@ import DiffViewer from '@/components/DiffViewer.vue'
           type="button"
           class="w-full flex items-center gap-1.5 px-2 py-1 text-left transition-colors"
           :class="selectedPath === file.path ? 'bg-primary/15' : 'hover:bg-base-200/60'"
-          :title="`${file.path} — diff against the previous version`"
+          :title="`${file.path} — diff against the previous version (right-click for actions)`"
           @click="openFile(file)"
+          @contextmenu.prevent.stop="openFileContextMenu($event, file)"
         >
           <i class="fa-solid text-[11px] shrink-0" :class="[statusIcon(file.status), statusColor(file.status)]"></i>
           <span class="font-mono text-[11px] truncate shrink-0 max-w-[55%]">{{ fileName(file.path) }}</span>
@@ -165,12 +172,27 @@ import DiffViewer from '@/components/DiffViewer.vue'
         <i class="fa-solid fa-code-compare"></i> Select a file to see its diff
       </div>
     </div>
+
+    <!-- Commit / ref / file context menu -->
+    <GitContextMenu
+      :visible="contextMenuState.visible"
+      :position="contextMenuState.position"
+      :title="contextMenuState.title"
+      :items="contextMenuState.items"
+      @select="onContextMenuSelect"
+      @close="closeContextMenu"
+    />
   </div>
 </template>
 
 <script>
+import GitContextMenu from '@/components/repo/GitContextMenu.vue'
+import { contextMenuMixin } from '@/mixins/contextMenu'
+
 export default {
   name: 'CommitDetail',
+  components: { GitContextMenu },
+  mixins: [contextMenuMixin],
   props: {
     // Project API instance
     api: { type: Object, required: true },
@@ -296,6 +318,57 @@ export default {
     emitAction(action, ref) {
       if (!ref?.name) return
       this.$emit('branch-action', { action, branch: ref.name, type: ref.type })
+    },
+
+    // ── Context menus ───────────────────────────────────────────────────
+    /** Commit header: copy the hash / subject */
+    openCommitContextMenu(event) {
+      const commit = this.commit
+      if (!commit) return
+      this.openContextMenu(event, commit.short, [
+        this.contextMenuItem('copy-hash', 'Copy commit hash', 'fa-hashtag', () => this.copyText(commit.hash, 'Commit hash copied')),
+        this.contextMenuItem('copy-message', 'Copy commit message', 'fa-quote-left', () => this.copyText(commit.subject, 'Commit message copied')),
+        this.contextMenuItem('copy-reference', 'Copy hash and message', 'fa-copy', () => this.copyText(`${commit.short} ${commit.subject}`, 'Commit reference copied')),
+        this.contextMenuDivider('commit-close'),
+        this.contextMenuItem('close', 'Close commit details', 'fa-xmark', () => this.$emit('close'))
+      ])
+    },
+
+    /** Branch ref at this commit: same actions as the inline buttons */
+    openRefContextMenu(event, ref) {
+      if (!ref?.name) return
+      const current = this.isCurrentBranch(ref)
+      const local = ref.type === 'local'
+      const items = [
+        this.contextMenuItem('checkout', 'Checkout', 'fa-arrow-right-to-bracket', () => this.emitAction('checkout', ref), { disabled: current }),
+        this.contextMenuItem('merge', 'Merge into current…', 'fa-code-merge', () => this.emitAction('merge', ref), { disabled: current || !this.currentBranch }),
+        this.contextMenuItem('rebase', 'Rebase current onto this…', 'fa-arrows-rotate', () => this.emitAction('rebase', ref), { disabled: current || !this.currentBranch }),
+        this.contextMenuItem('new-branch', 'New branch from…', 'fa-code-branch', () => this.emitAction('new-branch', ref)),
+        this.contextMenuDivider('ref-copy')
+      ]
+      if (local) {
+        items.push(
+          this.contextMenuItem('delete', 'Delete branch', 'fa-trash', () => this.emitAction('delete', ref), { danger: true, disabled: current }),
+          this.contextMenuDivider('ref-delete-separator')
+        )
+      }
+      items.push(
+        this.contextMenuItem('copy', 'Copy branch name', 'fa-copy', () => this.copyText(ref.name, 'Branch name copied'))
+      )
+      this.openContextMenu(event, ref.name, items)
+    },
+
+    /** File changed by the commit: diff, copy and editor actions */
+    openFileContextMenu(event, file) {
+      if (!file?.path) return
+      this.openContextMenu(event, file.path, [
+        this.contextMenuItem('diff', 'Open diff', 'fa-code-compare', () => this.openFile(file)),
+        this.contextMenuItem('editor', 'Open in editor', 'fa-up-right-from-square', () => this.$ui?.openProjectFile(file.path)),
+        this.contextMenuDivider('file-copy'),
+        this.contextMenuItem('copy-path', 'Copy path', 'fa-copy', () => this.copyText(file.path, 'File path copied')),
+        this.contextMenuItem('copy-name', 'Copy file name', 'fa-file', () => this.copyText(this.fileName(file.path), 'File name copied')),
+        this.contextMenuItem('copy-diff', 'Copy diff', 'fa-file-code', () => this.copyText(file.diff || '', 'Diff copied'), { disabled: !file.diff })
+      ])
     },
 
     // ── Helpers ─────────────────────────────────────────────────────────

@@ -4,8 +4,10 @@ import RepoFileDiff from '@/components/repo/RepoFileDiff.vue'
 import GitGraph from '@/components/repo/GitGraph.vue'
 import CommitDetail from '@/components/repo/CommitDetail.vue'
 import GitValidator from '@/components/repo/GitValidator.vue'
+import GitContextMenu from '@/components/repo/GitContextMenu.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
+import { contextMenuMixin } from '@/mixins/contextMenu'
 import { onFileEvent } from '@/utils/fileEvents'
 
 // 50/72 rule: maximum subject length and maximum body line width
@@ -16,7 +18,8 @@ const FILE_EVENT_REFRESH_DELAY = 600
 
 export default {
   name: 'GitView',
-  components: { ChangesPanel, RepoFileDiff, GitGraph, CommitDetail, GitValidator, ConfirmDialog, VerticalSplitter },
+  components: { ChangesPanel, RepoFileDiff, GitGraph, CommitDetail, GitValidator, GitContextMenu, ConfirmDialog, VerticalSplitter },
+  mixins: [contextMenuMixin],
   props: {
     params: { type: Object, default: () => ({}) }
   },
@@ -71,6 +74,12 @@ export default {
       mergeFrom: '',
       mergeTo: '',
       mergeMessage: '',
+      // Merge modes: collapse the source commits into one and/or leave the
+      // result staged so it can be reviewed and committed from the composer.
+      mergeSquash: false,
+      mergeNoCommit: false,
+      // Remove the source branch worktree once the merge succeeded
+      mergeDeleteWorktree: false,
       mergePreview: null,
       mergePreviewLoading: false,
       merging: false,
@@ -333,6 +342,28 @@ export default {
       }
       return 'Generate a commit message from the staged changes (50/72 rule)'
     },
+    /** Worktree registered for the merge source branch, if any */
+    mergeSourceWorktree() {
+      if (!this.mergeFrom) return null
+      return (this.worktrees || []).find(
+        worktree => !worktree.is_main && this.sameBranch(worktree.branch, this.mergeFrom)
+      ) || null
+    },
+    /** Uncommitted files inside the source worktree (discarded when removed) */
+    mergeSourceWorktreeChangeCount() {
+      const changes = this.mergeSourceWorktree?.changes || {}
+      return changes.file_count ?? (changes.staged?.length || 0) + (changes.unstaged?.length || 0)
+    },
+    /** Merge message label: squashing produces a regular (squashed) commit */
+    mergeMessageLabel() {
+      return this.mergeSquash
+        ? 'Squash commit message (optional)'
+        : 'Merge commit message (optional)'
+    },
+    /** Label of the action button in the merge modal */
+    mergeActionLabel() {
+      return this.mergeSquash ? 'Squash' : 'Merge'
+    },
     /** Identity of the open diff: remounts the pane for every file / group */
     diffKey() {
       if (!this.selectedFile) return null
@@ -344,6 +375,10 @@ export default {
     // affect files the filter is not showing.
     fileFilter() {
       this.clearSelection()
+    },
+    // A worktree removal only applies to the branch it was chosen for
+    mergeFrom() {
+      this.mergeDeleteWorktree = false
     }
   },
   created() {
@@ -491,12 +526,180 @@ export default {
       }
     },
 
+    /** Absolute path of a file inside a worktree checkout */
+    worktreeFilePath(worktree, file) {
+      if (!worktree?.path || !file?.path) return ''
+      const relative = file.path.replace(/^[/\\]+/, '')
+      return `${worktree.path.replace(/[/\\]+$/, '')}/${relative}`
+    },
+
     /** Open a worktree file in the editor (absolute path from its checkout) */
     openWorktreeFile(worktree, file) {
-      if (!worktree?.path || !file?.path) return
-      const relative = file.path.replace(/^[/\\]+/, '')
-      const absolute = `${worktree.path.replace(/[/\\]+$/, '')}/${relative}`
+      const absolute = this.worktreeFilePath(worktree, file)
+      if (!absolute) return
       this.$ui.openFile(absolute)
+    },
+
+    /** Remove a worktree after the user confirms (its branch is kept) */
+    async removeWorktree(worktree) {
+      if (!worktree?.path || !this.api) return
+      const changeCount = worktree.changeCount || worktree.changes?.file_count || 0
+      const label = worktree.branch ? `"${worktree.branch}"` : worktree.path
+      const accepted = await this.confirmAction({
+        title: 'Delete worktree',
+        message: `Remove the worktree ${label}?`,
+        details: [worktree.path],
+        hint: changeCount
+          ? `${changeCount} uncommitted change(s) in this worktree will be discarded. The branch is kept.`
+          : 'The checkout is removed from disk. Its branch is kept.',
+        icon: 'fa-folder-minus',
+        iconClass: 'text-error',
+        confirmLabel: 'Delete worktree',
+        confirmIcon: 'fa-folder-minus',
+        confirmClass: 'btn-error'
+      })
+      if (!accepted) return
+
+      await this.runOperation(
+        () => this.api.repo.removeWorktree({
+          branch: worktree.branch || undefined,
+          path: worktree.path
+        }),
+        'Worktree removed'
+      )
+    },
+
+    /** Worktree registered for a branch, if any */
+    worktreeForBranch(branch) {
+      if (!branch) return null
+      return (this.worktrees || []).find(
+        worktree => !worktree.is_main && this.sameBranch(worktree.branch, branch)
+      ) || null
+    },
+
+    // ── Context menus ───────────────────────────────────────────────────
+    /** Branch sidebar entry */
+    openBranchContextMenu(event, branch) {
+      if (!branch) return
+      const current = this.currentBranch
+      const isCurrent = this.sameBranch(branch, current)
+      const worktree = this.worktreeForBranch(branch)
+      this.openContextMenu(event, `Branch ${branch}`, [
+        this.contextMenuItem('checkout', 'Checkout', 'fa-arrow-right-to-bracket', () => this.onCheckout(branch), {
+          disabled: isCurrent || !!worktree,
+          title: worktree ? 'The branch is checked out in a worktree' : undefined
+        }),
+        this.contextMenuItem('merge', 'Merge into current…', 'fa-code-merge', () => this.openMerge(branch, current), { disabled: isCurrent || !current }),
+        this.contextMenuItem('rebase', 'Rebase current onto this…', 'fa-arrows-rotate', () => this.onRebase(branch), { disabled: isCurrent || !current }),
+        this.contextMenuItem('new-branch', 'New branch from…', 'fa-code-branch', () => this.openNewBranch(branch)),
+        this.contextMenuDivider('branch-delete'),
+        this.contextMenuItem('delete', 'Delete branch', 'fa-trash', () => this.deleteBranch(branch), { danger: true, disabled: isCurrent }),
+        this.contextMenuDivider('branch-copy'),
+        this.contextMenuItem('copy', 'Copy branch name', 'fa-copy', () => this.copyText(branch, 'Branch name copied'))
+      ])
+    },
+
+    /** Empty area of the branches sidebar: section-level actions */
+    openBranchesContextMenu(event) {
+      this.openContextMenu(event, 'Branches', [
+        this.contextMenuItem('new-branch', 'New branch…', 'fa-plus', () => this.openNewBranch(this.selectedBranch || this.currentBranch)),
+        this.contextMenuItem('refresh', 'Refresh branches', 'fa-rotate-right', () => this.loadRepo()),
+        this.contextMenuDivider('branches-copy'),
+        this.contextMenuItem('copy', 'Copy branch list', 'fa-list', () => this.copyText(this.filteredBranches.join('\n'), 'Branch list copied'), { disabled: !this.filteredBranches.length })
+      ])
+    },
+
+    /** Staged / Changes group header: bulk actions over the visible files */
+    openGroupContextMenu(event, group) {
+      const files = group?.files || []
+      const paths = files.map(file => file.path)
+      const staged = group?.key === 'staged'
+      this.openContextMenu(event, `${group?.label || 'Changes'} (${files.length})`, [
+        this.contextMenuItem('select-all', 'Select all', 'fa-check-double', () => this.setGroupSelection(group.key, true), { disabled: !files.length }),
+        this.contextMenuItem('clear', 'Clear selection', 'fa-xmark', () => this.setGroupSelection(group.key, false), { disabled: !this.selectionCount }),
+        this.contextMenuDivider('group-actions'),
+        this.contextMenuItem('stage', staged ? 'Unstage all' : 'Stage all', staged ? 'fa-minus' : 'fa-plus', () => staged ? this.unstagePaths(paths) : this.stagePaths(paths), { disabled: !files.length }),
+        this.contextMenuItem('discard', 'Roll back all', 'fa-rotate-left', () => this.discardPaths(paths), { danger: true, disabled: !files.length }),
+        this.contextMenuDivider('group-copy'),
+        this.contextMenuItem('copy', 'Copy paths', 'fa-list', () => this.copyText(paths.join('\n'), 'Paths copied'), { disabled: !files.length })
+      ])
+    },
+
+    /** Working tree file row */
+    openWorkingTreeContextMenu(event, group, file) {
+      if (!file?.path) return
+      const wasSelected = this.isSelected(group, file.path)
+      if (!wasSelected) {
+        this.setSelection([this.fileKey(group, file.path)])
+        this.selectionAnchor = { group, path: file.path }
+      }
+      const selected = this.selectedPaths(group)
+      const paths = wasSelected && selected.length > 1 ? selected : [file.path]
+      const count = paths.length
+      const suffix = count > 1 ? ` (${count})` : ''
+      const staged = group === 'staged'
+      this.openContextMenu(event, count > 1 ? `${count} selected files` : file.path, [
+        this.contextMenuItem('diff', 'Open diff', 'fa-code-compare', () => this.openDiff(group, file)),
+        this.contextMenuItem('editor', 'Open in editor', 'fa-up-right-from-square', () => this.$ui.openProjectFile(file.path)),
+        this.contextMenuDivider('file-actions'),
+        this.contextMenuItem('stage', staged ? `Unstage${suffix}` : `Stage${suffix}`, staged ? 'fa-minus' : 'fa-plus', () => staged ? this.unstagePaths(paths) : this.stagePaths(paths)),
+        this.contextMenuItem('discard', `Roll back${suffix}`, 'fa-rotate-left', () => this.discardPaths(paths), { danger: true }),
+        this.contextMenuDivider('file-copy'),
+        this.contextMenuItem('copy-path', 'Copy path', 'fa-copy', () => this.copyText(file.path, 'File path copied')),
+        this.contextMenuItem('copy-paths', `Copy paths${suffix}`, 'fa-list', () => this.copyText(paths.join('\n'), 'Paths copied'), { disabled: count < 2 })
+      ])
+    },
+
+    /** Worktree entry (header row): branch + checkout actions */
+    openWorktreeContextMenu(event, worktree) {
+      if (!worktree?.path) return
+      const branch = worktree.branch || ''
+      const current = this.currentBranch
+      const isCurrent = !!branch && this.sameBranch(branch, current)
+      const isActiveCheckout = !!this.projectRoot && worktree.path === this.projectRoot
+      const changeCount = worktree.changeCount || worktree.changes?.file_count || 0
+      const title = branch
+        ? `Worktree ${branch}${changeCount ? ` · ${changeCount} change(s)` : ''}`
+        : `Worktree ${worktree.path}`
+      this.openContextMenu(event, title, [
+        this.contextMenuItem('merge', 'Merge into current…', 'fa-code-merge', () => this.openMerge(branch, current), { disabled: !branch || isCurrent || !current }),
+        this.contextMenuItem('new-branch', 'New branch from…', 'fa-code-branch', () => this.openNewBranch(branch), { disabled: !branch }),
+        this.contextMenuItem('refresh', 'Refresh changes', 'fa-rotate-right', () => this.loadRepo()),
+        this.contextMenuDivider('worktree-remove'),
+        this.contextMenuItem('remove-worktree', 'Delete worktree', 'fa-folder-minus', () => this.removeWorktree(worktree), {
+          danger: true,
+          disabled: isActiveCheckout,
+          title: isActiveCheckout ? 'The checkout in use cannot be removed' : 'Remove the checkout and keep the branch'
+        }),
+        this.contextMenuItem('delete-branch', 'Delete branch', 'fa-trash', () => this.deleteBranch(branch), { danger: true, disabled: !branch || isCurrent }),
+        this.contextMenuDivider('worktree-copy'),
+        this.contextMenuItem('copy-path', 'Copy worktree path', 'fa-copy', () => this.copyText(worktree.path, 'Worktree path copied')),
+        this.contextMenuItem('copy-branch', 'Copy branch name', 'fa-code-branch', () => this.copyText(branch, 'Branch name copied'), { disabled: !branch })
+      ])
+    },
+
+    /** Worktree file row */
+    openWorktreeFileContextMenu(event, worktree, file) {
+      if (!file?.path) return
+      const absolute = this.worktreeFilePath(worktree, file)
+      this.openContextMenu(event, `${file.label}: ${file.path}`, [
+        this.contextMenuItem('open', 'Open in editor', 'fa-up-right-from-square', () => this.openWorktreeFile(worktree, file)),
+        this.contextMenuDivider('worktree-file-copy'),
+        this.contextMenuItem('copy-path', 'Copy path', 'fa-copy', () => this.copyText(file.path, 'File path copied')),
+        this.contextMenuItem('copy-absolute', 'Copy absolute path', 'fa-link', () => this.copyText(absolute, 'Absolute path copied')),
+        this.contextMenuItem('copy-branch', 'Copy branch name', 'fa-code-branch', () => this.copyText(worktree.branch || '', 'Branch name copied'), { disabled: !worktree.branch })
+      ])
+    },
+
+    /** Action emitted by the graph / commit detail context menus */
+    onBranchContextAction({ action, branch: branchName, ref } = {}) {
+      const branch = branchName || ref?.name
+      if (!branch) return
+      if (action === 'checkout') return this.onCheckout(branch)
+      if (action === 'merge') return this.openMerge(branch, this.currentBranch)
+      if (action === 'rebase') return this.onRebase(branch)
+      if (action === 'delete') return this.deleteBranch(branch)
+      if (action === 'new-branch') return this.openNewBranch(branch)
     },
 
     // ── Working tree ────────────────────────────────────────────────────
@@ -991,6 +1194,11 @@ export default {
         return
       }
 
+      if (action === 'new-branch') {
+        this.openNewBranch(branch)
+        return
+      }
+
       const target = this.currentBranch
       if (!target) {
         this.error = 'No branch is checked out'
@@ -1002,43 +1210,14 @@ export default {
       }
 
       if (action === 'merge') {
-        const accepted = await this.confirmAction({
-          title: 'Merge branch',
-          message: `Merge "${branch}" into "${target}"?`,
-          hint: 'A merge commit is created on the current branch. Nothing is pushed.',
-          icon: 'fa-code-merge',
-          iconClass: 'text-warning',
-          confirmLabel: 'Merge',
-          confirmIcon: 'fa-code-merge',
-          confirmClass: 'btn-warning'
-        })
-        if (!accepted) return
-
-        await this.runOperation(
-          () => this.api.repo.merge({ from_branch: branch, to_branch: target }),
-          `Merged ${branch} into ${target}`
-        )
-        this.selectedCommit = null
+        // Open the merge modal prefilled: it offers the merge modes (squash,
+        // no commit, worktree removal) and the compare preview.
+        this.openMerge(branch, target)
         return
       }
 
       if (action === 'rebase') {
-        const accepted = await this.confirmAction({
-          title: 'Rebase branch',
-          message: `Rebase "${target}" onto "${branch}"?`,
-          hint: 'Rebasing rewrites the commits of the current branch: their hashes change. Nothing is pushed.',
-          icon: 'fa-arrows-rotate',
-          iconClass: 'text-warning',
-          confirmLabel: 'Rebase',
-          confirmIcon: 'fa-arrows-rotate',
-          confirmClass: 'btn-warning'
-        })
-        if (!accepted) return
-
-        await this.runOperation(
-          () => this.api.repo.rebase({ onto_branch: branch, branch: target }),
-          `Rebased ${target} onto ${branch}`
-        )
+        await this.onRebase(branch)
         this.selectedCommit = null
       }
     },
@@ -1273,6 +1452,29 @@ export default {
       )
     },
 
+    /** Rebase the current branch onto the given branch (destructive, confirmed) */
+    async onRebase(branch) {
+      const target = this.currentBranch
+      if (!branch || !this.api || !target || this.sameBranch(branch, target)) return
+
+      const accepted = await this.confirmAction({
+        title: 'Rebase branch',
+        message: `Rebase "${target}" onto "${branch}"?`,
+        hint: 'Rebasing rewrites the commits of the current branch: their hashes change. Nothing is pushed.',
+        icon: 'fa-arrows-rotate',
+        iconClass: 'text-warning',
+        confirmLabel: 'Rebase',
+        confirmIcon: 'fa-arrows-rotate',
+        confirmClass: 'btn-warning'
+      })
+      if (!accepted) return
+
+      await this.runOperation(
+        () => this.api.repo.rebase({ onto_branch: branch, branch: target }),
+        `Rebased ${target} onto ${branch}`
+      )
+    },
+
     // ── Commit message ──────────────────────────────────────────────────
     /**
      * Ask the backend to write a commit message for the staged changes.
@@ -1341,10 +1543,23 @@ export default {
     },
 
     // ── Merge ───────────────────────────────────────────────────────────
-    openMerge() {
-      this.mergeFrom = this.selectedBranch || this.currentBranch || ''
-      this.mergeTo = this.currentBranch || this.branches[0] || ''
+    /**
+     * Open the merge modal, optionally prefilled with the branch pair.
+     *
+     * The modal is the single merge entry point (repository toolbar and the
+     * graph commit panel) so every merge can choose the squash / no-commit /
+     * worktree-removal options.
+     *
+     * @param {string} [from] - Source branch. Defaults to the selected branch.
+     * @param {string} [to] - Target branch. Defaults to the current branch.
+     */
+    openMerge(from = '', to = '') {
+      this.mergeFrom = from || this.selectedBranch || this.currentBranch || ''
+      this.mergeTo = to || this.currentBranch || this.branches[0] || ''
       this.mergeMessage = ''
+      this.mergeSquash = false
+      this.mergeNoCommit = false
+      this.mergeDeleteWorktree = false
       this.mergePreview = null
       this.showMerge = true
       this.loadMergePreview()
@@ -1372,6 +1587,29 @@ export default {
       }
     },
 
+    /** Notice describing what the merge actually did (and left pending) */
+    mergeNotice(result = {}) {
+      const from = result.from_branch || this.mergeFrom
+      const to = result.to_branch || this.mergeTo
+      if (result.up_to_date) {
+        return `${to} is already up to date with ${from}`
+      }
+
+      let message
+      if (result.no_commit) {
+        message = result.squashed
+          ? `Squashed ${from} into ${to}: changes staged, commit them when ready`
+          : `Merged ${from} into ${to}: changes staged, commit them when ready`
+      } else if (result.squashed) {
+        message = `Squashed ${from} into ${to} in one commit`
+      } else {
+        message = `Merged ${from} into ${to}`
+      }
+
+      if (result.worktree_removed) message += ' · source worktree removed'
+      return message
+    },
+
     async doMerge() {
       if (!this.mergeFrom || !this.mergeTo || !this.api) return
       if (this.sameBranch(this.mergeFrom, this.mergeTo)) {
@@ -1381,13 +1619,17 @@ export default {
       this.merging = true
       this.error = null
       try {
-        await this.api.repo.merge({
+        const result = await this.api.repo.merge({
           from_branch: this.mergeFrom,
           to_branch: this.mergeTo,
-          message: this.mergeMessage.trim() || undefined
+          message: this.mergeMessage.trim() || undefined,
+          no_commit: this.mergeNoCommit,
+          squash: this.mergeSquash,
+          delete_worktree: this.mergeDeleteWorktree
         })
-        this.notice = `Merged ${this.mergeFrom} into ${this.mergeTo}`
+        this.notice = this.mergeNotice(result || {})
         this.showMerge = false
+        this.selectedCommit = null
         await this.loadRepo()
         this.graphRefreshToken += 1
       } catch (ex) {
@@ -1520,6 +1762,8 @@ export default {
         ref="changesPanel"
         :project="project"
         class="grow min-h-0 overflow-hidden"
+        @context-menu-notice="notice = $event"
+        @context-menu-error="error = $event"
       />
 
       <!-- ── Validator: AI review of local changes / a branch comparison ─── -->
@@ -1555,6 +1799,9 @@ export default {
               :refresh-token="graphRefreshToken"
               class="h-full w-full"
               @select-commit="onSelectCommit"
+              @context-action="onBranchContextAction"
+              @context-menu-notice="notice = $event"
+              @context-menu-error="error = $event"
             />
             <div v-else class="h-full flex items-center justify-center text-sm text-base-content/40">
               No project API available
@@ -1572,6 +1819,8 @@ export default {
               class="h-full w-full"
               @close="closeCommit"
               @branch-action="onCommitBranchAction"
+              @context-menu-notice="notice = $event"
+              @context-menu-error="error = $event"
             />
           </template>
         </VerticalSplitter>
@@ -1600,7 +1849,7 @@ export default {
             <input v-model="branchFilter" type="text" placeholder="Filter branches..." class="input input-xs input-bordered w-full" />
           </div>
 
-          <div class="grow overflow-y-auto">
+          <div class="grow overflow-y-auto" @contextmenu.prevent="openBranchesContextMenu($event)">
             <div v-if="loading && !branches.length" class="p-3 text-xs opacity-50">Loading branches...</div>
             <div v-else-if="!filteredBranches.length" class="p-3 text-xs opacity-50">No branches</div>
             <button
@@ -1611,8 +1860,9 @@ export default {
                 selectedBranch === branch ? 'bg-primary/15 text-primary' : 'hover:bg-base-200',
                 sameBranch(branch, currentBranch) ? 'font-semibold' : ''
               ]"
-              :title="branch"
+              :title="`${branch} — right-click for branch actions`"
               @click="selectBranch(branch)"
+              @contextmenu.prevent.stop="openBranchContextMenu($event, branch)"
             >
               <i
                 class="fa-solid shrink-0"
@@ -1642,7 +1892,11 @@ export default {
                  until a file diff is opened) -->
             <div class="flex items-center gap-2 px-2 py-1.5 border-b border-base-content/10 shrink-0 flex-wrap">
               <i class="fa-solid fa-code-commit text-warning text-xs"></i>
-              <span class="font-mono text-sm font-semibold truncate min-w-0" :title="selectedBranch">{{ selectedBranch || 'Select a branch' }}</span>
+              <span
+                class="font-mono text-sm font-semibold truncate min-w-0"
+                :title="selectedBranch ? `${selectedBranch} — right-click for branch actions` : selectedBranch"
+                @contextmenu.prevent.stop="openBranchContextMenu($event, selectedBranch)"
+              >{{ selectedBranch || 'Select a branch' }}</span>
               <span v-if="sameBranch(selectedBranch, currentBranch)" class="badge badge-xs badge-success">current</span>
               <div class="grow"></div>
 
@@ -1654,7 +1908,7 @@ export default {
               >
                 <i class="fa-solid fa-code-branch"></i> New branch
               </button>
-              <button class="btn btn-xs btn-ghost gap-1" @click="openMerge" :disabled="!branches.length || busy" title="Merge a branch into another">
+              <button class="btn btn-xs btn-ghost gap-1" @click="openMerge()" :disabled="!branches.length || busy" title="Merge a branch into another">
                 <i class="fa-solid fa-code-merge"></i> Merge
               </button>
               <button
@@ -1858,7 +2112,11 @@ export default {
               :key="group.key"
               class="border-b border-base-content/5 last:border-b-0"
             >
-              <div class="flex items-center gap-1.5 px-2 py-1.5 hover:bg-base-200/60">
+              <div
+                class="flex items-center gap-1.5 px-2 py-1.5 hover:bg-base-200/60"
+                :title="`${group.label} — right-click for group actions`"
+                @contextmenu.prevent.stop="openGroupContextMenu($event, group)"
+              >
                 <button
                   class="flex items-center gap-1.5 grow min-w-0 text-left"
                   :aria-expanded="!isSectionCollapsed(group.key)"
@@ -1931,8 +2189,9 @@ export default {
                     class="group flex items-center gap-1.5 pr-1 py-0.5 cursor-pointer transition-colors"
                     :class="rowClass(group.key, row.file)"
                     :style="{ paddingLeft: `${8 + row.depth * 14}px` }"
-                    :title="`${row.file.label}: ${row.file.path} — click to open the diff, Ctrl/Shift+click to select multiple.`"
+                    :title="`${row.file.label}: ${row.file.path} — click to open the diff, Ctrl/Shift+click to select multiple, right-click for actions.`"
                     @click="onRowClick($event, group.key, row.file)"
+                    @contextmenu.prevent.stop="openWorkingTreeContextMenu($event, group.key, row.file)"
                   >
                     <span
                       class="w-0.5 self-stretch rounded-full shrink-0"
@@ -1983,7 +2242,11 @@ export default {
                 :key="`worktree-${worktree.path}`"
                 class="border-t border-base-content/5 first:border-t-0"
               >
-                <div class="flex items-center gap-1.5 px-2 py-1.5 hover:bg-base-200/50">
+                <div
+                  class="flex items-center gap-1.5 px-2 py-1.5 hover:bg-base-200/50"
+                  :title="`${worktree.branch || worktree.path} — right-click for worktree actions`"
+                  @contextmenu.prevent.stop="openWorktreeContextMenu($event, worktree)"
+                >
                   <button
                     class="flex items-center gap-1.5 grow min-w-0 text-left"
                     :aria-expanded="isWorktreeExpanded(worktree.path)"
@@ -2011,8 +2274,9 @@ export default {
                     v-for="file in worktree.files"
                     :key="`worktree-file-${worktree.path}-${file.path}`"
                     class="flex items-center gap-1.5 pl-8 pr-2 py-0.5 cursor-pointer hover:bg-base-200/60 transition-colors"
-                    :title="`${file.label}: ${file.path} — open in the editor`"
+                    :title="`${file.label}: ${file.path} — open in the editor (right-click for actions)`"
                     @click="openWorktreeFile(worktree, file)"
+                    @contextmenu.prevent.stop="openWorktreeFileContextMenu($event, worktree, file)"
                   >
                     <i class="fa-solid text-[10px] shrink-0" :class="[file.icon, file.color]"></i>
                     <span class="font-mono text-[10px] truncate grow">{{ file.path }}</span>
@@ -2101,8 +2365,8 @@ export default {
 
     <!-- ── Merge modal ───────────────────────────────────────────────────── -->
     <div v-if="showMerge" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" @click.self="showMerge = false">
-      <div class="bg-base-100 border border-base-content/10 rounded-xl w-full max-w-lg shadow-xl">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-base-content/10">
+      <div class="bg-base-100 border border-base-content/10 rounded-xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-xl">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-base-content/10 shrink-0">
           <h2 class="text-sm font-semibold flex items-center gap-2">
             <i class="fa-solid fa-code-merge text-warning"></i> Merge branches
           </h2>
@@ -2111,7 +2375,7 @@ export default {
           </button>
         </div>
 
-        <div class="px-4 py-3 flex flex-col gap-3">
+        <div class="px-4 py-3 flex flex-col gap-3 overflow-y-auto">
           <div class="grid grid-cols-2 gap-2">
             <div class="flex flex-col gap-1">
               <label class="text-xs opacity-60">Merge from (source)</label>
@@ -2139,28 +2403,74 @@ export default {
                 </span>
                 <span v-if="mergePreview.stat" class="opacity-60">{{ mergePreview.stat }}</span>
               </div>
-              <ul class="max-h-32 overflow-auto flex flex-col gap-0.5 opacity-70">
-                <li v-for="file in mergePreview.files" :key="file" class="truncate font-mono">{{ file }}</li>
-              </ul>
+              <div class="h-32 overflow-auto flex flex-col gap-0.5 opacity-70">
+                <div v-for="file in mergePreview.files" :key="file"
+                  class="truncate font-mono shrink-0">{{ file }}</div>
+              </div>
             </div>
             <div v-else class="opacity-50">
               <i class="fa-solid fa-circle-info"></i> Select two different branches to compare.
             </div>
           </div>
 
+          <!-- Merge modes: squash and/or leave the result uncommitted; the
+               source worktree can be removed once the merge succeeded. -->
+          <div class="rounded-lg border border-base-content/10 p-3 flex flex-col gap-2">
+            <span class="text-[11px] font-bold uppercase tracking-wide opacity-50">Options</span>
+
+            <label class="flex items-start gap-2 text-xs cursor-pointer select-none">
+              <input v-model="mergeSquash" type="checkbox" class="checkbox checkbox-xs mt-0.5" />
+              <span class="min-w-0">
+                <span class="font-semibold">Squash commits</span>
+                <span class="block opacity-60 leading-tight">Collapse every commit from the source branch into a single commit.</span>
+              </span>
+            </label>
+
+            <label class="flex items-start gap-2 text-xs cursor-pointer select-none">
+              <input v-model="mergeNoCommit" type="checkbox" class="checkbox checkbox-xs mt-0.5" />
+              <span class="min-w-0">
+                <span class="font-semibold">Do not commit</span>
+                <span class="block opacity-60 leading-tight">Leave the merge result staged so you can review and commit it yourself.</span>
+              </span>
+            </label>
+
+            <label
+              v-if="mergeSourceWorktree"
+              class="flex items-start gap-2 text-xs cursor-pointer select-none"
+            >
+              <input v-model="mergeDeleteWorktree" type="checkbox" class="checkbox checkbox-xs mt-0.5" />
+              <span class="min-w-0">
+                <span class="font-semibold">Delete worktree after merging</span>
+                <span class="block font-mono text-[10px] opacity-60 break-all">Source: {{ mergeSourceWorktree.path }}</span>
+                <span
+                  v-if="mergeSourceWorktreeChangeCount"
+                  class="block text-warning leading-tight"
+                >{{ mergeSourceWorktreeChangeCount }} uncommitted change(s) in this worktree will be discarded.</span>
+              </span>
+            </label>
+
+            <p class="text-[10px] leading-tight opacity-50">
+              Nothing is pushed: the merge stays local to this repository.
+            </p>
+          </div>
+
           <div class="flex flex-col gap-1">
-            <label class="text-xs opacity-60" for="merge-message">Merge commit message (optional)</label>
+            <label class="text-xs opacity-60" for="merge-message">{{ mergeMessageLabel }}</label>
             <input
               id="merge-message"
               v-model="mergeMessage"
               type="text"
               class="input input-sm input-bordered w-full"
-              placeholder="Merge message"
+              :disabled="mergeNoCommit"
+              :placeholder="mergeNoCommit ? 'Not used: the changes stay uncommitted' : 'Merge message'"
             />
+            <p v-if="mergeNoCommit" class="text-[10px] leading-tight opacity-50">
+              The changes will be staged on <span class="font-mono">{{ mergeTo }}</span>. Commit them from the composer when ready.
+            </p>
           </div>
         </div>
 
-        <div class="flex gap-2 px-4 py-3 border-t border-base-content/10">
+        <div class="flex gap-2 px-4 py-3 border-t border-base-content/10 shrink-0">
           <button class="btn btn-sm btn-ghost grow" @click="showMerge = false">Cancel</button>
           <button
             class="btn btn-sm btn-warning grow"
@@ -2169,11 +2479,21 @@ export default {
           >
             <i class="fa-solid fa-spinner animate-spin" v-if="merging"></i>
             <i class="fa-solid fa-code-merge" v-else></i>
-            Merge {{ mergeFrom }} → {{ mergeTo }}
+            {{ mergeActionLabel }} {{ mergeFrom }} → {{ mergeTo }}
           </button>
         </div>
       </div>
     </div>
+
+    <!-- ── Repository sections context menu ─────────────────────────────── -->
+    <GitContextMenu
+      :visible="contextMenuState.visible"
+      :position="contextMenuState.position"
+      :title="contextMenuState.title"
+      :items="contextMenuState.items"
+      @select="onContextMenuSelect"
+      @close="closeContextMenu"
+    />
 
     <!-- ── Confirmation dialog (replaces window.confirm) ─────────────────── -->
     <ConfirmDialog

@@ -87,8 +87,9 @@ import {
           isDimmed(row) ? 'opacity-30' : ''
         ]"
         :style="{ height: rowHeight + 'px' }"
-        :title="`${row.commit.subject} — ${row.commit.author.name} · ${row.commit.short}`"
+        :title="`${row.commit.subject} — ${row.commit.author.name} · ${row.commit.short} (right-click for actions)`"
         @click="selectRow(row)"
+        @contextmenu.prevent.stop="openCommitContextMenu($event, row)"
       >
         <!-- Lanes -->
         <div class="shrink-0 relative h-full" :style="{ width: graphWidth + 'px' }">
@@ -128,7 +129,8 @@ import {
             :key="`${row.commit.hash}-${ref.name}`"
             class="badge badge-xs shrink-0 font-mono max-w-[160px] gap-1"
             :class="refClass(ref)"
-            :title="`${ref.type} ref: ${ref.name}`"
+            :title="`${ref.type} ref: ${ref.name} (right-click for actions)`"
+            @contextmenu.prevent.stop="openRefContextMenu($event, row, ref)"
           >
             <i class="fa-solid text-[8px] shrink-0" :class="refIcon(ref)"></i>
             <span class="truncate min-w-0">{{ ref.name }}</span>
@@ -145,12 +147,27 @@ import {
         </span>
       </button>
     </div>
+
+    <!-- Commit / ref context menu -->
+    <GitContextMenu
+      :visible="contextMenuState.visible"
+      :position="contextMenuState.position"
+      :title="contextMenuState.title"
+      :items="contextMenuState.items"
+      @select="onContextMenuSelect"
+      @close="closeContextMenu"
+    />
   </div>
 </template>
 
 <script>
+import GitContextMenu from '@/components/repo/GitContextMenu.vue'
+import { contextMenuMixin } from '@/mixins/contextMenu'
+
 export default {
   name: 'GitGraph',
+  components: { GitContextMenu },
+  mixins: [contextMenuMixin],
   props: {
     // Project API instance (the graph is scoped by the project codx_path)
     api: { type: Object, required: true },
@@ -161,7 +178,7 @@ export default {
     // Bumped by the parent view after a git operation to reload the graph
     refreshToken: { type: Number, default: 0 }
   },
-  emits: ['select-commit'],
+  emits: ['select-commit', 'context-action'],
   data() {
     return {
       loading: false,
@@ -324,6 +341,91 @@ export default {
     formatDate(date) {
       const value = moment(date)
       return value.isValid() ? value.format('DD MMM YYYY HH:mm') : (date || '')
+    },
+
+    // ── Context menus ───────────────────────────────────────────────────
+    /** Right-click on a commit row: details, copy and merge shortcuts */
+    openCommitContextMenu(event, row) {
+      const commit = row?.commit
+      if (!commit) return
+      const items = [
+        this.contextMenuItem('view', 'View commit details', 'fa-eye', () => this.selectRow(row)),
+        this.contextMenuItem('copy-hash', 'Copy commit hash', 'fa-hashtag', () => this.copyText(commit.hash, 'Commit hash copied')),
+        this.contextMenuItem('copy-message', 'Copy commit message', 'fa-quote-left', () => this.copyText(commit.subject, 'Commit message copied')),
+        this.contextMenuItem('copy-reference', 'Copy hash and message', 'fa-copy', () => this.copyText(`${commit.short} ${commit.subject}`, 'Commit reference copied'))
+      ]
+
+      // Quick merge shortcuts for the branches pointing to this commit
+      const localRefs = (commit.refs || []).filter(ref => ref.type === 'local')
+      if (localRefs.length) {
+        items.push(this.contextMenuDivider('commit-refs'))
+        localRefs.forEach(ref => {
+          items.push(this.contextMenuItem(
+            `merge-${ref.name}`,
+            `Merge ${ref.name} into current…`,
+            'fa-code-merge',
+            () => this.emitBranchAction('merge', ref),
+            { disabled: this.isCurrentRef(ref) || !this.currentBranch }
+          ))
+        })
+      }
+
+      this.openContextMenu(event, `${commit.short} · ${commit.author?.name || ''}`.trim(), items)
+    },
+
+    /** Right-click on a branch / remote / tag badge */
+    openRefContextMenu(event, row, ref) {
+      if (!ref?.name) return
+      const isBranch = ref.type === 'local' || ref.type === 'remote'
+      const isCurrent = this.isCurrentRef(ref)
+      const items = [
+        this.contextMenuItem('view', 'View commit details', 'fa-eye', () => this.selectRow(row))
+      ]
+
+      if (isBranch) {
+        items.push(this.contextMenuDivider('ref-checkout'))
+        items.push(this.contextMenuItem('checkout', 'Checkout', 'fa-arrow-right-to-bracket', () => this.emitBranchAction('checkout', ref), { disabled: isCurrent }))
+        if (ref.type === 'local') {
+          items.push(this.contextMenuItem('merge', 'Merge into current…', 'fa-code-merge', () => this.emitBranchAction('merge', ref), { disabled: isCurrent || !this.currentBranch }))
+          items.push(this.contextMenuItem('rebase', 'Rebase current onto this…', 'fa-arrows-rotate', () => this.emitBranchAction('rebase', ref), { disabled: isCurrent || !this.currentBranch }))
+          items.push(this.contextMenuItem('new-branch', 'New branch from…', 'fa-code-branch', () => this.emitBranchAction('new-branch', ref)))
+        }
+
+        items.push(this.contextMenuDivider('ref-filter'))
+        items.push(this.contextMenuItem('filter', 'Filter graph by this branch', 'fa-filter', () => this.filterByRef(ref)))
+
+        if (ref.type === 'local') {
+          items.push(this.contextMenuDivider('ref-delete'))
+          items.push(this.contextMenuItem('delete', 'Delete branch', 'fa-trash', () => this.emitBranchAction('delete', ref), { danger: true, disabled: isCurrent }))
+        }
+      }
+
+      items.push(this.contextMenuDivider('ref-copy'))
+      items.push(this.contextMenuItem('copy', isBranch ? 'Copy branch name' : 'Copy tag name', 'fa-copy', () => this.copyText(ref.name, 'Ref name copied')))
+
+      this.openContextMenu(event, ref.name, items)
+    },
+
+    /** Emit a branch operation: the parent view owns checkout/merge/rebase/delete */
+    emitBranchAction(action, ref) {
+      if (!ref?.name) return
+      this.$emit('context-action', {
+        action,
+        branch: ref.name,
+        ref: { name: ref.name, type: ref.type }
+      })
+    },
+
+    isCurrentRef(ref) {
+      return !!ref?.name && ref.name === this.currentBranch
+    },
+
+    /** Show only the commits reachable from the right-clicked ref */
+    filterByRef(ref) {
+      if (!ref?.name) return
+      if (ref.type === 'remote') this.showRemote = true
+      this.branchFilter = this.branchOptions.includes(ref.name) ? ref.name : ''
+      this.applyFilter()
     },
 
     selectRow(row) {

@@ -140,6 +140,8 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
                 :loading="loadingChanges"
                 @branch-changed="onFromBranchChanged"
                 @compare-branch-changed="onToBranchChanged"
+                @context-menu-notice="$emit('context-menu-notice', $event)"
+                @context-menu-error="$emit('context-menu-error', $event)"
               />
               <div v-else-if="localReview" class="flex items-center gap-2 text-xs opacity-60">
                 <i class="fa-solid fa-laptop-file text-warning"></i>
@@ -190,6 +192,8 @@ import BranchSelector from '@/components/vibe/panels/BranchSelector.vue'
             @open-file="onOpenFile"
             @open-chat="$emit('open-chat', $event)"
             @jump-to-message="$emit('jump-to-message', $event)"
+            @context-menu-notice="$emit('context-menu-notice', $event)"
+            @context-menu-error="$emit('context-menu-error', $event)"
           />
         </div>
 
@@ -214,7 +218,7 @@ export default {
     // Standalone mode (e.g. embedded in GitView): project to compare branches for
     project: { type: Object, default: null }
   },
-  emits: ['refresh', 'select-branch', 'comment', 'change-column', 'new-chat', 'chat-message', 'open-chat', 'jump-to-message'],
+  emits: ['refresh', 'select-branch', 'comment', 'change-column', 'new-chat', 'chat-message', 'open-chat', 'jump-to-message', 'context-menu-notice', 'context-menu-error'],
   data() {
     return {
       loadingChanges: false,

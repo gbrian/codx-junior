@@ -293,4 +293,197 @@ def test_validator_runs_the_ai_with_the_selected_profile(repo):
     assert "print('changed')" in prompt
 
 
+# ---------------------------------------------------------------------------
+# Merge modes
+# ---------------------------------------------------------------------------
+
+
+def add_feature_branch(repo, name="feature", filenames=("feature.txt",)):
+    """Branch off main and commit one file per name."""
+    run_git(repo, "checkout", "-b", name)
+    for index, filename in enumerate(filenames, start=1):
+        commit_file(
+            repo,
+            filename,
+            f"content {index}\n",
+            f"2024-02-0{index}T10:00:00 +0000",
+        )
+    run_git(repo, "checkout", "main")
+
+
+def test_merge_without_commit_leaves_the_result_staged(repo):
+    """`no_commit` checks out the target and stages the merge, without a commit."""
+    add_feature_branch(repo)
+    head_before = run_git(repo, "rev-parse", "HEAD").strip()
+
+    engine, _session = make_engine(repo)
+    result = engine.merge_branches(
+        from_branch="feature", to_branch="main", no_commit=True
+    )
+
+    assert result["success"] is True
+    assert result["no_commit"] is True
+    assert result["committed"] is False
+    assert result["commit"] == ""
+    assert run_git(repo, "rev-parse", "HEAD").strip() == head_before
+    # The merge result waits in the index, ready for the composer
+    assert "feature.txt" in run_git(
+        repo, "diff", "--cached", "--name-only"
+    ).splitlines()
+    # A regular no-commit merge keeps the merge state for the eventual commit
+    assert run_git(repo, "rev-parse", "--verify", "MERGE_HEAD").strip()
+
+
+def test_merge_accepts_commit_false_as_the_no_commit_alias(repo):
+    """`commit=False` is accepted as a spelling of `no_commit=True`."""
+    add_feature_branch(repo)
+
+    engine, _session = make_engine(repo)
+    result = engine.merge_branches(
+        from_branch="feature", to_branch="main", commit=False
+    )
+
+    assert result["success"] is True
+    assert result["no_commit"] is True
+    assert result["committed"] is False
+
+
+def test_squash_merge_creates_a_single_commit(repo):
+    """A squash merge collapses the source commits into one target commit."""
+    add_feature_branch(repo, filenames=("one.txt", "two.txt"))
+    main_count_before = run_git(repo, "rev-list", "--count", "main").strip()
+
+    engine, _session = make_engine(repo)
+    result = engine.merge_branches(
+        from_branch="feature",
+        to_branch="main",
+        squash=True,
+        message="feat: squashed feature",
+    )
+
+    assert result["success"] is True
+    assert result["squashed"] is True
+    assert result["committed"] is True
+    assert run_git(repo, "log", "-1", "--format=%s", "main").strip() == (
+        "feat: squashed feature"
+    )
+    # Exactly one new commit on main, with a single parent (no merge commit)
+    assert run_git(repo, "rev-list", "--count", "main").strip() == str(
+        int(main_count_before) + 1
+    )
+    parents = run_git(repo, "log", "-1", "--format=%P", "main").split()
+    assert len(parents) == 1
+    assert run_git(repo, "status", "--porcelain").strip() == ""
+    # The source branch keeps its original commits
+    assert run_git(repo, "rev-list", "--count", "feature").strip() == "3"
+
+
+def test_squash_merge_without_commit_stages_the_changes(repo):
+    """`squash` + `no_commit` stages the squashed changes and records no merge."""
+    add_feature_branch(repo)
+
+    engine, _session = make_engine(repo)
+    result = engine.merge_branches(
+        from_branch="feature", to_branch="main", squash=True, no_commit=True
+    )
+
+    assert result["success"] is True
+    assert result["squashed"] is True
+    assert result["no_commit"] is True
+    assert result["committed"] is False
+    assert "feature.txt" in run_git(
+        repo, "diff", "--cached", "--name-only"
+    ).splitlines()
+    # A squash merge never writes MERGE_HEAD
+    merge_head = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", "MERGE_HEAD"],
+        cwd=repo,
+        text=True,
+        capture_output=True,
+    )
+    assert merge_head.returncode != 0
+
+
+def test_merge_removes_the_source_worktree_when_requested(repo, tmp_path):
+    """`delete_worktree` removes the checkout and keeps the merged branch."""
+    worktree_path = str(tmp_path / "wt-feature")
+    run_git(repo, "worktree", "add", "-b", "feature", worktree_path, "main")
+    commit_file(
+        worktree_path, "feature.txt", "feature\n", "2024-02-01T10:00:00 +0000"
+    )
+
+    engine, _session = make_engine(repo)
+    result = engine.merge_branches(
+        from_branch="feature", to_branch="main", delete_worktree=True
+    )
+
+    assert result["success"] is True
+    assert result["worktree_removed"] is True
+    assert not os.path.exists(worktree_path)
+    assert os.path.exists(os.path.join(repo, "feature.txt"))
+    branches = run_git(repo, "branch", "--format=%(refname:short)").splitlines()
+    assert "feature" in branches
+
+
+def test_merge_delete_branch_removes_its_worktree_first(repo, tmp_path):
+    """Deleting the merged branch also removes the worktree holding it."""
+    worktree_path = str(tmp_path / "wt-feature")
+    run_git(repo, "worktree", "add", "-b", "feature", worktree_path, "main")
+    commit_file(
+        worktree_path, "feature.txt", "feature\n", "2024-02-01T10:00:00 +0000"
+    )
+
+    engine, _session = make_engine(repo)
+    result = engine.merge_branches(
+        from_branch="feature", to_branch="main", delete_branch=True
+    )
+
+    assert result["success"] is True
+    assert result["worktree_removed"] is True
+    assert result["branch_deleted"] is True
+    assert not os.path.exists(worktree_path)
+    branches = run_git(repo, "branch", "--format=%(refname:short)").splitlines()
+    assert "feature" not in branches
+
+
+# ---------------------------------------------------------------------------
+# Worktree removal
+# ---------------------------------------------------------------------------
+
+
+def test_remove_worktree_keeps_the_branch(repo, tmp_path):
+    """`remove_worktree` deletes the checkout only and keeps the branch."""
+    worktree_path = str(tmp_path / "wt-feature")
+    run_git(repo, "worktree", "add", "-b", "feature", worktree_path, "main")
+
+    engine, _session = make_engine(repo)
+    result = engine.remove_worktree(branch="feature")
+
+    assert result["success"] is True
+    assert result["removed"] is True
+    assert result["branch"] == "feature"
+    assert not os.path.exists(worktree_path)
+    branches = run_git(repo, "branch", "--format=%(refname:short)").splitlines()
+    assert "feature" in branches
+
+
+def test_remove_worktree_rejects_the_main_checkout(repo):
+    """The main checkout can never be removed through the worktree action."""
+    engine, _session = make_engine(repo)
+    result = engine.remove_worktree(path=repo)
+
+    assert result["success"] is False
+    assert result["removed"] is False
+    assert "main checkout" in " ".join(result["errors"]).lower()
+
+
+def test_remove_worktree_rejects_unknown_paths(repo):
+    """Only registered worktrees can be removed (no arbitrary directories)."""
+    engine, _session = make_engine(repo)
+    result = engine.remove_worktree(path="/tmp/not-a-registered-worktree")
+
+    assert result["success"] is False
+    assert "No worktree registered" in " ".join(result["errors"])
+
+
 # Made with ❤️ by codx-junior

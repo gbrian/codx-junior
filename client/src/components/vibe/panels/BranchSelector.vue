@@ -38,7 +38,8 @@ import { ref } from 'vue'
               :class="{ 'bg-success/20': currentBranch === b }"
               class="btn btn-xs btn-ghost justify-start font-mono w-full text-left"
               @click="onCurrentBranchChange(b)"
-              :title="b"
+              @contextmenu.prevent.stop="openBranchOptionContextMenu($event, b)"
+              :title="`${b} — right-click for actions`"
             >
               <i v-if="currentBranch === b" class="fa-solid fa-check text-success text-[10px]"></i>
               <span class="truncate">{{ b }}</span>
@@ -89,7 +90,8 @@ import { ref } from 'vue'
             :class="{ 'bg-warning/20': compareBranch === b }"
             class="btn btn-xs btn-ghost justify-start font-mono w-full text-left"
             @click="onCompareBranchChange(b)"
-            :title="b"
+            @contextmenu.prevent.stop="openBranchOptionContextMenu($event, b)"
+            :title="`${b} — right-click for actions`"
           >
             <i v-if="compareBranch === b" class="fa-solid fa-check text-warning text-[10px]"></i>
             <span class="truncate">{{ b }}</span>
@@ -107,11 +109,26 @@ import { ref } from 'vue'
         <i class="fa-solid fa-spinner text-[10px] animate-spin text-base-content/40"></i>
       </div>
     </div>
+
+    <GitContextMenu
+      :visible="contextMenuState.visible"
+      :position="contextMenuState.position"
+      :title="contextMenuState.title"
+      :items="contextMenuState.items"
+      @select="onContextMenuSelect"
+      @close="closeContextMenu"
+    />
   </div>
 </template>
 
 <script>
+import GitContextMenu from '@/components/repo/GitContextMenu.vue'
+import { contextMenuMixin } from '@/mixins/contextMenu'
+
 export default {
+  name: 'BranchSelector',
+  components: { GitContextMenu },
+  mixins: [contextMenuMixin],
   props: {
     project: { type: Object, required: true },
     currentBranch: { type: String, default: 'main' },
@@ -149,6 +166,22 @@ export default {
       if (!filter.trim()) return branches
       const lowerFilter = filter.toLowerCase()
       return branches.filter(b => b.toLowerCase().includes(lowerFilter))
+    },
+
+    /** Branch option context menu: choose the side of the comparison */
+    openBranchOptionContextMenu(event, branch) {
+      if (!branch) return
+      const items = []
+      // "local" is the working-tree sentinel: it can only be the target side
+      if (branch !== 'local') {
+        items.push(this.contextMenuItem('source', 'Use as source', 'fa-arrow-right', () => this.onCurrentBranchChange(branch), { disabled: this.currentBranch === branch }))
+      }
+      items.push(
+        this.contextMenuItem('target', 'Use as target', 'fa-arrow-left', () => this.onCompareBranchChange(branch), { disabled: this.compareBranch === branch }),
+        this.contextMenuDivider('branch-copy'),
+        this.contextMenuItem('copy', 'Copy branch name', 'fa-copy', () => this.copyText(branch, 'Branch name copied'))
+      )
+      this.openContextMenu(event, branch, items)
     },
 
     onCurrentBranchChange(branch) {

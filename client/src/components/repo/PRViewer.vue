@@ -27,6 +27,8 @@ import DiffViewer from '@/components/DiffViewer.vue'
           :loading="loading"
           @branch-changed="onFromBranchChanged"
           @compare-branch-changed="onToBranchChanged"
+          @context-menu-notice="$emit('context-menu-notice', $event)"
+          @context-menu-error="$emit('context-menu-error', $event)"
         />
         <span v-else class="flex items-center gap-2 font-mono text-sm">
           <span class="font-semibold">{{ fromBranch }}</span>
@@ -172,7 +174,9 @@ import DiffViewer from '@/components/DiffViewer.vue'
                 <div v-for="group in analysisGroups" :key="group.key" class="file-folder-group">
                   <div
                     class="flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-base-200/80 cursor-pointer hover:bg-base-300/80"
+                    :title="`${groupTitle(group)} — right-click for group actions`"
                     @click="toggleChatGroup(group.key)"
+                    @contextmenu.prevent.stop="openChatGroupContextMenu($event, group)"
                   >
                     <i :class="isChatGroupExpanded(group.key) ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'" class="text-[10px]"></i>
                     <i class="text-[10px]" :class="group.chat ? 'fa-solid fa-comments text-info' : 'fa-solid fa-circle-question text-base-content/40'"></i>
@@ -209,7 +213,9 @@ import DiffViewer from '@/components/DiffViewer.vue'
                       :key="file.fileFullName"
                       class="file-item flex items-center gap-1.5 px-2 py-1 text-xs cursor-pointer hover:bg-base-200"
                       :class="{ 'bg-base-200': selectedFile?.fileFullName === file.fileFullName }"
+                      :title="`${file.fileFullName} — right-click for file actions`"
                       @click="selectFile(file)"
+                      @contextmenu.prevent.stop="openFileContextMenu($event, file)"
                     >
                       <input
                         type="checkbox"
@@ -240,7 +246,9 @@ import DiffViewer from '@/components/DiffViewer.vue'
                 <div class="file-folder-group">
                   <div
                     class="flex items-center gap-1 px-2 py-1 text-xs font-semibold bg-base-200/80 cursor-pointer hover:bg-base-300/80"
+                    :title="`${folderPath || '/'} — right-click for folder actions`"
                     @click="toggleFolder(folderPath)"
+                    @contextmenu.prevent.stop="openFolderContextMenu($event, folderPath, folderFiles)"
                   >
                     <i :class="folderExpanded[folderPath] ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right'" class="text-[10px]"></i>
                     <i class="fa-solid fa-folder text-warning text-[10px]"></i>
@@ -253,7 +261,9 @@ import DiffViewer from '@/components/DiffViewer.vue'
                       :key="file.fileFullName"
                       class="file-item flex items-center gap-1.5 px-2 py-1 text-xs cursor-pointer hover:bg-base-200"
                       :class="{ 'bg-base-200': selectedFile?.fileFullName === file.fileFullName }"
+                      :title="`${file.fileFullName} — right-click for file actions`"
                       @click="selectFile(file)"
+                      @contextmenu.prevent.stop="openFileContextMenu($event, file)"
                     >
                       <input
                         type="checkbox"
@@ -301,7 +311,9 @@ import DiffViewer from '@/components/DiffViewer.vue'
                   'bg-base-100 text-base-content': selectedFile?.fileFullName === file.fileFullName,
                   'hover:bg-base-200': selectedFile?.fileFullName !== file.fileFullName
                 }"
+                :title="`${file.fileFullName} — right-click for tab actions`"
                 @click="selectFile(file)"
+                @contextmenu.prevent.stop="openFileTabContextMenu($event, file)"
               >
                 <i class="fa-solid fa-file text-[10px]" :class="getFileIconClass(file)"></i>
                 <span class="truncate max-w-[150px]">{{ file.title }}</span>
@@ -323,7 +335,11 @@ import DiffViewer from '@/components/DiffViewer.vue'
 
               <div v-else class="flex flex-col h-full">
                 <!-- File header -->
-                <div class="flex items-center justify-between px-3 py-1.5 bg-base-200/50 border-b border-base-content/10 shrink-0">
+                <div
+                  class="flex items-center justify-between px-3 py-1.5 bg-base-200/50 border-b border-base-content/10 shrink-0"
+                  :title="`${selectedFile.fileFullName} — right-click for file actions`"
+                  @contextmenu.prevent.stop="openSelectedFileContextMenu($event)"
+                >
                   <div class="flex items-center gap-2 text-xs min-w-0">
                     <i class="fa-solid fa-file" :class="getFileIconClass(selectedFile)"></i>
                     <span class="font-mono truncate max-w-[300px]" :title="selectedFile.fileFullName">
@@ -502,11 +518,27 @@ import DiffViewer from '@/components/DiffViewer.vue'
         <button>close</button>
       </form>
     </dialog>
+
+    <!-- File / folder / tab context menu -->
+    <GitContextMenu
+      :visible="contextMenuState.visible"
+      :position="contextMenuState.position"
+      :title="contextMenuState.title"
+      :items="contextMenuState.items"
+      @select="onContextMenuSelect"
+      @close="closeContextMenu"
+    />
   </div>
 </template>
 
 <script>
+import GitContextMenu from '@/components/repo/GitContextMenu.vue'
+import { contextMenuMixin } from '@/mixins/contextMenu'
+
 export default {
+  name: 'PRViewer',
+  components: { GitContextMenu },
+  mixins: [contextMenuMixin],
   props: {
     fromBranch: { type: String, default: 'main' },
     toBranch: { type: String, default: 'develop' },
@@ -527,7 +559,10 @@ export default {
     'compare-branch-changed',
     'visible-files-changed',
     'open-chat',
-    'jump-to-message'
+    'jump-to-message',
+    'open-file',
+    'context-menu-notice',
+    'context-menu-error'
   ],
   data() {
     return {
@@ -906,6 +941,113 @@ export default {
     selectAllFiles() { this.visibleFiles.forEach(f => { f.selected = true }) },
     clearSelection() { this.visibleFiles.forEach(f => { f.selected = false }) },
 
+    // ── Context menus ──────────────────────────────────────────────────────
+
+    /** File row (folder and chat grouping): review, editor and copy actions */
+    openFileContextMenu(event, file) {
+      if (!file?.fileFullName) return
+      this.selectFile(file)
+      this.openContextMenu(event, file.fileFullName, [
+        this.contextMenuItem('open', 'Open diff', 'fa-code-compare', () => this.selectFile(file)),
+        this.contextMenuItem('editor', 'Open in editor', 'fa-up-right-from-square', () => this.openFileInEditor(file)),
+        this.contextMenuDivider('file-selection'),
+        this.contextMenuItem('toggle', file.selected ? 'Deselect file' : 'Select file', file.selected ? 'fa-square-check' : 'fa-square', () => { file.selected = !file.selected }),
+        this.contextMenuItem('select-all', 'Select all files', 'fa-check-double', () => this.selectAllFiles()),
+        this.contextMenuItem('clear', 'Clear selection', 'fa-xmark', () => this.clearSelection()),
+        this.contextMenuDivider('file-copy'),
+        this.contextMenuItem('copy-path', 'Copy path', 'fa-copy', () => this.copyText(file.fileFullName, 'File path copied')),
+        this.contextMenuItem('copy-diff', 'Copy diff', 'fa-file-code', () => this.copyText(this.diffBlock(file), 'Diff copied'), { disabled: !file.diff })
+      ])
+    },
+
+    /** Open file tab: close this tab / the other tabs */
+    openFileTabContextMenu(event, file) {
+      if (!file?.fileFullName) return
+      this.openContextMenu(event, file.title, [
+        this.contextMenuItem('open', 'Open diff', 'fa-code-compare', () => this.selectFile(file)),
+        this.contextMenuItem('close', 'Close tab', 'fa-xmark', () => this.closeFileTab(file)),
+        this.contextMenuItem('close-others', 'Close other tabs', 'fa-rectangle-xmark', () => this.closeOtherFileTabs(file), { disabled: this.recentlyViewedFiles.length < 2 }),
+        this.contextMenuDivider('tab-copy'),
+        this.contextMenuItem('copy-path', 'Copy path', 'fa-copy', () => this.copyText(file.fileFullName, 'File path copied')),
+        this.contextMenuItem('editor', 'Open in editor', 'fa-up-right-from-square', () => this.openFileInEditor(file))
+      ])
+    },
+
+    /** Folder group header: expand, select and copy the whole folder */
+    openFolderContextMenu(event, folderPath, folderFiles) {
+      const files = folderFiles || []
+      const expanded = !!this.folderExpanded[folderPath]
+      this.openContextMenu(event, folderPath === '/' ? 'Repository root' : folderPath, [
+        this.contextMenuItem('toggle', expanded ? 'Collapse folder' : 'Expand folder', expanded ? 'fa-chevron-up' : 'fa-chevron-down', () => this.toggleFolder(folderPath)),
+        this.contextMenuDivider('folder-selection'),
+        this.contextMenuItem('select-all', 'Select all files', 'fa-check-double', () => this.setFilesSelected(files, true), { disabled: !files.length }),
+        this.contextMenuItem('clear', 'Clear selection', 'fa-xmark', () => this.setFilesSelected(files, false), { disabled: !files.length }),
+        this.contextMenuDivider('folder-copy'),
+        this.contextMenuItem('copy-folder', 'Copy folder path', 'fa-folder', () => this.copyText(folderPath === '/' ? '' : folderPath, 'Folder path copied'), { disabled: folderPath === '/' }),
+        this.contextMenuItem('copy-paths', `Copy file paths (${files.length})`, 'fa-list', () => this.copyFilePaths(files), { disabled: !files.length })
+      ])
+    },
+
+    /** Chat group header in the "group by chat" view */
+    openChatGroupContextMenu(event, group) {
+      const files = group?.files || []
+      const expanded = !!this.chatGroupExpanded[group.key]
+      const items = [
+        this.contextMenuItem('toggle', expanded ? 'Collapse group' : 'Expand group', expanded ? 'fa-chevron-up' : 'fa-chevron-down', () => this.toggleChatGroup(group.key)),
+        this.contextMenuItem('open-chat', 'Open chat', 'fa-comments', () => this.openChat(group.chat), { disabled: !group.chat }),
+        this.contextMenuItem('jump', 'Jump to matched message', 'fa-crosshairs', () => this.jumpToMessage(group.chat), { disabled: !group.chat?.messageId }),
+        this.contextMenuDivider('chat-selection'),
+        this.contextMenuItem('select-all', 'Select files in this group', 'fa-check-double', () => this.setFilesSelected(files, true), { disabled: !files.length }),
+        this.contextMenuItem('clear', 'Clear selection in this group', 'fa-xmark', () => this.setFilesSelected(files, false), { disabled: !files.length }),
+        this.contextMenuDivider('chat-copy'),
+        this.contextMenuItem('copy-paths', `Copy file paths (${files.length})`, 'fa-list', () => this.copyFilePaths(files), { disabled: !files.length }),
+        this.contextMenuItem('copy-title', 'Copy group title', 'fa-copy', () => this.copyText(this.groupTitle(group), 'Group title copied'))
+      ]
+      this.openContextMenu(event, this.groupTitle(group), items)
+    },
+
+    /** Selected file header: same actions as the header buttons */
+    openSelectedFileContextMenu(event) {
+      const file = this.selectedFile
+      if (!file) return
+      this.openContextMenu(event, file.fileFullName, [
+        this.contextMenuItem('copy-diff', 'Copy diff', 'fa-file-code', () => this.copyText(this.diffBlock(file), 'Diff copied'), { disabled: !file.diff }),
+        this.contextMenuItem('editor', 'Open in editor', 'fa-up-right-from-square', () => this.openFileInEditor(file)),
+        this.contextMenuDivider('selected-file-copy'),
+        this.contextMenuItem('copy-path', 'Copy path', 'fa-copy', () => this.copyText(file.fileFullName, 'File path copied')),
+        this.contextMenuItem('copy-name', 'Copy file name', 'fa-file', () => this.copyText(file.fileName, 'File name copied'))
+      ])
+    },
+
+    openFileInEditor(file) {
+      if (!file?.fileFullName) return
+      this.$emit('open-file', file.fileFullName)
+    },
+
+    closeOtherFileTabs(file) {
+      if (!file?.fileFullName) return
+      this.recentlyViewedFiles = this.recentlyViewedFiles.filter(
+        entry => entry.fileFullName === file.fileFullName
+      )
+      this.selectFile(file)
+    },
+
+    setFilesSelected(files, selected) {
+      ;(files || []).forEach(file => { file.selected = selected })
+    },
+
+    copyFilePaths(files) {
+      const paths = (files || []).map(file => file.fileFullName).filter(Boolean)
+      if (!paths.length) return
+      this.copyText(paths.join('\n'), `${paths.length} file path(s) copied`)
+    },
+
+    /** Fenced diff block used by the copy actions */
+    diffBlock(file) {
+      const diff = file?.diff || ''
+      return ['```diff', diff, '```'].join('\n')
+    },
+
     // ── PR ↔ chat correlation ────────────────────────────────────────────────
 
     setGroupMode(mode) {
@@ -1096,13 +1238,11 @@ export default {
 
     copyDiff() {
       if (!this.selectedFile) return
-      const diffBlock = ['```diff', this.selectedFile.diff, '```'].join('\n')
-      navigator.clipboard.writeText(diffBlock)
+      this.copyText(this.diffBlock(this.selectedFile), 'Diff copied')
     },
 
     openInEditor() {
-      if (!this.selectedFile) return
-      this.$emit('open-file', this.selectedFile.fileFullName)
+      this.openFileInEditor(this.selectedFile)
     },
 
     formatTime(timestamp) {

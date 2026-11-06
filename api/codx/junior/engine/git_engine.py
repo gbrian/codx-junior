@@ -2068,6 +2068,100 @@ class GitEngine:
                 return worktree.get("path", "")
         return ""
 
+    def remove_worktree(
+        self, branch: Optional[str] = None, path: Optional[str] = None
+    ) -> dict:
+        """
+        Remove a registered worktree, keeping its branch.
+
+        The target is always resolved against the registered worktrees, so the
+        endpoint can never delete an arbitrary directory. The main checkout and
+        the checkout in use (the active project) are rejected.
+
+        Args:
+            branch: Branch whose worktree should be removed.
+            path: Exact worktree path. Takes precedence over *branch* and is
+                required for detached worktrees.
+
+        Returns:
+            Dict with 'success', 'action', 'branch', 'path', 'removed',
+            'output' and 'errors'.
+
+        Example:
+            >>> engine.remove_worktree(branch="codx-junior/fix-login")
+            {'success': True, 'removed': True, ...}
+        """
+        branch = self._sanitize_branch_name(branch or "")
+        result = {
+            "success": False,
+            "action": "worktree-remove",
+            "branch": branch,
+            "path": "",
+            "removed": False,
+            "output": "",
+            "errors": [],
+        }
+
+        wanted_path = os.path.normpath(path) if path else ""
+        target = None
+        for worktree in self.list_worktrees(include_changes=False):
+            worktree_path = os.path.normpath(worktree.get("path", ""))
+            if wanted_path:
+                if worktree_path == wanted_path:
+                    target = worktree
+                    break
+            elif branch and worktree.get("branch") == branch:
+                target = worktree
+                break
+
+        if not target:
+            target_name = path or branch
+            result["errors"].append(
+                f"No worktree registered for '{target_name}'"
+            )
+            return result
+
+        target_path = target.get("path", "")
+        result["path"] = target_path
+        result["branch"] = target.get("branch") or branch
+
+        if target.get("is_main"):
+            result["errors"].append(
+                "The main checkout cannot be removed as a worktree"
+            )
+            return result
+
+        # Removing the checkout currently in use would delete the open project
+        protected = {
+            os.path.normpath(self._get_repo_root()),
+            os.path.normpath(
+                str(getattr(self.settings, "abs_project_path", "") or "")
+            ),
+        }
+        if os.path.normpath(target_path) in protected:
+            result["errors"].append(
+                f"Cannot remove the checkout in use: {target_path}"
+            )
+            return result
+
+        remove = self._run_git(
+            ["worktree", "remove", "--force", target_path],
+            cwd=self._get_repo_root(),
+        )
+        result["output"] = remove["output"]
+        if not remove["ok"]:
+            # A stale registration must not block later worktree operations
+            self._run_git(["worktree", "prune"], cwd=self._get_repo_root())
+            result["errors"].append(
+                f"Could not remove worktree '{target_path}': "
+                f"{remove['error'] or remove['output']}"
+            )
+            return result
+
+        result["removed"] = True
+        result["success"] = True
+        return result
+
     def _create_branch_worktree(
         self,
         repo_path: str,
@@ -3268,33 +3362,71 @@ class GitEngine:
         to_branch: Optional[str] = None,
         message: Optional[str] = None,
         delete_branch: bool = False,
+        no_commit: bool = False,
+        squash: bool = False,
+        delete_worktree: bool = False,
+        commit: Optional[bool] = None,
     ) -> dict:
         """
-        Merge a branch into another one (PR close workflow).
+        Merge a branch into another one, with optional squash / no-commit modes.
 
         Workflow:
             1. Resolve the target branch: ``to_branch``, the checked out branch,
                or the repository default branch.
             2. Stash local changes so the checkout never fails.
-            3. Check out the target branch and ``git merge --no-ff <source>``;
-               conflicting merges are aborted and the conflicts reported.
+            3. Check out the target branch and merge the source branch.
             4. Restore the stashed changes.
+
+        Merge modes:
+
+        * default: ``git merge --no-ff`` records a merge commit.
+        * ``squash=True``: ``git merge --squash`` collapses every source commit
+          into a single commit on the target branch.
+        * ``no_commit=True``: stop before committing and leave the merge result
+          staged, so it can be reviewed and committed later. A regular merge in
+          this mode keeps ``MERGE_HEAD`` (the eventual commit has two parents);
+          a squash merge does not record any merge information.
+
+        ``squash`` and ``no_commit`` combine: the squashed changes stay staged
+        and no commit is created.
+
+        Conflicting merges are aborted (or reset, for a squash merge, which has
+        no merge state) and the conflicting paths are reported in
+        ``conflicts``. Nothing is pushed.
 
         Args:
             from_branch: Branch to merge (source).
             to_branch: Branch to merge into (target).
-            message: Merge commit message. Defaults to
-                ``"Merge branch '<source>' into '<target>'"``.
-            delete_branch: Delete the source branch after merging.
+            message: Commit message. Defaults to
+                ``"Merge branch '<source>' into '<target>'"`` (or the squash
+                equivalent). It is only used when a commit is created.
+            delete_branch: Delete the source branch after merging. Its worktree
+                is removed first when it has one.
+            no_commit: Leave the merge result staged instead of committing it.
+            squash: Collapse the source branch commits into a single commit.
+            delete_worktree: Remove the source branch worktree after merging,
+                keeping the branch. Uncommitted changes in that worktree are
+                discarded (the UI warns about them first).
+            commit: Compatibility alias for ``no_commit``: ``commit=False``
+                merges without committing.
 
         Returns:
             Operation result dict with 'from_branch', 'to_branch', 'commit',
-            'conflicts', 'branch_deleted' and 'steps'.
+            'committed', 'squashed', 'no_commit', 'up_to_date', 'conflicts',
+            'branch_deleted', 'worktree_removed' and 'steps'.
 
         Example:
             >>> engine.merge_branches("codx-junior/fix-login", "main")
             {'success': True, 'from_branch': 'codx-junior/fix-login', ...}
+            >>> engine.merge_branches("codx-junior/fix-login", "main", squash=True)
+            {'success': True, 'squashed': True, 'committed': True, ...}
+            >>> engine.merge_branches("feature", "main", no_commit=True)
+            {'success': True, 'no_commit': True, 'committed': False, ...}
         """
+        # `commit=False` is the positive spelling of `no_commit=True`
+        if commit is False:
+            no_commit = True
+
         source = self._sanitize_branch_name(from_branch)
         if not source:
             return self._git_operation_error("Source branch is required")
@@ -3330,8 +3462,14 @@ class GitEngine:
             "to_branch": target,
             "original_branch": current_branch,
             "commit": "",
+            "committed": False,
+            "squashed": bool(squash),
+            "no_commit": bool(no_commit),
+            "up_to_date": False,
             "conflicts": [],
             "branch_deleted": False,
+            "worktree_removed": False,
+            "worktree_path": "",
             "steps": [],
             "errors": [],
         }
@@ -3354,7 +3492,11 @@ class GitEngine:
             result["errors"].append(local_branch["error"])
             return result
 
-        message = message or f"Merge branch '{source}' into '{target}'"
+        message = message or (
+            f"Squash branch '{source}' into '{target}'"
+            if squash
+            else f"Merge branch '{source}' into '{target}'"
+        )
         stashed = False
         try:
             if status["dirty"]:
@@ -3385,9 +3527,22 @@ class GitEngine:
                     )
                     return result
 
-            merge = self._run_git(
-                ["merge", "--no-ff", source, "-m", message], cwd=repo_path
-            )
+            head_before = self._run_git(["rev-parse", "HEAD"], cwd=repo_path)
+
+            # Build the merge command for the selected mode. `--squash` already
+            # implies "do not commit": adding `--no-commit` is unnecessary (and
+            # rejected by some git versions).
+            merge_args: List[str] = ["merge"]
+            if squash:
+                merge_args.append("--squash")
+            else:
+                merge_args.append("--no-ff")
+                if no_commit:
+                    merge_args.append("--no-commit")
+                merge_args.extend(["-m", message])
+            merge_args.append(source)
+
+            merge = self._run_git(merge_args, cwd=repo_path)
             result["steps"].append({"name": "merge", **merge})
             if not merge["ok"]:
                 conflicts = self._run_git(
@@ -3396,16 +3551,63 @@ class GitEngine:
                 result["conflicts"] = [
                     f.strip() for f in conflicts["output"].split("\n") if f.strip()
                 ]
-                self._run_git(["merge", "--abort"], cwd=repo_path)
+                # A squash merge never writes MERGE_HEAD, so `merge --abort`
+                # cannot clean it up: reset the index/worktree instead.
+                if self._ref_exists("MERGE_HEAD", cwd=repo_path):
+                    self._run_git(["merge", "--abort"], cwd=repo_path)
+                else:
+                    self._run_git(["reset", "--merge", "HEAD"], cwd=repo_path)
                 result["errors"].append(
                     f"Could not merge '{source}' into '{target}': "
                     f"{merge['error'] or merge['output']}"
                 )
                 return result
 
-            head = self._run_git(["rev-parse", "HEAD"], cwd=repo_path)
-            if head["ok"]:
-                result["commit"] = head["output"]
+            staged = self._run_git(
+                ["diff", "--cached", "--name-only"], cwd=repo_path
+            )
+            has_staged_changes = bool(staged["ok"] and staged["output"].strip())
+
+            # A squash merge stages the changes but never commits them: create
+            # the single squashed commit unless the caller asked for no commit.
+            if squash and not no_commit and has_staged_changes:
+                squashed_commit = self._run_git(
+                    ["commit", "-m", message], cwd=repo_path
+                )
+                result["steps"].append({"name": "commit", **squashed_commit})
+                if not squashed_commit["ok"]:
+                    result["errors"].append(
+                        "Could not commit the squashed changes: "
+                        f"{squashed_commit['error'] or squashed_commit['output']}"
+                    )
+                    return result
+
+            head_after = self._run_git(["rev-parse", "HEAD"], cwd=repo_path)
+            if head_after["ok"]:
+                result["committed"] = bool(
+                    head_before["ok"]
+                    and head_before["output"] != head_after["output"]
+                )
+            if result["committed"]:
+                result["commit"] = head_after["output"]
+            # No commit and nothing staged means the source was already merged
+            result["up_to_date"] = (
+                not result["committed"] and not has_staged_changes
+            )
+
+            # Removing the worktree is also required before deleting the branch:
+            # git refuses to delete a branch checked out in a worktree.
+            if delete_worktree or delete_branch:
+                worktree = self._remove_worktree(source, cwd=repo_path)
+                result["steps"].append({"name": "worktree-remove", **worktree})
+                result["worktree_removed"] = worktree["removed"]
+                result["worktree_path"] = worktree.get("path", "")
+                if not worktree["ok"]:
+                    result["errors"].append(
+                        f"Could not remove worktree '{worktree['path']}': "
+                        f"{worktree['error']}"
+                    )
+                    return result
 
             if delete_branch:
                 deleted = self._delete_branch(source, cwd=repo_path)

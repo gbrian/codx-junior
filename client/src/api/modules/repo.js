@@ -14,6 +14,7 @@
  *   GET    /api/git/repo/graph
  *   GET    /api/git/repo/remotes
  *   GET    /api/git/repo/worktrees
+ *   POST   /api/git/repo/worktree/remove
  *   GET    /api/git/repo/branch/commits
  *   GET    /api/git/repo/changes
  *   GET    /api/git/repo/validate/context
@@ -131,6 +132,22 @@ export const repoModule = (API) => ({
       `/api/git/repo/worktrees${toQuery({ include_changes: includeChanges ? 1 : 0 })}`
     )
     return Array.isArray(payload) ? payload : payload?.worktrees || []
+  },
+
+  /**
+   * Remove a registered worktree, keeping its branch.
+   *
+   * The backend resolves the target against the registered worktrees, so it
+   * cannot delete an arbitrary directory. Pass `path` for a detached worktree.
+   *
+   * @param {Object} params - `{ branch, path }`.
+   * @returns {Promise<Object>} `{ success, branch, path, removed, errors }`.
+   */
+  removeWorktree({ branch, path } = {}) {
+    return API.post('/api/git/repo/worktree/remove', {
+      branch: branch || undefined,
+      path: path || undefined
+    })
   },
 
   // ── Commits ───────────────────────────────────────────────────────────────
@@ -544,15 +561,40 @@ export const repoModule = (API) => ({
   /**
    * Merge a branch into another one.
    *
-   * @param {Object} params - `{ from_branch, to_branch, message, delete_branch }`.
-   * @returns {Promise<Object>} Operation result.
+   * A regular merge commit is created by default. Optional modes:
+   * - `squash`: collapse every source commit into a single commit.
+   * - `no_commit`: leave the merge result staged instead of committing it.
+   *   Combining both stages a squashed merge without creating a commit.
+   * - `delete_worktree`: remove the source branch worktree after merging.
+   * - `delete_branch`: remove the source worktree (when present) and the branch.
+   *
+   * @param {Object} params - `{ from_branch, to_branch, message, delete_branch,
+   * no_commit, squash, delete_worktree }`.
+   * @returns {Promise<Object>} Operation result with `committed`, `squashed`,
+   * `no_commit`, `up_to_date` and `worktree_removed`.
    */
-  merge({ from_branch, to_branch, message, delete_branch = false } = {}) {
+  merge({
+    from_branch,
+    to_branch,
+    message,
+    delete_branch = false,
+    no_commit = false,
+    squash = false,
+    delete_worktree = false
+  } = {}) {
     return API.post('/api/git/repo/merge', {
       from_branch,
       to_branch,
       message: message || undefined,
-      delete_branch
+      delete_branch,
+      no_commit,
+      squash,
+      delete_worktree
+    }).then((result) => {
+      // The merge changes the index / working tree (and, with no_commit, leaves
+      // the result staged): cached file diffs must not survive it.
+      invalidateDiffs(API)
+      return result
     })
   },
 

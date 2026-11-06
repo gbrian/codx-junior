@@ -8,8 +8,9 @@ Exposes the repository management endpoints consumed by the git view:
   the staged changes summary, two-branch comparison (PR review), local changes
   review, commit details and single file diff/history/content.
 - Write: fetch, pull, push, create/checkout/delete branch, stage/unstage/
-  discard files, commit, merge, rebase, commit message generation and the local
-  PR lifecycle (create, close, abandon).
+  discard files, commit, merge (merge commit, squash or no-commit, optionally
+  removing the source worktree), remove a worktree, rebase, commit message
+  generation and the local PR lifecycle (create, close, abandon).
 - AI: the Validator section reviews the selected changes with the project LLM
   using the profiles associated with the changed files (or a user selection).
 
@@ -153,12 +154,23 @@ class CommitMessageRequest(BaseModel):
 
 
 class MergeRequest(BaseModel):
-    """Payload to merge one branch into another."""
+    """Payload to merge one branch into another.
+
+    ``no_commit`` leaves the merge result staged instead of committing it and
+    ``squash`` collapses every source commit into a single commit. Both options
+    combine: the squashed changes stay staged and no commit is created.
+    ``delete_worktree`` removes the source branch worktree after merging.
+    ``commit`` is a compatibility alias: ``commit=False`` means ``no_commit``.
+    """
 
     from_branch: str
     to_branch: Optional[str] = None
     message: Optional[str] = None
     delete_branch: bool = False
+    no_commit: bool = False
+    squash: bool = False
+    delete_worktree: bool = False
+    commit: Optional[bool] = None
 
 
 class RebaseRequest(BaseModel):
@@ -166,6 +178,17 @@ class RebaseRequest(BaseModel):
 
     onto_branch: str
     branch: Optional[str] = None
+
+
+class RemoveWorktreeRequest(BaseModel):
+    """Payload to remove a registered worktree, keeping its branch.
+
+    The target is resolved against the registered worktrees: ``path`` is
+    required for a detached worktree, ``branch`` for a regular one.
+    """
+
+    branch: Optional[str] = None
+    path: Optional[str] = None
 
 
 class FilePathsRequest(BaseModel):
@@ -378,6 +401,35 @@ def api_git_repo_worktrees(
             include_changes=include_changes
         )
     }
+
+
+@router.post("/git/repo/worktree/remove")
+def api_git_repo_remove_worktree(
+    request: Request,
+    payload: RemoveWorktreeRequest,
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Remove a registered worktree and keep its branch.
+
+    The worktree must be registered, so an arbitrary directory can never be
+    deleted. The main checkout and the checkout currently in use are rejected;
+    uncommitted changes inside the removed worktree are discarded (the UI must
+    confirm this with the user first).
+
+    Args:
+        payload: Registered ``branch`` or exact worktree ``path`` (required for
+            a detached worktree).
+
+    Returns:
+        Dict with 'success', 'action', 'branch', 'path', 'removed', 'output'
+        and 'errors'.
+    """
+    return _ensure_success(
+        _git_engine(request).remove_worktree(
+            branch=payload.branch, path=payload.path
+        )
+    )
 
 
 @router.get("/git/repo/branch/commits")
@@ -1021,13 +1073,32 @@ def api_git_repo_merge(
     payload: MergeRequest,
     user: CodxUser = Depends(get_authenticated_user),
 ):
-    """Merge a branch into another one, aborting on conflicts."""
+    """
+    Merge a branch into another one, aborting on conflicts.
+
+    The merge is a regular ``--no-ff`` merge commit by default. Optional modes:
+
+    * ``squash=true``: collapse every source commit into a single commit.
+    * ``no_commit=true`` (or ``commit=false``): leave the merge result staged
+      instead of committing it, so the user can review and commit it later.
+    * ``delete_worktree=true``: remove the source branch's worktree after the
+      merge, keeping the branch.
+    * ``delete_branch=true``: remove the source worktree (when present) and then
+      delete the source branch.
+
+    ``squash`` and ``no_commit`` can be combined to stage a squashed merge
+    without creating any commit. Nothing is pushed.
+    """
     return _ensure_success(
         _git_engine(request).merge_branches(
             from_branch=payload.from_branch,
             to_branch=payload.to_branch,
             message=payload.message,
             delete_branch=payload.delete_branch,
+            no_commit=payload.no_commit,
+            squash=payload.squash,
+            delete_worktree=payload.delete_worktree,
+            commit=payload.commit,
         )
     )
 
