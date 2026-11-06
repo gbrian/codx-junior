@@ -99,6 +99,12 @@
                     title="Restart" aria-label="Restart" @click.stop="askAction(c, 'restart')">
               <i class="fas fa-rotate-right"></i>
             </button>
+            <!-- Interactive shell: admin + running container only. The backend
+                 enforces both rules again when the ticket is issued. -->
+            <button v-if="isAdmin && c.state === 'running'" class="btn btn-sm btn-square btn-ghost"
+                    title="Open shell" aria-label="Open shell" @click.stop="openShell(c)">
+              <i class="fas fa-terminal"></i>
+            </button>
             <button class="btn btn-sm btn-square btn-ghost"
                     title="Logs" aria-label="Logs" @click.stop="openContainer(c.id, 'logs')">
               <i class="fas fa-file-lines"></i>
@@ -213,6 +219,11 @@
                     <i class="fas fa-pause"></i>
                   </button>
 
+                  <button v-if="isAdmin && c.state === 'running'" class="btn btn-xs btn-ghost"
+                          title="Open shell" @click.stop="openShell(c)">
+                    <i class="fas fa-terminal"></i>
+                  </button>
+
                   <button class="btn btn-xs btn-ghost" title="Logs"
                           @click.stop="openContainer(c.id, 'logs')">
                     <i class="fas fa-file-lines"></i>
@@ -237,15 +248,23 @@
 
 <script setup>
 import { computed } from 'vue'
+import { $storex } from '../../store'
 import {
   state, filteredList, setFilter, stateLabel, fmtBytes, tone,
   stateTone, dotClass, healthTone,
-  openContainer, askAction, askRemove
+  openContainer, openShell, askAction, askRemove
 } from './useInfra'
 import { layout } from './useInfraLayout'
 
 /** True when the host has containers at all (i.e. the empty state is filter-driven). */
 const hasContainers = computed(() => state.containers.length > 0)
+
+/**
+ * Interactive shells are admin-only. The backend enforces this when issuing
+ * the ticket; hiding the button just avoids showing an action that would
+ * answer 403.
+ */
+const isAdmin = computed(() => $storex.users.isAdmin)
 
 function clearFilters() {
   setFilter({ q: '', state: 'all', stack: 'all' })

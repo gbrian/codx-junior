@@ -355,6 +355,28 @@
  */
 
 /**
+ * @typedef {Object} InfraShellTicket
+ * A single-use, short-lived ticket that bootstraps an interactive container
+ * shell. The long-lived JWT never travels in a WebSocket URL.
+ *
+ * @property {string} ticket         Ticket value (already embedded in websocket_path).
+ * @property {string} websocket_path Relative WS path, ticket included.
+ * @property {string} container_id   Canonical container id.
+ * @property {string} host_id        Docker host id.
+ * @property {string} shell          Shell that will be executed.
+ * @property {number} expires_in     Ticket lifetime in seconds (60 by default).
+ *
+ * WebSocket frames (both directions are JSON text frames):
+ *   client → { type: 'input',  data: '<base64>' }
+ *            { type: 'resize', cols: 120, rows: 32 }
+ *            { type: 'close' } | { type: 'ping' }
+ *   server → { type: 'ready', container_id, host_id, shell, cols, rows, user }
+ *            { type: 'output', data: '<base64>' }
+ *            { type: 'exit', code: number|null }
+ *            { type: 'error', message: string } | { type: 'pong' }
+ */
+
+/**
  * Machine-readable endpoint contract. Ship this array to the backend team.
  * @type {{method:string, path:string, desc:string, body?:string, query?:string, response:string}[]}
  */
@@ -380,6 +402,8 @@ export const INFRA_ENDPOINTS = [
   { method: 'GET',    path: '/api/infra/containers/:id',     desc: 'Container detail.',                                response: 'InfraContainer' },
   { method: 'GET',    path: '/api/infra/containers/:id/logs',desc: 'Recent log lines.',                                query: 'tail', response: '{ id, lines: { ts, level, msg }[] }' },
   { method: 'GET',    path: '/api/infra/containers/:id/stats',desc: 'CPU / memory time series.',                       response: 'InfraStats' },
+  { method: 'POST',   path: '/api/infra/containers/:id/shell',desc: 'Issue a single-use ticket for an interactive shell (admin).', body: '{ shell, host_id, cols, rows }', response: 'InfraShellTicket' },
+  { method: 'WS',     path: '/api/infra/containers/:id/shell',desc: 'Interactive docker exec terminal. JSON frames with base64 input/output (admin, ticket query).', query: 'ticket', response: 'ready | output | exit | error' },
   { method: 'POST',   path: '/api/infra/containers/:id/actions', desc: 'start | stop | restart | pause | unpause | kill.', body: '{ action }', response: 'InfraContainer' },
   { method: 'POST',   path: '/api/infra/containers',         desc: 'Create & run a container.',                        body: '{ name, image, ports[]{host,container,proto}, env[]{k,v}, cmd, stack, host_id }', response: 'InfraContainer' },
   { method: 'DELETE', path: '/api/infra/containers/:id',     desc: 'Remove a container.',                              response: '{ ok: true }' },
@@ -549,6 +573,20 @@ export function infraModule(API) {
     container: (id) => get('/api/infra/containers/' + slug(id)),
     logs: (id, tail = 120) => get('/api/infra/containers/' + slug(id) + '/logs?tail=' + tail),
     stats: (id) => get('/api/infra/containers/' + slug(id) + '/stats'),
+
+    /**
+     * Issue a single-use ticket for an interactive shell (admin only).
+     *
+     * The ticket is bound to the caller, the container, the host and the shell,
+     * expires in ~60s and can be consumed once. Use `ticket.websocket_path`
+     * to open the terminal WebSocket immediately.
+     *
+     * @param {string} id Container id, short id or name.
+     * @param {{host_id?:string, shell?:string, cols?:number, rows?:number}} [payload]
+     * @returns {Promise<InfraShellTicket>}
+     */
+    shellTicket: (id, payload = {}) =>
+      post('/api/infra/containers/' + slug(id) + '/shell', payload),
 
     /** @param {'start'|'stop'|'restart'|'pause'|'unpause'|'kill'} action */
     action: (id, action) => post('/api/infra/containers/' + slug(id) + '/actions', { action }),

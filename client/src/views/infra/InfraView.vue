@@ -263,6 +263,15 @@
     <!-- ── Cloud server wizard (provision + register a host) ────────────── -->
     <CloudServerModal />
 
+    <!-- ── Admin container shell (docker exec) ────────────────────────────
+         Rendered once for the whole view: both the container list and the
+         detail modal open it through `useInfra.openShell()`. It teleports
+         itself to <body> and owns the xterm/WebSocket lifecycle. -->
+    <ContainerShellModal v-if="state.shellOpen"
+                         :container="state.shellContainer"
+                         :host-id="state.hostId"
+                         @close="closeShell" />
+
     <!-- ── Modals ─────────────────────────────────────────────────────────
          Teleported to <body>: full-window overlays, so they stay viewport
          based on purpose. -->
@@ -381,6 +390,7 @@ import { layout, observePanelWidth, observePanelVisibility } from './useInfraLay
 import MonitoringPanel from './MonitoringPanel.vue'
 import ContainersPanel from './ContainersPanel.vue'
 import ContainerDrawer from './ContainerDrawer.vue'
+import ContainerShellModal from './ContainerShellModal.vue'
 import StackLogsModal from './StackLogsModal.vue'
 import HostSettingsModal from './HostSettingsModal.vue'
 import CloudServerModal from './CloudServerModal.vue'
@@ -396,7 +406,8 @@ const {
   state, filteredList, tabCount,
   loadHosts, selectedHost, openHostModal, openHostSettings, openCloudModal,
   loadAll, setRoute, setHost, setFilter,
-  openRunModal, submitRun, updateRunField
+  openRunModal, submitRun, updateRunField,
+  closeShell
 } = useInfra()
 
 /**

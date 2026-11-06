@@ -537,4 +537,34 @@ class InfraPruneResult(BaseModel):
     removed: int = Field(default=0, description="Number of resources removed")
     reclaimed_bytes: int = Field(default=0, description="Disk space reclaimed")
 
+
+# ── Container shell (admin only) ──────────────────────────────────────────────
+
+
+class InfraShellRequest(BaseModel):
+    """Body of ``POST /api/infra/containers/{id}/shell``."""
+
+    shell: str = Field(
+        default="/bin/sh",
+        description="Allow-listed shell: /bin/sh, /bin/bash, /bin/ash, /bin/zsh…",
+    )
+    host_id: Optional[str] = Field(default=None, description="Target Docker host id")
+    cols: int = Field(default=120, ge=20, le=500, description="Initial terminal columns")
+    rows: int = Field(default=32, ge=5, le=200, description="Initial terminal rows")
+
+
+class InfraShellTicket(BaseModel):
+    """Response of ``POST /api/infra/containers/{id}/shell``.
+
+    The value is single-use and expires after ``expires_in`` seconds. The browser
+    opens ``websocket_path`` immediately; the JWT is never placed in the URL.
+    """
+
+    ticket: str = Field(description="Single-use ticket for the WebSocket")
+    websocket_path: str = Field(description="Relative WebSocket path, ticket included")
+    container_id: str = Field(default="", description="Canonical container id")
+    host_id: str = Field(default="host-local")
+    shell: str = Field(default="/bin/sh")
+    expires_in: int = Field(default=60, description="Ticket lifetime in seconds")
+
 # Made with ❤️ by codx-junior

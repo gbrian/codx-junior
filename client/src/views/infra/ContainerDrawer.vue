@@ -58,6 +58,13 @@
                     @click="askAction(detail, 'pause')">
               <i class="fas fa-pause"></i> Pause
             </button>
+            <!-- Admin-only interactive shell. Kept in the header next to the
+                 lifecycle actions because it is the same class of operation. -->
+            <button v-if="isAdmin && detail?.state === 'running'" class="btn btn-sm btn-ghost"
+                    title="Open an interactive shell inside the container"
+                    @click="openShell(detail)">
+              <i class="fas fa-terminal"></i> Shell
+            </button>
 
             <div class="flex-1"></div>
             <!-- Inspect switches the visible TAB (same behaviour as Logs) instead
@@ -416,12 +423,15 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { $storex } from '../../store'
 import {
   state, closeDrawer, setDetailTab, loadLogs,
   askAction, askRemove, refreshSelected, pushToast,
-  fmtBytes, fmtTime, fmtUptime, tone,
+  openShell, fmtBytes, fmtTime, fmtUptime, tone,
   stateTone, dotClass, healthTone, stateLabel
 } from './useInfra'
+
+const isAdmin = computed(() => $storex.users.isAdmin)
 
 const DRAWER_TABS = [
   { id: 'overview', label: 'Overview', icon: 'fa-circle-info' },

@@ -105,6 +105,12 @@ export const state = reactive({
   stats: null,
   statsLoading: false,
 
+  // Admin-only interactive shell (docker exec). The modal itself owns the
+  // terminal/WebSocket lifecycle; the shared state only says which container
+  // was requested, so the button works from the list AND the detail overlay.
+  shellOpen: false,
+  shellContainer: null,
+
   // maintenance / cleanup (see MaintenancePanel.vue)
   maintenanceOlderThanDays: 30,
   maintenanceBusy: null, // id of the prune target / resource group in flight
@@ -2049,6 +2055,30 @@ export async function submitRun() {
   }
 }
 
+/* ── Container shell (admin only) ─────────────────────────────────────────── */
+
+/**
+ * Opens the interactive shell modal for a container.
+ *
+ * A stopped/paused container is rejected by the backend with `409`, but the
+ * buttons are only rendered for running containers anyway. The role check is
+ * enforced server-side (ticket issuance + WebSocket); this helper only drives
+ * the UI.
+ *
+ * @param {{id:string,name?:string,state?:string}} container
+ */
+export function openShell(container) {
+  if (!container) return
+  state.shellContainer = container
+  state.shellOpen = true
+}
+
+/** Closes the shell modal. The modal disposes the terminal and the socket. */
+export function closeShell() {
+  state.shellOpen = false
+  state.shellContainer = null
+}
+
 /* ── Container detail overlay ─────────────────────────────────────────────── */
 export function closeDrawer() {
   openSeq++
@@ -2224,6 +2254,8 @@ export function useInfra() {
     submitRun,
     openContainer,
     closeDrawer,
+    openShell,
+    closeShell,
     setDetailTab,
     refreshSelected,
     loadLogs,

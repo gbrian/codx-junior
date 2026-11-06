@@ -13,6 +13,8 @@ discovery.py      – scans the active project for compose files + Dockerfiles.
 compose.py        – stack commands: shells out to the `docker compose` CLI,
                     because the Engine API has no compose equivalent.
 dockerfiles.py    – `docker build` for a Dockerfile found by the project scan.
+shell.py          – admin-only interactive `docker exec` sessions (PTY +
+                    single-use WebSocket tickets).
 
 Environment
 -----------
@@ -25,6 +27,8 @@ CODX_JUNIOR_DOCKER_BUILD_TIMEOUT Timeout for `docker build` in seconds (default 
 CODX_JUNIOR_DOCKER_SCAN_TTL Cache TTL of the project Docker scan (default 20s)
 CODX_JUNIOR_DOCKER_SCAN_DEPTH Maximum scan depth per project (default 12)
 CODX_JUNIOR_DOCKER_SCAN_DIRS Maximum visited directories per scan (default 20000)
+CODX_JUNIOR_CONTAINER_SHELL_ENABLED  Set to 0/false to disable container shells
+CODX_JUNIOR_SHELL_TICKET_TTL         Shell WebSocket ticket lifetime (default 60s)
 
 Example
 -------

@@ -24,6 +24,8 @@
     "@tailwindcss/vite": "^4.2.1",
     "@woven-canvas/vue": "^2.0.3",
     "@woven-ecs/core": "^1.0.7",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
     "axios": "^1.6.8",
     "chart.js": "^4.5.1",
     "dockview-vue": "^5.2.0",

@@ -140,7 +140,10 @@ import { isOpenInNewTabEvent, openProjectInNewTab } from '@/utils/projectLinks'
         @click="handleNavigateToGitView"
       />
 
+      <!-- `/api/infra/*` is admin-only, including the container shell. Hide the
+           entry for other roles instead of opening a view that can only 403. -->
       <NavItem
+        v-if="$users.isAdmin"
         icon="fas fa-server"
         label="Infrastructure"
         :is-collapsed="isCollapsed"

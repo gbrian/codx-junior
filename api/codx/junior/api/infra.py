@@ -14,6 +14,8 @@ GET    /api/infra/containers                 – list (host, state, stack, q, st
 GET    /api/infra/containers/{cid}           – container detail
 GET    /api/infra/containers/{cid}/logs      – recent log lines (tail)
 GET    /api/infra/containers/{cid}/stats     – CPU/memory series
+POST   /api/infra/containers/{cid}/shell     – issue a one-time shell ticket
+WS     /api/infra/containers/{cid}/shell     – interactive docker exec session
 POST   /api/infra/containers/{cid}/actions   – start|stop|restart|pause|unpause|kill
 POST   /api/infra/containers                 – create & run a container
 DELETE /api/infra/containers/{cid}           – remove a container
@@ -74,7 +76,7 @@ curl -X POST -b "auth=…" -H 'Content-Type: application/json' \
 Diagram
 -------
 flowchart LR
-    A[Admin UI] -->|cookie auth| B{Router}
+    A[Admin UI] -->|bearer auth| B{Router}
     B -->|require_admin| C[InfraManager]
     C --> D[DockerClient]
     D --> E[(Docker daemon)]
@@ -83,13 +85,21 @@ flowchart LR
     B -->|project scan| G[discovery.py]
     B -->|Dockerfile build| H[dockerfiles.py]
     H -->|docker build| E
+    B -->|shell ticket + WS| G[infra/shell.py]
+    G -->|docker exec -i -t| E
 """
 
+import asyncio
+import contextlib
+import json
 import logging
 import os
 from typing import Any, Dict, List, NoReturn, Optional, Tuple, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Request, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+
+from urllib.parse import quote
+
 
 from codx.junior.api import require_admin
 from codx.junior.infra import (
@@ -118,6 +128,8 @@ from codx.junior.infra.models import (
     InfraProjectInfo,
     InfraPruneRequest,
     InfraPruneResult,
+    InfraShellRequest,
+    InfraShellTicket,
     InfraStack,
     InfraStackActionRequest,
     InfraStackList,
@@ -125,6 +137,23 @@ from codx.junior.infra.models import (
     InfraStats,
     InfraSummary,
     InfraVolumeList,
+)
+from codx.junior.infra.shell import (
+    MAX_INPUT_BYTES,
+    ShellAccessDeniedError,
+    ShellConflictError,
+    ShellError,
+    ShellLimitError,
+    ShellUnavailableError,
+    ShellValidationError,
+    create_container_shell,
+    decode_input,
+    encode_output,
+    ensure_running,
+    feature_enabled,
+    normalize_shell,
+    shell_sessions,
+    shell_tickets,
 )
 from codx.junior.model.model import CodxUser
 from codx.junior.project.project_discover import get_all_projects_snapshot, is_path_child_of
@@ -142,6 +171,11 @@ def _raise_http(ex: Exception) -> NoReturn:
     Translate infrastructure exceptions into HTTP errors.
 
     Mapping:
+      * ``ShellAccessDeniedError`` → 403 (container shells are admin-only)
+      * ``ShellLimitError`` → 429 (too many concurrent shells)
+      * ``ShellConflictError`` → 409 (container is not running / is paused)
+      * ``ShellValidationError`` → 400 (bad shell, container or host)
+      * ``ShellUnavailableError`` → 503 (Docker CLI/socket/feature unavailable)
       * ``DockerUnavailable`` → 503 (daemon/socket/compose CLI not available)
       * ``DockerAPIError`` 403/404/409 → forwarded with the same status
         (predefined network, missing resource/stack, resource still in use)
@@ -151,6 +185,24 @@ def _raise_http(ex: Exception) -> NoReturn:
       * ``ValueError`` → 400 (invalid request)
       * anything else → 500
     """
+    if isinstance(ex, ShellAccessDeniedError):
+        raise HTTPException(status_code=403, detail=ex.detail) from ex
+
+    if isinstance(ex, ShellLimitError):
+        raise HTTPException(status_code=429, detail=ex.detail) from ex
+
+    if isinstance(ex, ShellConflictError):
+        raise HTTPException(status_code=409, detail=ex.detail) from ex
+
+    if isinstance(ex, ShellValidationError):
+        raise HTTPException(status_code=400, detail=ex.detail) from ex
+
+    if isinstance(ex, ShellUnavailableError):
+        raise HTTPException(status_code=503, detail=ex.detail) from ex
+
+    if isinstance(ex, ShellError):
+        raise HTTPException(status_code=ex.status_code, detail=ex.detail) from ex
+
     if isinstance(ex, DockerUnavailable):
         raise HTTPException(status_code=503, detail=str(ex)) from ex
 
@@ -429,6 +481,259 @@ def get_container_stats(
         return get_infra_manager().stats(container_id, host_id=host)
     except Exception as ex:
         _raise_http(ex)
+
+
+# ── Container shell (admin only) ──────────────────────────────────────────────
+
+
+@router.post(
+    "/containers/{container_id}/shell",
+    response_model=InfraShellTicket,
+    summary="[Admin] Issue a one-time ticket for a container shell",
+)
+def create_shell_ticket(
+    container_id: str,
+    payload: InfraShellRequest,
+    user: CodxUser = Depends(require_admin),
+) -> InfraShellTicket:
+    """
+    Validate a shell request and return a single-use WebSocket ticket.
+
+    The caller must be an admin, the container must exist and be running, and
+    the requested ``shell`` must be allow-listed. The ticket is bound to the
+    admin, the container, the host and the shell, expires in
+    ``CODX_JUNIOR_SHELL_TICKET_TTL`` seconds (60 by default) and can be used
+    exactly once.
+
+    The browser must open ``websocket_path`` immediately; it is a relative URL
+    with the ticket already included. The long-lived JWT is never placed in a
+    WebSocket URL.
+
+    WebSocket protocol (``/api/infra/containers/{id}/shell?ticket=…``):
+
+    | direction | frame                                                |
+    | :-------- | :--------------------------------------------------- |
+    | client→   | ``{"type":"input","data":"<base64>"}``               |
+    | client→   | ``{"type":"resize","cols":120,"rows":32}``           |
+    | client→   | ``{"type":"close"}`` / ``{"type":"ping"}``           |
+    | →client   | ``{"type":"ready",...}``                              |
+    | →client   | ``{"type":"output","data":"<base64>"}``              |
+    | →client   | ``{"type":"exit","code":0}`` / ``{"type":"error",...}`` |
+
+    Requires the ``admin`` role.
+    """
+    try:
+        if not feature_enabled():
+            raise ShellUnavailableError(
+                "Container shells are disabled by CODX_JUNIOR_CONTAINER_SHELL_ENABLED."
+            )
+        manager = get_infra_manager()
+        host = manager.host_config(payload.host_id)
+        shell = normalize_shell(payload.shell)
+        canonical_id = ensure_running(manager, container_id, host.id)
+        ticket = shell_tickets.issue(user, canonical_id, host.id, shell)
+        path = (
+            f"/api/infra/containers/{quote(canonical_id, safe='')}/shell"
+            f"?ticket={quote(ticket.value, safe='')}"
+        )
+        logger.info(
+            "Container shell ticket issued: user=%s host=%s container=%s shell=%s",
+            user.username,
+            host.id,
+            canonical_id[:12],
+            shell,
+        )
+        return InfraShellTicket(
+            ticket=ticket.value,
+            websocket_path=path,
+            container_id=canonical_id,
+            host_id=host.id,
+            shell=shell,
+            expires_in=shell_tickets.ttl,
+        )
+    except Exception as ex:
+        _raise_http(ex)
+
+
+@router.websocket("/containers/{container_id}/shell")
+async def container_shell_websocket(
+    websocket: WebSocket,
+    container_id: str,
+    ticket: str = Query("", description="Single-use ticket from POST …/shell"),
+) -> None:
+    """
+    Attach an interactive ``docker exec`` session to a WebSocket.
+
+    The ticket is consumed before the handshake is accepted, so an invalid,
+    expired, reused or non-admin ticket never reaches the terminal code. On top
+    of the ticket, the container state and shell allow-list are validated again
+    when the session is created (defence in depth).
+
+    The endpoint is intentionally not usable with a JWT in the query string:
+    only a ticket issued by the admin-gated POST route is accepted.
+    """
+    ticket_data = shell_tickets.consume(ticket)
+    if ticket_data is None:
+        # Close before accept: no unauthenticated WebSocket is ever upgraded.
+        await websocket.close(code=4401, reason="Invalid or expired shell ticket")
+        return
+    if ticket_data.container_id != container_id:
+        await websocket.close(code=4403, reason="Ticket does not match this container")
+        return
+
+    await websocket.accept()
+
+    manager = get_infra_manager()
+    session = None
+    session_key = ""
+    try:
+        session = create_container_shell(
+            manager,
+            # Use the canonical id captured in the ticket (the path was already
+            # compared against it) so no raw path value reaches the CLI.
+            container_id=ticket_data.container_id,
+            host_id=ticket_data.host_id,
+            shell=ticket_data.shell,
+            username=ticket_data.username,
+        )
+        # The same admin may legitimately open several shells for one container;
+        # key the registry by the session object, not by user+container.
+        session_key = (
+            f"{ticket_data.username}:"
+            f"{quote(ticket_data.container_id, safe='')}:{id(session)}"
+        )
+        shell_sessions.add(session_key, session)
+    except Exception as ex:
+        if session is not None:
+            with contextlib.suppress(Exception):
+                session.close()
+        message = _shell_ws_error_message(ex)
+        logger.warning(
+            "Container shell could not start for user=%s container=%s: %s",
+            ticket_data.username,
+            container_id,
+            message,
+        )
+        with contextlib.suppress(Exception):
+            await websocket.send_json({"type": "error", "message": message})
+        with contextlib.suppress(Exception):
+            await websocket.close(code=1011)
+        return
+
+    send_lock = asyncio.Lock()
+
+    async def send(payload: dict) -> None:
+        async with send_lock:
+            await websocket.send_json(payload)
+
+    async def pump_output() -> None:
+        """Forward PTY events to the browser until the child exits."""
+        loop = asyncio.get_running_loop()
+        while True:
+            kind, payload = await loop.run_in_executor(None, session.events.get)
+            if kind == "output":
+                await send({"type": "output", "data": encode_output(payload)})
+            elif kind == "error":
+                await send({"type": "error", "message": str(payload)})
+            elif kind == "exit":
+                await send({"type": "exit", "code": payload})
+                return
+
+    async def pump_input() -> None:
+        """Read browser frames until the client closes or the socket drops."""
+        while True:
+            raw = await websocket.receive_text()
+            # Reject oversized frames before JSON decoding/validating them.
+            if len(raw) > MAX_INPUT_BYTES * 2 + 1024:
+                await send({"type": "error", "message": "Frame is too large."})
+                continue
+            try:
+                message = json.loads(raw)
+            except ValueError:
+                await send({"type": "error", "message": "Invalid JSON frame."})
+                continue
+            if not isinstance(message, dict):
+                await send({"type": "error", "message": "Frame must be a JSON object."})
+                continue
+
+            kind = message.get("type")
+            if kind == "input":
+                try:
+                    data = decode_input(message)
+                except ShellValidationError as ex:
+                    await send({"type": "error", "message": ex.detail})
+                    continue
+                if not session.write(data):
+                    await send(
+                        {"type": "error", "message": "The shell is no longer accepting input."}
+                    )
+            elif kind == "resize":
+                session.resize(message.get("cols"), message.get("rows"))
+            elif kind == "ping":
+                await send({"type": "pong"})
+            elif kind == "close":
+                return
+            else:
+                await send(
+                    {"type": "error", "message": f"Unknown frame type: {kind!r}"}
+                )
+
+    try:
+        await send(
+            {
+                "type": "ready",
+                "container_id": ticket_data.container_id,
+                "host_id": ticket_data.host_id,
+                "shell": ticket_data.shell,
+                "cols": session.cols,
+                "rows": session.rows,
+                "user": ticket_data.username,
+            }
+        )
+        tasks = {
+            asyncio.create_task(pump_output(), name="container-shell-output"),
+            asyncio.create_task(pump_input(), name="container-shell-input"),
+        }
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+        for task in pending:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await task
+        for task in done:
+            exc = task.exception()
+            if exc and not isinstance(exc, WebSocketDisconnect):
+                logger.warning("Container shell stream error: %s", exc)
+    except WebSocketDisconnect:
+        logger.info(
+            "Container shell socket closed by the client (user=%s container=%s)",
+            ticket_data.username,
+            container_id,
+        )
+    except Exception as ex:  # pragma: no cover - transport-level edge cases
+        logger.exception("Container shell WebSocket failed: %s", ex)
+    finally:
+        shell_sessions.remove(session_key)
+        try:
+            session.close()
+        except Exception:  # pragma: no cover - best effort
+            logger.exception("Error closing container shell session")
+        with contextlib.suppress(Exception):
+            await websocket.close()
+
+
+def _shell_ws_error_message(ex: Exception) -> str:
+    """Map a session-creation exception to a safe message for the browser."""
+    if isinstance(ex, ShellError):
+        return ex.detail
+    if isinstance(ex, DockerUnavailable):
+        return str(ex)
+    if isinstance(ex, DockerAPIError):
+        return f"Docker error: {ex.message}"
+    if isinstance(ex, KeyError):
+        return f"Unknown host: {ex.args[0]}"
+    logger.exception("Unexpected container shell error: %s", ex)
+    return "The container shell could not be started."
 
 
 @router.post(
