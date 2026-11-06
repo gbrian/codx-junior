@@ -52,6 +52,9 @@ export const state = () => ({
     preview: 37
   },
   sidebarCollapsed: false,
+  // Mobile launcher (the "More" sheet). Unlike `sidebarCollapsed`, this is a
+  // transient UI state: it is always reset to false when persisted/restored.
+  mobileMenuOpen: false,
   // Projects pinned by the user for quick switching. Persisted in localStorage
   // through the uiState snapshot (saveState/loadState), so it survives reloads.
   pinnedProjects: [],
@@ -429,12 +432,26 @@ export const mutations = mutationTree(state, {
   // sidebar share a single source of truth.
   expandSidebar() {
     $storex.ui.setSidebarCollapsed(false)
+    // On phones the sidebar is replaced by the full-screen mobile launcher, so
+    // every existing "open the menu" call site (wall bottom bar, keyboard
+    // shortcuts, …) keeps working without knowing which shell is mounted.
+    if ($storex.ui.isMobile) $storex.ui.openMobileMenu()
   },
   collapseSidebar() {
     $storex.ui.setSidebarCollapsed(true)
+    $storex.ui.closeMobileMenu()
   },
   toggleSidebar(state) {
     $storex.ui.setSidebarCollapsed(!state.sidebarCollapsed)
+  },
+  openMobileMenu(state) {
+    state.mobileMenuOpen = true
+  },
+  closeMobileMenu(state) {
+    state.mobileMenuOpen = false
+  },
+  toggleMobileMenu(state) {
+    state.mobileMenuOpen = !state.mobileMenuOpen
   },
   // ════════════════════════════════════════════════════════════════
   // PINNED PROJECTS (quick project switcher)
@@ -560,6 +577,7 @@ export const actions = actionTree(
         const data = {
           ...state,
           uiReady: false,
+          mobileMenuOpen: false,
           openApps: {},
           viewEditor: null,
           projectLoadingState: {
@@ -585,6 +603,7 @@ export const actions = actionTree(
       } catch (error) {
         console.error('Failed to parse saved UI state:', error)
       }
+      state.mobileMenuOpen = false
       $storex.ui.showNewProject(false)
       $storex.ui.handleResize()
     },

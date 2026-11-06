@@ -231,7 +231,7 @@ import ChatMiniMap from '@/components/chat/ChatMiniMap.vue'
         </div>
 
         <!-- Right Mini-Map — pinned to the right of the messages column (desktop only) -->
-        <div v-if="messages.length" class="shrink-0 h-full">
+        <div v-if="messages.length && !isMobile" class="shrink-0 h-full">
           <ChatMiniMap
             :messages="messages"
             :messageRefs="messageElRefs"

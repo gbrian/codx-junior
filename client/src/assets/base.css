@@ -3,3 +3,166 @@
 @plugin "daisyui" {
   themes: all;
 }
+/* ───────────────────────────────────────────────────────────────────────────
+   MOBILE SHELL
+   The mobile experience is a fixed app shell (top bar + content + tab bar)
+   instead of a scrolling document. These utilities are used by
+   components/mobile/* and by the few existing screens that already reserved
+   `safe-area-*` classes.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mobile-shell {
+  height: 100dvh;
+  max-height: 100dvh;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-content {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.mobile-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  border-radius: 0.75rem;
+  color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
+  transition: background-color 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.mobile-icon-btn:active {
+  transform: scale(0.94);
+  background-color: color-mix(in oklab, var(--color-base-content) 10%, transparent);
+  color: var(--color-base-content);
+}
+
+.mobile-app-tile:active {
+  transform: scale(0.985);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Lock the page behind a launcher/sheet without changing scroll positions. */
+html.mobile-menu-open,
+html.mobile-sheet-open {
+  overflow: hidden;
+}
+
+/* ── Transitions ─────────────────────────────────────────────────────────── */
+
+.mobile-menu-enter-active,
+.mobile-menu-leave-active {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.mobile-menu-enter-from,
+.mobile-menu-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.mobile-sheet-enter-active,
+.mobile-sheet-leave-active {
+  transition: opacity 200ms ease;
+}
+
+.mobile-sheet-enter-active .mobile-sheet-panel,
+.mobile-sheet-leave-active .mobile-sheet-panel {
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mobile-sheet-enter-from,
+.mobile-sheet-leave-to {
+  opacity: 0;
+}
+
+.mobile-sheet-enter-from .mobile-sheet-panel,
+.mobile-sheet-leave-to .mobile-sheet-panel {
+  transform: translateY(100%);
+}
+
+.mobile-page-enter-active,
+.mobile-page-leave-active {
+  transition: opacity 140ms ease;
+}
+
+.mobile-page-enter-from,
+.mobile-page-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu-enter-active,
+  .mobile-menu-leave-active,
+  .mobile-sheet-enter-active,
+  .mobile-sheet-leave-active,
+  .mobile-sheet-enter-active .mobile-sheet-panel,
+  .mobile-sheet-leave-active .mobile-sheet-panel,
+  .mobile-page-enter-active,
+  .mobile-page-leave-active {
+    transition: none;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   TOUCH ERGONOMICS
+   Phones need 44px targets and must not auto-zoom when an input receives
+   focus (iOS zooms any field below 16px, which used to leave the whole app
+   scaled and half off-screen).
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    overscroll-behavior: none;
+  }
+
+  button,
+  [role="button"],
+  .click {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  .mobile-shell textarea,
+  .mobile-shell select,
+  .mobile-menu-root input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  .mobile-menu-root textarea,
+  .mobile-menu-root select {
+    font-size: 16px;
+  }
+
+  /* Horizontal board scrolling should feel native: one column at a time. */
+  .mobile-shell .kanban-board-canvas {
+    scroll-snap-type: x proximity;
+    scroll-padding-left: 0.5rem;
+  }
+
+  .mobile-shell .kanban-board-canvas > div > .kanban-board-column {
+    scroll-snap-align: start;
+  }
+}

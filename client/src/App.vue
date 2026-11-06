@@ -1,57 +1,81 @@
 <script setup>
+import { computed, onMounted, watchEffect } from 'vue'
+import { useRoute } from 'vue-router'
+import { $storex } from '@/store'
 import Login from './components/user/Login.vue'
 import Toast from './components/Toast.vue'
 import DesktopSidebar from './components/layout/DesktopSidebar.vue'
 import NewProject from './components/project/NewProject.vue'
+import MobileShell from './components/mobile/MobileShell.vue'
+
+const route = useRoute()
+
+const uiReady = computed(() => $storex.ui.uiReady)
+const isLogin = computed(() => !$storex.users.user)
+const isMobile = computed(() => $storex.ui.isMobile)
+
+// Solopreneur mode is a product shell of its own: it owns the full viewport on
+// every device, so neither the desktop sidebar nor the mobile shell wraps it.
+const isFullScreenRoute = computed(() => route.name === 'solopreneur')
+
+function openAccountSettings() {
+  $storex.ui.openApp({ appKey: 'account' })
+}
+
+// Teleported surfaces (the mobile launcher, action sheets, Reka poppers) live
+// outside the themed wrapper. DaisyUI resolves `data-theme` from the document
+// root, so mirror the active theme there — otherwise every overlay renders in
+// the default light theme.
+watchEffect(() => {
+  const theme = $storex.ui.theme || 'dark'
+  document.documentElement.setAttribute('data-theme', theme)
+  document.documentElement.style.colorScheme = theme === 'dark' ? 'dark' : 'light'
+  document.querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', theme === 'dark' ? '#1f2937' : '#f3f4f6')
+})
+
+onMounted(() => {
+  // The launcher must never survive a reload.
+  if (isMobile.value) $storex.ui.closeMobileMenu()
+})
 </script>
 
 <template>
-  <div class="w-full h-full relative bg-base-100" :data-theme="$ui.theme" v-if="$ui.uiReady">
+  <div
+    v-if="uiReady"
+    class="relative h-full w-full bg-base-100"
+    :data-theme="$ui.theme"
+  >
     <Login v-if="isLogin" />
-    
-    <div class="h-full w-full flex" v-else :class="layoutClasses">
-      <!-- Desktop Sidebar (Landscape on desktop). Hidden on full-screen,
-           project-independent screens such as Solopreneur mode, which brings
-           its own header/navigation (see views/SolopreneurView.vue). -->
-      <DesktopSidebar
-        v-if="isDesktopLandscape && !isFullScreenRoute"
-        :user-name="$user?.username || 'User'"
-        :user-subtitle="'Pro'"
-        @settings="openAccountSettings"
-      />
 
-      <!-- Mobile Sidebar Overlay (Mobile only, slides from left) -->
-      <div
-        v-if="isMobile && !isFullScreenRoute && $ui.isSidebarExpanded"
-        class="fixed inset-0 z-100 transition-opacity duration-200 md:hidden"
-        @click="closeMobileSidebar"
-      ></div>
+    <template v-else>
+      <!-- Phones and tablets (<= 1024px): one purpose-built app shell. The
+           desktop sidebar is not rendered at all — the mobile experience lives
+           in components/mobile (top bar, tab bar, launcher). -->
+      <MobileShell v-if="isMobile && !isFullScreenRoute" />
 
-      <!-- Mobile Sidebar (Slides from left on mobile) -->
-      <DesktopSidebar
-        v-if="isMobile && !isFullScreenRoute"
-        :user-name="$user?.username || 'User'"
-        :user-subtitle="'Pro'"
-        :is-mobile="true"
-        class="z-150"
-        @close="closeMobileSidebar"
-        @settings="openAccountSettings"
-      />
-
-      <!-- Main Content with Router (Flex context for scrollable children).
-           Every screen — including the Activity Wall, the default screen of the
-           mobile home — is resolved by the router (see the mobile home redirect
-           in router/navigate.js). -->
-      <div class="grow flex flex-col min-h-0 min-w-0">
+      <div v-else-if="isFullScreenRoute" class="h-full w-full">
         <RouterView />
       </div>
 
-      <!-- Toast Notifications -->
-      <Toast ref="toastComponent" />
+      <!-- Desktop / dockview shell -->
+      <div v-else class="flex h-full w-full flex-row">
+        <DesktopSidebar
+          :user-name="$user?.username || 'User'"
+          :user-subtitle="'Pro'"
+          @settings="openAccountSettings"
+        />
+
+        <div class="flex min-h-0 min-w-0 grow flex-col">
+          <RouterView />
+        </div>
+      </div>
+
+      <Toast />
 
       <!-- Global "New project" modal — opened from any launcher
-           (sidebar AppsSection, MainMenuItems, WindowsMenuItems, QuickBar)
-           through the ui store flag `newProject`. -->
+           (mobile menu, sidebar AppsSection, WindowsMenu, QuickBar) through the
+           ui store flag `newProject`. -->
       <modal
         v-if="$ui.newProject"
         close="true"
@@ -59,123 +83,13 @@ import NewProject from './components/project/NewProject.vue'
       >
         <NewProject />
       </modal>
-    </div>
+    </template>
   </div>
-  
-  <div class="flex flex-col items-center justify-center w-full h-full font-2xl px-4 py-2" v-else>
+
+  <div
+    v-else
+    class="flex h-full w-full flex-col items-center justify-center px-4 py-2 font-2xl"
+  >
     <div class="animate-pulse font-mono text-green-600">Wake up, codx-junior...</div>
   </div>
 </template>
-
-<script>
-export default {
-  data() {
-    return {
-      pendingProjectSwitch: null,
-      windowWidth: 0,
-      windowHeight: 0
-    }
-  },
-  computed: {
-    isLogin() {
-      return !this.$user
-    },
-    isDesktop() {
-      return this.windowWidth >= 768
-    },
-    isMobile() {
-      return this.windowWidth < 768
-    },
-    isLandscape() {
-      return this.windowWidth > this.windowHeight
-    },
-    isPortrait() {
-      return this.windowHeight > this.windowWidth
-    },
-    isDesktopLandscape() {
-      return this.isDesktop && this.isLandscape
-    },
-    isMobileLandscape() {
-      return this.isMobile && this.isLandscape
-    },
-    isMobilePortrait() {
-      return this.isMobile && this.isPortrait
-    },
-    // Full-screen, project-independent screens render their own shell: the
-    // standard sidebar is hidden so the screen owns the whole viewport.
-    // (Solopreneur mode: "/solopreneur/:module?" — see router/index.ts.)
-    isFullScreenRoute() {
-      return this.$route?.name === 'solopreneur'
-    },
-    layoutClasses() {
-      if (this.isMobilePortrait) {
-        return 'flex-col'
-      }
-      return 'flex-row'
-    },
-    infoNotifications() {
-      return this.$ui.notifications.filter(n => n.type !== 'error')
-    },
-    errorNotifications() {
-      return this.$ui.notifications.filter(n => n.type === 'error')
-    }
-  },
-  created() {
-    // Resolve the viewport before the first paint so the mobile sidebar starts
-    // collapsed (the ui store default is expanded for desktop).
-    this.updateDimensions()
-    if (this.isMobile) {
-      this.closeMobileSidebar()
-    }
-  },
-  watch: {
-    '$ui.projectLoadingState': {
-      handler(newState) {
-        if (!newState || !newState.isLoading) return
-        const overlay = this.$refs.loadingOverlay
-        if (overlay && typeof overlay.startLoading === 'function') {
-          overlay.startLoading(newState.projectName)
-        }
-      },
-      deep: true
-    },
-    '$route'() {
-      // Mobile sidebar is an overlay: close it when navigating away.
-      if (this.isMobile) {
-        this.closeMobileSidebar()
-      }
-    }
-  },
-  mounted() {
-    this.updateDimensions()
-    window.addEventListener('resize', this.updateDimensions)
-  },
-  beforeUnmount() {
-    window.removeEventListener('resize', this.updateDimensions)
-  },
-  methods: {
-    updateDimensions() {
-      this.windowWidth = window.innerWidth
-      this.windowHeight = window.innerHeight
-    },
-    // The mobile sidebar open/close state is owned by the ui store
-    // (`sidebarCollapsed`) instead of a local flag, so the sidebar and its
-    // backdrop stay in sync through a single source of truth.
-    closeMobileSidebar() {
-      this.$storex.ui.collapseSidebar()
-    },
-    retryProjectLoad() {
-      if (this.pendingProjectSwitch) {
-        this.$storex.projects.activeProjectChanged(this.pendingProjectSwitch)
-      }
-    },
-    cancelProjectLoad() {
-      this.pendingProjectSwitch = null
-      this.$storex.ui.setProjectLoadingState({ isLoading: false })
-    },
-    openAccountSettings() {
-      this.$emit('settings')
-    }
-  }
-}
-</script>

@@ -6,84 +6,6 @@ import WindowsMenu from '../main-menu/WindowsMenu.vue'
 </script>
 
 <template>
-  <!-- Mobile Overlay & Sidebar Container -->
-  <div v-if="isMobile" class="group pointer-events-none">
-    <!-- Mobile Overlay -->
-    <div
-      v-if="!isCollapsed"
-      class="fixed inset-0 z-40 backdrop-blur-sm animate-fade-in pointer-events-auto"
-      @click="handleClose"
-    ></div>
-
-    <!-- Mobile Sidebar (always the full panel, floats in from the left) -->
-    <aside
-      ref="sidebarEl"
-      class="fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col h-full shrink-0 bg-base-100 border-r border-base-content/5 pointer-events-auto"
-      :style="{
-        transform: isCollapsed ? 'translateX(-100%)' : 'translateX(0)',
-        transition: 'transform 0.3s ease-out'
-      }"
-    >
-      <!-- Header Section -->
-      <div class="px-3 py-4 shrink-0 border-b border-base-content/5">
-        <div class="flex items-center justify-between gap-2">
-          <button
-            class="click w-6 h-6 rounded border border-base-content/20 flex items-center justify-center hover:bg-white/5 transition-colors"
-            @click="handleClose"
-            title="Close sidebar"
-          >
-            <i class="fa-solid fa-angle-left text-base-content/40 text-xs"></i>
-          </button>
-          <span class="text-lg font-semibold">
-            <span class="text-codx-secondary">codx-</span>
-            <span class="text-codx-secondary">junior</span>
-          </span>
-        </div>
-      </div>
-
-      <!-- Scrollable Content Area -->
-      <div class="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden flex flex-col">
-        <!-- Apps Section -->
-        <AppsSection
-          :is-collapsed="false"
-          :more-expanded="moreExpanded"
-          @update:moreExpanded="moreExpanded = $event"
-          @close="handleClose"
-          @toggle-collapse="toggleCollapse"
-        />
-        
-        <!-- Workspaces Section -->
-        <WorkspacesSection
-          :workspace-apps="workspaceApps"
-          :is-collapsed="false"
-          :current-workspace-id="currentWorkspaceId"
-          @close="handleClose"
-        />
-
-      </div>
-
-      <!-- Footer -->
-      <div class="shrink-0 border-t border-base-content/5 px-2 py-3">
-        <WindowsMenu 
-          :class="!connected && 'bg-error/20'"
-          @close="handleClose">
-          <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-colors cursor-pointer w-full">
-            <div class="avatar tooltip shrink-0" :data-tip="$user.username">
-              <div class="w-8 rounded-full overflow-hidden">
-                <img :src="$user.avatar">
-              </div>
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="text-sm truncate">{{ userName }}</div>
-              <div class="text-xs text-base-content/40 truncate">{{ userSubtitle }}</div>
-            </div>
-            <i class="fas fa-chevron-down text-xs text-base-content/30 shrink-0"></i>
-          </div>
-        </WindowsMenu>
-      </div>
-    </aside>
-  </div>
-
   <!-- Desktop Sidebar -->
   <!-- The WRAPPER lives in normal flow and owns the layout width:
        w-16 when collapsed (icon rail), w-64 when expanded.
@@ -92,7 +14,6 @@ import WindowsMenu from '../main-menu/WindowsMenu.vue'
        opening a launcher overlay simply expands the sidebar and it stays
        expanded, so wrapper and aside always share the same width. -->
   <div
-    v-else
     ref="sidebarEl"
     class="relative h-full shrink-0 transition-all duration-200"
     :class="[isCollapsed ? 'w-16' : 'w-64']"
@@ -233,9 +154,6 @@ import WindowsMenu from '../main-menu/WindowsMenu.vue'
 
 <script>
 export default {
-  props: {
-    isMobile: { type: Boolean, default: false }
-  },
   emits: ['settings', 'close'],
   data() {
     return {
@@ -340,9 +258,6 @@ export default {
       }
     },
     handleClose() {
-      if (this.isMobile) {
-        this.$storex.ui.collapseSidebar()
-      }
       this.$emit('close')
     }
   }

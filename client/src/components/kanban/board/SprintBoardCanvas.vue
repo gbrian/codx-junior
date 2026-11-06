@@ -218,3 +218,17 @@ export default {
   }
 }
 </script>
+<style scoped>
+/* Phones: keep one useful column in view (with a peek of the next one) and
+   reduce the canvas gutter so the board does not feel padded into a corner. */
+@media (max-width: 1024px) {
+  .kanban-board-canvas > div {
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .kanban-board-canvas :deep(.kanban-board-column) {
+    width: 17rem;
+  }
+}
+</style>

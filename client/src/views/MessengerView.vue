@@ -37,7 +37,7 @@ import { countChannelUnread } from '@/utils/chatUnread'
     <transition name="slide-left">
       <div
         v-if="isMobile && showMobileChannels"
-        class="fixed inset-0 z-40 flex flex-col bg-base-200"
+        class="safe-area-top safe-area-bottom fixed inset-0 z-40 flex flex-col bg-base-200"
       >
         <div class="flex items-center justify-between px-4 py-4 border-b border-base-content/10 shrink-0">
           <span class="text-sm font-semibold text-base-content">Channels</span>
@@ -66,7 +66,33 @@ import { countChannelUnread } from '@/utils/chatUnread'
     </transition>
 
     <!-- ══ MAIN AREA ══ -->
-    <div class="relative flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-base-100" :class="isMobile ? 'pb-16' : ''">
+    <div class="relative flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-base-100" :class="isMobile ? 'pb-20' : ''">
+
+      <!-- Mobile header (empty state): the route hides the generic app bar, so
+           this is where the screen identifies itself and offers the channel
+           drawer / new-channel actions before a conversation is selected. -->
+      <header
+        v-if="isMobile && !activeChat"
+        class="shrink-0 border-b border-base-content/10 bg-base-200/85 backdrop-blur-md"
+      >
+        <div class="flex h-14 items-center gap-1 px-2">
+          <button type="button" class="mobile-icon-btn" aria-label="Open menu" @click="$storex.ui.openMobileMenu()">
+            <i class="fa-solid fa-bars text-base"></i>
+          </button>
+          <div class="min-w-0 flex-1 px-1">
+            <h1 class="truncate text-[15px] font-semibold leading-tight">Messenger</h1>
+            <p class="truncate text-[10px] leading-tight text-base-content/45">
+              {{ $projects.activeProject?.project_name }} · {{ channels.length }} channel{{ channels.length === 1 ? '' : 's' }}
+            </p>
+          </div>
+          <button type="button" class="mobile-icon-btn" aria-label="Channels" @click="showMobileChannels = true">
+            <i class="fa-solid fa-hashtag text-base"></i>
+          </button>
+          <button type="button" class="mobile-icon-btn" aria-label="New channel" @click="showNewGroupModal = true">
+            <i class="fa-solid fa-plus text-base"></i>
+          </button>
+        </div>
+      </header>
 
       <!-- ── Empty / home state ── -->
       <transition name="fade">
@@ -140,7 +166,7 @@ import { countChannelUnread } from '@/utils/chatUnread'
     <transition name="slide-right">
       <div
         v-if="isMobile && activeChat && showGroupInfo"
-        class="fixed inset-0 z-50 bg-base-200"
+        class="safe-area-top safe-area-bottom fixed inset-0 z-50 bg-base-200"
       >
         <MessengerGroupInfo
           :chat="activeChat"
@@ -156,10 +182,19 @@ import { countChannelUnread } from '@/utils/chatUnread'
     <!-- ══ MOBILE BOTTOM NAV ══ -->
     <nav
       v-if="isMobile"
-      class="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around bg-base-200 border-t border-base-content/10 px-2 py-2"
+      class="safe-area-bottom fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-base-content/10 bg-base-200/95 px-1 py-2 backdrop-blur-md"
     >
       <button
-        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors"
+        class="flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 text-base-content/60 transition-colors hover:text-base-content active:bg-base-content/5"
+        aria-label="Open the chats inbox"
+        @click="$router.push({ name: 'chats' })"
+      >
+        <i class="fas fa-inbox text-lg"></i>
+        <span class="text-[10px]">Chats</span>
+      </button>
+
+      <button
+        class="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors"
         :class="showMobileChannels ? 'text-primary' : 'text-base-content/60 hover:text-base-content'"
         @click="showMobileChannels = !showMobileChannels"
       >
@@ -186,13 +221,12 @@ import { countChannelUnread } from '@/utils/chatUnread'
       </button>
 
       <button
-        class="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl text-base-content/60 hover:text-base-content transition-colors"
-        @click="$emit('account-settings')"
+        class="flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 text-base-content/60 transition-colors hover:text-base-content active:bg-base-content/5"
+        aria-label="Open app menu"
+        @click="$storex.ui.openMobileMenu()"
       >
-        <div class="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center">
-          <i class="fas fa-user text-xs text-primary"></i>
-        </div>
-        <span class="text-[10px]">Account</span>
+        <i class="fas fa-bars text-lg"></i>
+        <span class="text-[10px]">Menu</span>
       </button>
     </nav>
 
