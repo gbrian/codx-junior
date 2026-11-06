@@ -178,7 +178,7 @@ export default {
     // Bumped by the parent view after a git operation to reload the graph
     refreshToken: { type: Number, default: 0 }
   },
-  emits: ['select-commit', 'context-action'],
+  emits: ['select-commit', 'context-action', 'context-menu-notice', 'context-menu-error'],
   data() {
     return {
       loading: false,

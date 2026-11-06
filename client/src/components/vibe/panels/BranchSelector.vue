@@ -136,7 +136,7 @@ export default {
     availableBranches: { type: Array, default: () => [] },
     loading: { type: Boolean, default: false }
   },
-  emits: ['branch-changed', 'compare-branch-changed'],
+  emits: ['branch-changed', 'compare-branch-changed', 'context-menu-notice', 'context-menu-error'],
   data() {
     return {
       currentBranchFilter: '',

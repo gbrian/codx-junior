@@ -203,7 +203,7 @@ export default {
     // Whether a git operation is running (branch actions are disabled meanwhile)
     busy: { type: Boolean, default: false }
   },
-  emits: ['close', 'branch-action'],
+  emits: ['close', 'branch-action', 'context-menu-notice', 'context-menu-error'],
   data() {
     return {
       loading: false,

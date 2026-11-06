@@ -144,16 +144,19 @@ export default {
     onKeyDown(event) {
       if (event.key === 'Escape') {
         event.preventDefault()
+        event.stopPropagation()
         this.requestClose()
         return
       }
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault()
+        event.stopPropagation()
         this.moveActive(event.key === 'ArrowDown' ? 1 : -1)
         return
       }
       if (event.key === 'Home' || event.key === 'End') {
         event.preventDefault()
+        event.stopPropagation()
         this.moveActive(event.key === 'Home' ? -Infinity : Infinity)
         return
       }
@@ -161,6 +164,7 @@ export default {
         const item = this.menuItems[this.activeIndex]
         if (!item || item.divider || item.disabled) return
         event.preventDefault()
+        event.stopPropagation()
         this.choose(item)
       }
     },
