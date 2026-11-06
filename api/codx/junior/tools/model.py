@@ -82,20 +82,20 @@ class ToolResponse:
 class ToolSettings(BaseModel):
     """
     Configuration settings for tool execution and visibility.
-    
+
     Controls how a tool behaves in the agent runtime, including async handling,
     parameter injection, response structure, and scope visibility.
-    
+
     Attributes:
         is_async: Whether the tool is async-capable (default: False).
         project_settings: Inject CODXJuniorSettings parameter (default: False).
         session: Inject session parameter (default: False).
-        scope: Tool visibility scope: 'global' (always available) or 'chat' 
+        scope: Tool visibility scope: 'global' (always available) or 'chat'
                (optional per conversation). Default: 'chat'.
-        dual_response: Tool returns ToolResponse with user_response and 
+        dual_response: Tool returns ToolResponse with user_response and
                       llm_response (default: False).
     """
-    
+
     is_async: bool = Field(
         default=False,
         alias="async",
@@ -117,4 +117,12 @@ class ToolSettings(BaseModel):
         default=False,
         description="If True, tool returns ToolResponse with user_response and llm_response"
     )
-    
+    cache: bool = Field(
+        default=True,
+        description=(
+            "If False, SmolAgent never serves/records this tool from the "
+            "per-conversation tool cache. Stateful tools (orchestration, task "
+            "processing) must opt out."
+        )
+    )
+

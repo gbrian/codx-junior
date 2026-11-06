@@ -45,7 +45,7 @@ PROCESS_TASK_TOOL_JSON = {
 }
 
 
-def process_task(
+async def process_task(
     chat_id: str,
     wait: bool = True,
     settings: Optional["CODXJuniorSettings"] = None,
@@ -109,34 +109,32 @@ def process_task(
             """Async wrapper for task processing."""
             await session.chat_with_project(chat=task)
 
-        # Get or create event loop
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
         if not wait:
-            # Queue asynchronously
+            # Queue asynchronously. A dedicated thread (with its own event loop)
+            # is used instead of the caller's loop: a tool call belongs to one
+            # HTTP/socket request, and a fire-and-forget task on that loop would
+            # die with it.
+            import threading
             import uuid
+
             task_id = str(uuid.uuid4())
-            
-            if loop:
-                # Already in async context
-                loop.create_task(_process())
-                logger.info(
-                    "process_task: task queued asynchronously with ID '%s'",
-                    task_id,
-                )
-            else:
-                # Fallback: run in background thread
-                import threading
-                thread = threading.Thread(target=lambda: asyncio.run(_process()))
-                thread.daemon = True
-                thread.start()
-                logger.info(
-                    "process_task: task queued in background thread with ID '%s'",
-                    task_id,
-                )
+
+            def _background() -> None:
+                try:
+                    asyncio.run(_process())
+                except Exception as ex:  # pragma: no cover - background logging
+                    logger.exception(
+                        "process_task: background processing failed for '%s': %s",
+                        chat_id,
+                        ex,
+                    )
+
+            thread = threading.Thread(target=_background, daemon=True)
+            thread.start()
+            logger.info(
+                "process_task: task queued in background thread with ID '%s'",
+                task_id,
+            )
 
             user_message = (
                 f"⏳ Task processing queued for '{task.name}'.\n"
@@ -156,14 +154,16 @@ def process_task(
             )
 
         else:
-            # Wait for processing to complete
-            if loop:
-                # Already in async context - create a task
-                loop.create_task(_process())
-                logger.debug("process_task: processing started asynchronously")
-            else:
-                # Fallback for sync context
-                asyncio.run(_process())
+            # Wait for processing to complete. Because this tool is async, the
+            # SmolAgent loop awaits it and the caller receives the REAL result
+            # (the previous implementation created a task and returned
+            # immediately while claiming success).
+            await _process()
+
+            last_message = task.messages[-1] if task.messages else None
+            error = str(getattr(last_message, "error", "") or "").strip()
+            if error:
+                raise RuntimeError(f"task processing failed: {error}")
 
             user_message = (
                 f"✅ Task processing completed for '{task.name}'.\n"

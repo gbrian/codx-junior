@@ -437,6 +437,37 @@ class Chat(BaseModel):
         )
     )
 
+    # ── Orchestration (durable multi-step runs) ────────────────────────────
+    # A run is anchored on one main task (its "dashboard") and every plan step
+    # is materialized as a child task. The full plan/results live in
+    # ``.codx/orchestration/runs/<run_id>.json`` (see codx.junior.orchestration);
+    # these fields are the board-facing back-references.
+    run_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Id of the orchestration run this chat belongs to: the long-running "
+            "process id ChatView listens to. The main task of "
+            "a run carries run_id + run_status; every step card carries run_id + "
+            "run_step_id. The run document is the source of truth; these fields "
+            "keep the board, sprint and planning views filterable."
+        )
+    )
+    run_status: Optional[str] = Field(
+        default=None,
+        description=(
+            "Mirror of the run status on the main task (running, paused, "
+            "completed, budget_exhausted, stalled, ...). None for chats outside "
+            "an orchestration run."
+        )
+    )
+    run_step_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Id of the plan step when this chat is a worker card of a run. Empty "
+            "on the main task and on regular chats."
+        )
+    )
+
     visibility: Optional[str] = Field(default='')
     remote_url: Optional[str] = Field(default='')
     attachments: List[ChatAttachment] = Field(default=[], description="Attachments for this chat")

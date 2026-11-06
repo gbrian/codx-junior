@@ -41,6 +41,7 @@ from codx.junior.knowledge.knowledge_milvus import Knowledge
 from codx.junior.knowledge.knowledge_ai_search import KnowledgeAISearch
 from codx.junior.knowledge.knowledge_ai_search_message import build_search_message
 from codx.junior.organizer import ChatOrganizer
+from codx.junior.orchestration import constants as ORCHESTRATION
 from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.settings import CODXJuniorSettings
@@ -538,11 +539,46 @@ class ChatEngine:
         if is_vibe:
             tags.append(CHAT_MODE_VIBE)
 
+        # Orchestration back-references: a run main task is the supervisor, a
+        # run step card is a worker, and a delegated subagent is a worker too.
+        # The internal header is consumed by SmolAgent (never sent to the
+        # provider) and makes it inject the right toolset: the orchestrator
+        # controls a run, workers get a baseline of project tools and never
+        # the orchestrator itself (no recursive planning).
+        orchestration_role: Optional[str] = None
+        if getattr(chat, "run_step_id", None):
+            orchestration_role = "worker"
+        elif getattr(chat, "mode", "") == ORCHESTRATION.CHAT_MODE_DELEGATE:
+            orchestration_role = "worker"
+        elif getattr(chat, "run_id", None):
+            orchestration_role = "supervisor"
+
+        if getattr(chat, "run_id", None):
+            tags.append(f"run:{chat.run_id}")
+        if getattr(chat, "run_step_id", None):
+            tags.append(f"step:{chat.run_step_id}")
+
         headers: Dict[str, str] = {
             "tags": ",".join(list(set(tags + chat_tools + chat_profile_names)))
         }
         if chat_profile_names:
             headers[PROFILES_HEADER] = ",".join(chat_profile_names)
+        if orchestration_role:
+            orchestration_info = {
+                "run_id": getattr(chat, "run_id", None) or "",
+                "step_id": getattr(chat, "run_step_id", None) or "",
+                "role": orchestration_role,
+            }
+            headers[ORCHESTRATION.ORCHESTRATION_HEADER] = json.dumps(
+                orchestration_info
+            )
+            logger.info(
+                "Declaring orchestration role '%s' for chat '%s' (run=%s step=%s)",
+                orchestration_role,
+                chat.id,
+                orchestration_info["run_id"],
+                orchestration_info["step_id"],
+            )
         return headers
 
     # -------------------------------------------------------------------------
@@ -1453,7 +1489,10 @@ class ChatEngine:
                 # request of the turn keeps it.
                 headers = {
                     key: value for key, value in ai_headers.items()
-                    if key.lower() != PROFILES_HEADER
+                    if key.lower() not in (
+                        PROFILES_HEADER,
+                        ORCHESTRATION.ORCHESTRATION_HEADER,
+                    )
                 }
                 headers["tags"] = ai_headers["tags"] + "," + tags
             return await ai.a_chat_run(
@@ -1461,7 +1500,9 @@ class ChatEngine:
                 prompt=prompt,
                 callback=callback,
                 headers=headers,
-                tools=chat_tools,
+                # Auxiliary requests (summary/description/auto-init) never need
+                # tools; only the main turn receives the selected toolset.
+                tools=[] if tags else chat_tools,
                 cancellation_token=cancellation_token,
                 chat_id=chat.id,
                 run_context=run_context,
@@ -2954,8 +2995,18 @@ class ChatEngine:
 
             # ------------------------------------------------------------------
             # 23. Generate conversation summary and auto-initialize if needed
+            #
+            # Orchestration chats are EXCLUDED: a worker/step card and the run
+            # main task are driven by the orchestrator, and an extra summary AI
+            # call on every supervisor round/worker turn would only add cost and
+            # latency. Their names/descriptions are owned by the run.
             # ------------------------------------------------------------------
-            if not is_search:
+            is_orchestration_chat = bool(
+                getattr(chat, "run_id", None)
+                or getattr(chat, "run_step_id", None)
+                or getattr(chat, "mode", "") == ORCHESTRATION.CHAT_MODE_DELEGATE
+            )
+            if not is_search and not is_orchestration_chat:
                 await self._generate_chat_description(
                     chat=chat,
                     messages=messages,

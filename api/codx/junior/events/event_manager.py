@@ -35,6 +35,20 @@ class EventManager:
         self.channel.send_event('message-event', self.event_data({ 'chat': { 'id': chat.id, 'owner_project_id': chat.owner_project_id }, 'message': message.model_dump() }))
         # self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")
 
+    def orchestration_event(self, payload: dict):
+        """
+        Emit an orchestration-run event to connected clients.
+
+        The payload contains ``run_id``, ``event``, ``status``, ``main_chat_id``,
+        ``progress`` and event-specific data (step id, cost...). Clients can
+        subscribe to ``codx-junior-orchestration`` for live run progress; the
+        REST endpoints remain the source of truth.
+        """
+        self.channel.send_event(
+            'codx-junior-orchestration',
+            self.event_data(payload),
+        )
+
     def wiki_event(self, message: str):
         self.channel.send_event('wiki-event', self.event_data({ "info": message }))
         # self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")

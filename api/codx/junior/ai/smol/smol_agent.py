@@ -122,6 +122,7 @@ from codx.junior.ai.smol.messages import (
     to_openai_messages,
 )
 from codx.junior.ai.smol.tool_cache import ToolCache
+from codx.junior.orchestration import constants as ORCHESTRATION
 from codx.junior.analytics import Analytics
 from codx.junior.analytics.model import ArchivedMessage, ToolCallMessage
 from codx.junior.analytics.token_counter import count_tokens
@@ -536,9 +537,10 @@ class SmolAgent:
         """
         Return a copy of *headers* without the internal ``profiles`` header.
 
-        The header is consumed by the agent and must never reach the provider.
-        The original dict is NOT mutated: the chat engine reuses it for the
-        auxiliary requests of the same turn (summary, chat init).
+        Both internal headers (``profiles`` and ``orchestration``) are consumed
+        by the agent and must never reach the provider. The original dict is NOT
+        mutated: the chat engine reuses it for the auxiliary requests of the
+        same turn (summary, chat init).
 
         Args:
             headers: Request headers.
@@ -546,10 +548,11 @@ class SmolAgent:
         Returns:
             Headers safe to forward to the provider.
         """
+        internal = {PROFILES_HEADER, ORCHESTRATION.ORCHESTRATION_HEADER}
         return {
             key: value
             for key, value in (headers or {}).items()
-            if key.lower() != PROFILES_HEADER
+            if key.lower() not in internal
         }
 
     def _can_manage_profile_knowledge(self) -> bool:
@@ -604,6 +607,97 @@ class SmolAgent:
         if self._can_manage_profile_knowledge():
             tools.append(PROFILE_LEARNING_TOOL)
         return tools
+
+    # ── Orchestration tools (decided by the agent, per run) ───────────────────
+
+    @staticmethod
+    def _resolve_orchestration_info(
+        config: Dict[str, Any],
+        headers: Dict[str, str],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Return the orchestration role declared by the chat engine, if any.
+
+        The chat engine puts it in the internal ``orchestration`` header (a JSON
+        object ``{run_id, step_id, role}``), which is stripped before the
+        provider request. ``config["orchestration"]`` is also accepted for
+        callers that build the agent directly.
+
+        Args:
+            config:  Chat configuration dict.
+            headers: Request headers.
+
+        Returns:
+            The parsed info dict (``role`` is ``supervisor`` or ``worker``), or
+            None when the chat does not take part in a run.
+        """
+        raw = config.get("orchestration")
+        if raw is None:
+            raw = headers.get(ORCHESTRATION.ORCHESTRATION_HEADER)
+
+        if isinstance(raw, dict):
+            info = dict(raw)
+        elif raw:
+            try:
+                info = json.loads(str(raw))
+            except (ValueError, TypeError):
+                logger.warning("SmolAgent: invalid orchestration header: %r", raw)
+                return None
+        else:
+            return None
+
+        if not isinstance(info, dict):
+            return None
+        role = str(info.get("role") or "").strip().lower()
+        if role not in ("supervisor", "worker"):
+            logger.warning("SmolAgent: unknown orchestration role: %r", role)
+            return None
+        info["role"] = role
+        info["run_id"] = str(info.get("run_id") or "")
+        info["step_id"] = str(info.get("step_id") or "")
+        tools = info.get("tools")
+        if isinstance(tools, (list, tuple, set)):
+            info["tools"] = [str(tool).strip() for tool in tools if str(tool).strip()]
+        else:
+            info["tools"] = []
+        return info
+
+    def _orchestration_tools_for_run(
+        self,
+        orchestration_info: Optional[Dict[str, Any]],
+    ) -> List[str]:
+        """
+        Decide which orchestration tools are injected into this request.
+
+        * ``supervisor`` (the run main task) receives ``orchestrator`` — it plans,
+          verifies and finishes the run. It does NOT receive ``delegate``: worker
+          delegation is the plan itself, and the worker loop owns execution.
+        * ``worker`` (a step card or a delegated subagent) receives a safe
+          baseline of project tools and NEVER the orchestrator (no recursive
+          planning). A profile assigned to the step can add specialized tools.
+
+        Args:
+            orchestration_info: Parsed ``orchestration`` header (or None).
+
+        Returns:
+            Tool names to add to the request.
+        """
+        if not orchestration_info:
+            return []
+
+        role = orchestration_info.get("role")
+        if role == "supervisor":
+            return [ORCHESTRATION.ORCHESTRATOR_TOOL]
+        if role == "worker":
+            tools = orchestration_info.get("tools") or list(
+                ORCHESTRATION.DEFAULT_WORKER_TOOLS
+            )
+            resolved: List[str] = []
+            for name in tools:
+                if name and name not in resolved:
+                    resolved.append(name)
+            return resolved
+        return []
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -745,6 +839,7 @@ class SmolAgent:
         # internal header (never forwarded to the provider). The AGENT — not the
         # profile definition — decides which profile tools are injected.
         profile_names: List[str] = self._resolve_profile_names(config, headers)
+        orchestration_info = self._resolve_orchestration_info(config, headers)
         provider_headers: Dict[str, str] = self._strip_profiles_header(headers)
         session_id: Optional[str] = headers.get("session_id")
         tags: str = self._build_tags(headers)
@@ -756,10 +851,19 @@ class SmolAgent:
         if self.session and current_chat:
             self.settings._active_session = self.session
             self.session._current_chat = current_chat
+        # Expose the cancellation token to tools that spawn nested work (the
+        # `delegate` tool cancels its subagents when the parent turn is
+        # cancelled). Best effort: settings is a plain model.
+        try:
+            self.settings._active_cancellation_token = cancellation_token
+        except Exception:  # pragma: no cover - defensive
+            pass
 
         send_callback = self._make_callback_sender(config.get("callbacks"))
         kwargs = self._build_request_kwargs(
-            config.get("tools", []), profile_names=profile_names
+            config.get("tools", []),
+            profile_names=profile_names,
+            orchestration_info=orchestration_info,
         )
         # Build system message dynamically on each chat (fresh global instructions)
         system_message = self._build_system_message()
@@ -924,7 +1028,11 @@ class SmolAgent:
                 params = self._parse_tool_arguments(
                     tool_call.get("arguments"), func_name
                 )
-                cached_result = tool_cache.get(func_name, params)
+                cached_result = (
+                    tool_cache.get(func_name, params)
+                    if self._tool_is_cacheable(func_name)
+                    else None
+                )
 
                 if cached_result is not None:
                     cached_calls[tool_id] = {
@@ -1698,6 +1806,26 @@ class SmolAgent:
 
     # ── Tool execution ─────────────────────────────────────────────────────────
 
+    def _tool_is_cacheable(self, tool_name: str) -> bool:
+        """
+        Return False for stateful tools that must never be served from cache.
+
+        Orchestration tools are the obvious case: ``orchestrator(status)`` must
+        observe the current plan, and ``plan``/``finish`` must execute every
+        time. A tool opts out with ``settings.cache = False``.
+
+        Args:
+            tool_name: Tool whose cache policy to resolve.
+
+        Returns:
+            True when the tool result may be cached for this conversation.
+        """
+        for tool in self.tools:
+            if tool["tool_json"]["function"]["name"] != tool_name:
+                continue
+            return bool(tool.get("settings", {}).get("cache", True))
+        return True
+
     def _get_tool_definition(self, tool_name: str) -> Optional[Dict[str, Any]]:
         """
         Extract the complete tool definition (JSON schema) for a given tool name.
@@ -1844,8 +1972,8 @@ class SmolAgent:
                 result_str = result if isinstance(result, str) else json.dumps(result)
                 result_preview = result_str[:TOOL_RESULT_PREVIEW_MAX_CHARS]
 
-            # Cache the result before returning
-            if tool_cache:
+            # Cache the result before returning (stateful tools opt out).
+            if tool_cache and self._tool_is_cacheable(func_name):
                 tool_cache.set(func_name, params, result, success=True)
 
             return result
@@ -1860,7 +1988,7 @@ class SmolAgent:
             logger.exception("SmolAgent: error executing tool '%s'", func_name)
 
             # Cache the error result too so we don't re-execute a failing tool
-            if tool_cache:
+            if tool_cache and self._tool_is_cacheable(func_name):
                 tool_cache.set(func_name, params, error_result, success=False)
 
             return error_result
@@ -2461,6 +2589,7 @@ class SmolAgent:
         self,
         selected_tools: List[str],
         profile_names: Optional[List[str]] = None,
+        orchestration_info: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Build the base kwargs for the OpenAI completion request.
@@ -2474,11 +2603,18 @@ class SmolAgent:
         take part in the turn and ``profile_learning`` only for users allowed to
         change what profiles learn (see :meth:`_profile_tools_for_run`).
 
+        ADDED — orchestration tools: a run supervisor receives ``orchestrator``;
+        a worker card receives the baseline project toolset and never the
+        orchestrator (see :meth:`_orchestration_tools_for_run`). Like the
+        profile tools, they are decided per run by the agent and are not part of
+        the profile definition.
+
         Args:
             selected_tools: Names of chat-scoped tools enabled for this
                            conversation. Global scope tools are added
                            automatically.
             profile_names:  Profiles taking part in the turn.
+            orchestration_info: Parsed internal ``orchestration`` header.
 
         Returns:
             Dict of request kwargs (model, stream, tools, temperature).
@@ -2501,6 +2637,27 @@ class SmolAgent:
                 profile_tools,
                 profile_names,
             )
+
+        orchestration_tools = self._orchestration_tools_for_run(orchestration_info)
+        if orchestration_tools:
+            selected_tool_set.update(orchestration_tools)
+            logger.info(
+                "SmolAgent: injecting orchestration tools %s (role=%s)",
+                orchestration_tools,
+                (orchestration_info or {}).get("role"),
+            )
+
+        # Never let a profile definition smuggle a control tool into the wrong
+        # role: a worker must not plan (recursive orchestration), and a
+        # supervisor must not run a synchronous delegate from inside the run
+        # loop (its work is the plan itself).
+        if orchestration_info:
+            role = orchestration_info.get("role")
+            if role == "supervisor":
+                selected_tool_set.discard(ORCHESTRATION.DELEGATE_TOOL)
+            elif role == "worker":
+                selected_tool_set.discard(ORCHESTRATION.ORCHESTRATOR_TOOL)
+                selected_tool_set.discard(ORCHESTRATION.DELEGATE_TOOL)
 
         enabled_tools: List[Dict[str, Any]] = []
 

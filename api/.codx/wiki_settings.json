@@ -840,6 +840,11 @@
           "path": "/codx/junior/infra/compose.py",
           "slug": "compose.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/compose.md"
+        },
+        {
+          "path": "/codx/junior/utils/file_lock.py",
+          "slug": "file-lock.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/api/wiki/project-overview/file-lock.md"
         }
       ],
       "id": "project-overview",
@@ -1454,4 +1459,5 @@
     }
   ],
   "path": "/home/codx-junior-projects/codx-junior/api/.codx/wiki_settings.json"
+}.json"
 }

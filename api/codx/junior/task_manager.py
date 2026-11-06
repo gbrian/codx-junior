@@ -206,6 +206,11 @@ class TaskManager:
         owner_project_id: Optional[str] = None,
         user: Optional[str] = None,
         mode: str = DEFAULT_MODE,
+        estimation_cost: Optional[float] = None,
+        run_id: Optional[str] = None,
+        run_step_id: Optional[str] = None,
+        ignore_parent_knowledge: bool = False,
+        ignore_parent_files: bool = False,
     ) -> Chat:
         """
         Create and persist a task with the information provided by the caller.
@@ -241,6 +246,14 @@ class TaskManager:
             owner_project_id: Project that stores the task (falls back to the parent).
             user: Author username.
             mode: Chat mode of the task (``task`` by default).
+            estimation_cost: Optional per-chat budget (cxjcoins). Used by the
+                orchestration worker to push the run budget down to a step.
+            run_id: Optional orchestration run id (board back-reference).
+            run_step_id: Optional orchestration step id (worker cards only).
+            ignore_parent_knowledge: When True the task does not inherit the
+                parent conversation (used by isolated orchestration workers).
+            ignore_parent_files: When True the task does not inherit the parent
+                file list (used by isolated orchestration workers).
 
         Returns:
             The persisted :class:`~codx.junior.db.Chat`.
@@ -299,11 +312,25 @@ class TaskManager:
                 or settings_project_id
             ),
             mode=mode,
+            estimation_cost=estimation_cost,
+            run_id=run_id,
+            run_step_id=run_step_id,
+            ignore_parent_knowledge=ignore_parent_knowledge,
+            ignore_parent_files=ignore_parent_files,
         )
 
         # Ancestor invariant: parent_id (when missing) + root_id from the parent.
-        # When the parent chat is not loaded, save_chat resolves and backfills
-        # root_id walking parent_id.
+        # When only a parent_id was given, load the parent so root_id is stamped
+        # correctly (a worker card MUST roll its cost up into the run main task).
+        if parent_chat is None and task.parent_id and self.chat_manager is not None:
+            try:
+                parent_chat = self.chat_manager.find_by_id(task.parent_id)
+            except Exception as ex:  # pragma: no cover - defensive
+                logger.warning(
+                    "TaskManager: could not load parent '%s' for root_id: %s",
+                    task.parent_id,
+                    ex,
+                )
         link_parent(chat=task, parent_chat=parent_chat)
 
         task.messages.append(

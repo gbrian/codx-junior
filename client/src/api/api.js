@@ -6,6 +6,7 @@ import { analyticsModule } from './modules/analytics'
 import { logsModule } from './modules/logs'
 import { viewsModule } from './modules/views'
 import { chatsModule } from './modules/chats'
+import { orchestrationModule } from './modules/orchestration'
 import { teamsModule } from './modules/teams'
 import { workspacesModule } from './modules/workspaces'
 import { browsersModule } from './modules/browsers'
@@ -764,6 +765,18 @@ const initializeAPI = ({ project, user } = {}) => {
         API._chatsModule = chatsModule(API)
       }
       return API._chatsModule
+    },
+
+    /**
+     * Durable orchestration runs: create/start/pause/stop and read the plan
+     * detail. Live progress arrives on the `codx-junior-orchestration` socket
+     * event. See api/modules/orchestration.js.
+     */
+    get orchestration() {
+      if (!API._orchestrationModule) {
+        API._orchestrationModule = orchestrationModule(API)
+      }
+      return API._orchestrationModule
     },
 
     get teams() {

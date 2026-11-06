@@ -51,6 +51,12 @@ from .project_structure import (
 from .code_writer import code_writer
 from .create_task_tool import create_task, CREATE_TASK_TOOL_JSON
 from .process_task_tool import process_task, PROCESS_TASK_TOOL_JSON
+from .orchestration_tools import (
+    orchestrator,
+    delegate,
+    ORCHESTRATOR_TOOL_JSON,
+    DELEGATE_TOOL_JSON,
+)
 from .apply_file_changes import apply_file_changes
 from .git_tools import (
     get_file_last_version,
@@ -176,6 +182,8 @@ __all__ = [
     "code_writer",
     "create_task",
     "process_task",
+    "orchestrator",
+    "delegate",
     "apply_file_changes",
     "profile_management",
     "list_profiles",
@@ -460,7 +468,14 @@ TOOLS = [
     },
     {
         "tool_json": PROCESS_TASK_TOOL_JSON,
-        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "settings": {
+            "async": True,
+            "is_async": True,
+            "project_settings": True,
+            "scope": "chat",
+            "cache": False,
+            "dual_response": True,
+        },
         "tags": ["task-management", "processing", "workflow"],
         "tool_call": process_task
     },
@@ -1337,6 +1352,37 @@ TOOLS = [
         "settings": BROWSER_TOOL_SETTINGS,
         "tags": ["browser", "web", "automation", "cleanup"],
         "tool_call": finish_session
+    },
+    # -- Orchestration: durable runs and isolated subagents -----------------
+    {
+        "tool_json": ORCHESTRATOR_TOOL_JSON,
+        "settings": {
+            # stateful: never cache plan/status/finish results
+            "async": True,
+            "is_async": True,
+            "project_settings": True,
+            "session": True,
+            "scope": "chat",
+            "cache": False,
+            "dual_response": True,
+        },
+        "tags": ["orchestration", "runs", "planning", "kanban", "sprint", "workflow"],
+        "tool_call": orchestrator
+    },
+    {
+        "tool_json": DELEGATE_TOOL_JSON,
+        "settings": {
+            # a delegate call creates cards and runs turns: never cache it
+            "async": True,
+            "is_async": True,
+            "project_settings": True,
+            "session": True,
+            "scope": "chat",
+            "cache": False,
+            "dual_response": True,
+        },
+        "tags": ["orchestration", "delegation", "subagents", "parallel", "kanban"],
+        "tool_call": delegate
     },
 ]
 
