@@ -13,6 +13,7 @@ coverage:
 import asyncio
 import os
 import re
+import shutil
 import subprocess
 from types import SimpleNamespace
 
@@ -484,6 +485,100 @@ def test_remove_worktree_rejects_unknown_paths(repo):
 
     assert result["success"] is False
     assert "No worktree registered" in " ".join(result["errors"])
+
+
+def test_worktrees_mark_the_main_checkout_from_a_subdirectory(repo, monkeypatch):
+    """A subproject path resolves the real git root: main is not a worktree."""
+    api_dir = os.path.join(repo, "api")
+    os.makedirs(api_dir, exist_ok=True)
+
+    # The parent project is unknown (e.g. registered behind another mount
+    # alias): the engine must ask git for the top-level instead of treating the
+    # subdirectory as the repository root.
+    monkeypatch.setattr(
+        "codx.junior.engine.git_engine.find_project_parents", lambda project: []
+    )
+    engine, _session = make_engine(api_dir)
+    engine.settings.is_git_root = False
+
+    assert engine._get_repo_root() == repo
+    worktrees = engine.list_worktrees(include_changes=False)
+    main = next(item for item in worktrees if item["path"] == repo)
+    assert main["is_main"] is True
+    assert "main checkout" in " ".join(
+        engine.remove_worktree(path=repo)["errors"]
+    ).lower()
+
+
+def test_remove_worktree_resolves_a_subproject_checkout(repo, tmp_path, monkeypatch):
+    """Deleting a worktree from a subproject still targets the repo root."""
+    worktree_path = str(tmp_path / "wt-feature")
+    run_git(repo, "worktree", "add", "-b", "feature", worktree_path, "main")
+
+    api_dir = os.path.join(repo, "api")
+    os.makedirs(api_dir, exist_ok=True)
+    monkeypatch.setattr(
+        "codx.junior.engine.git_engine.find_project_parents", lambda project: []
+    )
+    engine, _session = make_engine(api_dir)
+    engine.settings.is_git_root = False
+
+    result = engine.remove_worktree(branch="feature")
+
+    assert result["success"] is True
+    assert not os.path.exists(worktree_path)
+
+
+def test_remove_worktree_falls_back_to_the_branch_for_a_stale_path(repo, tmp_path):
+    """A stale path from the UI must not hide an existing worktree."""
+    worktree_path = str(tmp_path / "wt-feature")
+    run_git(repo, "worktree", "add", "-b", "feature", worktree_path, "main")
+
+    engine, _session = make_engine(repo)
+    result = engine.remove_worktree(
+        branch="feature", path=str(tmp_path / "moved-away")
+    )
+
+    assert result["success"] is True
+    assert result["path"] == worktree_path
+    assert not os.path.exists(worktree_path)
+
+
+def test_remove_worktree_prunes_a_missing_checkout(repo, tmp_path):
+    """A folder deleted outside git can still be unregistered from the view."""
+    worktree_path = str(tmp_path / "wt-feature")
+    run_git(repo, "worktree", "add", "-b", "feature", worktree_path, "main")
+    shutil.rmtree(worktree_path)
+
+    engine, _session = make_engine(repo)
+    result = engine.remove_worktree(path=worktree_path)
+
+    assert result["success"] is True
+    assert not any(
+        item["path"] == worktree_path
+        for item in engine.list_worktrees(include_changes=False)
+    )
+
+
+def test_remove_worktree_rejects_the_checkout_in_use(repo, tmp_path, monkeypatch):
+    """The project checked out by the view cannot be deleted from under it."""
+    worktree_path = str(tmp_path / "wt-feature")
+    run_git(repo, "worktree", "add", "-b", "feature", worktree_path, "main")
+
+    main_settings = FakeSettings(repo)
+    main_settings.is_git_root = True
+    settings = FakeSettings(worktree_path)
+    settings.is_git_root = False
+    monkeypatch.setattr(
+        "codx.junior.engine.git_engine.find_project_parents",
+        lambda project: [main_settings],
+    )
+
+    engine = GitValidatorEngine(session=FakeSession(settings))
+    result = engine.remove_worktree(path=worktree_path)
+
+    assert result["success"] is False
+    assert "checkout in use" in " ".join(result["errors"]).lower()
 
 
 # Made with ❤️ by codx-junior

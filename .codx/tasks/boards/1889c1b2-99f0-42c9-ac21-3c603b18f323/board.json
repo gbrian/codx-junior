@@ -1,0 +1,39 @@
+{
+  "title": "Orchestration",
+  "type": "kanban",
+  "columns": [
+    {
+      "id": "97ca7b36-4ec3-4900-bcb3-6e27c8778678",
+      "title": "Backlog",
+      "color": "",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "5d4f3e58-1002-4fb4-a4d2-c9d0e442dfbb",
+      "title": "In progress",
+      "color": "",
+      "folder": "In progress",
+      "order": 1
+    },
+    {
+      "id": "ad005b70-f5f5-486a-b511-aa3fc80fae86",
+      "title": "Done",
+      "color": "",
+      "folder": "Done",
+      "order": 2
+    },
+    {
+      "id": "b450bf92-218a-47a7-8b6b-d21de7227f33",
+      "title": "Blocked",
+      "color": "",
+      "folder": "Blocked",
+      "order": 3
+    }
+  ],
+  "id": "1889c1b2-99f0-42c9-ac21-3c603b18f323",
+  "description": "",
+  "parent_id": null,
+  "folder": "Orchestration",
+  "order": 124
+}

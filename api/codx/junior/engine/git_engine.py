@@ -283,6 +283,29 @@ class GitEngine:
         """
         return self.find_git_root_path() or self.settings.abs_project_path
 
+    @staticmethod
+    def _same_path(first: Optional[str], second: Optional[str]) -> bool:
+        """
+        Compare two filesystem paths as the same location.
+
+        ``normpath`` alone misses bind mounts and symlinks (the same checkout can
+        be reached through ``/home/user/projects/app`` and
+        ``/home/user/app``), which made the main checkout look like a removable
+        worktree. ``realpath`` resolves those aliases.
+
+        Args:
+            first: First path.
+            second: Second path.
+
+        Returns:
+            True when both paths point to the same location.
+        """
+        if not first or not second:
+            return False
+        return os.path.normcase(os.path.realpath(first)) == os.path.normcase(
+            os.path.realpath(second)
+        )
+
     # -------------------------------------------------------------------------
     # Git identity (project settings -> global settings -> git config)
     # -------------------------------------------------------------------------
@@ -1043,16 +1066,50 @@ class GitEngine:
         )
         return {"commits": commits}
 
+    def _git_toplevel(self, cwd: Optional[str] = None) -> str:
+        """
+        Return the working tree root git reports for *cwd*.
+
+        The identity and token overrides are disabled: this helper is used while
+        resolving the repository root, and resolving the identity itself needs
+        the repository root (which would recurse).
+
+        Args:
+            cwd: Directory inside the repository. Defaults to the project path.
+
+        Returns:
+            Absolute, normalized top-level path, or an empty string when *cwd*
+            is not inside a git working tree.
+        """
+        cwd = cwd or self.settings.abs_project_path
+        if not cwd:
+            return ""
+        result = self._run_git(
+            ["rev-parse", "--show-toplevel"],
+            cwd=cwd,
+            apply_identity=False,
+            apply_token=False,
+        )
+        if not result["ok"] or not result["output"]:
+            return ""
+        return os.path.normpath(result["output"])
+
     def find_git_root_path(self) -> str:
         """
         Find the root path of the git repository by checking parents.
+
+        A project can be a subdirectory of the repository (``api/``,
+        ``client/``...) whose parent project is not registered or is registered
+        behind a different mount alias. In that case the project path is not the
+        repository root: ask git for the real top-level, so worktree detection
+        and every repository write run from the root instead of the subfolder.
         """
         if self.settings.is_git_root:
             return self.settings.abs_project_path
         for parent in find_project_parents(project=self.settings):
             if parent.is_git_root:
                 return parent.abs_project_path
-        return ""
+        return self._git_toplevel(self.settings.abs_project_path)
 
     def get_commit_list(self, branch: str = None, limit: int = 50) -> list:
         """
@@ -2011,6 +2068,10 @@ class GitEngine:
             lists, dirty flag and file count).
         """
         result = self._run_git(["worktree", "list", "--porcelain"])
+        # Resolve once: the same checkout can be reached through a symlink or a
+        # bind mount, and path aliases must not turn the main checkout into a
+        # "removable worktree".
+        repo_root = self._get_repo_root()
         worktrees = []
         current: Dict[str, str] = {}
 
@@ -2019,14 +2080,18 @@ class GitEngine:
                 return
             entry = dict(current)
             path = entry.get("path", "")
+            # `worktree.useRelativePaths` makes porcelain report paths relative
+            # to the main checkout: normalize them so path matching (and the
+            # removal command) always uses absolute paths.
+            if path and not os.path.isabs(path):
+                path = os.path.normpath(os.path.join(repo_root, path))
+                entry["path"] = path
             entry["name"] = os.path.basename(os.path.normpath(path)) if path else ""
             entry["branch"] = self._sanitize_branch_name(entry.get("branch", ""))
             entry["head"] = entry.get("head", "")
             entry["bare"] = entry.get("bare") == "bare"
             entry["detached"] = entry.get("detached") == "detached"
-            entry["is_main"] = os.path.normpath(path) == os.path.normpath(
-                self._get_repo_root()
-            )
+            entry["is_main"] = self._same_path(path, repo_root)
             if include_changes:
                 entry["changes"] = self._worktree_changes(path)
             worktrees.append(entry)
@@ -2076,7 +2141,9 @@ class GitEngine:
 
         The target is always resolved against the registered worktrees, so the
         endpoint can never delete an arbitrary directory. The main checkout and
-        the checkout in use (the active project) are rejected.
+        the checkout in use (the active project) are rejected. A stale ``path``
+        falls back to the ``branch`` lookup, and a checkout whose folder was
+        deleted outside git is pruned instead of being reported as a failure.
 
         Args:
             branch: Branch whose worktree should be removed.
@@ -2103,16 +2170,21 @@ class GitEngine:
         }
 
         wanted_path = os.path.normpath(path) if path else ""
+        worktrees = self.list_worktrees(include_changes=False)
         target = None
-        for worktree in self.list_worktrees(include_changes=False):
-            worktree_path = os.path.normpath(worktree.get("path", ""))
-            if wanted_path:
-                if worktree_path == wanted_path:
+        if wanted_path:
+            for worktree in worktrees:
+                if self._same_path(worktree.get("path", ""), wanted_path):
                     target = worktree
                     break
-            elif branch and worktree.get("branch") == branch:
-                target = worktree
-                break
+        # The caller may send a stale path (the checkout was moved or recreated
+        # after the view loaded). Fall back to the branch instead of failing
+        # even though the worktree is still registered.
+        if not target and branch:
+            for worktree in worktrees:
+                if worktree.get("branch") == branch:
+                    target = worktree
+                    break
 
         if not target:
             target_name = path or branch
@@ -2125,20 +2197,19 @@ class GitEngine:
         result["path"] = target_path
         result["branch"] = target.get("branch") or branch
 
-        if target.get("is_main"):
+        repo_root = self._get_repo_root()
+        if target.get("is_main") or self._same_path(target_path, repo_root):
             result["errors"].append(
                 "The main checkout cannot be removed as a worktree"
             )
             return result
 
         # Removing the checkout currently in use would delete the open project
-        protected = {
-            os.path.normpath(self._get_repo_root()),
-            os.path.normpath(
-                str(getattr(self.settings, "abs_project_path", "") or "")
-            ),
-        }
-        if os.path.normpath(target_path) in protected:
+        protected = [
+            repo_root,
+            str(getattr(self.settings, "abs_project_path", "") or ""),
+        ]
+        if any(self._same_path(target_path, candidate) for candidate in protected):
             result["errors"].append(
                 f"Cannot remove the checkout in use: {target_path}"
             )
@@ -2146,17 +2217,24 @@ class GitEngine:
 
         remove = self._run_git(
             ["worktree", "remove", "--force", target_path],
-            cwd=self._get_repo_root(),
+            cwd=repo_root,
         )
         result["output"] = remove["output"]
         if not remove["ok"]:
-            # A stale registration must not block later worktree operations
-            self._run_git(["worktree", "prune"], cwd=self._get_repo_root())
-            result["errors"].append(
-                f"Could not remove worktree '{target_path}': "
-                f"{remove['error'] or remove['output']}"
+            # A stale registration (folder deleted outside git) must not block
+            # later worktree operations: prune and check whether the target is
+            # still registered. When it is gone the removal effectively worked.
+            self._run_git(["worktree", "prune"], cwd=repo_root)
+            still_registered = any(
+                self._same_path(worktree.get("path", ""), target_path)
+                for worktree in self.list_worktrees(include_changes=False)
             )
-            return result
+            if still_registered:
+                result["errors"].append(
+                    f"Could not remove worktree '{target_path}': "
+                    f"{remove['error'] or remove['output']}"
+                )
+                return result
 
         result["removed"] = True
         result["success"] = True
@@ -2309,6 +2387,17 @@ class GitEngine:
                 "removed": False,
                 "path": "",
                 "output": "no worktree registered",
+                "error": "",
+            }
+
+        # The main checkout is not a removable worktree: never try (git would
+        # fail with "is a main working tree"), just report nothing to remove.
+        if self._same_path(worktree_path, self._get_repo_root()):
+            return {
+                "ok": True,
+                "removed": False,
+                "path": worktree_path,
+                "output": "main checkout is not removed",
                 "error": "",
             }
 

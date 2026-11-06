@@ -1,0 +1,152 @@
+{
+  "id": "050b6b6e-0e23-422b-aecb-6f5acf08a75c",
+  "doc_id": null,
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": "e73c67e3-0212-4339-98dd-b50a1db5b867",
+  "root_id": "e73c67e3-0212-4339-98dd-b50a1db5b867",
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "rejected",
+  "status_history": [
+    {
+      "doc_id": "296ffa02-5b07-4542-aae8-67bcb05a3ba9",
+      "from_status": null,
+      "to_status": "todo",
+      "user": null,
+      "at": "2026-11-06T12:39:12.274431",
+      "meta_data": null
+    },
+    {
+      "doc_id": "b8f0bbf8-5c90-467c-8026-3aab0e97f1d8",
+      "from_status": "todo",
+      "to_status": "doing",
+      "user": null,
+      "at": "2026-11-06T12:39:12.569235",
+      "meta_data": null
+    },
+    {
+      "doc_id": "7083b93a-1232-4bab-a8f3-cce80ca12527",
+      "from_status": "doing",
+      "to_status": "todo",
+      "user": null,
+      "at": "2026-11-06T12:39:49.526166",
+      "meta_data": null
+    },
+    {
+      "doc_id": "7bec576c-2724-4b3e-9222-d925d7c7c09a",
+      "from_status": "todo",
+      "to_status": "doing",
+      "user": null,
+      "at": "2026-11-06T12:39:53.235891",
+      "meta_data": null
+    },
+    {
+      "doc_id": "0abde940-bbdb-41de-ac04-3f81627aba1e",
+      "from_status": "doing",
+      "to_status": "rejected",
+      "user": null,
+      "at": "2026-11-06T12:40:52.790421",
+      "meta_data": null
+    }
+  ],
+  "tags": [
+    "orchestration",
+    "run:5f95f65e-6898-4291-8a43-3042769ef36d",
+    "step:n2"
+  ],
+  "file_list": [
+    "client/src/store/project.js"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "software_developer"
+  ],
+  "users": [],
+  "name": "Collapse the client mention-search fan-out in project store",
+  "pinned": false,
+  "is_template": false,
+  "description": "Single-file change in client/src/store/project.js. Do not explore the repo, do not run eslint/vite/tests (the client toolchain is not needed), do not reformat unrelated code, do not touch any other file. Target: one focused edit pass.\n\nWHY (verified in the current file): `project.$state.searchMentions` loops SEQUENTIALLY over `[project, ...getRelatedProjects(project)]` calling `searchProjectMentions(proj, ...)`, and `searchProjectFiles` expands `getRelatedProjects` AGAIN, so N sub-projects produce O(N^2) sequential `GET /api/files/search` round-trips per keystroke. The backend `search_files` already walks the active project root, which physically contains the sub-projects, so the nested expansion is pure duplication. `searchProjectMentions` also awaits `ensureFilesLoaded(project)` (`GET /api/knowledge/files`, the whole indexed file list) per project on every keystroke although that list is never used for ranking.\n\nAPPLY THESE EXACT EDITS (all inside client/src/store/project.js, top-level helpers first):\n\n(A) After `getRelatedProjects(...)` add:\n```js\nconst MENTION_SEARCH_CONCURRENCY = 3\n\nconst MENTION_FUSE_OPTIONS = {\n  includeScore: true,\n  minMatchCharLength: 3,\n  keys: [\"name\", \"searchIndex\", \"file\"]\n}\n\nfunction isSameOrChildPath(parentPath, childPath) {\n  if (!parentPath || !childPath) return false\n  const normalizedParentPath = parentPath.endsWith('/') ? parentPath : `${parentPath}/`\n  return childPath === parentPath || childPath.startsWith(normalizedParentPath)\n}\n\n/** Run `worker` over `items` with at most `limit` promises in flight. */\nasync function mapWithConcurrency(items, limit, worker) {\n  const results = []\n  let nextIndex = 0\n  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {\n    while (nextIndex < items.length) {\n      const current = nextIndex++\n      results[current] = await worker(items[current])\n    }\n  })\n  await Promise.all(runners)\n  return results\n}\n\n/**\n * Distinct roots a mention query has to search: the active project plus its\n * dependencies that live OUTSIDE its tree. Sub projects nested in the active\n * project root are dropped - the backend search already covers them.\n */\nfunction getSearchRoots(project) {\n  const candidates = [project, ...getRelatedProjects(project)]\n    .filter(candidate => candidate && candidate.$api && candidate.abs_project_path)\n\n  const roots = []\n  for (const candidate of candidates) {\n    const covered = roots.some(root => isSameOrChildPath(root.abs_project_path, candidate.abs_project_path))\n    if (!covered) roots.push(candidate)\n  }\n  return roots\n}\n```\n\n(B) Replace the whole body of `async function searchProjectFiles(project, searchQuery, limit = 20)` so it searches ONLY the project it receives (no `getRelatedProjects` expansion, no `allProjectsToSearch`). Keep the same result objects (`{ file, name, project, searchIndex }`), the same de-duplication by lowercase path, the same `$api.files.search({ search, pageSize: limit, page: 0 })` call, the same `console.error` on failure and `return fileResults.slice(0, limit)`.\n\n(C) Replace `async function searchProjectMentions(project, query, limit, controller)` with a version that takes `onResults` and fans out once:\n```js\nasync function searchProjectMentions(project, query, limit, controller, onResults) {\n  await ensureProfilesLoaded(project)\n\n  controller.checkCancelled()\n  controller.setProgress({ stage: 'loading', project: project.project_name })\n\n  const combined = await buildMentions(project)\n  controller.checkCancelled()\n\n  const rank = () => new Fuse(combined, MENTION_FUSE_OPTIONS)\n    .search(query)\n    .map(result => ({ ...result.item, score: result.score }))\n    .filter(({ score }) => score < 0.25)\n    .slice(0, limit)\n\n  if (!query || query.length < 2) {\n    return rank()\n  }\n\n  const seenFiles = new Set()\n\n  await mapWithConcurrency(getSearchRoots(project), MENTION_SEARCH_CONCURRENCY, async searchRoot => {\n    const fileResults = await searchProjectFiles(searchRoot, query, limit)\n    controller.checkCancelled()\n\n    for (const fileResult of fileResults) {\n      const key = (fileResult.file || fileResult.name).toLowerCase()\n      if (seenFiles.has(key)) continue\n      seenFiles.add(key)\n      combined.push({\n        name: fileResult.name,\n        file: fileResult.file,\n        project: fileResult.project,\n        searchIndex: fileResult.searchIndex,\n        avatar: fileResult.project?.project_icon,\n        mention: encodeURIComponent(fileResult.name)\n      })\n    }\n\n    if (onResults) onResults(rank())\n  })\n\n  controller.checkCancelled()\n  return rank()\n}\n```\n\n(D) Inside `initProject`, replace the body of `project.$state.searchMentions = async function({ query, limit = 10, onResults, controller })` (currently the sequential `for (const proj of allProjectsToSearch)` loop) with:\n```js\n    project.$state.searchMentions = async function({ query, limit = 10, onResults, controller }) {\n      try {\n        controller.isSearching = true\n        return await searchProjectMentions(project, query, limit, controller, onResults)\n      } catch (error) {\n        if (error.message !== 'Search cancelled') {\n          console.error('Error searching mentions:', error)\n        }\n        return []\n      } finally {\n        controller.isSearching = false\n      }\n    }\n```\nKeep the exported action `searchMentions({ query, limit = 10, onResults, controller })` signature untouched (it delegates to `project.$state.searchMentions`).\n\n(E) Rewrite the store action `reloadMentions({ state })` to use the distinct roots and bounded concurrency: `const searchRoots = getSearchRoots(project); searchRoots.forEach(clearMentionCache); await mapWithConcurrency(searchRoots, MENTION_SEARCH_CONCURRENCY, p => ensureProfilesLoaded(p, true))`. Do NOT call `ensureFilesLoaded` from the mention path any more (keep the helper itself: `initProject` still uses it).\n\nCONSTRAINTS: keep `buildMentions`, `ensureFilesLoaded`, `ensureProfilesLoaded`, `clearMentionCache`, `getProjectDependencies`, `getRelatedProjects` as they are (only add the new helpers); keep the suggestion payload keys `{ name, file, project, searchIndex, avatar, mention, score }`; keep plain JS style of the file; no unrelated reformatting.\n\nVERIFY: re-read the edited regions and state in your report the 5 edit points, that `searchProjectFiles` no longer references `getRelatedProjects`, and that `ensureFilesLoaded` is no longer called from the mention search. Do not run the client build.\n\n**Acceptance criteria**\nDiff in client/src/store/project.js shows: `searchProjectFiles` searches only its argument; `searchProjectMentions` fans out once over `getSearchRoots(project)` with `mapWithConcurrency` (max 3), merges de-duplicated file results into the mention list and ranks once with the existing Fuse options plus the `score < 0.25` + `limit` filter; `$state.searchMentions` delegates with try/catch/finally and calls `onResults`; `reloadMentions` uses the same distinct roots and no longer calls `ensureFilesLoaded`; payload keys unchanged.",
+  "messages": [
+    {
+      "doc_id": null,
+      "role": "user",
+      "task_item": "",
+      "content": "# ORCHESTRATED STEP\nRun: **Fix chat intellisense latency on multi sub-project repos**\nStep: **Collapse the client mention-search fan-out in project store** (`n2`)\n\n## Run objective\nTyping `@` in the chat composer is extremely slow (seconds to tens of seconds) when the active project has several sub-projects. Root cause analysis is already done and stored at .codx/profiles/orchestrator/knowledge/analysis/chat-intellisense-performance.md:\n\n1. client/src/store/project.js `searchMentions` loops sequentially over [project, ...getRelatedProjects(project)] and each `searchProjectFiles` call AGAIN expands getRelatedProjects, producing O(N^2) sequential `GET /api/files/search` round-trips per keystroke. The backend already scopes the search to the current project root (which physically contains the sub-projects), so the client fan-out is pure duplication.\n2. Backend `FileEngine.search_files` / `search_files_content` in api/codx/junior/engine/file_engine.py build a fresh `GitIgnoreManager` per call, whose `_load_all_gitignore_files` does a FULL os.walk, and then walk the tree a SECOND time for the search itself. With ~7k files per .worktrees tree one call takes seconds.\n3. `GET /api/files/search` in api/codx/junior/api/files.py is an `async def` calling the blocking `file_engine.search_files`, so every keystroke blocks the whole API event loop.\n\nGoal: make `@` mention intellisense feel instant (<300ms typical) on repositories with several sub-projects, without changing the public suggestion payload shape. Fix both the client fan-out and the backend full-tree re-walk / event-loop blocking, then verify with evidence (tests or a reproducible measurement, plus review of the diff).\n\n## Step objective\nSingle-file change in client/src/store/project.js. Do not explore the repo, do not run eslint/vite/tests (the client toolchain is not needed), do not reformat unrelated code, do not touch any other file. Target: one focused edit pass.\n\nWHY (verified in the current file): `project.$state.searchMentions` loops SEQUENTIALLY over `[project, ...getRelatedProjects(project)]` calling `searchProjectMentions(proj, ...)`, and `searchProjectFiles` expands `getRelatedProjects` AGAIN, so N sub-projects produce O(N^2) sequential `GET /api/files/search` round-trips per keystroke. The backend `search_files` already walks the active project root, which physically contains the sub-projects, so the nested expansion is pure duplication. `searchProjectMentions` also awaits `ensureFilesLoaded(project)` (`GET /api/knowledge/files`, the whole indexed file list) per project on every keystroke although that list is never used for ranking.\n\nAPPLY THESE EXACT EDITS (all inside client/src/store/project.js, top-level helpers first):\n\n(A) After `getRelatedProjects(...)` add:\n```js\nconst MENTION_SEARCH_CONCURRENCY = 3\n\nconst MENTION_FUSE_OPTIONS = {\n  includeScore: true,\n  minMatchCharLength: 3,\n  keys: [\"name\", \"searchIndex\", \"file\"]\n}\n\nfunction isSameOrChildPath(parentPath, childPath) {\n  if (!parentPath || !childPath) return false\n  const normalizedParentPath = parentPath.endsWith('/') ? parentPath : `${parentPath}/`\n  return childPath === parentPath || childPath.startsWith(normalizedParentPath)\n}\n\n/** Run `worker` over `items` with at most `limit` promises in flight. */\nasync function mapWithConcurrency(items, limit, worker) {\n  const results = []\n  let nextIndex = 0\n  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {\n    while (nextIndex < items.length) {\n      const current = nextIndex++\n      results[current] = await worker(items[current])\n    }\n  })\n  await Promise.all(runners)\n  return results\n}\n\n/**\n * Distinct roots a mention query has to search: the active project plus its\n * dependencies that live OUTSIDE its tree. Sub projects nested in the active\n * project root are dropped - the backend search already covers them.\n */\nfunction getSearchRoots(project) {\n  const candidates = [project, ...getRelatedProjects(project)]\n    .filter(candidate => candidate && candidate.$api && candidate.abs_project_path)\n\n  const roots = []\n  for (const candidate of candidates) {\n    const covered = roots.some(root => isSameOrChildPath(root.abs_project_path, candidate.abs_project_path))\n    if (!covered) roots.push(candidate)\n  }\n  return roots\n}\n```\n\n(B) Replace the whole body of `async function searchProjectFiles(project, searchQuery, limit = 20)` so it searches ONLY the project it receives (no `getRelatedProjects` expansion, no `allProjectsToSearch`). Keep the same result objects (`{ file, name, project, searchIndex }`), the same de-duplication by lowercase path, the same `$api.files.search({ search, pageSize: limit, page: 0 })` call, the same `console.error` on failure and `return fileResults.slice(0, limit)`.\n\n(C) Replace `async function searchProjectMentions(project, query, limit, controller)` with a version that takes `onResults` and fans out once:\n```js\nasync function searchProjectMentions(project, query, limit, controller, onResults) {\n  await ensureProfilesLoaded(project)\n\n  controller.checkCancelled()\n  controller.setProgress({ stage: 'loading', project: project.project_name })\n\n  const combined = await buildMentions(project)\n  controller.checkCancelled()\n\n  const rank = () => new Fuse(combined, MENTION_FUSE_OPTIONS)\n    .search(query)\n    .map(result => ({ ...result.item, score: result.score }))\n    .filter(({ score }) => score < 0.25)\n    .slice(0, limit)\n\n  if (!query || query.length < 2) {\n    return rank()\n  }\n\n  const seenFiles = new Set()\n\n  await mapWithConcurrency(getSearchRoots(project), MENTION_SEARCH_CONCURRENCY, async searchRoot => {\n    const fileResults = await searchProjectFiles(searchRoot, query, limit)\n    controller.checkCancelled()\n\n    for (const fileResult of fileResults) {\n      const key = (fileResult.file || fileResult.name).toLowerCase()\n      if (seenFiles.has(key)) continue\n      seenFiles.add(key)\n      combined.push({\n        name: fileResult.name,\n        file: fileResult.file,\n        project: fileResult.project,\n        searchIndex: fileResult.searchIndex,\n        avatar: fileResult.project?.project_icon,\n        mention: encodeURIComponent(fileResult.name)\n      })\n    }\n\n    if (onResults) onResults(rank())\n  })\n\n  controller.checkCancelled()\n  return rank()\n}\n```\n\n(D) Inside `initProject`, replace the body of `project.$state.searchMentions = async function({ query, limit = 10, onResults, controller })` (currently the sequential `for (const proj of allProjectsToSearch)` loop) with:\n```js\n    project.$state.searchMentions = async function({ query, limit = 10, onResults, controller }) {\n      try {\n        controller.isSearching = true\n        return await searchProjectMentions(project, query, limit, controller, onResults)\n      } catch (error) {\n        if (error.message !== 'Search cancelled') {\n          console.error('Error searching mentions:', error)\n        }\n        return []\n      } finally {\n        controller.isSearching = false\n      }\n    }\n```\nKeep the exported action `searchMentions({ query, limit = 10, onResults, controller })` signature untouched (it delegates to `project.$state.searchMentions`).\n\n(E) Rewrite the store action `reloadMentions({ state })` to use the distinct roots and bounded concurrency: `const searchRoots = getSearchRoots(project); searchRoots.forEach(clearMentionCache); await mapWithConcurrency(searchRoots, MENTION_SEARCH_CONCURRENCY, p => ensureProfilesLoaded(p, true))`. Do NOT call `ensureFilesLoaded` from the mention path any more (keep the helper itself: `initProject` still uses it).\n\nCONSTRAINTS: keep `buildMentions`, `ensureFilesLoaded`, `ensureProfilesLoaded`, `clearMentionCache`, `getProjectDependencies`, `getRelatedProjects` as they are (only add the new helpers); keep the suggestion payload keys `{ name, file, project, searchIndex, avatar, mention, score }`; keep plain JS style of the file; no unrelated reformatting.\n\nVERIFY: re-read the edited regions and state in your report the 5 edit points, that `searchProjectFiles` no longer references `getRelatedProjects`, and that `ensureFilesLoaded` is no longer called from the mention search. Do not run the client build.\n\n## Acceptance criteria\nDiff in client/src/store/project.js shows: `searchProjectFiles` searches only its argument; `searchProjectMentions` fans out once over `getSearchRoots(project)` with `mapWithConcurrency` (max 3), merges de-duplicated file results into the mention list and ranks once with the existing Fuse options plus the `score < 0.25` + `limit` filter; `$state.searchMentions` delegates with try/catch/finally and calls `onResults`; `reloadMentions` uses the same distinct roots and no longer calls `ensureFilesLoaded`; payload keys unchanged.\n\n## Known files\n- `client/src/store/project.js`\n\n## Rules\n- Work only on this step; do not start unrelated refactors.\n- Inspect the code before changing it and keep the change reviewable.\n- Verify your work (tests, build, manual check) and say how.\n- If you are blocked, explain exactly what is missing instead of guessing forever.\n\n## Result contract\nFinish with a JSON object (and nothing after it):\n{\"status\":\"done\"|\"blocked\"|\"failed\",\"summary\":\"what was done\",\"files\":[\"paths touched\"],\"verification\":\"how you verified it\",\"followups\":[\"remaining work\"]}",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-06 12:39:12.134283",
+      "updated_at": "2026-11-06 12:39:12.134286",
+      "attachments": [],
+      "files": [
+        "client/src/store/project.js"
+      ],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-11-06 12:39:12.134244",
+  "updated_at": "2026-11-06T12:40:51.672571",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "Orchestration",
+  "column": "Blocked",
+  "sprints": [
+    "Run: Fix chat intellisense latency on multi sub-project repos"
+  ],
+  "priority": "high",
+  "due_date": null,
+  "progress": 100,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/Orchestration/Blocked/collapse-the-client-mention-search-fan-out-in-project-store.050b6b6e-0e23-422b-aecb-6f5acf08a75c.json",
+  "llm_model": "",
+  "estimation_cost": 10.0,
+  "cost": 0.0,
+  "run_id": "5f95f65e-6898-4291-8a43-3042769ef36d",
+  "run_status": null,
+  "run_step_id": "n2",
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": true,
+  "ignore_parent_files": true,
+  "external_source": null,
+  "external_id": null,
+  "external_parent_id": null,
+  "external_instance_id": null,
+  "external_status": null,
+  "external_url": null,
+  "external_updated_at": null
+}

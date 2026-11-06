@@ -266,9 +266,15 @@ export default {
      */
     worktreeList() {
       // The main checkout is the working tree shown above: list only the
-      // additional worktrees so its files are not rendered twice.
+      // additional worktrees so its files are not rendered twice. `repo_path`
+      // is the real git root, so the main checkout is also filtered when the
+      // API could not flag it (`is_main`) or the project points at a subfolder.
+      const repoPath = this.info?.repo_path || ''
       return (this.worktrees || [])
-        .filter(worktree => !worktree.is_main)
+        .filter(worktree => {
+          if (worktree.is_main) return false
+          return !(repoPath && this.samePath(worktree.path, repoPath))
+        })
         .map(worktree => {
           const changes = worktree.changes || {}
           const byPath = new Map()
@@ -425,6 +431,12 @@ export default {
   methods: {
     sameBranch(a, b) {
       const clean = value => (value || '').replace(/^[*+\s]+/, '').trim()
+      return !!a && !!b && clean(a) === clean(b)
+    },
+
+    /** Compare two filesystem paths ignoring trailing separators */
+    samePath(a, b) {
+      const clean = value => (value || '').replace(/[\\/]+$/, '')
       return !!a && !!b && clean(a) === clean(b)
     },
 
@@ -684,7 +696,7 @@ export default {
       const branch = worktree.branch || ''
       const current = this.currentBranch
       const isCurrent = !!branch && this.sameBranch(branch, current)
-      const isActiveCheckout = !!this.projectRoot && worktree.path === this.projectRoot
+      const isActiveCheckout = this.samePath(worktree.path, this.projectRoot)
       const changeCount = worktree.changeCount || worktree.changes?.file_count || 0
       const title = branch
         ? `Worktree ${branch}${changeCount ? ` · ${changeCount} change(s)` : ''}`
@@ -1469,9 +1481,12 @@ export default {
         this.graphRefreshToken += 1
         return result
       } catch (ex) {
-        this.error = ex?.response?.data?.detail || ex?.message || String(ex)
+        const message = ex?.response?.data?.detail || ex?.message || String(ex)
         // Reflect whatever could be applied (e.g. a partial staging)
         await this.loadRepo()
+        // loadRepo clears `error` on entry: restore the operation failure so a
+        // refused/failed write (e.g. deleting a worktree) is never silent.
+        this.error = message
         this.graphRefreshToken += 1
       } finally {
         this.busy = false

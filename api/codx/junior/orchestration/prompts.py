@@ -168,11 +168,16 @@ def render_plan_table(run: RunState) -> str:
         "| # | Step | Status | Attempts | Profile | Depends on | Card |",
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
+    escaped_pipe = "\\|"
     for index, step in enumerate(run.steps, start=1):
         card = step.chat_id[:8] if step.chat_id else "—"
         dependencies = ",".join(step.depends_on) or "—"
+        # The pipe is escaped OUTSIDE the f-string: a backslash inside an
+        # f-string expression is a SyntaxError before Python 3.12 ("f-string
+        # expression part cannot include a backslash").
+        title = step.title.replace("|", escaped_pipe)
         lines.append(
-            f"| {index} | {step.title.replace('|', '\\|')} | `{step.status}` | "
+            f"| {index} | {title} | `{step.status}` | "
             f"{step.attempts} | `{step.profile or 'default'}` | {dependencies} | {card} |"
         )
     return "\n".join(lines)
@@ -382,7 +387,8 @@ def _result_lines(run: RunState) -> List[str]:
         if result and result.verification:
             lines.append(f"  - verification: {_clip(result.verification, 600)}")
         if result and result.files:
-            lines.append(f"  - files: {', '.join(f'`{path}`' for path in result.files[:20])}")
+            files = ", ".join(f"`{path}`" for path in result.files[:20])
+            lines.append(f"  - files: {files}")
         if step.error:
             lines.append(f"  - error: {_clip(step.error, 600)}")
     return lines

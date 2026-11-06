@@ -1,4 +1,5 @@
 import os
+import asyncio
 import logging
 from fastapi import APIRouter, Request, Response, status, UploadFile, File, Form
 from fastapi.responses import FileResponse
@@ -174,6 +175,9 @@ async def search_files(request: Request):
     - page_size: Number of results per page (default 50)
     - raw_search: If true, search all files. If false, exclude .git (default false)
     - use_regex: If true, treat search pattern as regex. If false, use substring match (default false)
+
+    The filesystem work runs in a worker thread (`asyncio.to_thread`) so a
+    large tree never blocks the API event loop.
     """
     codx_junior_session = request.state.codx_junior_session
     file_engine = codx_junior_session.get_file_engine()
@@ -188,7 +192,8 @@ async def search_files(request: Request):
     if not search:
         return {"page": 0, "total_files": 0, "page_size": page_size, "files": []}
 
-    return file_engine.search_files(
+    return await asyncio.to_thread(
+        file_engine.search_files,
         search=search,
         search_path=search_path,
         page=page,
@@ -213,6 +218,9 @@ async def search_files_content(request: Request):
     - case_sensitive: Whether search should be case-sensitive (default false)
     - raw_search: If true, search all files. If false, exclude .git (default false)
     - use_regex: If true, treat query as regex pattern. If false, use substring match (default false)
+
+    The filesystem work runs in a worker thread (`asyncio.to_thread`) so a
+    large tree never blocks the API event loop.
     """
     codx_junior_session = request.state.codx_junior_session
     file_engine = codx_junior_session.get_file_engine()
@@ -235,7 +243,8 @@ async def search_files_content(request: Request):
             "error": "Missing (q)uery parameter"
         }
 
-    return file_engine.search_files_content(
+    return await asyncio.to_thread(
+        file_engine.search_files_content,
         query=query,
         search_path=search_path,
         page=page,

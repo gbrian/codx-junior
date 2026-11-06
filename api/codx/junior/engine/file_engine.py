@@ -12,6 +12,8 @@ import shlex
 import subprocess
 import base64
 import shutil
+import threading
+import time
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, List, Optional, Pattern, Tuple
@@ -304,6 +306,132 @@ class GitIgnoreManager:
         return False
 
 
+# ----------------------------------------------------------------------
+# Search cache
+# ----------------------------------------------------------------------
+# The chat composer calls `GET /api/files/search` on every keystroke (`@`
+# mentions), so the two costly artefacts a search needs are cached
+# process-wide, per search root, with a short TTL:
+#
+# * the parsed `GitIgnoreManager` (loading .gitignore files walks the tree)
+# * a materialized file index (one `os.walk` of the whole tree)
+#
+# With both cached, a repeated search on the same root performs zero walks: it
+# only filters the in-memory index. Entries expire after
+# `SEARCH_CACHE_TTL_SECONDS` and the number of cached roots is bounded, so
+# memory cannot grow unbounded (mutating file operations also invalidate).
+#
+# ```mermaid
+# flowchart TD
+#     A[search_files / search_files_content] --> B{_get_file_index cached?}
+#     B -- yes --> C[Filter entries in memory]
+#     B -- no --> D[_build_file_index: ONE os.walk]
+#     D --> E[_build_gitignore_manager: cached per root]
+#     E --> F[parse .gitignore files once]
+#     D --> G[Cache the index by root]
+#     G --> C
+#     C --> H[parse_file_line on the page slice only]
+# ```
+SEARCH_CACHE_TTL_SECONDS = 45
+SEARCH_CACHE_MAX_ROOTS = 8
+
+_search_cache_lock = threading.RLock()
+# Absolute search root -> (expires_at, GitIgnoreManager)
+_gitignore_cache: Dict[str, Tuple[float, "GitIgnoreManager"]] = {}
+# (project root, current project base path, raw_search) -> (expires_at, entries)
+_file_index_cache: Dict[Tuple[str, str, bool], Tuple[float, List[dict]]] = {}
+
+
+def _cache_get(cache: dict, key):
+    """
+    Return the cached value for ``key`` when it is still fresh, else None.
+
+    Args:
+        cache: Module cache dict holding ``key -> (expires_at, value)``.
+        key: Cache key to look up.
+
+    Returns:
+        The cached value, or None when the key is missing or expired.
+    """
+    with _search_cache_lock:
+        entry = cache.get(key)
+        if entry is None:
+            return None
+        expires_at, value = entry
+        if expires_at <= time.time():
+            cache.pop(key, None)
+            logger.debug("Search cache entry expired: %s", key)
+            return None
+        return value
+
+
+def _cache_set(cache: dict, key, value) -> None:
+    """
+    Store ``value`` under ``key`` with the search cache TTL.
+
+    The entries closest to expiration are evicted first, so the cache never
+    holds more than ``SEARCH_CACHE_MAX_ROOTS`` roots and memory stays bounded.
+
+    Args:
+        cache: Module cache dict holding ``key -> (expires_at, value)``.
+        key: Cache key to store.
+        value: Value to cache.
+    """
+    with _search_cache_lock:
+        cache[key] = (time.time() + SEARCH_CACHE_TTL_SECONDS, value)
+        while len(cache) > SEARCH_CACHE_MAX_ROOTS:
+            oldest_key = min(cache, key=lambda cached: cache[cached][0])
+            cache.pop(oldest_key, None)
+            logger.debug("Search cache evicted: %s", oldest_key)
+
+
+def _paths_related(path_a: str, path_b: str) -> bool:
+    """
+    Check whether two paths are the same or one lives inside the other.
+
+    Args:
+        path_a: Absolute, normalized path.
+        path_b: Absolute, normalized path.
+
+    Returns:
+        True when both paths are equal or one is a descendant of the other.
+    """
+    return (
+        path_a == path_b
+        or path_a.startswith(path_b + os.sep)
+        or path_b.startswith(path_a + os.sep)
+    )
+
+
+def _invalidate_search_cache_root(root_path: str) -> None:
+    """
+    Drop cached gitignore managers and file indexes related to ``root_path``.
+
+    Both the entries rooted at ``root_path`` and the ones whose root contains it
+    (a parent project index covers the changed file) are dropped.
+
+    Args:
+        root_path: Absolute path of the file or directory that changed.
+    """
+    root_path = os.path.normpath(root_path)
+    with _search_cache_lock:
+        for cached_root in list(_gitignore_cache):
+            if _paths_related(cached_root, root_path):
+                _gitignore_cache.pop(cached_root, None)
+        for cache_key in list(_file_index_cache):
+            if _paths_related(cache_key[0], root_path) or _paths_related(
+                cache_key[1], root_path
+            ):
+                _file_index_cache.pop(cache_key, None)
+
+
+def _clear_search_cache() -> None:
+    """Drop every cached gitignore manager and file index."""
+    with _search_cache_lock:
+        _gitignore_cache.clear()
+        _file_index_cache.clear()
+
+
 class FileEngine:
     """
     Handles file system operations for the project.
@@ -328,6 +456,9 @@ class FileEngine:
         FE --> search_files_content
         FE --> get_file_info
         FE --> _build_gitignore_manager
+        FE --> _build_file_index
+        FE --> _get_file_index
+        FE --> _invalidate_search_cache
         FE --> get_media_type
         FE --> get_project_roots
         FE --> get_project_root_for_path
@@ -345,20 +476,150 @@ class FileEngine:
 
     def _build_gitignore_manager(self, search_root: str) -> GitIgnoreManager:
         """
-        Build a GitIgnoreManager pre-loaded with all .gitignore rules
-        found under search_root.
+        Return the GitIgnoreManager for ``search_root``, building it on first use.
 
-        Creating it once per search operation means we pay the cost of
-        reading .gitignore files exactly once rather than once per file.
+        Loading a manager reads every .gitignore under the root (a full
+        ``os.walk``), which used to happen once per search call - on every
+        keystroke of the chat ``@`` composer. The instance is therefore cached
+        process-wide per root for ``SEARCH_CACHE_TTL_SECONDS`` and shared by
+        every caller (``read_directory``, ``search_files``,
+        ``search_files_content``).
 
         Args:
             search_root: Absolute directory path to scan for .gitignore files.
 
         Returns:
-            Ready-to-use GitIgnoreManager instance.
+            Ready-to-use GitIgnoreManager instance (possibly cached).
         """
-        logger.debug("Building GitIgnoreManager for root: %s", search_root)
-        return GitIgnoreManager(root_path=search_root)
+        root_path = os.path.normpath(search_root)
+        gitignore_manager = _cache_get(_gitignore_cache, root_path)
+        if gitignore_manager is not None:
+            logger.debug("Reusing cached GitIgnoreManager for root: %s", root_path)
+            return gitignore_manager
+
+        logger.debug("Building GitIgnoreManager for root: %s", root_path)
+        gitignore_manager = GitIgnoreManager(root_path=root_path)
+        _cache_set(_gitignore_cache, root_path, gitignore_manager)
+        return gitignore_manager
+
+    def _build_file_index(
+        self, root_path: str, raw_search: bool = False
+    ) -> List[dict]:
+        """
+        Materialize the file list of ``root_path`` with a single ``os.walk``.
+
+        Each entry keeps:
+
+        - ``abs_path``: absolute file path.
+        - ``rel_path``: path relative to the current project root, which is the
+          value reported by the API (``file_path`` is rebuilt from it).
+        - ``is_ignored``: git-ignored flag computed with the cached manager.
+
+        Ignored directories are pruned in place unless ``raw_search`` is True,
+        so their subtrees are never visited for a normal search. Entries are
+        sorted once by relative path: ``search_files`` has always returned
+        results in path order, so filtering never needs to sort again.
+
+        Args:
+            root_path: Absolute project (or sub project) root to index.
+            raw_search: When True, ignored directories are walked as well, so
+                ``raw_search=True`` still reports files living inside ignored
+                folders.
+
+        Returns:
+            List of index entries sorted by relative path.
+        """
+        base_path = os.path.normpath(self.settings.abs_project_path)
+        gitignore_manager = self._build_gitignore_manager(root_path)
+        index: List[dict] = []
+
+        for root, dirs, files in os.walk(root_path):
+            # Always skip the .git bookkeeping directory
+            if GIT_DIR in dirs:
+                dirs.remove(GIT_DIR)
+
+            if not raw_search:
+                # Prune ignored directories in-place so os.walk skips their subtrees
+                dirs[:] = [
+                    d for d in dirs
+                    if not gitignore_manager.is_ignored(os.path.join(root, d))
+                ]
+
+            for file in files:
+                file_path = os.path.join(root, file)
+                try:
+                    rel_path = os.path.relpath(file_path, base_path)
+                except ValueError:
+                    # Different drives on Windows - skip
+                    continue
+                index.append({
+                    "abs_path": file_path,
+                    "rel_path": rel_path,
+                    "is_ignored": gitignore_manager.is_ignored(file_path),
+                })
+
+        index.sort(key=lambda entry: entry["rel_path"])
+        logger.debug(
+            "Indexed %d files under %s (raw_search=%s)",
+            len(index),
+            root_path,
+            raw_search,
+        )
+        return index
+
+    def _get_file_index(self, root_path: str, raw_search: bool = False) -> List[dict]:
+        """
+        Return the cached file index of ``root_path``, building it on first use.
+
+        The index is keyed by project root, by the current project base path
+        (relative paths are reported against it) and by ``raw_search``, so the
+        pruned index used by the ``@`` mention search is never mixed with the
+        full index required by ``raw_search=True``.
+
+        Args:
+            root_path: Absolute project (or sub project) root to index.
+            raw_search: Whether ignored entries must be part of the index.
+
+        Returns:
+            List of index entries sorted by relative path.
+        """
+        root_path = os.path.normpath(root_path)
+        base_path = os.path.normpath(self.settings.abs_project_path)
+        cache_key = (root_path, base_path, bool(raw_search))
+
+        index = _cache_get(_file_index_cache, cache_key)
+        if index is not None:
+            logger.debug(
+                "Reusing cached file index of %d entries for %s (raw_search=%s)",
+                len(index),
+                root_path,
+                raw_search,
+            )
+            return index
+
+        index = self._build_file_index(root_path, raw_search=raw_search)
+        _cache_set(_file_index_cache, cache_key, index)
+        return index
+
+    def _invalidate_search_cache(self, root_path: Optional[str] = None) -> None:
+        """
+        Drop cached gitignore managers and file indexes after a tree change.
+
+        Mutating file operations call this so the next search sees the new tree.
+        Only the entries rooted at (or containing) ``root_path`` are dropped, so
+        editing a file in one project does not force a rebuild of the others.
+
+        Args:
+            root_path: Absolute path of the file or directory that changed.
+                When None, the whole search cache is cleared.
+        """
+        if root_path is None:
+            logger.debug("Clearing the whole search cache")
+            _clear_search_cache()
+            return
+
+        logger.debug("Invalidating search cache for %s", root_path)
+        _invalidate_search_cache_root(root_path)
 
     # ------------------------------------------------------------------
     # Project scopes (current project + child projects)
@@ -1107,6 +1368,8 @@ class FileEngine:
                 )
 
             write_file(file_path=abs_file_path, content=content)
+            # The tree changed: cached searches must see the new content
+            self._invalidate_search_cache(abs_file_path)
             info = self.get_file_info(abs_file_path)
             return {
                 "file_project": file_project.project_name,
@@ -1150,6 +1413,8 @@ class FileEngine:
             raise FileExistsError(f"Path already exists: {file_path}")
 
         try:
+            # The tree changed: cached searches must see the new path
+            self._invalidate_search_cache(abs_path)
             if is_dir:
                 # Create directory and parents
                 os.makedirs(abs_path, exist_ok=True)
@@ -1209,6 +1474,8 @@ class FileEngine:
             raise FileNotFoundError(f"Path not found: {file_path}")
 
         try:
+            # The tree changed: cached searches must forget the path
+            self._invalidate_search_cache(abs_path)
             if os.path.isdir(abs_path):
                 shutil.rmtree(abs_path)
                 logger.info("Deleted directory: %s", file_path)
@@ -1270,6 +1537,9 @@ class FileEngine:
             os.makedirs(os.path.dirname(new_abs_path), exist_ok=True)
             # Move file or directory (also handles cross-project/cross-device)
             shutil.move(old_abs_path, new_abs_path)
+            # The tree changed: cached searches must follow the move
+            self._invalidate_search_cache(old_abs_path)
+            self._invalidate_search_cache(new_abs_path)
             logger.info(
                 "Renamed %s to %s (project %s)",
                 old_path,
@@ -1390,6 +1660,8 @@ class FileEngine:
         abs_file_path, file_project = self.get_valid_project_file_path(file_path)
 
         try:
+            # The tree changed: cached searches must see the uploaded file
+            self._invalidate_search_cache(abs_file_path)
             # Create parent directories if needed
             os.makedirs(os.path.dirname(abs_file_path), exist_ok=True)
 
@@ -1534,8 +1806,13 @@ class FileEngine:
         Supports both substring and regex pattern matching.
 
         When raw_search is False, files and directories matched by any
-        .gitignore rule are excluded from results. All .gitignore files are
-        loaded once before the walk for maximum performance.
+        .gitignore rule are excluded from results.
+
+        Results are served from the cached file index of the project that owns
+        the searched root (see ``_get_file_index``): a repeated search on the
+        same root performs no new ``os.walk``, it only filters the in-memory
+        index. Only the requested page is materialized, so just page-sized
+        ``stat`` calls happen for last_modification/size.
 
         Each result entry includes an 'is_ignored' flag.  When raw_search is
         False ignored entries are filtered out; when True they are included
@@ -1573,57 +1850,41 @@ class FileEngine:
                         "error": str(ex),
                     }
 
-            # Build the ignore manager once - O(dirs) cost instead of O(files)
-            gitignore_manager = self._build_gitignore_manager(search_root)
+            # Serve the search from the cached index: no walk of the tree here.
+            # The index belongs to the project that owns the searched root (the
+            # current project or one of its child projects).
+            project_root = self.get_project_root_for_path(search_root)
+            gitignore_manager = self._build_gitignore_manager(project_root)
+            file_index = self._get_file_index(project_root, raw_search=raw_search)
 
-            matching_files = []
+            # Restrict the results to `search_path` when one was requested
+            search_prefix = None
+            if search_path:
+                search_prefix = os.path.normpath(search_root) + os.sep
 
-            for root, dirs, files in os.walk(search_root):
-                # Always skip the .git bookkeeping directory
-                if GIT_DIR in dirs:
-                    dirs.remove(GIT_DIR)
+            matching_entries = []
 
-                if not raw_search:
-                    # Prune ignored directories in-place so os.walk skips their subtrees
-                    dirs[:] = [
-                        d for d in dirs
-                        if not gitignore_manager.is_ignored(os.path.join(root, d))
-                    ]
+            for entry in file_index:
+                if search_prefix is not None and not entry["abs_path"].startswith(search_prefix):
+                    continue
 
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    is_ignored = gitignore_manager.is_ignored(file_path)
+                # Discard ignored files when not in raw mode
+                if not raw_search and entry["is_ignored"]:
+                    logger.debug("Skipping git-ignored file: %s", entry["abs_path"])
+                    continue
 
-                    # Discard ignored files when not in raw mode
-                    if not raw_search and is_ignored:
-                        logger.debug("Skipping git-ignored file: %s", file_path)
-                        continue
+                rel_path = entry["rel_path"]
 
-                    try:
-                        rel_path = os.path.relpath(
-                            file_path, self.settings.abs_project_path
-                        )
-                    except ValueError:
-                        continue
+                # Match using regex or substring
+                if use_regex:
+                    matches = compiled_pattern.search(rel_path) is not None
+                else:
+                    matches = search.lower() in rel_path.lower()
 
-                    # Match using regex or substring
-                    matches = False
-                    if use_regex:
-                        matches = compiled_pattern.search(rel_path) is not None
-                    else:
-                        matches = search.lower() in rel_path.lower()
+                if matches:
+                    matching_entries.append(entry)
 
-                    if matches:
-                        entry = self.parse_file_line(
-                            rel_path,
-                            self.settings.abs_project_path,
-                            gitignore_manager,
-                        )
-                        matching_files.append(entry)
-
-            matching_files.sort(key=lambda x: x["file_path"])
-
-            total_files = len(matching_files)
+            total_files = len(matching_entries)
             page_start = page * page_size
             page_end = page_start + page_size
 
@@ -1631,7 +1892,14 @@ class FileEngine:
                 "page": page,
                 "total_files": total_files,
                 "page_size": page_size,
-                "files": matching_files[page_start:page_end],
+                "files": [
+                    self.parse_file_line(
+                        entry["rel_path"],
+                        self.settings.abs_project_path,
+                        gitignore_manager,
+                    )
+                    for entry in matching_entries[page_start:page_end]
+                ],
             }
         except Exception as ex:
             error_msg = str(ex)
@@ -1661,8 +1929,10 @@ class FileEngine:
         search_path can be a directory or a file:
         - If a directory: searches all files within that directory tree
         - If a file: searches only that single file
-        When raw_search is False, git-ignored files are excluded. All .gitignore
-        files are loaded once before the walk for maximum performance.
+        When raw_search is False, git-ignored files are excluded. Directory
+        searches are served from the cached file index of the project that owns
+        the searched root (see ``_get_file_index``), so repeated searches on the
+        same root perform no new ``os.walk``.
         Supports both substring and regex pattern matching.
 
         Args:
@@ -1758,52 +2028,35 @@ class FileEngine:
                 if result is not None:
                     matching_results.append(result)
             else:
-                # Directory search mode
+                # Directory search mode: iterate the cached index, no walk here
                 logger.debug("Directory search mode for: %s", search_info)
-                # Build the ignore manager once - O(dirs) cost instead of O(files)
-                gitignore_manager = self._build_gitignore_manager(search_info)
+                project_root = self.get_project_root_for_path(search_info)
+                file_index = self._get_file_index(project_root, raw_search=raw_search)
+                search_prefix = os.path.normpath(search_info) + os.sep
 
-                for root, dirs, files in os.walk(search_info):
-                    # Always skip the .git bookkeeping directory
-                    if GIT_DIR in dirs:
-                        dirs.remove(GIT_DIR)
+                for entry in file_index:
+                    if not entry["abs_path"].startswith(search_prefix):
+                        continue
 
-                    if not raw_search:
-                        # Prune ignored directories in-place so os.walk skips their subtrees
-                        dirs[:] = [
-                            d for d in dirs
-                            if not gitignore_manager.is_ignored(os.path.join(root, d))
-                        ]
-
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        is_ignored = gitignore_manager.is_ignored(file_path)
-
-                        # Discard ignored files when not in raw mode
-                        if not raw_search and is_ignored:
-                            logger.debug(
-                                "Skipping git-ignored file in content search: %s", file_path
-                            )
-                            continue
-
-                        try:
-                            rel_path = os.path.relpath(
-                                file_path, self.settings.abs_project_path
-                            )
-                        except ValueError:
-                            continue
-
-                        result = self._search_in_file(
-                            file_path=file_path,
-                            rel_path=rel_path,
-                            search_pattern=search_pattern,
-                            compiled_pattern=compiled_pattern,
-                            case_sensitive=case_sensitive,
-                            use_regex=use_regex,
-                            is_ignored=is_ignored,
+                    # Discard ignored files when not in raw mode
+                    if not raw_search and entry["is_ignored"]:
+                        logger.debug(
+                            "Skipping git-ignored file in content search: %s",
+                            entry["abs_path"],
                         )
-                        if result is not None:
-                            matching_results.append(result)
+                        continue
+
+                    result = self._search_in_file(
+                        file_path=entry["abs_path"],
+                        rel_path=entry["rel_path"],
+                        search_pattern=search_pattern,
+                        compiled_pattern=compiled_pattern,
+                        case_sensitive=case_sensitive,
+                        use_regex=use_regex,
+                        is_ignored=entry["is_ignored"],
+                    )
+                    if result is not None:
+                        matching_results.append(result)
 
             matching_results.sort(key=lambda x: (-x["match_count"], x["rel_path"]))
 
