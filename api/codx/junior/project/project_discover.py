@@ -82,6 +82,40 @@ def is_path_child_of(child_path: str, parent_path: str) -> bool:
     return common == parent_path
 
 
+def is_git_worktree(project_path: str) -> bool:
+    """
+    Return True when ``project_path`` is a linked git worktree checkout.
+
+    A linked worktree has a ``.git`` *file* (``gitdir: <repo>/.git/worktrees/<name>``)
+    instead of the main checkout's ``.git`` directory. Submodules also use a
+    ``.git`` file, but their target lives under ``.git/modules``, so they are not
+    mistaken for worktrees.
+
+    Args:
+        project_path: Absolute project path.
+
+    Returns:
+        True for a linked worktree, False for the main checkout / submodule.
+
+    Example:
+        >>> is_git_worktree('/repos/app/.worktrees/feature')
+        True
+        >>> is_git_worktree('/repos/app')
+        False
+    """
+    if not project_path:
+        return False
+    dot_git = os.path.join(os.path.normpath(project_path), ".git")
+    if not os.path.isfile(dot_git):
+        return False
+    try:
+        with open(dot_git, "r", encoding="utf-8", errors="ignore") as handle:
+            content = handle.read(4096)
+    except OSError:
+        return False
+    return "/worktrees/" in content.replace("\\", "/")
+
+
 def find_all_projects(force: bool = False) -> Dict[str, CODXJuniorSettings]:
     """
     Return a mapping of project_id → CODXJuniorSettings for all discovered projects.
@@ -346,7 +380,22 @@ def _update_all_projects() -> None:
 
         existing_project = all_projects.get(candidate.project_id)
         if existing_project:
-            if not is_path_child_of(candidate.abs_project_path, projects_root_path):
+            existing_path = existing_project.abs_project_path
+            candidate_path = candidate.abs_project_path
+            if os.path.normpath(candidate_path) == os.path.normpath(existing_path):
+                return False
+
+            # A linked worktree and the main checkout can share the same
+            # project_id (the worktree carries a copy of .codx/project.json).
+            # The main checkout is the canonical project: prefer it no matter
+            # which one the filesystem scan visits first, so the app never
+            # silently points a project at a worktree on another branch.
+            candidate_is_worktree = is_git_worktree(candidate_path)
+            existing_is_worktree = is_git_worktree(existing_path)
+            if candidate_is_worktree != existing_is_worktree:
+                return existing_is_worktree
+
+            if not is_path_child_of(candidate_path, projects_root_path):
                 # Prefer projects inside the configured root on duplicates
                 return False
         return True
