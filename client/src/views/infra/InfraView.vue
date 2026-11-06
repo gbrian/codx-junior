@@ -14,7 +14,7 @@
           Infrastructure
         </h1>
         <p class="text-sm opacity-60 mt-0.5">
-          Every container deployed on your Docker host — state, resources, ports and logs.
+          Containers on your Docker host, plus the compose files and Dockerfiles found in this project.
         </p>
       </div>
       <div class="flex-1"></div>
@@ -213,7 +213,8 @@
                   :class="layout.compact ? 'grow' : 'w-40'"
                   :value="state.filters.stack" @change="setFilter({ stack: $event.target.value })">
             <option value="all">All stacks</option>
-            <option v-for="s in state.stacks" :key="s.name" :value="s.name">{{ s.name }}</option>
+            <option v-for="s in state.stacks" :key="s.key || (s.name + '|' + (s.path || ''))"
+                    :value="s.name">{{ s.label || s.name }}</option>
           </select>
 
           <select v-if="['containers', 'images', 'volumes'].includes(state.route)"
@@ -240,6 +241,7 @@
           <MonitoringPanel v-if="state.route === 'monitoring'" />
           <ContainersPanel v-else-if="state.route === 'containers'" />
           <StacksPanel v-else-if="state.route === 'stacks'" />
+          <ProjectDockerPanel v-else-if="state.route === 'project'" />
           <ImagesPanel v-else-if="state.route === 'images'" />
           <VolumesPanel v-else-if="state.route === 'volumes'" />
           <NetworksPanel v-else-if="state.route === 'networks'" />
@@ -383,6 +385,7 @@ import StackLogsModal from './StackLogsModal.vue'
 import HostSettingsModal from './HostSettingsModal.vue'
 import CloudServerModal from './CloudServerModal.vue'
 import StacksPanel from './StacksPanel.vue'
+import ProjectDockerPanel from './ProjectDockerPanel.vue'
 import ImagesPanel from './ImagesPanel.vue'
 import VolumesPanel from './VolumesPanel.vue'
 import NetworksPanel from './NetworksPanel.vue'
@@ -441,6 +444,7 @@ const hostSummary = computed(() => {
 const searchPlaceholder = computed(() => ({
   containers: 'Search by name, image, service, stack…',
   stacks: 'Search stacks…',
+  project: 'Search compose files, Dockerfiles, paths, base images…',
   images: 'Search repository or tag…',
   volumes: 'Search volumes…',
   networks: 'Search networks…',
@@ -449,7 +453,7 @@ const searchPlaceholder = computed(() => ({
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 function onHostChange (e) { setHost(e.target.value) }
-function reloadAll () { loadAll() }
+function reloadAll () { loadAll({ refreshScan: true }) }
 
 function meterClass (toneName) {
   return { success: 'progress-success', warning: 'progress-warning', error: 'progress-error' }[toneName] || 'progress-primary'

@@ -290,17 +290,62 @@
  * @typedef {Object} InfraStack
  * One docker compose project (a compose file with N services).
  *
+ * `source` distinguishes a stack known through its running containers
+ * (`runtime`) from a compose file discovered by scanning the active project
+ * (`project`). A discovered project that was never started is still listed,
+ * with `status: 'stopped'` and `declared_services`, so the UI can start it.
+ *
  * The command surface mirrors `docker compose <action>`:
  * `up` (labelled "Start" in the UI — it is the only action that CREATES the
  * missing containers), `stop`, `restart`, `build`, `pull` and `down`
  * (containers + networks removed, named volumes kept).
  *
  * @property {string}  name           Compose project name (defaults to the folder).
+ * @property {string}  [label]        Display label (disambiguated on name clashes).
  * @property {string}  path           Compose file path on the host.
  * @property {'running'|'degraded'|'stopped'} status
  * @property {number}  running        Services currently running.
  * @property {number}  total          Services declared by the compose file.
  * @property {InfraContainer[]} services  One entry per service (container subset).
+ * @property {'runtime'|'project'} [source]
+ * @property {string[]} [files]       Compose files passed to the CLI (base + override).
+ * @property {string}  [project]      codx-junior project that owns the files.
+ * @property {string}  [project_root] Project root the files live under.
+ * @property {string}  [relative_path] Primary compose file, relative to the root.
+ * @property {string[]} [declared_services] Services declared by the file(s).
+ * @property {string}  [error]        Parse error of the compose file(s).
+ */
+
+/**
+ * @typedef {Object} InfraDockerfile
+ * A Dockerfile discovered by scanning the active project.
+ *
+ * @property {string}  name
+ * @property {string}  path
+ * @property {string}  relative_path
+ * @property {string}  directory
+ * @property {string}  context          Build context directory.
+ * @property {string}  project          codx-junior project that owns the file.
+ * @property {string}  project_root
+ * @property {string[]} base_images     FROM references.
+ * @property {string[]} stages          Named stages.
+ * @property {number}  stage_count
+ * @property {boolean} has_dockerignore
+ * @property {string}  compose_project  Compose project that builds this file.
+ * @property {string}  compose_service  Compose service that builds this file.
+ */
+
+/**
+ * @typedef {Object} InfraProjectDocker
+ * Response of `GET /api/infra/project/docker`.
+ *
+ * @property {{name:string, path:string, codx_path:string}|null} project
+ * @property {string[]} roots
+ * @property {InfraStack[]} compose
+ * @property {InfraDockerfile[]} dockerfiles
+ * @property {string} scanned_at
+ * @property {boolean} cached
+ * @property {string} message
  */
 
 /**
@@ -338,9 +383,11 @@ export const INFRA_ENDPOINTS = [
   { method: 'POST',   path: '/api/infra/containers/:id/actions', desc: 'start | stop | restart | pause | unpause | kill.', body: '{ action }', response: 'InfraContainer' },
   { method: 'POST',   path: '/api/infra/containers',         desc: 'Create & run a container.',                        body: '{ name, image, ports[]{host,container,proto}, env[]{k,v}, cmd, stack, host_id }', response: 'InfraContainer' },
   { method: 'DELETE', path: '/api/infra/containers/:id',     desc: 'Remove a container.',                              response: '{ ok: true }' },
-  { method: 'GET',    path: '/api/infra/stacks',             desc: 'Compose projects.',                                query: 'host', response: '{ stacks: { name, path, status, running, total, services[] }[] }' },
-  { method: 'POST',   path: '/api/infra/stacks/:name/actions', desc: 'Run a compose command: up | stop | restart | build | pull | down.', body: '{ action, host_id }', response: 'InfraStack' },
+  { method: 'GET',    path: '/api/infra/stacks',             desc: 'Compose projects (running + compose files found in the active project).', query: 'host, refresh', response: '{ stacks: InfraStack[] }' },
+  { method: 'POST',   path: '/api/infra/stacks/:name/actions', desc: 'Run a compose command: up | stop | restart | build | pull | down.', body: '{ action, host_id, path? }', response: 'InfraStack' },
   { method: 'GET',    path: '/api/infra/stacks/:name/logs',  desc: 'Aggregated compose logs (every service of the stack).', query: 'tail, host', response: '{ name, lines: { ts, level, msg }[] }' },
+  { method: 'GET',    path: '/api/infra/project/docker',     desc: 'Compose files + Dockerfiles scanned from the active project (and child projects).', query: 'host, refresh', response: 'InfraProjectDocker' },
+  { method: 'POST',   path: '/api/infra/project/dockerfiles/build', desc: 'Build a Dockerfile discovered in the active project.', body: '{ path, tag, context?, target?, build_args?, host_id? }', response: '{ ok, image, tag, dockerfile, context, output[] }' },
   { method: 'GET',    path: '/api/infra/images',             desc: 'Images on the host.',                              query: 'host', response: '{ images: { repo, tag, id, size, created, containers, dangling }[] }' },
   { method: 'GET',    path: '/api/infra/volumes',            desc: 'Volumes on the host.',                             query: 'host', response: '{ volumes: { name, driver, scope, mountpoint, size, stack, in_use, anonymous }[] }' },
   { method: 'GET',    path: '/api/infra/networks',           desc: 'Networks on the host.',                            query: 'host', response: '{ networks: { id, name, driver, scope, subnet, internal, containers[] }[] }' },
@@ -510,7 +557,17 @@ export function infraModule(API) {
     create: (payload) => post('/api/infra/containers', payload),
     remove: (id) => del('/api/infra/containers/' + slug(id)),
 
-    stacks: (host = 'host-local') => get('/api/infra/stacks?' + hostQs(host)),
+    /**
+     * Compose projects of the host, merged with the compose files discovered
+     * in the active project (so a project that was never started is listed
+     * too).
+     *
+     * @param {string} [host='host-local']
+     * @param {{refresh?:boolean}} [options] `refresh` bypasses the scan cache.
+     * @returns {Promise<{stacks: InfraStack[]}>}
+     */
+    stacks: (host = 'host-local', { refresh = false } = {}) =>
+      get('/api/infra/stacks?' + hostQs(host) + (refresh ? '&refresh=true' : '')),
 
     /**
      * Runs ONE compose command against a stack (`docker compose <action>`).
@@ -521,17 +578,26 @@ export function infraModule(API) {
      * the networks — named volumes are KEPT (no `--volumes` flag is sent), so
      * the equivalent of `down -v` is deliberately not exposed.
      *
+     * `path` identifies the compose file when the stack was discovered in the
+     * project scan (it may have no container yet). The backend validates it
+     * against the scan roots before using it.
+     *
      * Long running on purpose (build, pull, down): the request resolves once
      * the command settles, and the caller reloads the host snapshot afterwards.
      *
      * @param {string} name   Compose project name.
      * @param {'up'|'stop'|'restart'|'build'|'pull'|'down'} action
      * @param {string} [host='host-local'] InfraHost.id the stack lives on.
+     * @param {string} [path] Compose file discovered in the project scan.
      * @returns {Promise<InfraStack|{ok: true}>} refreshed stack (or `{ok:true}`
      *          when the project is gone after `down`).
      */
-    stackAction: (name, action, host = 'host-local') =>
-      post('/api/infra/stacks/' + slug(name) + '/actions', { action, host_id: host }),
+    stackAction: (name, action, host = 'host-local', path = '') =>
+      post('/api/infra/stacks/' + slug(name) + '/actions', {
+        action,
+        host_id: host,
+        ...(path ? { path } : {})
+      }),
 
     /**
      * Aggregated logs of every service in the stack. Compose prefixes each line
@@ -543,6 +609,30 @@ export function infraModule(API) {
      */
     stackLogs: (name, tail = 200, host = 'host-local') =>
       get('/api/infra/stacks/' + slug(name) + '/logs?tail=' + tail + '&' + hostQs(host)),
+
+    /**
+     * Docker assets scanned from the ACTIVE project (scoped by `codx_path`,
+     * which the connection appends automatically).
+     *
+     * @param {string} [host='host-local']
+     * @param {{refresh?:boolean}} [options] `refresh` bypasses the scan cache.
+     * @returns {Promise<InfraProjectDocker>}
+     */
+    projectDocker: (host = 'host-local', { refresh = false } = {}) =>
+      get('/api/infra/project/docker?' + hostQs(host) + (refresh ? '&refresh=true' : '')),
+
+    /**
+     * Build a Dockerfile discovered in the active project.
+     *
+     * Long running on purpose: the request resolves once `docker build`
+     * settles and returns the tail of its output.
+     *
+     * @param {{path:string, tag?:string, context?:string, target?:string,
+     *          build_args?:Object<string,string>, host_id?:string}} payload
+     * @returns {Promise<{ok:boolean, image:string, tag:string, dockerfile:string,
+     *                    context:string, output:string[]}>}
+     */
+    buildDockerfile: (payload) => post('/api/infra/project/dockerfiles/build', payload),
 
     images: (host = 'host-local') => get('/api/infra/images?' + hostQs(host)),
     volumes: (host = 'host-local') => get('/api/infra/volumes?' + hostQs(host)),

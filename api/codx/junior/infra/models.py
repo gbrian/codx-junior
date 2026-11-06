@@ -218,15 +218,40 @@ class InfraStackService(BaseModel):
 
 
 class InfraStack(BaseModel):
-    """A compose project."""
+    """A compose project, either running on the host or discovered on disk.
+
+    ``source`` tells the two apart:
+
+    * ``runtime`` — only known through the ``com.docker.compose.*`` labels of
+      its containers (the classic behaviour).
+    * ``project`` — a compose file found by scanning the active project (and
+      its child/dependency projects), whether or not any container exists.
+      ``files`` holds every compose file of the directory that is passed to the
+      CLI, so an override is included.
+
+    For a discovered project that is not running, ``services`` is empty and
+    ``declared_services`` lists the services declared by the file(s).
+    """
 
     name: str = Field(default="")
+    label: str = Field(
+        default="", description="Display label, disambiguated when names collide"
+    )
     host_id: str = Field(default="host-local")
     path: str = Field(default="", description="Compose file or working directory")
     status: str = Field(default="stopped", description="running|stopped|degraded")
     running: int = Field(default=0)
     total: int = Field(default=0)
     services: List[InfraStackService] = Field(default_factory=list)
+    source: str = Field(default="runtime", description="runtime|project")
+    files: List[str] = Field(default_factory=list, description="Compose files passed to the CLI")
+    project: str = Field(default="", description="codx-junior project that owns the files")
+    project_root: str = Field(default="", description="Project root the files live under")
+    relative_path: str = Field(default="", description="Primary compose file, relative to the root")
+    declared_services: List[str] = Field(
+        default_factory=list, description="Services declared by the compose file(s)"
+    )
+    error: str = Field(default="", description="Parse error of the compose file(s)")
 
 
 class InfraStackList(BaseModel):
@@ -258,6 +283,14 @@ class InfraStackActionRequest(BaseModel):
 
     action: str = Field(description="up | stop | restart | build | pull | down")
     host_id: Optional[str] = Field(default=None, description="Target host id")
+    path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Compose file discovered in the active project. When given, the "
+            "backend verifies it belongs to the project scan, which is what "
+            "lets a project that has no container yet be started."
+        ),
+    )
 
 
 class InfraStackLogs(BaseModel):
@@ -270,6 +303,82 @@ class InfraStackLogs(BaseModel):
 
     name: str = Field(default="", description="Compose project name")
     lines: List[InfraLogLine] = Field(default_factory=list)
+
+
+# ── Project Docker assets (compose files + Dockerfiles on disk) ───────────────
+
+
+class InfraDockerfile(BaseModel):
+    """A Dockerfile discovered inside the active project (or a child project)."""
+
+    name: str = Field(default="", description="File name, e.g. Dockerfile")
+    path: str = Field(default="", description="Absolute path of the Dockerfile")
+    relative_path: str = Field(default="", description="Path relative to the project root")
+    directory: str = Field(default="", description="Directory holding the Dockerfile")
+    context: str = Field(default="", description="Build context directory")
+    project: str = Field(default="", description="codx-junior project that owns the file")
+    project_root: str = Field(default="", description="Root used for relative_path")
+    base_images: List[str] = Field(default_factory=list, description="FROM references")
+    stages: List[str] = Field(default_factory=list, description="Named stages (AS name)")
+    stage_count: int = Field(default=0, description="Number of FROM instructions")
+    has_dockerignore: bool = Field(default=False)
+    compose_project: str = Field(
+        default="", description="Compose project that builds this Dockerfile"
+    )
+    compose_service: str = Field(
+        default="", description="Compose service that builds this Dockerfile"
+    )
+
+
+class InfraProjectDockerfileBuildRequest(BaseModel):
+    """Body of ``POST /api/infra/project/dockerfiles/build``."""
+
+    path: str = Field(description="Dockerfile path (must be discovered in the project)")
+    tag: str = Field(default="", description="Image tag; derived from the Dockerfile when empty")
+    context: Optional[str] = Field(
+        default=None, description="Build context override (must stay inside the project)"
+    )
+    target: Optional[str] = Field(default=None, description="Multi-stage build target")
+    build_args: Dict[str, str] = Field(
+        default_factory=dict, description="--build-arg values"
+    )
+    host_id: Optional[str] = Field(default=None, description="Target host id")
+
+
+class InfraProjectDockerfileBuildResult(BaseModel):
+    """Response of ``POST /api/infra/project/dockerfiles/build``."""
+
+    ok: bool = Field(default=True)
+    image: str = Field(default="", description="Tag of the built image")
+    tag: str = Field(default="")
+    dockerfile: str = Field(default="")
+    context: str = Field(default="")
+    output: List[str] = Field(default_factory=list, description="Last lines of the build output")
+
+
+class InfraProjectInfo(BaseModel):
+    """The codx-junior project the scan is scoped by."""
+
+    name: str = Field(default="")
+    path: str = Field(default="")
+    codx_path: str = Field(default="")
+
+
+class InfraProjectDocker(BaseModel):
+    """Response of ``GET /api/infra/project/docker``.
+
+    ``compose`` carries the discovered compose projects with the same status
+    merge the Stacks tab uses; ``dockerfiles`` carries every Dockerfile found in
+    the active project and its child/dependency projects.
+    """
+
+    project: Optional[InfraProjectInfo] = Field(default=None)
+    roots: List[str] = Field(default_factory=list, description="Scanned directories")
+    compose: List[InfraStack] = Field(default_factory=list)
+    dockerfiles: List[InfraDockerfile] = Field(default_factory=list)
+    scanned_at: str = Field(default="", description="ISO 8601 timestamp")
+    cached: bool = Field(default=False, description="Served from the scan cache")
+    message: str = Field(default="", description="Why the list is empty, when relevant")
 
 
 # ── Images, volumes, networks, events ─────────────────────────────────────────

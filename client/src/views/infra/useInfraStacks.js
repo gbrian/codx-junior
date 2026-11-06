@@ -98,7 +98,8 @@ export function stackActionBusy(name, action = null) {
  * away. Either path ends in `doStackAction()`, which reloads the host snapshot
  * so the card, the tab counter and the KPI strip agree again.
  *
- * @param {object} stack   Stack from `state.stacks` (needs `name`).
+ * @param {object} stack   Stack from `state.stacks` (needs `name`; `path` is
+ *                         sent for a project-discovered compose file).
  * @param {string} action  Id from STACK_ACTIONS.
  */
 export function askStackAction(stack, action) {
@@ -107,8 +108,9 @@ export function askStackAction(stack, action) {
   if (!meta) return
 
   const name = stack.name
+  const path = stack.path || ''
   if (!meta.text) {
-    doStackAction(name, action)
+    doStackAction(name, action, path)
     return
   }
 
@@ -117,15 +119,21 @@ export function askStackAction(stack, action) {
     html: `<b>${name}</b> — ${meta.text}`,
     confirmText: meta.label,
     danger: meta.danger,
-    onConfirm: () => doStackAction(name, action)
+    onConfirm: () => doStackAction(name, action, path)
   })
 }
 
 /**
  * Runs the compose command and refreshes the snapshot.
+ *
+ * `path` is required for a compose file that was discovered in the project
+ * scan but has no container yet: the backend validates it against the scan
+ * roots and uses it to run `docker compose -f …` (a project that was brought
+ * `down` keeps working through the label cache even without a path).
+ *
  * Never throws: failures are reported with a toast, like `doAction()` does.
  */
-export async function doStackAction(name, action) {
+export async function doStackAction(name, action, path = '') {
   if (!name) return
   const meta = STACK_ACTION_META[action] || { label: action }
   // The confirm dialog stored `onConfirm`; closing it here keeps the flow the
@@ -133,7 +141,7 @@ export async function doStackAction(name, action) {
   state.modal = null
   stackState.busy = { name, action }
   try {
-    await API.infra.stackAction(name, action, state.hostId)
+    await API.infra.stackAction(name, action, state.hostId, path)
     pushToast({ text: `${name}: ${meta.label.toLowerCase()} requested`, kind: 'success' })
     await loadAll({ silent: true })
   } catch (err) {
