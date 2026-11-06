@@ -4,7 +4,10 @@
 <template>
   <div 
     v-if="toasts.length > 0"
-    class="toast-component fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"
+    class="toast-component pointer-events-none fixed z-[130] flex flex-col gap-2"
+    :class="isMobile
+      ? 'bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] left-3 right-3'
+      : 'bottom-4 right-4'"
   >
     <transition-group name="list" tag="div" class="flex flex-col gap-2">
       <div
@@ -56,6 +59,12 @@ export default {
         warning: 'fa-solid fa-triangle-exclamation text-warning',
         info: 'fa-solid fa-circle-info text-info'
       }
+    }
+  },
+  computed: {
+    // Above the mobile tab bar (and its safe-area inset), not underneath it.
+    isMobile() {
+      return this.$ui?.isMobile
     }
   },
   mounted() {

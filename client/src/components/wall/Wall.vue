@@ -70,7 +70,7 @@ import WallAvatar from './WallAvatar.vue'
 
       <!-- Main column -->
       <main
-        class="flex-1 min-w-0 max-w-[600px] flex flex-col border-base-content/10 overflow-y-auto pb-16"
+        class="flex-1 min-w-0 max-w-[600px] flex flex-col border-base-content/10 overflow-y-auto pb-20"
         :class="boardScoped ? '@xl:pb-0' : '@xl:border-r @xl:pb-0'"
       >
         <!-- Single sticky header: title + tabs + kind filters. Keeping them in ONE

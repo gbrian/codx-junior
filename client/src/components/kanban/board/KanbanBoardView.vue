@@ -12,6 +12,7 @@ import BoardTransferModal from './BoardTransferModal.vue'
 import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 import ChatView from '@/views/ChatView.vue'
 import ChatIcon from '@/components/chat/ChatIcon.vue'
+import MobileActionSheet from '@/components/mobile/MobileActionSheet.vue'
 </script>
 
 <template>
@@ -48,6 +49,116 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
       </div>
     </transition>
 
+    <!-- ── Mobile toolbar ──
+         One compact row instead of the desktop toolbar, which wrapped into
+         four rows of tiny buttons on a phone. Everything that does not fit
+         lives in the action sheet. -->
+    <div v-if="isMobile" class="z-20 shrink-0 border-b border-base-100 bg-base-200">
+      <div class="flex h-12 items-center gap-1 px-2">
+        <button
+          type="button"
+          class="mobile-icon-btn"
+          aria-label="Open menu"
+          @click="$storex.ui.openMobileMenu()"
+        >
+          <i class="fa-solid fa-bars text-base"></i>
+        </button>
+
+        <button
+          type="button"
+          class="flex min-w-0 flex-1 flex-col items-start px-1 py-0.5 text-left"
+          :aria-label="`${activeBoardTitle} — browse boards`"
+          @click="showBoardList = true"
+        >
+          <span class="flex min-w-0 items-center gap-1.5">
+            <i :class="['fa-solid text-[11px]', isVirtualBoard ? 'fa-inbox text-warning' : 'fa-table-columns text-primary']" aria-hidden="true"></i>
+            <span class="truncate text-[13px] font-semibold leading-tight">{{ activeBoardTitle }}</span>
+            <i class="fa-solid fa-chevron-down text-[8px] text-base-content/35" aria-hidden="true"></i>
+          </span>
+          <span class="truncate text-[10px] leading-tight text-base-content/40">
+            {{ activeColumns.length }} columns · {{ sidebarTasks.length }} tasks
+          </span>
+        </button>
+
+        <BoardAssistantChat
+          v-if="activeBoardId"
+          :boardId="activeBoardId"
+          :boardType="boardModalsType"
+          :boardName="activeBoard?.title"
+          :columns="columns"
+          :project="project || $projects.activeProject"
+          :readOnly="isVirtualBoard"
+          @open-chat="onSelectTask"
+          @created="onAssistantChatCreated"
+          @edit-board="openEditBoardModal"
+        />
+
+        <button
+          type="button"
+          class="mobile-icon-btn"
+          :class="showMobileSearch ? 'bg-primary/15 text-primary' : ''"
+          :aria-label="showMobileSearch ? 'Close search' : 'Search tasks'"
+          :aria-pressed="showMobileSearch"
+          @click="showMobileSearch = !showMobileSearch"
+        >
+          <i :class="showMobileSearch ? 'fa-solid fa-xmark' : 'fa-solid fa-magnifying-glass'" class="text-sm"></i>
+        </button>
+
+        <button
+          type="button"
+          class="mobile-icon-btn"
+          aria-label="Board actions"
+          @click="showMobileActions = true"
+        >
+          <i class="fa-solid fa-ellipsis-vertical text-base"></i>
+        </button>
+
+        <button
+          v-if="!isVirtualBoard"
+          type="button"
+          class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-content transition-transform active:scale-95"
+          aria-label="New task"
+          @click="openNewTask({})"
+        >
+          <i class="fa-solid fa-plus text-sm"></i>
+        </button>
+      </div>
+
+      <div v-if="showMobileSearch" class="px-2 pb-2">
+        <label class="flex h-9 items-center gap-2 rounded-xl border border-base-content/10 bg-base-100 px-2.5">
+          <i class="fa-solid fa-magnifying-glass text-[11px] text-base-content/40" aria-hidden="true"></i>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search tasks…"
+            class="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-base-content/35"
+            aria-label="Search tasks"
+          />
+          <button v-if="searchQuery" type="button" class="grid h-5 w-5 place-items-center rounded-full bg-base-content/10" aria-label="Clear search" @click="searchQuery = ''">
+            <i class="fa-solid fa-xmark text-[9px]"></i>
+          </button>
+        </label>
+      </div>
+
+      <div class="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2">
+        <button
+          v-for="tab in viewTabs"
+          :key="'mobile-view-' + tab.id"
+          type="button"
+          class="flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors"
+          :class="activeView === tab.id
+            ? 'border-primary/40 bg-primary/15 text-primary'
+            : 'border-base-content/10 bg-base-100 text-base-content/55'"
+          :aria-pressed="activeView === tab.id"
+          @click="activeView = tab.id"
+        >
+          <i :class="tab.icon" class="text-[9px]"></i>
+          {{ tab.label }}
+          <span v-if="tab.count != null" class="tabular-nums opacity-60">{{ tab.count }}</span>
+        </button>
+      </div>
+    </div>
+
     <!-- ── Board toolbar (kanban & sprint) ── -->
     <!--
       One toolbar for both board flavours. The two implementations were merged
@@ -60,6 +171,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
         • "Add existing" only exists where sprint membership exists.
     -->
     <div
+      v-if="!isMobile"
       class="shrink-0 flex flex-wrap items-center gap-1.5 px-3 py-2 border-b border-base-100 bg-base-200 z-20"
     >
       <!-- Board identity: sprint dropdown -->
@@ -546,6 +658,15 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
       @close="showTransfer = false"
       @imported="onBoardImported"
     />
+
+    <!-- Mobile overflow menu -->
+    <MobileActionSheet
+      v-model="showMobileActions"
+      :title="activeBoardTitle"
+      subtitle="Board actions"
+      :actions="mobileActions"
+      @select="runMobileAction"
+    />
   </div>
 </template>
 
@@ -589,7 +710,10 @@ export default {
       showTransfer: false,
       // Sprint stats panel (duration · avg cost · tasks per user/profile).
       // Hidden by default — the toolbar "Stats" button reveals/hides it.
-      showStats: false
+      showStats: false,
+      // Mobile toolbar state
+      showMobileSearch: false,
+      showMobileActions: false
     }
   },
   created() {
@@ -645,6 +769,95 @@ export default {
     },
     isMobile() {
       return this.$ui.isMobile
+    },
+    // Everything the desktop toolbar exposes, collapsed into a bottom sheet.
+    // The sheet is data-driven so the mobile and desktop surfaces cannot drift
+    // apart silently (each action is wired to the same method below).
+    mobileActions() {
+      const actions = [
+        {
+          key: 'boards',
+          label: 'Browse boards',
+          description: 'Switch to another board',
+          icon: 'fa-solid fa-table-list',
+          toneClass: 'bg-info/15 text-info'
+        },
+        {
+          key: 'sidebar',
+          label: 'Boards & filters',
+          description: 'Open the board sidebar',
+          icon: 'fa-solid fa-bars-staggered',
+          toneClass: 'bg-primary/15 text-primary',
+          disabled: this.isSprintBoard
+        },
+        {
+          key: 'search',
+          label: this.showMobileSearch ? 'Close search' : 'Search tasks',
+          description: 'Filter the visible cards',
+          icon: 'fa-solid fa-magnifying-glass',
+          toneClass: 'bg-secondary/15 text-secondary'
+        },
+        {
+          key: 'new-task',
+          label: 'New task',
+          description: 'Add a card to the first column',
+          icon: 'fa-solid fa-plus',
+          toneClass: 'bg-primary/15 text-primary',
+          disabled: this.isVirtualBoard
+        },
+        {
+          key: 'new-column',
+          label: 'New column',
+          description: 'Add a column to this board',
+          icon: 'fa-solid fa-table-columns',
+          toneClass: 'bg-success/15 text-success',
+          disabled: this.isVirtualBoard
+        },
+        {
+          key: 'transfer',
+          label: 'Export / import',
+          description: 'Move this board between projects',
+          icon: 'fa-solid fa-right-left',
+          toneClass: 'bg-warning/15 text-warning',
+          disabled: this.isVirtualBoard
+        },
+        {
+          key: 'board-settings',
+          label: 'Board settings',
+          description: 'Name, background, assistant and people',
+          icon: 'fa-solid fa-gear',
+          toneClass: 'bg-base-content/10 text-base-content/70',
+          disabled: this.isVirtualBoard
+        },
+        {
+          key: 'new-board',
+          label: this.isSprintBoard ? 'New sprint' : 'New board',
+          description: 'Create another board',
+          icon: 'fa-solid fa-folder-plus',
+          toneClass: 'bg-accent/15 text-accent',
+          disabled: this.isVirtualBoard
+        }
+      ]
+
+      if (this.isSprintBoard) {
+        actions.splice(4, 0, {
+          key: 'stats',
+          label: this.showStats ? 'Hide sprint stats' : 'Sprint stats',
+          description: 'Duration, average cost and load',
+          icon: 'fa-solid fa-chart-simple',
+          toneClass: 'bg-info/15 text-info'
+        })
+        actions.push({
+          key: 'add-existing',
+          label: 'Add existing tasks',
+          description: 'Pull tasks into this sprint',
+          icon: 'fa-solid fa-folder-plus',
+          toneClass: 'bg-secondary/15 text-secondary',
+          disabled: this.isVirtualBoard
+        })
+      }
+
+      return actions
     },
     // On mobile the expanded sidebar floats over the canvas instead of pushing it
     sidebarOverlay() {
@@ -1032,6 +1245,42 @@ export default {
       this.searchQuery = query
     },
 
+    runMobileAction(action) {
+      if (!action) return
+      switch (action.key) {
+        case 'boards':
+          this.showBoardList = true
+          break
+        case 'sidebar':
+          this.sidebarCompact = false
+          break
+        case 'search':
+          this.showMobileSearch = !this.showMobileSearch
+          break
+        case 'new-task':
+          this.openNewTask({})
+          break
+        case 'new-column':
+          this.openNewColumn()
+          break
+        case 'transfer':
+          this.showTransfer = true
+          break
+        case 'board-settings':
+          this.openEditBoardModal()
+          break
+        case 'new-board':
+          this.openNewBoardModal()
+          break
+        case 'stats':
+          this.showStats = !this.showStats
+          break
+        case 'add-existing':
+          this.openAddExisting()
+          break
+      }
+    },
+
     // ── Task selection / detail pane ─────────────────────────────────────────
     // Default task selection: open it inline in the right-side detail pane
     // (rendered with ChatView inside the VerticalSplitter). Clicking the card
@@ -1051,7 +1300,11 @@ export default {
       }
       this.selectedTaskId = task.id
       if (this.isMobile) {
-        this.$chats.setActiveChat(task)
+        // A phone has no room for the inline side pane. Open the task as a
+        // real chat route so the header back arrow returns to the board —
+        // `setActiveChat()` alone changed the store while the board stayed on
+        // screen, which made cards look dead.
+        this.$storex.$router?.$navigation?.chats.open(task.id, task.name)
         return
       }
       this.sideTaskId = task.id
@@ -1063,6 +1316,10 @@ export default {
     onOpenTaskWindow(task) {
       if (!task) return
       this.selectedTaskId = task.id
+      if (this.isMobile) {
+        this.$storex.$router?.$navigation?.chats.open(task.id, task.name)
+        return
+      }
       this.$chats.setActiveChat(task)
     },
     closeSideTask() {

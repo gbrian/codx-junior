@@ -252,7 +252,9 @@ export default {
       if (this.$ui.isDesktopMode) {
         this.$service.chat.newQuickChat()
       } else {
-        this.$storex.$router.$navigation.apps.openHome()
+        // "New" is the composer, not the management dashboard. This is the
+        // mobile entry point and the single-mode entry point alike.
+        this.$storex.$router.$navigation.apps.openNewChat()
       }
       this.$emit('close')
     },

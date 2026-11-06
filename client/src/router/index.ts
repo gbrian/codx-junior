@@ -9,6 +9,7 @@ import Navigate from './navigate'
 // ─────────────────────────────────────────────────────────────────────────────
 const AppRouteView = () => import('@/views/AppRouteView.vue')
 const QuickChatView = () => import('@/views/QuickChatView.vue')
+const ChatsView = () => import('@/views/ChatsView.vue')
 const WorkspaceView = () => import('@/views/WorkspaceView.vue')
 const MessengerView = () => import('@/views/MessengerView.vue')
 const MeetView = () => import('@/views/MeetView.vue')
@@ -31,6 +32,22 @@ const SolopreneurView = () => import('@/views/SolopreneurView.vue')
 // useManagementDashboard.js → initProjectFilter / syncProjectFilterWithRoute).
 // ─────────────────────────────────────────────────────────────────────────────
 const WELCOME_APP = 'management-dashboard'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MOBILE ROUTE METADATA
+//
+// The mobile shell (components/mobile/MobileShell.vue) reads `meta.mobile` to
+// decide which bottom tab highlights, whether the generic app bar is rendered
+// (screens with their own header hide it) and whether the tab bar should stay
+// hidden for immersive screens (chat, browser, workspace…).
+//
+// Routes that only need a title fall back to config/mobile.js →
+// MOBILE_ROUTE_TITLES, so this helper is used just where the defaults are not
+// enough.
+// ─────────────────────────────────────────────────────────────────────────────
+function mobile(title: string, tab = 'more', extra: Record<string, any> = {}) {
+  return { mobile: { title, tab, ...extra } }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROJECT-SCOPED ROUTES
@@ -61,7 +78,7 @@ const router = createRouter({
       path: '/',
       name: 'root',
       component: AppRouteView,
-      meta: { app: WELCOME_APP }
+      meta: { app: WELCOME_APP, ...mobile('Home', 'home', { hideTopBar: true }) }
     },
     {
       // Solopreneur mode — a top-level, project-INDEPENDENT screen that re-frames
@@ -74,7 +91,8 @@ const router = createRouter({
       // only injects a project into routes whose path contains ":projectName".
       path: '/solopreneur/:module?',
       name: 'solopreneur',
-      component: SolopreneurView
+      component: SolopreneurView,
+      meta: { ...mobile('Solopreneur', 'more', { fullScreen: true, hideTopBar: true, hideTabs: true }) }
     },
     {
       // Home — the welcome screen for "/<project_name>".
@@ -83,23 +101,35 @@ const router = createRouter({
       path: '/:projectName',
       name: 'home',
       component: AppRouteView,
-      meta: { app: WELCOME_APP }
+      meta: { app: WELCOME_APP, ...mobile('Home', 'home', { hideTopBar: true }) }
     },
     {
       // Chat routes: router mode
       path: '/:projectName/chats',
       name: 'chats',
-      component: QuickChatView
+      component: ChatsView,
+      meta: { ...mobile('Chats', 'chats', { hideTopBar: true }) }
+    },
+    {
+      // "New chat" is a dedicated route instead of sending people to the
+      // management dashboard (the old mobile bottom bar did exactly that).
+      // QuickChatView with no :chatId is the composer/home surface.
+      path: '/:projectName/new-chat',
+      name: 'new-chat',
+      component: QuickChatView,
+      meta: { ...mobile('New chat', 'chats') }
     },
     {
       path: '/:projectName/chats/:chatId/:chatName',
       name: 'chat',
-      component: QuickChatView
+      component: QuickChatView,
+      meta: { ...mobile('Chat', 'chats', { hideTopBar: true, hideTabs: true }) }
     },
     {
       path: '/:projectName/chats/:chatId/:chatName/workspace/:workspaceId/:workspaceName',
       name: 'chat-workspace',
-      component: QuickChatView
+      component: QuickChatView,
+      meta: { ...mobile('Chat', 'chats', { hideTopBar: true, hideTabs: true }) }
     },
     {
       // Meet routes: router mode
@@ -110,7 +140,8 @@ const router = createRouter({
     {
       path: '/:projectName/meet/:meetId',
       name: 'meet-session',
-      component: MeetView
+      component: MeetView,
+      meta: { ...mobile('Meeting', 'more', { hideTabs: true }) }
     },
     {
       // Workspace routes: router mode
@@ -121,7 +152,8 @@ const router = createRouter({
     {
       path: '/:projectName/workspaces/:workspaceId/:workspaceName',
       name: 'workspace',
-      component: WorkspaceView
+      component: WorkspaceView,
+      meta: { ...mobile('Workspace', 'more', { hideTabs: true }) }
     },
     {
       // Browser routes: router mode
@@ -132,7 +164,8 @@ const router = createRouter({
     {
       path: '/:projectName/browsers/:sessionId/:sessionName',
       name: 'browser-session',
-      component: BrowsersSessionManager
+      component: BrowsersSessionManager,
+      meta: { ...mobile('Browser', 'more', { hideTabs: true }) }
     },
     {
       // The optional board id + name segments let the URL carry the open board,
@@ -140,12 +173,14 @@ const router = createRouter({
       // Both are optional: the plain "/:projectName/kanban" still works.
       path: '/:projectName/kanban/:board?/:boardName?',
       name: 'kanban',
-      component: KanbanBoardView
+      component: KanbanBoardView,
+      meta: { ...mobile('Task manager', 'tasks', { hideTopBar: true }) }
     },
     {
       path: '/:projectName/messenger',
       name: 'messenger',
-      component: MessengerView
+      component: MessengerView,
+      meta: { ...mobile('Messenger', 'chats', { hideTopBar: true, hideTabs: true }) }
     },
     {
       // Team view (used by setActiveTab('team') / openTeam() / openTeams()).
@@ -170,7 +205,7 @@ const router = createRouter({
     { path: '/:projectName/global-settings', name: 'global-settings', component: AppRouteView, meta: { app: 'global-settings' } },
     { path: '/:projectName/account', name: 'account', component: AppRouteView, meta: { app: 'account' } },
     { path: '/:projectName/file-explorer', name: 'file-explorer', component: AppRouteView, meta: { app: 'file-explorer' } },
-    { path: '/:projectName/file-viewer/:filePath(.*)*', name: 'file-viewer', component: AppRouteView, meta: { app: 'file-viewer' } },
+    { path: '/:projectName/file-viewer/:filePath(.*)*', name: 'file-viewer', component: AppRouteView, meta: { app: 'file-viewer', ...mobile('File', 'more', { hideTabs: true }) } },
     { path: '/:projectName/logs', name: 'log-viewer', component: AppRouteView, meta: { app: 'log-viewer' } },
     { path: '/:projectName/chat-logs', name: 'chat-logs', component: AppRouteView, meta: { app: 'chat-logs' } },
     { path: '/:projectName/decision-model-logs', name: 'decision-model-logs', component: AppRouteView, meta: { app: 'decision-model-logs' } },
@@ -182,7 +217,7 @@ const router = createRouter({
     // Same pattern as the other screens: <AppRouteView> resolves meta.app from
     // config/appComponentsMap.js and, on desktop, the very same key opens a
     // dockview panel (config/apps.js → management-dashboard).
-    { path: '/:projectName/management-dashboard', name: 'management-dashboard', component: AppRouteView, meta: { app: 'management-dashboard' } },
+    { path: '/:projectName/management-dashboard', name: 'management-dashboard', component: AppRouteView, meta: { app: 'management-dashboard', ...mobile('Management', 'home', { hideTopBar: true }) } },
     // Per-request API performance (latency / throughput / errors) recorded by the
     // backend and served from /api/api-logs/*. Same pattern as every other app:
     // <AppRouteView> resolves meta.app, and on desktop the very same key opens a
@@ -192,7 +227,9 @@ const router = createRouter({
     // Activity wall (components/wall/Wall.vue). It used to be the mobile home;
     // it now has a route of its own so the sidebar "Activity" item
     // (config/apps.js → activity) still opens it.
-    { path: '/:projectName/activity', name: 'activity', component: AppRouteView, meta: { app: 'activity' } },
+    // Activity is an app with its own bottom navigation (WallBottomNav); the
+    // mobile shell gives it the whole viewport below the status bar.
+    { path: '/:projectName/activity', name: 'activity', component: AppRouteView, meta: { app: 'activity', ...mobile('Activity', 'activity', { hideTopBar: true, hideTabs: true }) } },
     // Git repository view (branches, commits, merges and working-tree diffs).
     // The screen already exists (components/repo/GitView.vue) and is registered
     // in config/appComponentsMap.js as 'git-view'; only the route was missing,
@@ -200,15 +237,16 @@ const router = createRouter({
     // pattern as every other app: <AppRouteView> resolves meta.app, and on
     // desktop the very same key opens a dockview panel.
     { path: '/:projectName/git-view', name: 'git-view', component: AppRouteView, meta: { app: 'git-view' } },
-    { path: '/:projectName/team-channel/:channelId', name: 'team-channel', component: AppRouteView, meta: { app: 'team-channel' } },
-    { path: '/:projectName/team-dm/:dmId', name: 'team-dm', component: AppRouteView, meta: { app: 'team-dm' } },
+    { path: '/:projectName/team-channel/:channelId', name: 'team-channel', component: AppRouteView, meta: { app: 'team-channel', ...mobile('Channel', 'chats', { hideTabs: true }) } },
+    { path: '/:projectName/team-dm/:dmId', name: 'team-dm', component: AppRouteView, meta: { app: 'team-dm', ...mobile('Direct message', 'chats', { hideTabs: true }) } },
     { path: '/:projectName/team-media-library/:teamId', name: 'team-media-library', component: AppRouteView, meta: { app: 'team-media-library' } },
 
     {
       // Desktop / team view (dockview panels)
       path: '/:projectName/desktop/:pathMatch(.*)*',
       name: 'codx-junior-split',
-      component: Desktop
+      component: Desktop,
+      meta: { ...mobile('Desktop', 'more', { hideTopBar: true, hideTabs: true }) }
     },
     {
       path: '/:projectName/analytics',
@@ -268,6 +306,16 @@ router.$navigation.$storex = $storex
 router.$navigation.init()
 
 router.beforeEach((to, from) => {
+  // The dockview workspace is not a mobile screen. A deep link (or a stale
+  // "desktop" link shared from a desktop) lands on the mobile home instead of
+  // rendering a window manager that cannot be used with a finger.
+  if ($storex.ui.isMobile && to.name === 'codx-junior-split') {
+    const projectName = activeProjectSegment()
+    return projectName
+      ? { name: 'home', params: { projectName }, replace: true }
+      : { name: 'root', replace: true }
+  }
+
   return router.$navigation.onRouteChanged({ from, to })
 })
 

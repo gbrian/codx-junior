@@ -512,6 +512,12 @@ export default function Navigate({ $router, $storex }) {
         $router.push(routes.home.open())
       },
 
+      // Composer screen (mobile / single mode). Desktop mode keeps opening a
+      // quick-chat panel through service.chat.newQuickChat().
+      openNewChat() {
+        $router.push({ name: 'new-chat' })
+      },
+
       openDesktop() {
         $router.push(routes.desktop.open())
       },

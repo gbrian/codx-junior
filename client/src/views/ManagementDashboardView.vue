@@ -67,12 +67,102 @@
 
     <!-- ── Content column ─────────────────────────────────────────────────── -->
     <div class="flex-1 flex flex-col min-w-0 min-h-0">
-      <header class="relative z-30 shrink-0 border-b border-base-300 bg-base-100/95 backdrop-blur px-3 py-2 flex flex-wrap items-center gap-2">
-        <button v-if="compact" class="btn btn-ghost btn-sm btn-square" aria-label="Open navigation"
-                @click="d.state.railOpen = true">
-          <i class="fa-solid fa-bars"></i>
-        </button>
+      <!-- ── Compact header (phones + narrow dockview panels) ──
+           The wide header used to wrap into three ragged rows on a phone:
+           title squeezed, time ranges clipped and buttons stacked under the
+           title. This variant keeps one identity row and one scrollable filter
+           row, so every control stays reachable at 390px. -->
+      <header
+        v-if="compact"
+        class="relative z-30 shrink-0 border-b border-base-300 bg-base-100/95 px-2 py-1.5 backdrop-blur"
+      >
+        <div class="flex min-w-0 items-center gap-1">
+          <button class="btn btn-ghost btn-sm btn-square shrink-0" aria-label="Open navigation"
+                  @click="d.state.railOpen = true">
+            <i class="fa-solid fa-bars"></i>
+          </button>
 
+          <div class="min-w-0 flex-1">
+            <h1 class="flex min-w-0 items-center gap-1.5 text-[15px] font-bold leading-tight">
+              <span class="truncate">{{ currentSection.title }}</span>
+              <span class="badge badge-xs badge-success shrink-0">live</span>
+            </h1>
+            <p class="truncate text-[10px] leading-tight opacity-60">{{ currentSection.subtitle }}</p>
+          </div>
+
+          <button class="btn btn-ghost btn-sm btn-square relative shrink-0" aria-label="Show blockers"
+                  @click="d.setSection('blockers')">
+            <i class="fa-solid fa-bell"></i>
+            <span v-if="d.attention.length"
+                  class="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-error px-1 text-[9px] font-bold text-error-content">
+              {{ d.attention.length }}
+            </span>
+          </button>
+
+          <button type="button" class="btn btn-ghost btn-sm btn-square shrink-0"
+                  :popovertarget="menuPanelId"
+                  :style="`anchor-name:--${menuPanelId}-anchor`"
+                  aria-haspopup="true"
+                  :aria-expanded="menuOpen ? 'true' : 'false'"
+                  aria-label="Dashboard menu">
+            <i class="fa-solid fa-ellipsis"></i>
+          </button>
+
+          <div :id="menuPanelId"
+               ref="menuPanelEl"
+               popover
+               role="menu"
+               aria-label="Dashboard menu"
+               class="dashboard-menu w-60 rounded-box border border-base-300 bg-base-200 p-1.5 shadow-xl"
+               :style="`position-anchor:--${menuPanelId}-anchor`"
+               @toggle="menuOpen = $event.newState === 'open'">
+            <button type="button" class="dashboard-menu-row" role="menuitem"
+                    @click="runMenuAction(d.refresh)">
+              <i class="fa-solid fa-arrows-rotate w-4"></i>
+              <span class="flex-1">Refresh</span>
+              <span class="text-[10px] opacity-50">{{ d.state.lastUpdated ? d.relTime(d.state.lastUpdated) : 'never' }}</span>
+            </button>
+            <button v-if="d.hasProjectFilter" type="button" class="dashboard-menu-row" role="menuitem"
+                    @click="runMenuAction(d.selectAllProjects)">
+              <i class="fa-solid fa-layer-group w-4"></i>
+              <span class="flex-1">Include all projects</span>
+            </button>
+            <button v-if="d.state.filters[currentSection.id]" type="button" class="dashboard-menu-row" role="menuitem"
+                    @click="runMenuAction(() => d.clearFilters(currentSection.id))">
+              <i class="fa-solid fa-eraser w-4"></i>
+              <span class="flex-1">Clear {{ currentSection.label }} filters</span>
+            </button>
+            <button type="button" class="dashboard-menu-row" role="menuitem"
+                    @click="runMenuAction(() => d.toggleAssistant(true))">
+              <i class="fa-solid fa-wand-magic-sparkles w-4"></i>
+              <span class="flex-1">Ask the AI assistant</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="no-scrollbar mt-1.5 flex items-center gap-1.5 overflow-x-auto">
+          <div class="join shrink-0" role="group" aria-label="Time range">
+            <button v-for="range in d.RANGES" :key="'m-' + range.id" class="btn btn-xs join-item"
+                    :class="d.state.range === range.id ? 'btn-primary' : 'btn-ghost'"
+                    :aria-pressed="d.state.range === range.id"
+                    @click="d.setRange(range.id)">
+              {{ range.label }}
+            </button>
+          </div>
+
+          <div class="shrink-0">
+            <ProjectFilter
+              :projects="d.projects"
+              :selected="d.selectedProjectIds"
+              @toggle="d.toggleProject($event)"
+              @all="d.selectAllProjects()"
+              @none="d.clearProjectSelection()"
+            />
+          </div>
+        </div>
+      </header>
+
+      <header v-else class="relative z-30 shrink-0 border-b border-base-300 bg-base-100/95 backdrop-blur px-3 py-2 flex flex-wrap items-center gap-2">
         <div class="min-w-0 flex-1">
           <h1 class="text-base font-bold leading-tight flex items-center gap-2">
             {{ currentSection.title }}
@@ -1040,7 +1130,8 @@
 
     <!-- ════════════════ AI ASSISTANT ════════════════ -->
     <button v-if="!d.state.assistant.open"
-            class="fixed bottom-4 right-4 z-40 w-12 h-12 rounded-full text-white shadow-lg grid place-items-center bg-gradient-to-br from-primary to-secondary"
+            class="fixed z-40 w-12 h-12 rounded-full text-white shadow-lg grid place-items-center bg-gradient-to-br from-primary to-secondary"
+            :class="isMobileShell ? 'right-3 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)]' : 'bottom-4 right-4'"
             aria-label="Ask the AI assistant" @click="d.toggleAssistant(true)">
       <i class="fa-solid fa-wand-magic-sparkles"></i>
     </button>
@@ -1112,6 +1203,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
+import { $storex } from '@/store'
 import { useRoute } from 'vue-router'
 import { v4 as uuidv4 } from 'uuid'
 import { useManagementDashboard } from './management/useManagementDashboard'
@@ -1139,6 +1231,7 @@ const rootEl = ref(null)
 const width = ref(1200)
 let observer = null
 const compact = computed(() => width.value < 820)
+const isMobileShell = computed(() => !!$storex.ui.isMobile)
 
 /* ── Local UI state ──────────────────────────────────────────────────────── */
 const question = ref('')

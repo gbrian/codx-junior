@@ -52,8 +52,7 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
     <!-- ── Home / Mobile view ── -->
     <main
       v-if="isMobile || !activeChat"
-      class="flex-1 flex flex-col min-w-0 h-full relative"
-      :class="[mobileBottomBarVisible ? 'pb-20' : '']"
+      class="relative flex h-full min-w-0 flex-1 flex-col"
     >
 
       <!-- ══ HOME / EMPTY STATE ══ -->
@@ -62,7 +61,8 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
       <transition name="fade">
         <div
           v-if="!activeChat && !chatId"
-          class="absolute inset-0 flex flex-col items-center justify-center gap-8 z-10"
+          class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-8"
+          :class="isMobile ? 'justify-start gap-5 overflow-y-auto py-8' : ''"
         >
           <!-- Radial gradient glow -->
           <div
@@ -153,6 +153,20 @@ import ChatAttachment from '@/api/model/ChatAttachment.js'
               @remove-attachment="removeHomeAttachment"
             />
           </div>
+
+          <!-- Mobile quick starts: one tap fills the composer so a phone user
+               does not have to type a full prompt before seeing value. -->
+          <div v-if="isMobile" class="relative z-10 mt-5 flex w-full flex-wrap justify-center gap-2 px-5">
+            <button
+              v-for="prompt in quickPrompts"
+              :key="prompt.label"
+              type="button"
+              class="rounded-full border border-base-content/15 bg-base-100/70 px-3 py-2 text-[11px] font-medium text-base-content/65 backdrop-blur active:bg-base-content/10"
+              @click="useQuickPrompt(prompt.prompt)"
+            >
+              <i :class="prompt.icon" class="mr-1.5 text-[10px] text-primary"></i>{{ prompt.label }}
+            </button>
+          </div>
         </div>
       </transition>
 
@@ -212,7 +226,13 @@ export default {
         files: [],
         profiles: [],
         model: null
-      }
+      },
+      quickPrompts: [
+        { label: 'Summarize project', prompt: 'Summarize the current state of this project.', icon: 'fa-solid fa-align-left' },
+        { label: 'Plan next sprint', prompt: 'Help me plan the next sprint for this project.', icon: 'fa-solid fa-calendar-days' },
+        { label: 'Review changes', prompt: 'Review the latest changes in this project.', icon: 'fa-solid fa-code-branch' },
+        { label: 'Fix a bug', prompt: 'Help me find and fix a bug in this project.', icon: 'fa-solid fa-bug' }
+      ]
     }
   },
   async created() {
@@ -239,11 +259,6 @@ export default {
     },
     isMobile() {
       return this.$ui.isMobile
-    },
-    // Mirrors App.vue's bottom bar visibility: the fixed bottom bar is hidden
-    // while a chat is open, so we must not reserve its space then.
-    mobileBottomBarVisible() {
-      return this.isMobile && !this.chatId
     },
     isHomePage() {
       // Home now lives at "/:projectName" (name 'home'); "/" is the unscoped
@@ -337,6 +352,13 @@ export default {
       await this.$storex.projects.setActiveProject(project)
       await this.loadProfiles()
     },
+    // Fill the composer (and keep the local mirror in sync) without sending.
+    useQuickPrompt(prompt) {
+      this.editorText = prompt
+      this.homeMessage.content = prompt
+      this.$refs.homeInputBox?.setEditorText?.(prompt)
+      this.$refs.homeInputBox?.focusEditor?.()
+    },
     async createChat(initialMessage) {
       try {
         const shortTitle = initialMessage.slice(0, 50) + (initialMessage.length > 50 ? '…' : '')
@@ -393,12 +415,12 @@ export default {
         // ChatId present but the chat could not be resolved → go home
         if (!this.$chats.chats[this.chatId]) {
           this.activeChatId = null
-          this.$router.$navigation.apps.openHome()
+          this.$router.$navigation.chats.list()
         }
       } catch (err) {
         console.error('[QuickChat] openChat error', err)
         this.activeChatId = null
-        this.$router.$navigation.apps.openHome()
+        this.$router.$navigation.chats.list()
       }
     },
     async onHomeSubmit() {
