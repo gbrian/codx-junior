@@ -474,10 +474,18 @@ async def orchestrator(
     if action == "add_step":
         if not step:
             raise ValueError("action='add_step' requires a 'step' object")
-        service.add_step(run_id, step, actor_chat_id=chat.id)
+        run = service.add_step(run_id, step, actor_chat_id=chat.id)
+        payload = service.status(run_id, include_events=False)
         return ToolResponse(
-            user_response=f"➕ Step added. Plan now has **{len(run.steps)} step(s)**.",
-            llm_response=_json({"status": "step_added", "steps": len(run.steps)}),
+            user_response=(
+                f"➕ Step added. Plan now has **{len(run.steps)} step(s)**.\n\n"
+                f"{payload['plan_table']}"
+            ),
+            llm_response=_json({
+                "status": "step_added",
+                "steps": [item.as_summary() for item in run.steps],
+                "next_action": payload["next_action"],
+            }),
         )
 
     if action == "retry_step":

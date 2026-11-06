@@ -12,7 +12,7 @@
     "analyst",
     "reviewer",
     "TaskManager",
-    "project_manager"
+    "ProjectManager"
   ],
   "llm_model": "",
   "use_knowledge": true,

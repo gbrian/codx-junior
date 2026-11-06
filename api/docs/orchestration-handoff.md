@@ -456,6 +456,58 @@ If the worker is off, a run stays `running`; the API detail reports
 
 ---
 
+## 11. Follow-up fixes (this ticket)
+
+The feature was reviewed end to end. The following defects were found and
+fixed:
+
+1. **`orchestrator(action="add_step")` raised `UnboundLocalError`** — the branch
+   used an undefined local `run`. It now returns the updated plan table and next
+   action (`tools/orchestration_tools.py`).
+2. **A resumed stalled run could never publish its final report** — the stall
+   report set `report_written=True` and `resume()` did not bump
+   `report_generation`, so `finish`/budget reports were suppressed by the
+   idempotency marker. `resume()` now starts a new report generation
+   (`service.py`).
+3. **Reports are durable in the run document** — `RunState.last_report` keeps the
+   last report even when the main task is missing/moved; the old code logged
+   "report kept in the run store" but did not store it (`models.py`,
+   `service.py`).
+4. **The worker card mirror was overwritten on start** — the executor ran the
+   pre-update card object, so its end-of-turn save could reset the card from
+   `doing`/`In progress` to `todo`/`Backlog`. The card returned by
+   `update_step_card` is now the one executed (`service.py`).
+5. **The run detail payload missed fields the ChatRunBar renders** —
+   `budget_cxjcoins`, `spent_cxjcoins` and `counts.total` are now present in
+   `GET /api/orchestration/{run_id}` and in the list payload (`service.py`).
+6. **Cancellation tokens were registered under `None`** — `Chat.doc_id` is a
+   legacy field that is normally empty, so every chat shared one registry entry
+   and the orchestration guards (`stop`, "is this card processing?") could never
+   find the in-flight token. The engine now registers by `chat.doc_id or chat.id`
+   (`chat_engine.py`).
+7. **`ProfileManager.read_profile` did not resolve built-in profiles** (the
+   built-in `orchestrator.profile` was listed but unreadable by
+   `GET /api/profiles/orchestrator`), and it matched the profile name against
+   the whole path. It now performs an exact lookup and falls back to the base
+   profile (`profile_manager.py`).
+8. **`RunStore.lock_path` replaced every `.json` occurrence** — a run id
+   containing `.json` produced a different lock stem. It now uses the path stem
+   (`store.py`).
+9. **Project profile created** — `codx-junior/.codx/profiles/orchestrator/`
+   (`orchestrator.profile` + `orchestrator.md`) overrides the built-in profile in
+   this project and is editable from the UI. The built-in team list also uses
+   the real profile name `ProjectManager`.
+
+Regression tests were added for the new behaviour; the offline suite is now
+**33/33 passing**:
+
+```bash
+cd api
+pytest tests/test_orchestration.py -q
+```
+
+---
+
 *Generated for continuation in a fresh workspace. The authoritative technical
 detail is [`docs/orchestration.md`](orchestration.md); this file summarizes the
 objective, the delivered changes, the current repository state and the open

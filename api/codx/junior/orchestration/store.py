@@ -156,8 +156,11 @@ class RunStore:
         return os.path.join(self.runs_dir, f"{safe_id}.json")
 
     def lock_path(self, run_id: str) -> str:
-        """Return the lock path of *run_id*."""
-        return self.run_path(run_id).replace(".json", ".lock")
+        """Return the lock path of *run_id* (same stem as the run document)."""
+        # Do not use str.replace: a run id may legitimately contain ".json"
+        # (the loader only enforces a basename), and replacing every occurrence
+        # would produce a different stem for the lock file.
+        return os.path.splitext(self.run_path(run_id))[0] + ".lock"
 
     def worker_path(self) -> str:
         """Return the worker heartbeat path."""

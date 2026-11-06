@@ -2231,19 +2231,26 @@ class ChatEngine:
         # Register a cancellation token for this chat turn.
         # Only register at the outermost iteration to avoid replacing an
         # already-registered (and potentially cancelled) token mid-flight.
+        #
+        # The registry key must identify the CHAT: `Chat.doc_id` is a legacy
+        # field that is normally None, and registering under None would make
+        # every chat share one entry. The orchestration worker also looks up
+        # tokens by `chat.id` to detect a live manual/worker turn, so keying by
+        # the chat id is what keeps those two views in sync.
         # ------------------------------------------------------------------
+        cancellation_key = str(chat.doc_id or chat.id or id(chat))
         cancellation_token: Optional[CancellationToken] = None
         is_root_iteration = iteration == 0
         if is_root_iteration:
-            cancellation_token = CANCELLATION_REGISTRY.register(chat.doc_id)
+            cancellation_token = CANCELLATION_REGISTRY.register(cancellation_key)
             logger.info(
                 "CancellationToken registered for chat '%s' token_id='%s'",
-                chat.doc_id,
+                cancellation_key,
                 cancellation_token.token_id,
             )
         else:
             # Re-use the token that was registered at iteration 0
-            cancellation_token = CANCELLATION_REGISTRY.get(chat.doc_id)
+            cancellation_token = CANCELLATION_REGISTRY.get(cancellation_key)
 
         try:
             return await self._chat_with_project_inner(
@@ -2258,9 +2265,9 @@ class ChatEngine:
             )
         finally:
             if is_root_iteration:
-                CANCELLATION_REGISTRY.unregister(chat.doc_id)
+                CANCELLATION_REGISTRY.unregister(cancellation_key)
                 logger.info(
-                    "CancellationToken unregistered for chat '%s'", chat.doc_id
+                    "CancellationToken unregistered for chat '%s'", cancellation_key
                 )
 
     async def _chat_with_project_inner(

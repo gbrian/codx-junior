@@ -164,7 +164,13 @@ class OrchestrationService:
         engine saves that object at the end of the turn, and a report appended to
         a separately loaded object would be overwritten.
         """
-        if not content or run.report_written:
+        if not content:
+            return
+        # Keep the report in the durable run document too: the message on the
+        # main task is the human-facing copy, but the run store must never lose
+        # the report (the main task can be missing, moved or archived).
+        run.last_report = content[:40000]
+        if run.report_written:
             return
         if main_chat is None or str(getattr(main_chat, "id", "")) != str(run.main_chat_id):
             main_chat = None
@@ -411,6 +417,8 @@ class OrchestrationService:
     def _summary_payload(self, run: RunState, worker: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Compact run representation used by list endpoints/tools."""
         remaining = run.remaining_budget()
+        counts = run.counts()
+        counts["total"] = len(run.steps)
         return {
             "run_id": run.run_id,
             "name": run.name,
@@ -420,7 +428,7 @@ class OrchestrationService:
             "board": run.config.board,
             "sprint": run.config.sprint,
             "progress": run.progress(),
-            "counts": run.counts(),
+            "counts": counts,
             "spent_cxjcoins": round(float(run.spent_cxjcoins or 0.0), 6),
             "budget_cxjcoins": run.config.budget_cxjcoins,
             "remaining_cxjcoins": round(remaining, 6) if remaining is not None else None,
@@ -464,7 +472,11 @@ class OrchestrationService:
         self._refresh_spent(run)
         payload = run.model_dump()
         payload["progress"] = run.progress()
-        payload["counts"] = run.counts()
+        counts = run.counts()
+        counts["total"] = len(run.steps)
+        payload["counts"] = counts
+        payload["budget_cxjcoins"] = run.config.budget_cxjcoins
+        payload["spent_cxjcoins"] = round(float(run.spent_cxjcoins or 0.0), 6)
         remaining = run.remaining_budget()
         payload["remaining_cxjcoins"] = round(remaining, 6) if remaining is not None else None
         payload["reserve_cxjcoins"] = round(run.config.resolve_reserve(), 6)
@@ -673,6 +685,13 @@ class OrchestrationService:
         run.finished_at = ""
         run.stagnant_rounds = 0
         run.pending_supervisor = was_stalled or not run.steps
+        # A stalled run published a stall report before this resume. That report
+        # must not suppress the delivery/budget report of the new attempt: bump
+        # the generation (so the idempotency marker of the old report no longer
+        # matches) and allow a new report to be written.
+        if was_stalled and run.report_written:
+            run.report_generation = int(getattr(run, "report_generation", 0) or 0) + 1
+            run.report_written = False
         self._update_main_card_safe(run, status="doing", run_status=run.status)
         self._emit(run, "run_resumed", "Run resumed")
         self._save(run)
@@ -1075,8 +1094,12 @@ class OrchestrationService:
             step.finished_at = ""
             step.error = ""
             step.updated_at = utcnow_iso()
-            self.board.update_step_card(run, step)
-            prepared.append((step, card, per_share))
+            # Prefer the object returned by the board: it already carries the
+            # running status/column the card shows on the board. Executing the
+            # stale pre-update object would let the worker's end-of-turn save
+            # overwrite those mirrors back to "todo"/Backlog.
+            updated_card = self.board.update_step_card(run, step)
+            prepared.append((step, updated_card or card, per_share))
             self._emit(
                 run,
                 "step_started",

@@ -123,9 +123,9 @@ def _find_project_profile(manager: ProfileManager, name: str) -> Optional[Profil
     """
     Find a project-owned profile by exact name.
 
-    ``ProfileManager.read_profile`` matches by substring, which confuses
-    ``Team`` with ``TeamManager``; CRUD needs exact matching, so the project
-    profile list is scanned instead.
+    ``ProfileManager.read_profile`` also resolves built-in profiles (and the
+    project is what CRUD must edit), so the project profile list is scanned
+    instead of accepting an inherited/base profile.
 
     Args:
         manager: Project ProfileManager.

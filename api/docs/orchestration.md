@@ -652,7 +652,10 @@ why the orchestration state is mirrored to the existing work model.
    `worker.present: true` after the first tick; or inspect
    `.codx/orchestration/worker.json`.
 3. The `orchestrator` profile is a base profile (source tree), so it is
-   available in every project unless overridden; no project setup is required.
+   available in every project. A project can override it by keeping a copy in
+   `.codx/profiles/orchestrator/` (`orchestrator.profile` + `orchestrator.md`);
+   the project copy wins over the built-in one, and both are readable through
+   `GET /api/profiles/orchestrator`.
 
 ### 6.2 Starting a run
 

@@ -379,6 +379,15 @@ def test_store_lock_is_exclusive(tmp_path):
     third.release()
 
 
+def test_store_lock_path_keeps_the_run_stem(tmp_path):
+    store = RunStore(str(tmp_path / ".codx"))
+    run = RunState(name="lock", objective="o")
+    run.run_id = "run.with.json.in.the.id"
+    store.save(run)
+    assert store.lock_path(run.run_id).endswith("run.with.json.in.the.id.lock")
+    assert store.lock_path(run.run_id) == store.run_path(run.run_id)[:-5] + ".lock"
+
+
 def test_store_worker_heartbeat(tmp_path):
     store = RunStore(str(tmp_path / ".codx"))
     assert store.worker_status()["present"] is False
@@ -415,6 +424,30 @@ def test_create_run_and_plan_persist(tmp_path):
     ])
     assert len(run.steps) == 2
     assert store.load(run.run_id).steps[0].title == "A"
+
+
+def test_status_payload_exposes_budget_and_total_steps(tmp_path):
+    service, manager, board, executor, store = make_service(tmp_path)
+    main = FakeChat("main", name="Main")
+    manager.add(main)
+    run = service.create_run(
+        name="Run",
+        objective="Do it",
+        main_chat=main,
+        config=RunConfig(budget_cxjcoins=7.5),
+        start=True,
+    )
+    service.plan(run.run_id, [
+        {"title": "A", "objective": "a"},
+        {"title": "B", "objective": "b"},
+    ])
+    payload = service.status(run.run_id)
+    # The ChatRunBar renders counts.total and budget_cxjcoins from the DETAIL
+    # endpoint; keep the same fields the list payload already exposes.
+    assert payload["counts"]["total"] == 2
+    assert payload["budget_cxjcoins"] == 7.5
+    assert payload["spent_cxjcoins"] == 0.0
+    assert payload["remaining_cxjcoins"] == 7.5
 
 
 def test_run_main_task_must_be_a_root(tmp_path):
@@ -596,6 +629,39 @@ def test_start_reopens_stopped_run_and_rejects_completed(tmp_path):
     assert reports[-1].meta_data["report_generation"] == 1
 
 
+def test_resume_stalled_run_publishes_a_new_delivery_report(tmp_path):
+    service, manager, board, executor, store = make_service(tmp_path)
+    main = FakeChat("main", name="Main")
+    manager.add(main)
+    run = service.create_run(name="Run", objective="Do it", main_chat=main, start=True)
+    service.plan(run.run_id, [{"title": "A", "objective": "a"}])
+
+    stalled = service._finalize_stalled(store.load(run.run_id), "no progress")
+    assert stalled.status == C.RUN_STATUS_STALLED
+    assert stalled.report_written is True
+    stall_reports = [
+        message for message in main.messages
+        if getattr(message, "meta_data", {}).get("orchestration_report")
+    ]
+    assert len(stall_reports) == 1
+    assert stall_reports[0].meta_data["report_generation"] == 0
+
+    resumed = service.resume(run.run_id)
+    assert resumed.status == C.RUN_STATUS_RUNNING
+    # The stall report must not suppress the report of the resumed attempt.
+    assert resumed.report_written is False
+    assert resumed.report_generation == 1
+
+    service.finish(run.run_id, "completed after resume")
+    reports = [
+        message for message in main.messages
+        if getattr(message, "meta_data", {}).get("orchestration_report")
+    ]
+    assert len(reports) == 2
+    assert reports[-1].meta_data["report_generation"] == 1
+    assert store.load(run.run_id).last_report
+
+
 def test_start_refuses_budget_exhausted_run(tmp_path):
     service, manager, board, executor, store = make_service(tmp_path)
     main = FakeChat("main", name="Main", cost=1.0)
@@ -772,5 +838,52 @@ def test_tool_schemas_are_valid():
     assert delegate["name"] == "delegate"
     assert "tasks" in delegate["parameters"]["properties"]
     assert "wait" in delegate["parameters"]["properties"]
+
+
+class _ToolSession:
+    """Minimal session double for the orchestration tools."""
+
+    def __init__(self, manager, chat):
+        self._current_chat = chat
+        self.event_manager = None
+        self.user = None
+        self.manager = manager
+
+    def get_chat_manager(self):
+        return self.manager
+
+
+def test_orchestrator_add_step_tool_updates_the_plan(tmp_path):
+    module = _load_orchestration_tools()
+    manager = FakeChatManager()
+    main = FakeChat("main", name="Main")
+    manager.add(main)
+    settings = SimpleNamespace(
+        codx_path=str(tmp_path / ".codx"),
+        project_id="project-1",
+        project_name="test",
+    )
+    session = _ToolSession(manager, main)
+
+    started = asyncio.run(module.orchestrator(
+        action="start",
+        objective="Do it",
+        budget_cxjcoins=5,
+        settings=settings,
+        session=session,
+    ))
+    assert "started" in started.llm_response
+    assert main.run_id
+
+    # Regression: this branch used to reference an unassigned local `run` and
+    # raised UnboundLocalError instead of adding the step.
+    added = asyncio.run(module.orchestrator(
+        action="add_step",
+        step={"title": "A", "objective": "do a"},
+        settings=settings,
+        session=session,
+    ))
+    assert "1 step" in added.user_response
+    assert '"status": "step_added"' in added.llm_response
 
 # Made with ❤️ by codx-junior

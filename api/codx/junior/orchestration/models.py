@@ -491,6 +491,15 @@ class RunState(BaseModel):
     last_error: str = Field(default="")
     stop_reason: str = Field(default="")
     report_written: bool = Field(default=False)
+    last_report: str = Field(
+        default="",
+        description=(
+            "Last delivery/stop/budget/stall report of the run. It is also "
+            "published as a message on the main task; keeping it here makes the "
+            "report survive a missing/moved main task and keeps the run document "
+            "self-contained."
+        )
+    )
     report_generation: int = Field(
         default=0,
         description=(

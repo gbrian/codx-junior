@@ -162,6 +162,24 @@ class ProfileManager:
         base_profiles = _files(pathlib.Path(self.base_profiles_path).rglob("**/*.profile"))
         return _files(base_profiles)
 
+    def _base_profile_path(self, profile_name: str) -> Optional[str]:
+        """
+        Return the file path of a built-in profile (new folder or old flat form).
+
+        :param profile_name: Profile name.
+        :return: Absolute path of the built-in profile, or None.
+        """
+        name = str(profile_name or "").strip().lstrip("@")
+        if not name or name != os.path.basename(name) or name in {".", ".."}:
+            return None
+        for path in (
+            os.path.join(self.base_profiles_path, name, f"{name}.profile"),
+            os.path.join(self.base_profiles_path, f"{name}.profile"),
+        ):
+            if os.path.isfile(path):
+                return path
+        return None
+
     def project_profile_paths(self):
         def _files (file_gen):
             return [str(file) for file in file_gen]
@@ -241,13 +259,12 @@ class ProfileManager:
         :param profile_name: Profile name.
         :return: True for project, inherited or built-in profiles.
         """
-        if not profile_name:
+        name = str(profile_name or "").strip().lstrip("@")
+        if not name or name != os.path.basename(name) or name in {".", ".."}:
             return False
-        if os.path.isfile(
-            os.path.join(self.base_profiles_path, f"{profile_name}.profile")
-        ):
+        if self._base_profile_path(name):
             return True
-        return any(manager.owns_profile(profile_name) for manager in self.profile_chain())
+        return any(manager.owns_profile(name) for manager in self.profile_chain())
 
     def profile_enrich_path(self, profile_name: str) -> str:
         """
@@ -391,13 +408,47 @@ class ProfileManager:
         return [p for p in profiles if p is not None]
 
     def read_profile(self, profile_name) -> Profile:
-        project_profile_paths = self.project_profile_paths()
-        match_profiles = [profile_path for profile_path in project_profile_paths if profile_name in profile_path]
-        if not match_profiles:
+        """
+        Read one profile visible from this project.
+
+        Resolution order:
+
+        1. the project profile (new ``<Name>/<Name>.profile`` folder format,
+           then the legacy flat ``<Name>.profile``),
+        2. the built-in (base) profile from the source tree.
+
+        The match is exact by name: the old implementation searched the profile
+        name inside the whole path, which could resolve an unrelated profile
+        (a folder containing the name) and never found a built-in profile.
+
+        :param profile_name: Profile name (``@`` prefix accepted).
+        :return: The composed profile (own content + project enrichment), or
+                 None when no profile with that name exists.
+        """
+        name = str(profile_name or "").strip().lstrip("@")
+        if not name:
             return None
-        profile = self.load_profile(match_profiles[0])
+        if name != pathlib.Path(name).name or name in {".", ".."}:
+            return None
+
+        profile = None
+        for profile_path in (
+            os.path.join(self.profiles_path, name, f"{name}.profile"),
+            os.path.join(self.profiles_path, f"{name}.profile"),
+        ):
+            if os.path.isfile(profile_path):
+                profile = self.load_profile(profile_path)
+                break
+
+        if profile is None:
+            base_path = self._base_profile_path(name)
+            if base_path:
+                profile = self.load_profile(base_path)
+
+        if profile is None:
+            return None
         # Composed content: callers never need to know about project enrichment.
-        return self.get_profile_With_content(profile=profile) if profile else None
+        return self.get_profile_With_content(profile=profile)
 
     def load_profile(self, profile_path) -> Profile:
         """
