@@ -41,7 +41,14 @@ from .doc_converter_tools import (
     html_slides_to_pdf,
     DOC_CONVERTER_TOOL_JSON,
 )
-from .project_tools import project_search, project_read_file, project_write_file
+from .project_tools import (
+    project_search,
+    project_grep,
+    project_glob,
+    project_read_file,
+    project_write_file,
+    project_changes,
+)
 from .project_structure import (
     project_structure,
     read_folder,
@@ -175,8 +182,11 @@ __all__ = [
     "html_to_pdf",
     "html_slides_to_pdf",
     "project_search",
+    "project_grep",
+    "project_glob",
     "project_read_file",
     "project_write_file",
+    "project_changes",
     "project_structure",
     "read_folder",
     "code_writer",
@@ -299,7 +309,7 @@ TOOLS = [
                 "name": "project_search",
                 "description": (
                     "Search for documents within a project using one or more search queries. "
-                    "Also finds project files whose path matches the query; the repository's "
+                    "Also finds project files whose path matches each query; the repository's "
                     ".gitignore and the project's custom ignore patterns are honored so ignored "
                     "folders and files are discarded. "
                     "A query containing glob wildcards ('*', '?', '[') is treated as a glob "
@@ -307,7 +317,9 @@ TOOLS = [
                     "Python file). "
                     "BULK OPERATION: To reduce tool calls, provide multiple queries at once "
                     "as a list instead of making separate calls. "
-                    "Example: search=[\"authentication\", \"user session\"] instead of two separate calls."
+                    "Example: search=[\"authentication\", \"user session\"] instead of two separate calls. "
+                    "Use project_grep for exact text/regex matches in file contents, and "
+                    "project_changes to inspect what changed in the working tree."
                 ),
                 "parameters": {
                     "type": "object",
@@ -340,12 +352,124 @@ TOOLS = [
         "tool_json": {
             "type": "function",
             "function": {
+                "name": "project_grep",
+                "description": (
+                    "Search the raw text of project files (grep) and return matching lines "
+                    "with their line numbers and optional context. Use this instead of "
+                    "project_search when you need an exact symbol, string, error message, "
+                    "configuration key or regular expression rather than semantic similarity. "
+                    "The repository .gitignore and the project's custom ignore patterns are "
+                    "honored; binary and very large files are skipped. Narrow the search with "
+                    "path/include to keep the response small."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pattern": {
+                            "type": "string",
+                            "description": "Literal text or regular expression to search for."
+                        },
+                        "path": {
+                            "type": "string",
+                            "description": (
+                                "File or folder to search, relative to the project root. "
+                                "Defaults to the project root."
+                            ),
+                            "default": "."
+                        },
+                        "include": {
+                            "type": ["string", "array"],
+                            "description": (
+                                "Optional glob filter(s) matched against the path and file "
+                                "name, e.g. '*.py', 'src/**/*.ts' or ['*.py', '*.pyi']."
+                            )
+                        },
+                        "case_sensitive": {
+                            "type": "boolean",
+                            "description": "Match case when true. Defaults to false.",
+                            "default": False
+                        },
+                        "regex": {
+                            "type": "boolean",
+                            "description": "Treat pattern as a regular expression. Defaults to false.",
+                            "default": False
+                        },
+                        "context_lines": {
+                            "type": "integer",
+                            "description": "Lines of context before and after each match (0-10). Defaults to 2.",
+                            "default": 2,
+                            "minimum": 0,
+                            "maximum": 10
+                        },
+                        "max_results": {
+                            "type": "integer",
+                            "description": "Maximum matching lines returned (1-1000). Defaults to 100.",
+                            "default": 100,
+                            "minimum": 1,
+                            "maximum": 1000
+                        }
+                    },
+                    "required": ["pattern"]
+                }
+            }
+        },
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat", cache=False).dict(),
+        "tags": ["project", "search", "grep", "content", "regex", "code-navigation"],
+        "tool_call": project_grep
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "project_glob",
+                "description": (
+                    "Find project files by glob pattern and return their paths. This is "
+                    "the fast way to discover files: it does not query the knowledge "
+                    "base. Standard wildcards are supported (*, ?, [abc] and recursive "
+                    "**), and the repository .gitignore plus the project's custom ignore "
+                    "patterns are honored. Use it before project_read_file when you know "
+                    "the file name pattern but not the exact path."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pattern": {
+                            "type": ["string", "array"],
+                            "description": (
+                                "Glob pattern or list of patterns, e.g. '**/*.py', "
+                                "'src/**/*.ts' or ['Dockerfile*', 'docker-compose*.yml']."
+                            )
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of paths returned (1-1000). Defaults to 200.",
+                            "default": 200,
+                            "minimum": 1,
+                            "maximum": 1000
+                        }
+                    },
+                    "required": ["pattern"]
+                }
+            }
+        },
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat", cache=False).dict(),
+        "tags": ["project", "search", "glob", "files", "navigation", "discovery"],
+        "tool_call": project_glob
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
                 "name": "project_read_file",
                 "description": (
                     "Read project file content from one or multiple file paths. "
                     "Paths are read literally: glob wildcards ('*', '?', '[') are NOT "
-                    "interpreted. Use project_search to discover files by pattern and then "
-                    "read the returned paths. "
+                    "interpreted. Use project_search/project_grep to discover files by "
+                    "pattern and then read the returned paths. "
+                    "\n\nLarge files are bounded and truncated at a line boundary; the "
+                    "response states which lines are shown. Use start_line/end_line to "
+                    "page through a big file and line_numbers to get line numbers. Binary "
+                    "files are rejected instead of being dumped into the context. "
                     "\n\nBULK OPERATION: To reduce tool calls, read multiple related files "
                     "at once by providing a list of paths instead of making separate calls. "
                     "Example: file_path=[\"src/main.py\", \"config/settings.py\"]. "
@@ -362,13 +486,45 @@ TOOLS = [
                                 "interpreted. "
                                 "Reading multiple files in one call is more efficient."
                             )
+                        },
+                        "start_line": {
+                            "type": "integer",
+                            "description": (
+                                "First line to return (1-based). Applies to every file in "
+                                "a bulk read. Defaults to line 1."
+                            ),
+                            "minimum": 1
+                        },
+                        "end_line": {
+                            "type": "integer",
+                            "description": (
+                                "Last line to return (inclusive). Applies to every file in "
+                                "a bulk read. Defaults to the last line of each file."
+                            ),
+                            "minimum": 1
+                        },
+                        "max_chars": {
+                            "type": "integer",
+                            "description": (
+                                "Maximum characters returned per file. Defaults to 50000 "
+                                "and is clamped to 400000."
+                            ),
+                            "minimum": 200
+                        },
+                        "line_numbers": {
+                            "type": "boolean",
+                            "description": (
+                                "Prefix every returned line with its 1-based line number. "
+                                "Defaults to false."
+                            ),
+                            "default": False
                         }
                     },
                     "required": ["file_path"]
                 }
             }
         },
-        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat", cache=False).dict(),
         "tags": ["project", "file-operations", "read", "content-access"],
         "tool_call": project_read_file
     },
@@ -397,7 +553,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat", cache=False).dict(),
         "tags": ["project", "file-operations", "write", "create", "modification"],
         "tool_call": project_write_file
     },
@@ -444,9 +600,74 @@ TOOLS = [
                 }
             }
         },
-        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat", cache=False).dict(),
         "tags": ["project", "file-operations", "edit", "modification", "advanced"],
         "tool_call": apply_file_changes
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "project_changes",
+                "description": (
+                    "Inspect what changed in the project working tree and compare it with a "
+                    "git ref. Use scope='all' for staged + unstaged + untracked changes "
+                    "against base (default HEAD), scope='staged' for the next commit, "
+                    "scope='unstaged' for modifications not staged yet, or scope='untracked' "
+                    "for new files. Optional paths filter the result and include_patch adds "
+                    "per-file diffs with context. For a repository-wide snapshot (branches, "
+                    "remotes, worktrees) use the repository_* tools instead."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "base": {
+                            "type": "string",
+                            "description": (
+                                "Commit, branch or tag to compare against. Defaults to HEAD."
+                            ),
+                            "default": "HEAD"
+                        },
+                        "scope": {
+                            "type": "string",
+                            "enum": ["all", "staged", "unstaged", "untracked"],
+                            "description": "Which changes to show. Defaults to 'all'.",
+                            "default": "all"
+                        },
+                        "paths": {
+                            "type": ["string", "array"],
+                            "description": (
+                                "Optional path or list of paths (file, folder or git "
+                                "pathspec) used to filter the changes."
+                            )
+                        },
+                        "include_patch": {
+                            "type": "boolean",
+                            "description": "Include per-file patches. Defaults to true.",
+                            "default": True
+                        },
+                        "context_lines": {
+                            "type": "integer",
+                            "description": "Context lines in each patch (0-10). Defaults to 3.",
+                            "default": 3,
+                            "minimum": 0,
+                            "maximum": 10
+                        },
+                        "max_files": {
+                            "type": "integer",
+                            "description": "Maximum files listed and patched (1-200). Defaults to 20.",
+                            "default": 20,
+                            "minimum": 1,
+                            "maximum": 200
+                        }
+                    },
+                    "required": []
+                }
+            }
+        },
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat", cache=False).dict(),
+        "tags": ["project", "git", "changes", "diff", "review", "working-tree"],
+        "tool_call": project_changes
     },
     {
         "tool_json": PROJECT_STRUCTURE_TOOL_JSON,

@@ -118,8 +118,11 @@ STEP_BOARD_PHASE = {
 # modify the project even when the run/step does not declare a profile.
 DEFAULT_WORKER_TOOLS = (
     "project_search",
+    "project_grep",
+    "project_glob",
     "project_read_file",
     "project_write_file",
+    "project_changes",
     "project_structure",
     "apply_file_changes",
     "code_writer",
