@@ -110,6 +110,17 @@ export default {
     projectRoot() {
       return this.project?.abs_project_path || ''
     },
+    /**
+     * The active project is a git worktree (not the main checkout).
+     *
+     * Worktrees are registered as separate projects with the same display name,
+     * so the header must say which checkout the branch belongs to.
+     */
+    isWorktreeCheckout() {
+      const projectPath = this.info?.project_path || this.projectPath
+      const repoPath = this.info?.repo_path || ''
+      return !!projectPath && !!repoPath && projectPath !== repoPath
+    },
     api() {
       return this.project?.$api || null
     },
@@ -1112,27 +1123,47 @@ export default {
       if (!this.api) return
       this.loading = true
       this.error = null
-      try {
-        const [info, branchesRes] = await Promise.all([
-          this.api.repo.info().catch(() => ({})),
-          this.api.repo.branches()
-        ])
-        this.info = info || {}
-        this.branches = Array.isArray(branchesRes) ? branchesRes : (branchesRes?.branches || [])
-        this.repoTree = branchesRes?.repo_tree || []
-        // Repository info carries every worktree with the files changed inside it
-        this.worktrees = Array.isArray(this.info.worktrees) ? this.info.worktrees : []
+      const errors = []
 
-        if (!this.selectedBranch || !this.branches.includes(this.selectedBranch)) {
-          this.selectedBranch = this.currentBranch || this.branches[0] || null
-        }
-        this.pruneSelection()
-        this.syncSelectedFile()
+      // Fetch independently: when one request fails the other still provides
+      // useful data. In particular, `/branches` carries `active_branch`, so the
+      // header can keep informing the checked out branch even if `/info` fails.
+      let info = {}
+      let branchesRes = {}
+      try {
+        info = await this.api.repo.info()
       } catch (ex) {
-        this.error = `Unable to load repository: ${ex?.message || ex}`
-      } finally {
-        this.loading = false
+        errors.push(`repository info: ${ex?.response?.data?.detail || ex?.message || ex}`)
       }
+      try {
+        branchesRes = await this.api.repo.branches()
+      } catch (ex) {
+        errors.push(`branches: ${ex?.response?.data?.detail || ex?.message || ex}`)
+      }
+
+      this.info = info || {}
+      if (!this.info.active_branch && branchesRes?.active_branch) {
+        this.info = {
+          ...this.info,
+          active_branch: branchesRes.active_branch,
+          default_branch: this.info.default_branch || branchesRes.default_branch || ''
+        }
+      }
+      this.branches = Array.isArray(branchesRes) ? branchesRes : (branchesRes?.branches || [])
+      this.repoTree = branchesRes?.repo_tree || []
+      // Repository info carries every worktree with the files changed inside it
+      this.worktrees = Array.isArray(this.info.worktrees) ? this.info.worktrees : []
+
+      if (errors.length) {
+        this.error = `Unable to load repository: ${errors.join('; ')}`
+      }
+
+      if (!this.selectedBranch || !this.branches.includes(this.selectedBranch)) {
+        this.selectedBranch = this.currentBranch || this.branches[0] || null
+      }
+      this.pruneSelection()
+      this.syncSelectedFile()
+      this.loading = false
     },
 
     selectBranch(branch) {
@@ -1376,9 +1407,19 @@ export default {
       <i class="fa-solid fa-folder-tree text-warning"></i>
       <span class="font-mono text-sm font-semibold truncate min-w-0" :title="projectPath">{{ projectName }}</span>
       <span
+        v-if="isWorktreeCheckout"
+        class="badge badge-xs badge-info badge-outline gap-1"
+        :title="`Git worktree: ${projectPath}`"
+      >
+        <i class="fa-solid fa-code-fork text-[9px] shrink-0"></i>
+        <span>worktree</span>
+      </span>
+      <span
         v-if="currentBranch"
         class="badge badge-sm badge-primary badge-outline gap-1 max-w-[220px]"
-        :title="`Current branch: ${currentBranch}`"
+        :title="isWorktreeCheckout
+          ? `Active branch: ${currentBranch} (worktree ${projectPath})`
+          : `Active branch: ${currentBranch}`"
       >
         <i class="fa-solid fa-check text-[9px] shrink-0"></i>
         <span class="truncate">{{ currentBranch }}</span>
