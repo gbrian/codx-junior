@@ -63,6 +63,17 @@ def start_background_services(stop_event) -> None:
     # TODO: Disabled until analyzing high AI consumption. Do not reanable unless you are authorized to
     # Thread(target=check_projects_wiki, name="WikiCheckLoop", daemon=True).start()
 
+    # Durable orchestration runs (board-native multi-step work). The worker
+    # lives only in the background process; the API process writes intent and
+    # reads state. Imported lazily so a missing AI dependency can never stop the
+    # background services.
+    try:
+        from codx.junior.orchestration.worker import start_orchestration_worker
+
+        start_orchestration_worker(stop_event=stop_event)
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.exception("Failed to start the orchestration worker: %s", ex)
+
 
 async def stop_background_services() -> None:
     """
@@ -75,6 +86,12 @@ async def stop_background_services() -> None:
 
     logger.info("Stopping background processes")
     RUN_BACKGROUND_PROCESSES = False
+    try:
+        from codx.junior.orchestration.worker import stop_orchestration_worker
+
+        stop_orchestration_worker()
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.exception("Failed to stop the orchestration worker: %s", ex)
 
 
 def reload_models() -> None:

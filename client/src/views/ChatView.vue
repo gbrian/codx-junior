@@ -8,6 +8,7 @@ import ExportChat from '@/components/chat/ExportChat.vue'
 import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
 import ChatSidebar from '@/components/chat/ChatSidebar.vue'
 import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
+import ChatRunBar from '@/components/chat/ChatRunBar.vue'
 import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
 </script>
 
@@ -121,6 +122,23 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
         @show-sidebar="toggleMobileSidebar"
       />
 
+      <!-- LONG-RUNNING TASK (orchestration run) -------------------------
+           `chat.run_id` is the durable process id. The bar is rendered only
+           when the chat already has a run (or is in agent mode and needs one)
+           and is fed by the `codx-junior-orchestration` socket event through
+           the orchestration store. Start/pause/stop are the only control
+           surface the human needs on this screen. -->
+      <ChatRunBar
+        v-if="theChat && !isChannelChat"
+        :chat="theChat"
+        :run="chatRun"
+        :busy="runBusy"
+        :error="runError"
+        @start="onRunStart"
+        @pause="onRunPause"
+        @stop="confirmStopRun = true"
+      />
+
       <!-- CONTENT AREA: Logs View OR (History Wall OR Chat View) -->
       <div class="flex-1 min-h-0 rounded-lg">
         <!-- Logs View (Full Screen) -->
@@ -228,6 +246,22 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
       </div>
     </modal>
 
+    <modal v-if="confirmStopRun">
+      <div class="p-6 space-y-4">
+        <h3 class="font-bold text-lg">Stop long-running task</h3>
+        <p class="text-error font-bold">
+          Stop this run? The in-flight turns are cancelled and a stop report is
+          published. Completed steps are preserved and the run can be started
+          again later.
+        </p>
+        <div class="text-sm bg-base-200 p-3 rounded">{{ computedChatName }}</div>
+        <div class="modal-action">
+          <button class="btn btn-error" :disabled="runBusy" @click="onRunStop">Stop</button>
+          <button class="btn" @click="confirmStopRun = false">Cancel</button>
+        </div>
+      </div>
+    </modal>
+
     <modal v-if="showTaskSettings">
       <TaskSettings :taskData="theChat" @close="showTaskSettings = false" />
     </modal>
@@ -279,7 +313,11 @@ export default {
       showMobileSidebar: false,
       // Mobile: chat header details (and the chat files strip) stay collapsed
       // until the user expands them from the header toggle.
-      showMobileDetails: false
+      showMobileDetails: false,
+      // Long-running task (orchestration run) controls.
+      runBusy: false,
+      runError: '',
+      confirmStopRun: false
     }
   },
   created() {
@@ -368,6 +406,13 @@ export default {
     },
     isSelectedChatChild() {
       return this.theChat && this.theChat.parent_id && this.theChat.id !== this.rootChat?.id
+    },
+    // Run detail of the chat's long-running process (`chat.run_id`). It is
+    // kept live by the orchestration store: socket events patch the cached run
+    // and debounce a REST detail refresh.
+    chatRun() {
+      const runId = this.theChat?.run_id
+      return runId ? this.$storex.orchestration.runById(runId) : null
     }
   },
   watch: {
@@ -385,8 +430,10 @@ export default {
         this.showLogs = false
         // A freshly opened chat starts with the compact mobile header
         this.showMobileDetails = false
+        this.runError = ''
         this.loadHierarchy()
         this.loadChatProfiles()
+        this.loadChatRun()
         if (newVal) {
           this.targetProject = this.$projects.allProjectsById[newVal.project_id] || this.chatProject
           if (newVal.parent_id && !this.$chats.chats[newVal.parent_id]) {
@@ -394,6 +441,11 @@ export default {
           }
         }
       }
+    },
+    'theChat.run_id'(newVal, oldVal) {
+      if (newVal === oldVal) return
+      this.runError = ''
+      this.loadChatRun()
     }
   },
   methods: {
@@ -420,6 +472,7 @@ export default {
       if (this.isPRView) await this.$projects.loadBranches()
       
       await this.loadChatProfiles()
+      await this.loadChatRun()
     },
     async loadHierarchy() {
       if (!this.theChat || this.isChannelChat) return
@@ -437,6 +490,163 @@ export default {
       } catch (error) {
         console.error('Failed to load chat profiles:', error)
         this.chatProfiles = []
+      }
+    },
+    // ─── Long-running task (orchestration) ────────────────────────────────
+    // `chat.run_id` is the durable process id. The store keeps the run detail
+    // live from the `codx-junior-orchestration` socket event; the bar only
+    // renders it, and these methods are the control surface.
+    async loadChatRun({ force = true } = {}) {
+      const chat = this.theChat
+      if (!chat?.run_id) return null
+      const run = await this.$storex.orchestration.loadRun({
+        runId: chat.run_id,
+        chat,
+        force
+      })
+      const error = this.$storex.orchestration.runError(chat.run_id)
+      this.runError = run ? '' : (error || '')
+      return run
+    },
+    runObjective(chat) {
+      const description = String(chat?.description || '').trim()
+      if (description) return description
+      const lastUserMessage = [...(chat?.messages || [])]
+        .reverse()
+        .find(message => message.role === 'user' && String(message.content || '').trim())
+      return String(lastUserMessage?.content || chat?.name || '').trim()
+    },
+    notifyRun(text, type = 'info') {
+      this.$ui?.addNotification?.({ text, type })
+    },
+    runErrorMessage(error) {
+      return error?.response?.data?.detail ||
+        error?.response?.data?.message ||
+        error?.message ||
+        String(error)
+    },
+    /**
+     * Select "agent" mode → add the orchestrator profile (when missing) and
+     * create the long-running run anchored on this task.
+     *
+     * Runs are budget roots; a subtask cannot own one, so the mode change is
+     * refused with a clear message in that case.
+     */
+    async startAgentRun() {
+      const chat = this.theChat
+      if (!chat?.id || this.runBusy) return false
+      if (chat.parent_id) {
+        this.notifyRun(
+          'Agent mode needs a root task: move this task to the top level before starting its run.',
+          'warning'
+        )
+        return false
+      }
+
+      this.runBusy = true
+      this.runError = ''
+      try {
+        if (!(chat.profiles || []).includes('orchestrator')) {
+          chat.profiles = [...(chat.profiles || []), 'orchestrator']
+          await this.saveChatInfo(chat)
+        }
+
+        const run = await this.$storex.orchestration.startChat({
+          chat,
+          objective: this.runObjective(chat),
+          budget: chat.estimation_cost || 0
+        })
+
+        chat.run_id = run.run_id
+        chat.run_status = run.status
+        await this.$storex.chats.reloadChat(chat)
+        await this.loadChatRun({ force: true })
+        this.notifyRun(
+          `Long-running task started (${String(run.run_id).slice(0, 8)}…)`,
+          'success'
+        )
+        return true
+      } catch (error) {
+        const message = this.runErrorMessage(error)
+        this.runError = message
+        this.notifyRun(`Could not start the long-running task: ${message}`, 'error')
+        return false
+      } finally {
+        this.runBusy = false
+      }
+    },
+    async onRunStart() {
+      const chat = this.theChat
+      if (!chat || this.runBusy) return false
+      if (!chat.run_id) return await this.startAgentRun()
+
+      this.runBusy = true
+      this.runError = ''
+      try {
+        const run = await this.$storex.orchestration.startRun({
+          runId: chat.run_id,
+          chat
+        })
+        chat.run_status = run?.status || chat.run_status
+        await this.$storex.chats.reloadChat(chat)
+        await this.loadChatRun({ force: true })
+        this.notifyRun('Long-running task started', 'success')
+        return true
+      } catch (error) {
+        const message = this.runErrorMessage(error)
+        this.runError = message
+        this.notifyRun(`Could not start the long-running task: ${message}`, 'error')
+        return false
+      } finally {
+        this.runBusy = false
+      }
+    },
+    async onRunPause() {
+      const chat = this.theChat
+      if (!chat?.run_id || this.runBusy) return
+      this.runBusy = true
+      this.runError = ''
+      try {
+        const run = await this.$storex.orchestration.pauseRun({
+          runId: chat.run_id,
+          chat,
+          reason: 'Paused from chat'
+        })
+        chat.run_status = run?.status || chat.run_status
+        await this.$storex.chats.reloadChat(chat)
+        this.notifyRun('Long-running task paused', 'warning')
+      } catch (error) {
+        const message = this.runErrorMessage(error)
+        this.runError = message
+        this.notifyRun(`Could not pause the long-running task: ${message}`, 'error')
+      } finally {
+        this.runBusy = false
+      }
+    },
+    async onRunStop() {
+      const chat = this.theChat
+      if (!chat?.run_id || this.runBusy) {
+        this.confirmStopRun = false
+        return
+      }
+      this.runBusy = true
+      this.runError = ''
+      try {
+        const run = await this.$storex.orchestration.stopRun({
+          runId: chat.run_id,
+          chat,
+          reason: 'Stopped from chat'
+        })
+        chat.run_status = run?.status || chat.run_status
+        await this.$storex.chats.reloadChat(chat)
+        this.notifyRun('Long-running task stopped', 'warning')
+      } catch (error) {
+        const message = this.runErrorMessage(error)
+        this.runError = message
+        this.notifyRun(`Could not stop the long-running task: ${message}`, 'error')
+      } finally {
+        this.runBusy = false
+        this.confirmStopRun = false
       }
     },
     async setProjectContext() {
@@ -778,10 +988,36 @@ export default {
         this.createTasksInstructions = ''
       }
     },
-    onChatModeChanged(newMode) {
-      if (!this.theChat) return
-      this.theChat.mode = newMode
-      this.saveChatInfo(this.theChat)
+    async onChatModeChanged(newMode) {
+      const chat = this.theChat
+      if (!chat || chat.mode === newMode) return
+
+      // Agent mode means "long-running task": a run owns the root task budget,
+      // so a subtask cannot start one. Refuse before persisting the mode.
+      if (newMode === 'agent' && chat.parent_id) {
+        this.notifyRun(
+          'Agent mode needs a root task: move this task to the top level before starting its run.',
+          'warning'
+        )
+        return
+      }
+
+      chat.mode = newMode
+      await this.saveChatInfo(chat)
+
+      if (newMode !== 'agent') return
+
+      // Selecting agent mode starts the process. When the chat already has a
+      // run, only start it again if it is in a startable state; a running run
+      // is left untouched and a completed one just shows its status.
+      if (chat.run_id) {
+        const status = this.chatRun?.status || chat.run_status
+        if (['queued', 'paused', 'stalled', 'stopped', 'failed'].includes(status)) {
+          await this.onRunStart()
+        }
+        return
+      }
+      await this.startAgentRun()
     },
     onTemplateChanged(isTemplate) {
       if (!this.theChat) return

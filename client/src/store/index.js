@@ -19,6 +19,7 @@ import * as kanban from './kanban'
 import * as planning from './planning'
 import * as browsers from './browsers'
 import * as meets from './meets'
+import * as orchestration from './orchestration'
 
 const modules = { 
   session,
@@ -35,7 +36,8 @@ const modules = {
   kanban,
   planning,
   browsers,
-  meets 
+  meets,
+  orchestration
 }
 const storePattern = {
   state () {

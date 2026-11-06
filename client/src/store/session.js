@@ -142,6 +142,16 @@ export const actions = actionTree(
       if (chat) {
         $storex.chats.onChatEvent({ event, data })
       }
+
+      // ──── ORCHESTRATION RUNS (long-running tasks) ──────────
+      // Every run transition (run_created, step_started, run_paused,
+      // run_completed, ...) carries `run_id` / `status` / `progress`. The
+      // orchestration store patches its cached run and debounces a detail
+      // refresh; ChatView renders it through `chat.run_id`.
+      if (event === 'codx-junior-orchestration') {
+        $storex.orchestration.onSocketEvent(data)
+      }
+
       if (type === 'notification') {
         $storex.ui.addNotification(data)
       }

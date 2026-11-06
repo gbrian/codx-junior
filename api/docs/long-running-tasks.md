@@ -1,5 +1,12 @@
 # Long running tasks (LRT) — design
 
+> **Note (2026):** this is the original design draft. The shipped runtime is
+> documented in [`docs/orchestration.md`](orchestration.md) and lives in
+> `codx/junior/orchestration/`. It preserves the main-task/budget/supervisor
+> model described here, stores the run state in an atomic dedicated document,
+> adds context-isolated parallel workers and exposes the `orchestrator` and
+> `delegate` tools.
+
 > Status: **review v2** (incorporates the review notes of 2026-xx)
 > Owner: ProjectManager · Implementation: `software_developer` / `py_senior`
 > Prerequisite: milestone **LRT‑0** (preparation, see §10). LRT does not start before LRT‑0 is done.

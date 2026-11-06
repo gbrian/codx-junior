@@ -857,22 +857,37 @@ class ChatManager:
             if not root_id or root_id == chat.id:
                 return 0.0
 
-            root_chat = self.find_by_id(chat_id=root_id)
-            if root_chat is None:
-                logger.warning(
-                    "Cost roll-up: root chat '%s' of '%s' not found (delta=%.6f)",
-                    root_id,
-                    chat.id,
-                    delta,
-                )
-                return 0.0
+            # Parallel orchestration workers can finish at the same time and
+            # roll their cost up into the same root chat. The read-modify-write
+            # must be serialized across threads AND processes, otherwise one
+            # update overwrites the other and the run budget drifts downwards.
+            from codx.junior.utils.file_lock import interprocess_lock
 
-            root_chat.cost = (root_chat.cost or 0.0) + delta
-            self.save_chat(chat=root_chat)
+            codx_path = str(getattr(self.settings, "codx_path", "") or "")
+            lock_path = os.path.join(codx_path, ".cost-rollup.lock") if codx_path else ""
+            if lock_path:
+                with interprocess_lock(lock_path, timeout=30.0):
+                    root_chat = self.find_by_id(chat_id=root_id)
+                    if root_chat is None:
+                        logger.warning(
+                            "Cost roll-up: root chat '%s' of '%s' not found (delta=%.6f)",
+                            root_id,
+                            chat.id,
+                            delta,
+                        )
+                        return 0.0
+                    root_chat.cost = (root_chat.cost or 0.0) + delta
+                    self.save_chat(chat=root_chat)
+            else:
+                root_chat = self.find_by_id(chat_id=root_id)
+                if root_chat is None:
+                    return 0.0
+                root_chat.cost = (root_chat.cost or 0.0) + delta
+                self.save_chat(chat=root_chat)
             logger.info(
                 "Cost roll-up: root='%s' chat='%s' delta=%.6f root_total=%.6f "
                 "budget=%s",
-                root_chat.id,
+                root_id,
                 chat.id,
                 delta,
                 root_chat.cost,

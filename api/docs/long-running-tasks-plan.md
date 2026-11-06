@@ -1,5 +1,13 @@
 # Long running tasks — execution plan (LRT‑1)
 
+> **Note (2026):** the shipped implementation of durable multi-step runs lives in
+> [`docs/orchestration.md`](orchestration.md) (`codx/junior/orchestration/`). It
+> keeps this plan's core model (main task = run, board budget, supervisor
+> `finish`, resumable worker) but stores the run state in an atomic dedicated
+> document, supports context-isolated workers in parallel and exposes the
+> `orchestrator`/`delegate` tools. Read this file as historical background: the
+> work packages below are superseded by the implemented orchestration v1.
+
 > Owner: ProjectManager · Implementation: `software_developer` / `py_senior` / `py_test`
 > Design contract: [`docs/long-running-tasks.md`](long-running-tasks.md) — this file only says **who does what, in which order, and how we call it done**.
 
