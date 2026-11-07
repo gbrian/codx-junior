@@ -16,12 +16,17 @@ Folder sharing
 --------------
 Any number of project folders are mounted inside the browser container under a
 single tree (``/home/<project_name>/<folder>``) and the browser downloads are
-written inside the default folder, so the user and the AI exchange files with the
+written inside a project folder, so the user and the AI exchange files with the
 project instead of being locked in the container:
 
 - ``configure_share`` decides the mounts when the session is created;
-- the downloads folder is applied through CDP on every connection
-  (``Browser.setDownloadBehavior``), because it is browser-wide state;
+- the downloads folder is written into the browser profile *before* the container
+  starts (``codx/junior/browser/download_settings.py``), because Chromium reads
+  the download directory at launch — this is the durable half and covers the
+  downloads the user starts in the live VNC view;
+- the same folder is also applied through CDP on every connection
+  (``Browser.setDownloadBehavior``), which is the live half: it also covers a
+  download triggered by the AI while its connection is open;
 - ``get_shared_paths`` / ``get_shared_files`` expose the mapping and the files
   the browser saved inside the project.
 
@@ -59,6 +64,7 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.browser.model import BrowserSession
 from codx.junior.browser.docker_browser_manager import DockerBrowserManager
 from codx.junior.browser.browser import Browser, run_coroutine_sync
+from codx.junior.browser import download_settings
 from codx.junior.browser import tabs as browser_tabs
 from codx.junior.browser.activity import BrowserActivityLog
 
@@ -105,7 +111,9 @@ class BrowserManager:
         .codx/browser_sessions/
         ├── <session_id>/
         │   ├── <session_id>.session     (metadata)
-        │   ├── chromium_profile/        (persistent profile)
+        │   ├── chromium_profile/        (persistent profile, mounted at /config)
+        │   │   ├── .config/chromium/Default/Preferences  (download directory)
+        │   │   └── Downloads -> <mapped downloads folder>
         │   ├── cdp_proxy.py             (DevTools proxy, mounted read-only)
         │   ├── activity.jsonl           (user + AI audit trail)
         │   └── downloads/               (only when the project is not shared)
@@ -121,7 +129,7 @@ class BrowserManager:
     - Create/list/get/stop/restart/delete browser sessions
     - Persist session state to Chat.meta_data
     - Docker container orchestration via DockerBrowserManager
-    - Project folder mapping and shared files listing
+    - Project folder mapping, download directory and shared files listing
     - Keep-alive tab and recovery of a browser whose window was closed
     - Activity auditing for user and AI actions
     """
@@ -160,6 +168,18 @@ class BrowserManager:
         return os.path.join(
             self._session_folder_path(session_id),
             f"{session_id}{SESSION_FILE_EXTENSION}",
+        )
+
+    def _profile_folder(self, session_id: str) -> str:
+        """
+        Get the host folder of the Chromium profile.
+
+        The docker manager binds this folder at ``/config`` inside the container,
+        which is the browser's ``$HOME``: it holds the preferences Chromium reads
+        at launch, including the download directory.
+        """
+        return os.path.join(
+            self._session_folder_path(session_id), download_settings.PROFILE_FOLDER
         )
 
     def _session_file_paths(self) -> List[str]:
@@ -284,6 +304,12 @@ class BrowserManager:
             downloads_folder=downloads_folder,
             downloads_mount=downloads_mount,
         )
+
+        # Chromium reads its download directory at launch, so the mapped folder
+        # must reach the profile *before* the container is created. Without this
+        # the downloads only followed the (transient, per-connection) CDP
+        # override and ended up in the profile folder instead of the project.
+        self._prepare_downloads(session)
 
         logger.info(
             "Creating browser session %s ('%s') for chat %s",
@@ -596,14 +622,65 @@ class BrowserManager:
         await self._ensure_keep_alive_tab(browser, session)
         return browser
 
+    def _prepare_downloads(self, session: BrowserSession) -> Dict[str, Any]:
+        """
+        Anchor the session's download folder in the browser profile.
+
+        ``Browser.setDownloadBehavior`` (used by :meth:`_apply_downloads_path`)
+        is scoped to the DevTools client that sends it and Chromium drops it when
+        that client disconnects — which happens on every tool call — and it never
+        applies to a download the user starts in the live VNC view.  The mapping
+        must therefore also be stored where Chromium reads it at launch:
+
+        - ``download.default_directory`` (+ ``savefile``) in the profile
+          ``Preferences``, without a "save as" prompt;
+        - ``<HOME>/Downloads`` (inside ``/config``, the mounted profile) pointing
+          at the mapped folder, so the browser fallback lands there too.
+
+        Must be called *before* the container starts.  Best effort: a session
+        whose profile cannot be written still works, it only keeps the
+        per-connection CDP mapping.
+
+        Args:
+            session: Session whose ``downloads_mount`` becomes the browser's
+                download folder.
+
+        Returns:
+            Dict[str, Any]: Report from ``download_settings`` (empty when there
+            is nothing to map or the profile could not be written).
+        """
+        if not session or not session.downloads_mount:
+            return {}
+        try:
+            report = download_settings.apply_download_settings(
+                self._profile_folder(session.id), session.downloads_mount
+            )
+        except Exception as ex:
+            logger.warning(
+                "Could not set the download folder of session %s: %s",
+                str(session.id)[:8], ex,
+            )
+            return {}
+        if report.get("preferences"):
+            logger.info(
+                "Session %s download folder: %s (%d preference file(s), link: %s)",
+                str(session.id)[:8],
+                session.downloads_mount,
+                len(report["preferences"]),
+                report.get("symlink") or "-",
+            )
+        return report
+
     async def _apply_downloads_path(self, browser: Browser, session: BrowserSession) -> None:
         """
-        Redirect the browser downloads into the session's shared folder.
+        Point the running browser to the session's mapped download folder.
 
-        ``Browser.setDownloadBehavior`` is browser-wide state, so it is applied
-        on every connection and covers both the user (live VNC view) and the AI.
-        The call is best effort: when it fails the container's default download
-        folder keeps being used.
+        This is the *live* half of the mapping: while the connection is open it
+        also covers a download started by the AI (and it wins over anything
+        Playwright sets for its own context).  Chromium scopes
+        ``Browser.setDownloadBehavior`` to the DevTools client that sends it, so
+        the value is dropped when the connection closes — the durable half lives
+        in the profile (see :meth:`_prepare_downloads`).
 
         Args:
             browser: Connected Browser instance.
@@ -614,17 +691,26 @@ class BrowserManager:
             return
         try:
             cdp_session = await browser.browser.new_browser_cdp_session()
+            # Keep a strong reference: a detached CDP session resets the
+            # behaviour being set right below.
+            browser.downloads_cdp_session = cdp_session
             await cdp_session.send(
                 "Browser.setDownloadBehavior",
-                {"behavior": "allow", "downloadPath": download_path},
+                {
+                    "behavior": "allow",
+                    "downloadPath": download_path,
+                    "eventsEnabled": False,
+                },
             )
-            logger.debug(
-                "Browser downloads redirected to %s (session %s)",
+            logger.info(
+                "Browser downloads pointed to %s (session %s)",
                 download_path, str(session.id)[:8],
             )
         except Exception as ex:
             logger.warning(
-                "Could not redirect browser downloads to %s: %s", download_path, ex
+                "Could not point the browser downloads to %s: %s "
+                "(the profile default written when the session was created still applies)",
+                download_path, ex,
             )
 
     async def _ensure_keep_alive_tab(self, browser: Browser, session: BrowserSession) -> None:
@@ -704,6 +790,9 @@ class BrowserManager:
             The updated BrowserSession (new ``debug_url``).
         """
         logger.warning("Restarting the browser of session %s (%s)", str(session.id)[:8], reason)
+        # Chromium rewrites Preferences when it exits: re-assert the mapped
+        # downloads folder so the relaunched browser keeps it.
+        self._prepare_downloads(session)
         self.docker_manager.stop_container(session, remove=False)
         session = self.docker_manager.restart_container(session)
         self._save_session_file(session)
