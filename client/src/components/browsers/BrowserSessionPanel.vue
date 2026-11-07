@@ -20,6 +20,10 @@ export default {
       pickerChats: [],
       pickerSearch: '',
       pickerError: null,
+      // Why the selector was opened instead of a chat (no linked chat, stale
+      // link, backend error). Rendered inside the dialog so the user is never
+      // left wondering why a click did not open a chat.
+      pickerReason: null,
       showDeleteConfirm: false,
       deleting: false
     }
@@ -119,6 +123,7 @@ export default {
       this.showChat = false
       this.showChatMenu = false
       this.showChatPicker = false
+      this.pickerReason = null
       // A pending confirmation belongs to the session that opened it
       this.showDeleteConfirm = false
       this.browserChatId = null
@@ -229,10 +234,10 @@ export default {
     async resolveLatestChatId() {
       const ids = [...this.linkedChatIds]
       if (!ids.length) return null
-      // Ranking requires the metadata of every linked chat. The store only holds
-      // the chats already opened here, so the index is fetched once when any of
-      // them is still unknown.
-      if (ids.length > 1 && ids.some(id => !this.chatMetaById(id))) {
+      // Ranking (and the switcher labels) need the metadata of every linked
+      // chat. The store only holds the chats already opened here, so the index
+      // is fetched once when any of them is still unknown.
+      if (ids.some(id => !this.chatMetaById(id))) {
         await this.loadPickerChats()
       }
       return this.latestLinkedChatId
@@ -307,14 +312,28 @@ export default {
 
     // ── Chat picker / opening ──────────────────────────────────────────────
 
-    openChatPicker() {
+    /**
+     * Open the chat selector.
+     *
+     * This is the single fallback for every "no chat could be opened" path: the
+     * selector is the only place where the user can link an existing chat or
+     * create a new one, so a failed click must always end here.
+     */
+    promptChatSelection(reason = null) {
       if (!this.selectedSession?.id) return
-      this.showChatMenu = false
+      this.pickerReason = reason
+      this.showChat = false
       this.showChatPicker = true
       this.loadPickerChats()
     },
+    openChatPicker() {
+      if (!this.selectedSession?.id) return
+      this.showChatMenu = false
+      this.promptChatSelection()
+    },
     closeChatPicker() {
       this.showChatPicker = false
+      this.pickerReason = null
     },
     async loadPickerChats() {
       if (this.pickerLoading) return
@@ -345,10 +364,11 @@ export default {
     /**
      * Open a chat in the docked pane.
      *
-     * `latest` resolves the chat with the last updated message. When nothing can
-     * be resolved (no chat linked to the session) the chat selector opens
-     * instead: the user decides between an existing chat and a new one, the
-     * backend is never asked to pick for them.
+     * `latest` resolves the chat with the last updated message. The selector
+     * opens whenever no chat can be opened — no linked chat, a linked chat that
+     * was deleted (404) or a backend that returned nothing — so the user always
+     * decides between an existing chat and a new one, and the button never
+     * appears to do nothing.
      */
     async openChatWith({ chatId = null, createNew = false, latest = false } = {}) {
       if (!this.selectedSession?.id || this.chatLoading) return
@@ -358,22 +378,41 @@ export default {
 
         if (!targetChatId && !createNew) {
           // No chat found → let the user choose
-          this.showChat = false
-          this.showChatPicker = true
-          this.loadPickerChats()
+          this.promptChatSelection(
+            this.linkedChatIds.length
+              ? 'The chat linked to this session is no longer available.'
+              : null
+          )
           return
         }
 
         this.showChatPicker = false
+        this.pickerReason = null
         const chat = await this.$storex.browsers.ensureChat({
           sessionId: this.selectedSession.id,
           chatId: targetChatId,
           createNew
         })
-        this.browserChatId = chat?.id || null
-        this.showChat = !!this.browserChatId
+
+        if (!chat?.id) {
+          // The backend returned no chat: offer the selection instead of
+          // docking an empty pane the user cannot use.
+          this.promptChatSelection('No chat could be opened for this session.')
+          return
+        }
+
+        this.browserChatId = chat.id
+        this.showChat = true
       } catch (error) {
         console.error('Failed to open browser chat:', error)
+        // A linked chat that no longer exists must not be a dead end: fall back
+        // to the selector, which is where the chat can be linked or created.
+        const status = error?.response?.status
+        this.promptChatSelection(
+          status === 404
+            ? 'That chat no longer exists. Pick another one or create a new chat.'
+            : 'The chat could not be opened. Pick another one or create a new chat.'
+        )
         this.$storex.ui.addNotification({
           text: error.message || 'Failed to open the browser chat',
           type: 'error'
@@ -659,7 +698,7 @@ export default {
           :aria-busy="chatLoading ? 'true' : 'false'"
           :title="showChat
             ? 'Focus the chat input'
-            : 'Open the chat with the last updated message'"
+            : 'Open the chat with the last updated message, or pick one'"
           @click="openLatestChat"
         >
           <span v-if="chatLoading" class="loading loading-spinner loading-xs"></span>
@@ -678,21 +717,37 @@ export default {
       </div>
     </template>
 
-    <!-- Chat selector: open an existing chat or create a new one -->
-    <div v-if="showChatPicker" class="modal modal-open" @click.self="closeChatPicker">
-      <div class="modal-box max-w-2xl w-11/12">
-        <div class="flex items-center justify-between gap-2 mb-3">
-          <div>
-            <h3 class="font-bold text-lg">Chat with this browser</h3>
-            <p class="text-xs opacity-60 truncate">{{ selectedSession?.name }}</p>
-          </div>
-          <button class="btn btn-sm btn-circle btn-ghost" @click="closeChatPicker">
-            <i class="fa-solid fa-times"></i>
-          </button>
-        </div>
+    <!-- Chat selector: open an existing chat or create a new one.
+         Rendered with the global <modal>, which re-parents itself to the app
+         root on mount. A plain `div.modal` stays inside this panel, whose
+         `overflow-hidden`/transformed ancestors (dockview panels) clipped or
+         stacked it behind the panel — the dialog opened but could not be seen,
+         which looked exactly like "clicking Chat does nothing". -->
+    <modal
+      v-if="showChatPicker"
+      close
+      title="Chat with this browser"
+      @close="closeChatPicker"
+    >
+      <div class="flex flex-col gap-3 md:w-[34rem]">
+        <p class="flex items-center gap-1.5 text-xs text-base-content/60 min-w-0">
+          <i class="fa-solid fa-window-restore flex-shrink-0" aria-hidden="true"></i>
+          <span class="truncate">{{ selectedSession?.name }}</span>
+        </p>
 
-        <div v-if="linkedChats.length" class="mb-3">
-          <p class="text-[11px] uppercase tracking-wide font-semibold opacity-60 mb-1">Linked to this session</p>
+        <!-- Why the selector opened instead of a chat -->
+        <p
+          v-if="pickerReason"
+          role="status"
+          class="flex items-start gap-1.5 rounded-lg bg-info/10 px-2.5 py-2 text-[11px] text-info"
+        >
+          <i class="fa-solid fa-circle-info mt-0.5 flex-shrink-0" aria-hidden="true"></i>
+          <span class="min-w-0">{{ pickerReason }}</span>
+        </p>
+
+        <!-- Chats already linked to this session -->
+        <div v-if="linkedChats.length" class="flex flex-col gap-1">
+          <p class="text-[10px] font-bold uppercase tracking-wide opacity-50">Linked to this session</p>
           <div class="flex flex-wrap gap-1">
             <button
               v-for="chat in linkedChats"
@@ -700,22 +755,23 @@ export default {
               class="btn btn-xs btn-success"
               @click="selectPickerChat(chat)"
             >
-              <i class="fa-regular fa-comments"></i>
+              <i class="fa-regular fa-comments" aria-hidden="true"></i>
               {{ chat.name }}
             </button>
           </div>
         </div>
 
-        <div class="form-control mb-2">
+        <label class="flex flex-col gap-1">
+          <span class="sr-only">Search existing chats</span>
           <input
             v-model="pickerSearch"
-            type="text"
-            class="input input-bordered input-sm"
+            type="search"
+            class="input input-sm input-bordered w-full"
             placeholder="Search existing chats..."
           />
-        </div>
+        </label>
 
-        <div class="max-h-72 overflow-y-auto border border-base-content/10 rounded-lg divide-y divide-base-content/10">
+        <div class="max-h-64 overflow-y-auto border border-base-content/10 rounded-lg divide-y divide-base-content/10">
           <div v-if="pickerLoading" class="p-6 flex items-center justify-center gap-2 text-sm opacity-70">
             <span class="loading loading-spinner loading-sm"></span> Loading chats...
           </div>
@@ -725,11 +781,11 @@ export default {
           <button
             v-for="chat in filteredPickerChats"
             :key="chat.id"
-            class="w-full text-left px-3 py-2 hover:bg-base-200 transition-colors"
+            class="w-full text-left px-3 py-2 hover:bg-base-200 transition-colors duration-150"
             @click="selectPickerChat(chat)"
           >
             <div class="flex items-center gap-2">
-              <i class="fa-regular fa-comments text-base-content/40"></i>
+              <i class="fa-regular fa-comments text-base-content/40" aria-hidden="true"></i>
               <span class="font-medium truncate flex-1">{{ chat.name || 'Untitled chat' }}</span>
               <span
                 v-if="linkedChatIds.includes(chat.id)"
@@ -742,17 +798,17 @@ export default {
             </div>
           </button>
         </div>
-
-        <div class="modal-action flex-wrap">
-          <button class="btn btn-ghost btn-sm" @click="closeChatPicker">Cancel</button>
-          <button class="btn btn-primary btn-sm" :disabled="chatLoading" @click="createNewBrowserChat">
-            <span v-if="chatLoading" class="loading loading-spinner loading-xs"></span>
-            <i v-else class="fa-solid fa-plus"></i>
-            New chat
-          </button>
-        </div>
       </div>
-    </div>
+
+      <template #footer>
+        <button class="btn btn-sm btn-ghost" @click="closeChatPicker">Cancel</button>
+        <button class="btn btn-sm btn-primary gap-1" :disabled="chatLoading" @click="createNewBrowserChat">
+          <span v-if="chatLoading" class="loading loading-spinner loading-xs"></span>
+          <i v-else class="fa-solid fa-plus" aria-hidden="true"></i>
+          New chat
+        </button>
+      </template>
+    </modal>
 
     <!-- Delete confirmation: a <modal> instead of window.confirm(), so the
          dialog is styled, focus-trapped, ESC/backdrop-closable and consistent

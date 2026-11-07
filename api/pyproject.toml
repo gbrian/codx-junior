@@ -35,7 +35,7 @@ dependencies = [
   'playwright',
   'jinja2>=3.0.3',
   'vllm>=0.5.0',
-  'sentence-transformers>=5.6.0',
+  'sentence-transformers>=6.2.0',
   'torch>=2.4.0', 
   'pathspec>=1.1.1',
   'ddgs>=9.16.0',

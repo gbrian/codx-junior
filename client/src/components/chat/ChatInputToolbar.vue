@@ -25,7 +25,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
         <div class="shrink-0" :class="isMobile ? 'w-14' : 'w-36'" v-if="activeProject">
           <ProjectDetailt
             :model-value="activeProject"
-            :iconify="true"
+            :iconify="false"
             @select="onProjectSelected"
           />
         </div>

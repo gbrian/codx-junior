@@ -6,12 +6,18 @@ watching and controlling through the live VNC view (managed by
 ``BrowserManager``).  There is no separate "AI browser": user and AI share one
 page, one set of cookies and one history.
 
+The browser container also mounts the project folders under
+``/home/<project_name>/<folder>`` and writes its downloads inside the project,
+so the agent and the user exchange files with the project instead of being
+isolated in the container.
+
 Tools
 -----
 - ``start_session``      – create & start (or resume) a browser session.
 - ``browse_action``      – navigate / click / fill / execute JS / read text /
                            back / forward / refresh / wait / press / select /
-                           hover / scroll / links.
+                           hover / scroll / links / tabs (list, open, switch,
+                           close).
 - ``get_screenshot``     – capture a PNG screenshot of the current page.
 - ``get_source_code``    – return the current page HTML.
 - ``browser_activity``   – recent user/AI actions on the session (co-browsing
@@ -32,9 +38,10 @@ import asyncio
 import logging
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from codx.junior.settings import CODXJuniorSettings
+from codx.junior.browser import tabs as browser_tabs
 from .model import ToolResponse
 
 logger = logging.getLogger(__name__)
@@ -56,6 +63,12 @@ BROWSER_TOOL_SETTINGS: Dict[str, Any] = {
 MAX_SOURCE_CHARS = 60000
 #: Hard cap on visible text returned by ``browse_action(text)``.
 MAX_TEXT_CHARS = 12000
+
+#: Actions that operate on tabs instead of the current page content.
+TAB_ACTIONS = ("tabs", "new_tab", "switch_tab", "close_tab")
+
+#: Actions that can use an explicit tab index.
+INDEX_ACTIONS = ("switch_tab", "close_tab")
 
 
 def _settings_from(kwargs: Dict[str, Any]) -> CODXJuniorSettings:
@@ -80,17 +93,50 @@ def _resolve_session(manager, session_id: Optional[str] = None, chat_id: Optiona
     return session
 
 
+def _shared_folder_lines(session) -> List[str]:
+    """Describe every folder mounted in the session (empty when none)."""
+    return [
+        f"  - {share.name or share.folder or '/'} → {share.mount_path}"
+        f"{' (read-only)' if share.readonly else ''}"
+        f"  [project: {share.folder or '/'}]"
+        for share in session.shared_folders
+    ]
+
+
 def _summary(session) -> str:
     """Build a short human-readable summary of a session."""
+    folders = ", ".join(share.mount_path for share in session.shared_folders) or "(none)"
     return (
         f"session_id={session.id}\n"
         f"name={session.name or '(unnamed)'}\n"
         f"status={session.status}\n"
         f"chats={', '.join(session.chat_ids) or '(none)'}\n"
         f"live_view={session.vnc_url or '(starting)'}\n"
+        f"home={session.home_path or '(not shared)'}\n"
+        f"mounted_folders={folders}\n"
+        f"downloads={session.downloads_mount or '(none)'} (host: {session.downloads_path or '-'})\n"
         f"current_url={session.current_url or '(blank)'}\n"
         f"current_title={session.current_title or '(blank)'}"
     )
+
+
+def _sharing_note(session) -> str:
+    """Describe the folder mapping for the LLM (empty when nothing is shared)."""
+    if not session.shares_files():
+        return ""
+    lines = _shared_folder_lines(session)
+    note = ""
+    if lines:
+        note = (
+            "The browser has these project folders mounted (open them with "
+            "file://<mount_path>/<file>):\n" + "\n".join(lines) + "\n"
+        )
+    if session.downloads_path:
+        note += (
+            f"Downloads are saved inside the project at '{session.downloads_path}' "
+            f"(browser path '{session.downloads_mount}')."
+        )
+    return note.strip()
 
 
 def _persist_to_chat(settings: CODXJuniorSettings, session, chat_id: Optional[str]) -> None:
@@ -113,6 +159,9 @@ async def start_session(
     chat_id: str = None,
     initial_url: str = None,
     description: str = None,
+    share_project: bool = None,
+    share_folders: List[str] = None,
+    downloads_folder: str = None,
     **kwargs,
 ) -> ToolResponse:
     """
@@ -122,12 +171,23 @@ async def start_session(
     ``session_id`` is used by the other browser tools, and ``live_view`` is the
     URL the user opens to watch and control the same browser.
 
+    Project folders are mounted inside the container under
+    ``/home/<project_name>/<folder>`` and every download is saved inside the
+    project, so files are shared between the user, the AI and the project.
+
     Args:
         name: Human-readable session name (defaults to a timestamped name).
         chat_id: Associated chat id (injected by SmolAgent); used to reuse the
             chat's existing session and to make it visible in the chat UI.
         initial_url: Optional URL opened when the browser starts.
         description: Optional free-form description of the session.
+        share_project: Mount the whole project at ``/home/<project_name>``.
+            Omit it to mount the project root only when ``share_folders`` is
+            empty.
+        share_folders: Project folders to mount (``["docs", "data"]``); each one
+            keeps its relative path inside ``/home/<project_name>``.
+        downloads_folder: Project-relative folder receiving the downloads
+            (default ``.codx/browser_downloads/<session_id>``).
         **kwargs: Injected ``settings``.
 
     Returns:
@@ -157,12 +217,21 @@ async def start_session(
                     llm_response=(
                         "A browser session is already running for this chat. "
                         f"Use this session_id in subsequent calls: {existing.id}. "
-                        f"Live view: {existing.vnc_url}"
+                        f"Live view: {existing.vnc_url}. "
+                        f"{_sharing_note(existing)}"
                     ),
                 )
 
         session = await asyncio.to_thread(
-            manager.create_session, session_name, chat_id, initial_url, description
+            manager.create_session,
+            session_name,
+            chat_id,
+            initial_url,
+            description,
+            share_project,
+            share_folders,
+            None,
+            downloads_folder,
         )
         _persist_to_chat(settings, session, chat_id)
 
@@ -170,7 +239,8 @@ async def start_session(
             f"Browser session '{session.name}' started. session_id: {session.id}. "
             f"Live view (same browser the user sees): {session.vnc_url}. "
             "Use browse_action/get_screenshot/get_source_code/browser_activity "
-            "with this session_id. Call finish_session when done."
+            "with this session_id. Call finish_session when done. "
+            f"{_sharing_note(session)}"
         )
         return ToolResponse(
             user_response=(
@@ -196,6 +266,7 @@ async def browse_action(
     script: str = None,
     key: str = None,
     timeout: int = 5000,
+    index: int = None,
     x: int = 0,
     y: int = 0,
     session_id: str = None,
@@ -203,18 +274,21 @@ async def browse_action(
     **kwargs,
 ) -> ToolResponse:
     """
-    Perform an action on the shared browser page.
+    Perform an action on the shared browser page or on its tabs.
 
     Args:
         action: One of ``navigate``, ``click``, ``fill``, ``execute``,
             ``text``, ``links``, ``back``, ``forward``, ``refresh``, ``wait``,
-            ``press``, ``select``, ``hover``, ``scroll``.
-        url: Target URL (for ``navigate``).
+            ``press``, ``select``, ``hover``, ``scroll``, ``tabs``,
+            ``new_tab``, ``switch_tab``, ``close_tab``.
+        url: Target URL (for ``navigate`` and ``new_tab``).
         selector: CSS selector (for element actions).
         value: Text to fill or option to select.
         script: JavaScript to run (for ``execute``; use ``return ...``).
         key: Keyboard key for ``press``.
         timeout: Timeout in milliseconds for ``wait``.
+        index: Tab index (0-based) for ``switch_tab`` / ``close_tab``; omit it to
+            act on the active tab.
         x: Horizontal scroll offset.
         y: Vertical scroll offset.
         session_id: Session to act on (returned by ``start_session``).
@@ -253,6 +327,7 @@ async def browse_action(
             "script": script,
             "key": key,
             "timeout": timeout,
+            "index": index,
             "x": x,
             "y": y,
         }.items()
@@ -335,10 +410,38 @@ async def browse_action(
             await browser.scroll(x=x or 0, y=y or 0)
             data = f"scrolled by x={x or 0}, y={y or 0}"
 
+        elif action == "tabs":
+            tabs = await browser_tabs.list_tabs(browser)
+            data = f"open tabs ({len(tabs)}):\n" + browser_tabs.format_tabs(tabs)
+
+        elif action == "new_tab":
+            tab = await browser_tabs.open_tab(browser, url)
+            data = (
+                f"opened tab [{tab['index']}] {tab['title'] or '(untitled)'}\n"
+                f"url: {tab['url']}"
+            )
+
+        elif action == "switch_tab":
+            tab = await browser_tabs.switch_tab(browser, index)
+            data = (
+                f"switched to tab [{tab['index']}] {tab['title'] or '(untitled)'}\n"
+                f"url: {tab['url']}"
+            )
+
+        elif action == "close_tab":
+            tab = await browser_tabs.close_tab(browser, index)
+            data = (
+                f"closed tab [{tab['closed_index']}] "
+                f"{tab['closed_title'] or tab['closed_url']}\n"
+                f"active tab is now [{tab['index']}] {tab['title'] or '(untitled)'}\n"
+                f"url: {tab['url']}"
+            )
+
         else:
             raise ValueError(
                 "unknown action '%s' (use navigate|click|fill|execute|text|links|"
-                "back|forward|refresh|wait|press|select|hover|scroll)" % action
+                "back|forward|refresh|wait|press|select|hover|scroll|"
+                "tabs|new_tab|switch_tab|close_tab)" % action
             )
 
         session.mark_active()
@@ -615,6 +718,10 @@ async def finish_session(
             llm_response=(
                 f"Browser session {session.id} {verb}. "
                 + ("Profile preserved." if not delete else "Profile deleted with the session.")
+                + (
+                    f" Downloaded files stay in the project at '{session.downloads_path}'."
+                    if session.downloads_path else ""
+                )
             ),
         )
     except Exception as ex:
@@ -637,7 +744,9 @@ START_SESSION_TOOL_JSON = {
             "Start (or resume) the real Chromium browser shared with the user. Provide a short, "
             "human-readable name. Returns a session_id (use it in the other browser tools) and a "
             "live-view URL the user can open to watch and control the same browser. A session may "
-            "be shared by several chats."
+            "be shared by several chats. Project folders are mounted inside the browser under "
+            "/home/<project_name>/<folder> (open file://<mount>/<file>) and downloads are saved "
+            "inside the project, so files can be shared with the user."
         ),
         "parameters": {
             "type": "object",
@@ -653,6 +762,29 @@ START_SESSION_TOOL_JSON = {
                 "description": {
                     "type": "string",
                     "description": "Optional short description of the session.",
+                },
+                "share_project": {
+                    "type": "boolean",
+                    "description": (
+                        "Mount the whole project at /home/<project_name>. Omit it to mount only "
+                        "the folders listed in share_folders (or the whole project when the list "
+                        "is empty)."
+                    ),
+                },
+                "share_folders": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": (
+                        "Project folders to mount, e.g. ['docs', 'data']. Each one keeps its "
+                        "relative path inside /home/<project_name>."
+                    ),
+                },
+                "downloads_folder": {
+                    "type": "string",
+                    "description": (
+                        "Project folder receiving the browser downloads (default "
+                        "'.codx/browser_downloads/<session_id>')."
+                    ),
                 },
                 "chat_id": {
                     "type": "string",
@@ -673,7 +805,9 @@ BROWSE_ACTION_TOOL_JSON = {
             "navigate (url), click (selector), fill (selector, value), "
             "execute (script), text (read visible page text), links (list links), "
             "back, forward, refresh, wait (selector, timeout), press (selector, key), "
-            "select (selector, value), hover (selector), scroll (x, y)."
+            "select (selector, value), hover (selector), scroll (x, y), "
+            "tabs (list the open tabs with their index), new_tab (url), "
+            "switch_tab (index), close_tab (index)."
         ),
         "parameters": {
             "type": "object",
@@ -683,15 +817,19 @@ BROWSE_ACTION_TOOL_JSON = {
                     "enum": [
                         "navigate", "click", "fill", "execute", "text", "links",
                         "back", "forward", "refresh", "wait", "press", "select",
-                        "hover", "scroll",
+                        "hover", "scroll", "tabs", "new_tab", "switch_tab",
+                        "close_tab",
                     ],
-                    "description": "Action to perform on the page.",
+                    "description": "Action to perform on the page or on its tabs.",
                 },
                 "session_id": {
                     "type": "string",
                     "description": "Session id returned by start_session.",
                 },
-                "url": {"type": "string", "description": "Target URL (navigate)."},
+                "url": {
+                    "type": "string",
+                    "description": "Target URL (navigate, or the page opened by new_tab).",
+                },
                 "selector": {
                     "type": "string",
                     "description": "CSS selector (click / fill / wait / press / select / hover).",
@@ -703,6 +841,13 @@ BROWSE_ACTION_TOOL_JSON = {
                 },
                 "key": {"type": "string", "description": "Keyboard key for press (e.g. Enter)."},
                 "timeout": {"type": "integer", "description": "Wait timeout in milliseconds."},
+                "index": {
+                    "type": "integer",
+                    "description": (
+                        "Tab index (0-based, as listed by action='tabs') for switch_tab and "
+                        "close_tab. Omit it to act on the active tab."
+                    ),
+                },
                 "x": {"type": "integer", "description": "Horizontal scroll offset."},
                 "y": {"type": "integer", "description": "Vertical scroll offset."},
             },

@@ -242,6 +242,19 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
                 Export chat
               </a>
             </li>
+            <!-- Admin only: raw JSON snapshot for a postmortem. Deliberately NOT
+                 hidden in channel mode — a group conversation may need a
+                 postmortem too. `canDump` is resolved by the host (ChatView),
+                 the sidebar only renders the entry point. -->
+            <li v-if="canDump">
+              <a
+                @click.stop="handleFooterAction({ type: 'dump' })"
+                title="Admin only: full chat dump (JSON, postmortem)"
+              >
+                <i class="fa-solid fa-bug text-sm opacity-70 text-warning"></i>
+                Dump chat
+              </a>
+            </li>
             <li :class="{ hidden: channelMode }"></li>
             <li :class="{ hidden: channelMode }">
               <a @click.stop="handleFooterAction({ type: 'settings' })">
@@ -369,7 +382,12 @@ export default {
     // tree, members, browser sessions, task actions). Everything is hidden with
     // CSS instead of removed so the sidebar keeps working for task chats.
     // Defaults to false: existing usages are untouched.
-    channelMode: { type: Boolean, default: false }
+    channelMode: { type: Boolean, default: false },
+    // Admin-only "dump chat" action (raw JSON snapshot for a postmortem).
+    // The permission is resolved by the host (ChatView), the sidebar only
+    // renders the entry point. Defaults to false so no existing usage gains
+    // a new menu item.
+    canDump: { type: Boolean, default: false }
   },
   emits: ['select', 'add-subtask', 'action', 'update-search', 'mode-changed', 'toggle-compact', 'delete-chat', 'remove-attachment'],
   data() {

@@ -143,6 +143,18 @@ export const actions = actionTree(
       }
     },
 
+    /**
+     * Create a browser session.
+     *
+     * Besides the session identity, the payload carries the **project folder
+     * mapping**, decided by the new-session dialog because the folders become
+     * bind mounts and cannot change while the container lives:
+     *
+     *  - `share_project`    mount the whole project at /home/<project_name>
+     *  - `share_folders`    project-relative folders to mount instead
+     *  - `readonly`         mount those folders read-only
+     *  - `downloads_folder` project folder receiving the browser downloads
+     */
     async createSession({ commit }, sessionData) {
       commit('clearError')
       try {
@@ -150,7 +162,11 @@ export const actions = actionTree(
           name: sessionData.name,
           description: sessionData.description || null,
           chat_id: sessionData.chat_id || null,
-          initial_url: sessionData.initial_url || sessionData.url || null
+          initial_url: sessionData.initial_url || sessionData.url || null,
+          share_project: sessionData.share_project ?? null,
+          share_folders: sessionData.share_folders || null,
+          readonly: sessionData.readonly ?? null,
+          downloads_folder: sessionData.downloads_folder || null
         }
         const session = await API.browsers.create(payload)
         commit('addSession', session)

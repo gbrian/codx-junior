@@ -1084,7 +1084,6 @@ export default {
       this.attachments = []
       this.messageProject = null
       this.messageProjectTouched = false
-      this.selectorProfileNames = []
       this.textProfileNames = []
       this.previousEditorText = ''
     },

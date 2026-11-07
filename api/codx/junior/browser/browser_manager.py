@@ -12,11 +12,37 @@ chats (``session.chat_ids``).  The container is a Chromium instance with a live
 VNC view (for the user) and a CDP endpoint (for the AI), so both actors control
 the same browser page.
 
+Folder sharing
+--------------
+Any number of project folders are mounted inside the browser container under a
+single tree (``/home/<project_name>/<folder>``) and the browser downloads are
+written inside the default folder, so the user and the AI exchange files with the
+project instead of being locked in the container:
+
+- ``configure_share`` decides the mounts when the session is created;
+- the downloads folder is applied through CDP on every connection
+  (``Browser.setDownloadBehavior``), because it is browser-wide state;
+- ``get_shared_paths`` / ``get_shared_files`` expose the mapping and the files
+  the browser saved inside the project.
+
+Browser window survival
+-----------------------
+Chromium exits when its last window (tab) is closed, while the container keeps
+running: the live view stays up but the browser window is gone and the DevTools
+endpoint is dead.  Two defences keep a session usable:
+
+- a protected **keep-alive tab** is created with the session and ensured on every
+  connection (``codx/junior/browser/tabs.py``), so closing every other tab leaves
+  the window alive;
+- ``connect_browser`` **recovers** a dead browser by restarting the container
+  entrypoint (which relaunches Chromium with the mounted profile) and retrying
+  the connection once.
+
 Lifecycle primitives
 --------------------
 - ``create_session(name, chat_id, initial_url, description)`` : start a new container + persist metadata.
 - ``stop_session(session_id)``      : stop the container but KEEP it (restartable).
-- ``restart_session(session_id)``   : start an existing/recreate a stopped session.
+- ``restart_session(session_id)``   : relaunch Chromium (recovery) / recreate a stopped session.
 - ``delete_session(session_id)``    : stop the container, remove it and the folder.
 - ``log_activity(...)``             : append an audit entry for a user/AI action.
 """
@@ -25,19 +51,47 @@ import logging
 import os
 import json
 import asyncio
-from typing import Optional, Dict, Any, List
+from datetime import datetime
+from typing import Optional, Dict, Any, List, Set
 from pathlib import Path
 
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.browser.model import BrowserSession
 from codx.junior.browser.docker_browser_manager import DockerBrowserManager
-from codx.junior.browser.browser import Browser
+from codx.junior.browser.browser import Browser, run_coroutine_sync
+from codx.junior.browser import tabs as browser_tabs
 from codx.junior.browser.activity import BrowserActivityLog
 
 logger = logging.getLogger(__name__)
 
 BROWSER_SESSIONS_DIR = "browser_sessions"
 SESSION_FILE_EXTENSION = ".session"
+#: Hard cap applied to the shared-files listing.
+MAX_SHARED_FILES = 500
+
+#: References to the background tasks started outside a request (keep-alive tab).
+_background_tasks: Set[Any] = set()
+
+
+def _is_inside(path: str, base: str) -> bool:
+    """Return True when *path* is inside *base* (both may be relative)."""
+    try:
+        return os.path.commonpath(
+            [os.path.abspath(path), os.path.abspath(base)]
+        ) == os.path.abspath(base)
+    except ValueError:
+        return False
+
+
+def _spawn_background(coroutine) -> None:
+    """
+    Schedule *coroutine* on the running loop, keeping a reference until it ends.
+
+    Used for work that must never block a request (creating the keep-alive tab).
+    """
+    task = asyncio.get_running_loop().create_task(coroutine)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 class BrowserManager:
@@ -53,8 +107,13 @@ class BrowserManager:
         │   ├── <session_id>.session     (metadata)
         │   ├── chromium_profile/        (persistent profile)
         │   ├── cdp_proxy.py             (DevTools proxy, mounted read-only)
-        │   └── activity.jsonl           (user + AI audit trail)
+        │   ├── activity.jsonl           (user + AI audit trail)
+        │   └── downloads/               (only when the project is not shared)
         └── ...
+
+    When the project is shared, downloads go to the project folder configured for
+    the session (``.codx/browser_downloads/<session_id>`` by default), so they are
+    project files.
 
     Session metadata is also synchronized with Chat.meta_data["browser"].
 
@@ -62,6 +121,8 @@ class BrowserManager:
     - Create/list/get/stop/restart/delete browser sessions
     - Persist session state to Chat.meta_data
     - Docker container orchestration via DockerBrowserManager
+    - Project folder mapping and shared files listing
+    - Keep-alive tab and recovery of a browser whose window was closed
     - Activity auditing for user and AI actions
     """
 
@@ -81,6 +142,8 @@ class BrowserManager:
             self.sessions_path,
             traefik_domain=traefik_domain,
             project_id=settings.project_id,
+            project_root_path=getattr(settings, "abs_project_path", None),
+            project_name=getattr(settings, "project_name", None),
         )
         logger.debug("BrowserManager initialized at '%s'", self.sessions_path)
 
@@ -161,6 +224,11 @@ class BrowserManager:
         chat_id: Optional[str] = None,
         initial_url: Optional[str] = None,
         description: Optional[str] = None,
+        share_project: Optional[bool] = None,
+        share_folders: Optional[List[Any]] = None,
+        readonly: Optional[bool] = None,
+        downloads_folder: Optional[str] = None,
+        downloads_mount: Optional[str] = None,
     ) -> BrowserSession:
         """
         Create and start a new browser session.
@@ -170,12 +238,22 @@ class BrowserManager:
             chat_id: Optional chat to connect to the session immediately.
             initial_url: Optional URL opened when the browser starts.
             description: Optional free-form description.
+            share_project: Mount the project root at ``/home/<project_name>``.
+                ``None`` mounts it only when no specific folder is listed.
+            share_folders: Project folders mounted under
+                ``/home/<project_name>/<folder>``. Each entry is a project
+                relative path or a dict with folder/name/mount_path/readonly.
+            readonly: Mount the listed folders read-only.
+            downloads_folder: Project-relative folder receiving the downloads
+                (default ``.codx/browser_downloads/<session_id>``).
+            downloads_mount: Container path forcing a dedicated downloads mount.
 
         Returns:
             Created BrowserSession
 
         Raises:
             RuntimeError: If container startup fails
+            ValueError: If a folder is outside the project or missing
         """
         existing_sessions = self.list_sessions()
         if len(existing_sessions) >= self.docker_manager.MAX_SESSIONS:
@@ -196,6 +274,17 @@ class BrowserManager:
         session_folder = self._session_folder_path(session.id)
         os.makedirs(session_folder, exist_ok=True)
 
+        # The project folders (and the downloads folder) must be mapped before
+        # the container is created: docker run mounts them.
+        self.docker_manager.configure_share(
+            session,
+            share_project=share_project,
+            share_folders=share_folders,
+            readonly=readonly,
+            downloads_folder=downloads_folder,
+            downloads_mount=downloads_mount,
+        )
+
         logger.info(
             "Creating browser session %s ('%s') for chat %s",
             session.id[:8], session.name, chat_id,
@@ -204,6 +293,10 @@ class BrowserManager:
         # Start Docker container
         session = self.docker_manager.start_container(session)
 
+        # The protected tab keeps the browser window (and Chromium) alive even
+        # when the user closes every other tab. Best effort: never fatal.
+        self._open_keep_alive_tab(session)
+
         # Save session metadata to file
         self._save_session_file(session)
         self.log_activity(
@@ -211,7 +304,12 @@ class BrowserManager:
             actor="system",
             action="create",
             chat_id=chat_id,
-            params={"name": session.name, "initial_url": initial_url},
+            params={
+                "name": session.name,
+                "initial_url": initial_url,
+                "folders": [share.mount_path for share in session.shared_folders],
+                "downloads": session.downloads_mount,
+            },
             url=session.current_url,
             title=session.current_title,
         )
@@ -322,6 +420,91 @@ class BrowserManager:
                 logger.exception("Error deleting session folder: %s", e)
 
     # -------------------------------------------------------------------------
+    # Project folder sharing
+    # -------------------------------------------------------------------------
+
+    def get_shared_paths(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Return the project/downloads mapping of a session.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            Dict with ``session_id``, ``project_name``, ``home_path``,
+            ``folders`` (list of share dicts), ``downloads_path``,
+            ``downloads_folder``, ``downloads_mount`` and
+            ``downloads_own_mount``; or None when the session does not exist.
+        """
+        session = self.get_session(session_id)
+        if not session:
+            return None
+        return {
+            "session_id": session.id,
+            "project_name": session.project_name,
+            "home_path": session.home_path,
+            "folders": [share.to_dict() for share in session.shared_folders],
+            "downloads_path": session.downloads_path,
+            "downloads_folder": session.downloads_folder,
+            "downloads_mount": session.downloads_mount,
+            "downloads_own_mount": bool(session.downloads_own_mount),
+        }
+
+    def get_shared_files(self, session_id: str, limit: int = 200) -> List[Dict[str, Any]]:
+        """
+        List the files the browser saved in the session's downloads folder.
+
+        The folder lives inside the project when the project is shared, so every
+        entry can be read through the project files API.
+
+        Args:
+            session_id: Session ID
+            limit: Maximum number of entries (newest first)
+
+        Returns:
+            List of dicts with ``name``, ``relative_path``, ``path``,
+            ``container_path``, ``size`` and ``modified_at``.
+        """
+        session = self.get_session(session_id)
+        if not session or not session.downloads_path:
+            return []
+        root = session.downloads_path
+        if not os.path.isdir(root):
+            return []
+
+        project_root = getattr(self.settings, "abs_project_path", None)
+        project_root = project_root if isinstance(project_root, str) and project_root else None
+        downloads_mount = (session.downloads_mount or "").rstrip("/")
+
+        files: List[Dict[str, Any]] = []
+        for folder, _subfolders, names in os.walk(root):
+            for name in names:
+                full_path = os.path.join(folder, name)
+                # Chromium keeps the partial download next to the final file
+                if name.endswith(".crdownload"):
+                    continue
+                try:
+                    stat = os.stat(full_path)
+                except OSError:
+                    continue
+                relative = os.path.relpath(full_path, root).replace(os.sep, "/")
+                if project_root and _is_inside(full_path, project_root):
+                    path = os.path.relpath(full_path, project_root).replace(os.sep, "/")
+                else:
+                    path = full_path
+                files.append({
+                    "name": name,
+                    "relative_path": relative,
+                    "path": path,
+                    "container_path": f"{downloads_mount}/{relative}" if downloads_mount else relative,
+                    "size": int(stat.st_size),
+                    "modified_at": datetime.utcfromtimestamp(stat.st_mtime).isoformat(),
+                })
+
+        files.sort(key=lambda entry: entry["modified_at"], reverse=True)
+        return files[:max(1, min(int(limit or 200), MAX_SHARED_FILES))]
+
+    # -------------------------------------------------------------------------
     # Chat integration
     # -------------------------------------------------------------------------
 
@@ -369,12 +552,18 @@ class BrowserManager:
         logger.debug("Saved session %s to chat %s", session.id[:8], chat.id)
 
     # -------------------------------------------------------------------------
-    # Browser connection
+    # Browser connection + keep-alive tab
     # -------------------------------------------------------------------------
 
     async def connect_browser(self, session: BrowserSession) -> Browser:
         """
-        Create a Browser instance and connect via CDP.
+        Create a Browser instance, connect via CDP and prepare the shared page.
+
+        Chromium exits when its last window is closed, which leaves the container
+        running with a dead DevTools endpoint (the live view is still up but the
+        browser window is gone).  A failed connection is therefore recovered once
+        by restarting the browser process, so a session never stays unreachable,
+        and the protected keep-alive tab is ensured on every connection.
 
         Args:
             session: BrowserSession with container info
@@ -383,15 +572,152 @@ class BrowserManager:
             Connected Browser instance
 
         Raises:
-            RuntimeError: If connection fails
+            RuntimeError: If connection fails, even after the recovery attempt
         """
         browser = Browser(session, self.docker_manager)
-        await browser.connect()
+        try:
+            await browser.connect()
+        except Exception as ex:
+            if not session.container_id:
+                raise
+            logger.warning(
+                "Browser of session %s is not reachable (%s); restarting it",
+                str(session.id)[:8], ex,
+            )
+            try:
+                await browser.close()
+            except Exception:
+                pass
+            session = await asyncio.to_thread(self._restart_browser, session)
+            browser = Browser(session, self.docker_manager)
+            await browser.connect()
+
+        await self._apply_downloads_path(browser, session)
+        await self._ensure_keep_alive_tab(browser, session)
         return browser
+
+    async def _apply_downloads_path(self, browser: Browser, session: BrowserSession) -> None:
+        """
+        Redirect the browser downloads into the session's shared folder.
+
+        ``Browser.setDownloadBehavior`` is browser-wide state, so it is applied
+        on every connection and covers both the user (live VNC view) and the AI.
+        The call is best effort: when it fails the container's default download
+        folder keeps being used.
+
+        Args:
+            browser: Connected Browser instance.
+            session: Session whose ``downloads_mount`` is applied.
+        """
+        download_path = (session.downloads_mount or "").strip()
+        if not download_path or not getattr(browser, "browser", None):
+            return
+        try:
+            cdp_session = await browser.browser.new_browser_cdp_session()
+            await cdp_session.send(
+                "Browser.setDownloadBehavior",
+                {"behavior": "allow", "downloadPath": download_path},
+            )
+            logger.debug(
+                "Browser downloads redirected to %s (session %s)",
+                download_path, str(session.id)[:8],
+            )
+        except Exception as ex:
+            logger.warning(
+                "Could not redirect browser downloads to %s: %s", download_path, ex
+            )
+
+    async def _ensure_keep_alive_tab(self, browser: Browser, session: BrowserSession) -> None:
+        """
+        Guarantee the protected tab that keeps the browser window alive.
+
+        Best effort: a session without the tab still works, it is only less
+        resilient to the user closing every tab.
+
+        Args:
+            browser: Connected Browser instance.
+            session: Session the browser belongs to (used for logging).
+        """
+        try:
+            await browser_tabs.ensure_keep_alive_tab(browser)
+        except Exception as ex:
+            logger.warning(
+                "Could not ensure the keep-alive tab for session %s: %s",
+                str(session.id)[:8], ex,
+            )
+
+    async def _ensure_keep_alive_tab_async(self, session: BrowserSession) -> Optional[Dict[str, Any]]:
+        """Connect, ensure the protected tab and disconnect (helper coroutine)."""
+        browser = await self.connect_browser(session)
+        try:
+            return await browser_tabs.ensure_keep_alive_tab(browser)
+        finally:
+            await browser.close()
+
+    async def _open_keep_alive_tab_async(self, session: BrowserSession) -> Optional[Dict[str, Any]]:
+        """Background variant of :meth:`_ensure_keep_alive_tab_async` (never raises)."""
+        try:
+            return await self._ensure_keep_alive_tab_async(session)
+        except Exception as ex:
+            logger.warning(
+                "Could not create the keep-alive tab for session %s: %s",
+                str(session.id)[:8], ex,
+            )
+            return None
+
+    def _open_keep_alive_tab(self, session: BrowserSession) -> None:
+        """
+        Create the protected tab right after the browser is (re)started.
+
+        Inside a request (there is a running loop) the work is scheduled in the
+        background so the response is never blocked by a browser connection;
+        without a loop it runs inline. Failures are only logged.
+        """
+        if not session or not session.container_id or not session.debug_url:
+            return
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            try:
+                run_coroutine_sync(lambda: self._ensure_keep_alive_tab_async(session))
+            except Exception as ex:
+                logger.warning(
+                    "Could not create the keep-alive tab for session %s: %s",
+                    str(session.id)[:8], ex,
+                )
+            return
+        _spawn_background(self._open_keep_alive_tab_async(session))
+
+    def _restart_browser(self, session: BrowserSession, reason: str = "recover") -> BrowserSession:
+        """
+        Restart the browser process of a session (blocking: runs in a thread).
+
+        Stopping and starting the container runs the entrypoint again, which
+        relaunches Chromium with the mounted profile (cookies and logins are
+        preserved) and exposes a new DevTools endpoint.
+
+        Args:
+            session: Session whose browser must be restarted.
+            reason: Audit action recorded in the activity log.
+
+        Returns:
+            The updated BrowserSession (new ``debug_url``).
+        """
+        logger.warning("Restarting the browser of session %s (%s)", str(session.id)[:8], reason)
+        self.docker_manager.stop_container(session, remove=False)
+        session = self.docker_manager.restart_container(session)
+        self._save_session_file(session)
+        self.log_activity(session, actor="system", action=reason)
+        return session
 
     async def restart_session(self, session_id: str) -> Optional[BrowserSession]:
         """
-        Restart a stopped session (preserves profile).
+        Restart a session's browser (preserves the Chromium profile).
+
+        The container is stopped and started again so the entrypoint relaunches
+        Chromium. This is also the recovery path for a session whose window was
+        closed by the user: Chromium exits when its last tab is closed, leaving
+        the container alive with a dead DevTools endpoint.
 
         Args:
             session_id: Session ID to restart
@@ -407,15 +733,9 @@ class BrowserManager:
             return None
 
         logger.info("Restarting session %s", session_id[:8])
-        session = self.docker_manager.restart_container(session)
-        self._save_session_file(session)
-        self.log_activity(
-            session,
-            actor="system",
-            action="restart",
-            url=session.current_url,
-            title=session.current_title,
-        )
+        session = await asyncio.to_thread(self._restart_browser, session, "restart")
+        # The relaunched browser has no tabs: restore the protection and the page.
+        self._open_keep_alive_tab(session)
         return session
 
     # -------------------------------------------------------------------------

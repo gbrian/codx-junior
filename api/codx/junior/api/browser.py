@@ -24,6 +24,9 @@ Socket.IO Events (real-time status updates for long-running operations):
     codx-junior-browser-stop     - Stop session with progress
 
     Emits: codx-junior-browser-status with {status, session_id, message, error, session}
+
+Project folders (see ``codx/junior/api/browser_files.py``):
+    GET    /api/browsers/<session_id>/files      - Folder mapping + downloads
 """
 
 import logging
@@ -130,7 +133,7 @@ async def list_sessions(request: Request):
     summary="Create a new browser session",
     responses={
         201: {"description": "Session created"},
-        400: {"description": "Invalid request"},
+        400: {"description": "Invalid request (unknown project folder)"},
         401: {"description": "Unauthorized"},
         500: {"description": "Server error"},
     },
@@ -142,6 +145,10 @@ async def create_session(request: Request, req: BrowserSessionCreateRequest):
     Starts a Chromium Docker container with Traefik routing and a persistent profile.
     The session is named (``req.name``) and optionally connected to ``req.chat_id``.
     Multiple chats may connect to the same session.
+
+    Project folders listed in ``req.share_folders`` are mounted inside the
+    container under ``/home/<project_name>/<folder>``; ``req.downloads_folder``
+    selects the project folder receiving the browser downloads.
     """
     try:
         session = await get_session_context(request)
@@ -161,6 +168,11 @@ async def create_session(request: Request, req: BrowserSessionCreateRequest):
             chat_id=req.chat_id,
             initial_url=req.initial_url,
             description=req.description,
+            share_project=req.share_project,
+            share_folders=req.share_folders,
+            readonly=req.readonly,
+            downloads_folder=req.downloads_folder,
+            downloads_mount=req.downloads_mount,
         )
 
         if chat and chat_manager:
@@ -168,15 +180,19 @@ async def create_session(request: Request, req: BrowserSessionCreateRequest):
             chat_manager.save_chat(chat)
 
         logger.info(
-            "create_session: created browser session %s ('%s') for chat %s",
+            "create_session: created browser session %s ('%s') for chat %s with %d shared folder(s)",
             browser_session.id[:8],
             browser_session.name,
             req.chat_id,
+            len(browser_session.shared_folders),
         )
         return BrowserSessionResponse(**browser_session.to_dict())
 
     except HTTPException:
         raise
+    except ValueError as e:
+        logger.error("create_session: invalid share configuration: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("create_session: unexpected error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -805,7 +821,8 @@ async def sio_browser_create(sid: str, data: dict, codxjunior_session: CODXJunio
     Create a new browser session via Socket.IO, emitting status updates.
 
     Request data: ``name`` (str, required) · ``chat_id`` (str, optional) ·
-    ``codx_path`` (str, injected by the client).
+    ``share_project`` (bool, optional) · ``share_folders`` (list, optional) ·
+    ``downloads_folder`` (str, optional) · ``codx_path`` (str, injected by the client).
     Emits: ``codx-junior-browser-status`` {status, session_id, message, error, session}.
     """
     channel = SessionChannel(sio=sio, sid=sid)
@@ -813,6 +830,11 @@ async def sio_browser_create(sid: str, data: dict, codxjunior_session: CODXJunio
     name = data.get("name")
     initial_url = data.get("initial_url")
     description = data.get("description")
+    share_project = data.get("share_project")
+    share_folders = data.get("share_folders")
+    readonly = data.get("readonly")
+    downloads_folder = data.get("downloads_folder")
+    downloads_mount = data.get("downloads_mount")
 
     if not codxjunior_session:
         _emit(channel, {"status": "error", "message": "Missing codx_path", "error": "Missing codx_path"})
@@ -838,6 +860,11 @@ async def sio_browser_create(sid: str, data: dict, codxjunior_session: CODXJunio
             chat_id=chat_id,
             initial_url=initial_url,
             description=description,
+            share_project=share_project,
+            share_folders=share_folders,
+            readonly=readonly,
+            downloads_folder=downloads_folder,
+            downloads_mount=downloads_mount,
         )
 
         _emit(channel, {

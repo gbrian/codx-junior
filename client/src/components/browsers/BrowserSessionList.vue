@@ -1,5 +1,6 @@
 <script setup>
 import ConfirmDialog from '../ConfirmDialog.vue'
+import BrowserSessionCreateModal from './BrowserSessionCreateModal.vue'
 </script>
 
 <template>
@@ -40,7 +41,7 @@ import ConfirmDialog from '../ConfirmDialog.vue'
           @click="handleSelectSession(session.id)"
           class="relative w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center text-sm font-semibold uppercase transition-colors duration-150 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           :class="sessionItemClass(session)"
-          :title="session.name"
+          :title="sessionTooltip(session)"
           :aria-label="`Select session ${session.name}`"
           :aria-current="selectedSessionId === session.id ? 'true' : 'false'"
         >
@@ -103,46 +104,6 @@ import ConfirmDialog from '../ConfirmDialog.vue'
 
     <div class="border-t border-base-content/10 mt-3 mb-2 flex-shrink-0"></div>
 
-    <!-- New Session Form -->
-    <div v-if="showNewForm" class="rounded-xl bg-base-200 p-3 flex-shrink-0 space-y-2">
-      <div class="form-control gap-2">
-        <label class="label p-0">
-          <span class="label-text font-semibold text-xs">Session Name</span>
-        </label>
-        <input
-          v-model="newSessionName"
-          type="text"
-          placeholder="My Browser Session"
-          class="input input-bordered input-sm"
-          @keyup.enter="handleCreateSession"
-        />
-
-        <label class="label p-0 pt-1">
-          <span class="label-text font-semibold text-xs">URL</span>
-        </label>
-        <input
-          v-model="newSessionUrl"
-          type="url"
-          placeholder="http://example.com"
-          class="input input-bordered input-sm"
-          @keyup.enter="handleCreateSession"
-        />
-
-        <label class="label cursor-pointer p-0 pt-1 justify-start gap-2">
-          <input v-model="newSessionHeadless" type="checkbox" class="checkbox checkbox-sm" />
-          <span class="label-text text-xs">Headless Mode</span>
-        </label>
-
-        <button
-          @click="handleCreateSession"
-          class="btn btn-primary btn-sm mt-1"
-          :disabled="!newSessionName.trim()"
-        >
-          Create Session
-        </button>
-      </div>
-    </div>
-
     <!-- Sessions List -->
     <div class="flex-1 min-h-0 overflow-y-auto mt-1 space-y-0.5">
       <div v-if="isLoading" class="flex items-center justify-center py-8">
@@ -181,7 +142,18 @@ import ConfirmDialog from '../ConfirmDialog.vue'
               >
                 {{ session.name }}
               </span>
-              <span class="block text-[11px] truncate text-base-content/50">{{ session.url }}</span>
+              <!-- Project mapping of the session (falls back to its URL) -->
+              <span
+                class="flex items-center gap-1 text-[11px] text-base-content/50"
+                :title="sessionTooltip(session)"
+              >
+                <i
+                  :class="session.folders?.length ? 'fa-solid fa-folder-tree' : 'fa-regular fa-folder'"
+                  class="text-[9px] flex-shrink-0"
+                  aria-hidden="true"
+                ></i>
+                <span class="truncate">{{ sessionSubtitle(session) }}</span>
+              </span>
             </span>
             <span
               v-if="session.status"
@@ -225,16 +197,15 @@ import ConfirmDialog from '../ConfirmDialog.vue'
 
     <!-- Footer action -->
     <div class="flex-shrink-0 pt-3 mt-2 border-t border-base-content/10">
-      <button
-        @click="toggleNewForm"
-        class="btn btn-sm w-full"
-        :class="showNewForm ? 'btn-ghost text-base-content/70' : 'btn-primary'"
-      >
-        <i :class="showNewForm ? 'fa-solid fa-times' : 'fa-solid fa-plus'"></i>
-        {{ showNewForm ? 'Cancel' : 'New Session' }}
+      <button @click="toggleNewForm" class="btn btn-sm btn-primary w-full gap-1">
+        <i class="fa-solid fa-plus"></i>
+        New Session
       </button>
     </div>
   </div>
+
+  <!-- New session settings (folder mapping + downloads) -->
+  <BrowserSessionCreateModal v-if="showCreateModal" />
 
   <!-- Delete confirmation modal -->
   <ConfirmDialog
@@ -257,7 +228,8 @@ import ConfirmDialog from '../ConfirmDialog.vue'
 export default {
   name: 'BrowserSessionList',
   components: {
-    ConfirmDialog
+    ConfirmDialog,
+    BrowserSessionCreateModal
   },
   props: {
     collapsed: {
@@ -268,9 +240,6 @@ export default {
   emits: ['toggle-collapse'],
   data() {
     return {
-      newSessionName: '',
-      newSessionUrl: 'http://example.com',
-      newSessionHeadless: false,
       deleteTarget: null,
       deleting: false
     }
@@ -285,14 +254,45 @@ export default {
     isLoading() {
       return this.$storex.browsers.isLoading
     },
-    showNewForm() {
+    // The modal is owned by the store so both the rail and the footer button
+    // (and any other entry point) open the very same dialog.
+    showCreateModal() {
       return this.$storex.browsers.showNewSessionForm
     }
   },
   methods: {
     sessionInitial(session) {
-      const label = (session.name || session.url || '?').trim()
+      const label = (session.name || session.current_url || '?').trim()
       return label.charAt(0)
+    },
+    /**
+     * One-line description of what the session can see: the configured folder
+     * mapping wins, the page URL is only a fallback.
+     */
+    sessionSubtitle(session) {
+      const folders = session.folders || []
+      if (folders.length === 1) {
+        return folders[0].mount_path || folders[0].host_path || '1 folder'
+      }
+      if (folders.length > 1) {
+        return `${folders.length} folders · ${session.home_path || ''}`.trim()
+      }
+      if (session.downloads_path) {
+        return `Downloads only · ${session.downloads_mount || session.downloads_path}`
+      }
+      return session.current_url || 'No project files'
+    },
+    /** Full mapping, shown as the row tooltip. */
+    sessionTooltip(session) {
+      const lines = [session.name || 'Browser session']
+      const folders = (session.folders || [])
+        .map(folder => folder.mount_path || folder.host_path)
+        .filter(Boolean)
+      lines.push(folders.length ? `Folders: ${folders.join(', ')}` : 'Folders: none')
+      if (session.downloads_mount || session.downloads_path) {
+        lines.push(`Downloads: ${session.downloads_mount || session.downloads_path}`)
+      }
+      return lines.join('\n')
     },
     sessionItemClass(session) {
       if (this.selectedSessionId === session.id) {
@@ -315,34 +315,12 @@ export default {
       this.$storex.browsers.loadSessions()
     },
     handleRailNewSession() {
-      // Expand the sidebar so the creation form becomes visible
-      this.$emit('toggle-collapse')
+      // The dialog is self contained: it works from the collapsed rail too, so
+      // the sidebar no longer has to expand to create a session.
       this.$storex.browsers.toggleNewSessionForm(true)
     },
     handleSelectSession(sessionId) {
       this.$storex.browsers.selectSession(sessionId)
-    },
-    async handleCreateSession() {
-      if (!this.newSessionName.trim()) {
-        this.$storex.ui.addNotification({
-          text: 'Session name is required',
-          type: 'warning'
-        })
-        return
-      }
-
-      try {
-        await this.$storex.browsers.createSession({
-          name: this.newSessionName.trim(),
-          url: this.newSessionUrl || 'http://example.com',
-          headless: this.newSessionHeadless
-        })
-        this.newSessionName = ''
-        this.newSessionUrl = 'http://example.com'
-        this.newSessionHeadless = false
-      } catch (error) {
-        console.error('Failed to create session:', error)
-      }
     },
     handleDeleteSession(sessionId, event) {
       event.stopPropagation()
@@ -374,7 +352,7 @@ export default {
       this.$storex.browsers.startEditingSession(sessionId)
     },
     toggleNewForm() {
-      this.$storex.browsers.toggleNewSessionForm()
+      this.$storex.browsers.toggleNewSessionForm(true)
     }
   },
   inject: ['$storex'],

@@ -33,6 +33,7 @@ from codx.junior.knowledge.embeddings import (
     LocalEmbeddingsModel,
     HybridEmbeddingsModel,
     get_local_embeddings_model,
+    is_embeddings_unavailable,
     DEFAULT_EMBEDDINGS_MODEL,
 )
 
@@ -323,6 +324,12 @@ class KnowledgeDB:
         # In-memory cache of the source-map JSON, invalidated by file mtime
         self._source_map_cache: Optional[Dict[str, Any]] = None
         self._source_map_mtime: Optional[int] = None
+
+        # Dense (semantic) leg availability. When the embeddings provider turns
+        # out to be unusable in this runtime (for example sentence-transformers
+        # is not installed) the flag is cleared and searches degrade to BM25
+        # instead of raising.
+        self._dense_embeddings_available = True
         
         # Initialize embeddings model (use local by default)
         self.embeddings_model = self._init_embeddings_model()
@@ -488,6 +495,39 @@ class KnowledgeDB:
         if hasattr(self.embeddings_model, "embed_documents"):
             return self.embeddings_model.embed_documents(texts)
         return [self.embeddings_model.embed_query(text) for text in texts]
+
+    def _embed_query_or_none(self, query: str) -> Optional[List[float]]:
+        """
+        Embed *query*, returning None when the dense leg cannot be used.
+
+        The local embeddings provider is optional at runtime (it needs
+        ``sentence-transformers`` installed). When it is unusable the failure is
+        permanent for this connection, so the flag is cleared and the caller
+        degrades to the BM25 (sparse) search, which needs no embeddings at all.
+        Any other error (a genuine bug) is re-raised.
+
+        Args:
+            query: Natural-language query to embed.
+
+        Returns:
+            Dense float vector, or None when dense search is unavailable.
+        """
+        if not self._dense_embeddings_available:
+            return None
+        try:
+            return self._embed_query(query)
+        except Exception as ex:
+            if not is_embeddings_unavailable(ex):
+                raise
+            self._dense_embeddings_available = False
+            logger.warning(
+                "Dense embeddings are unavailable for project '%s' (%s). "
+                "Searches will use BM25 full-text only. "
+                "Install with: pip install sentence-transformers",
+                self.settings.project_name,
+                ex,
+            )
+            return None
 
     # ── Source-map internal helpers ───────────────────────────────────────────
 
@@ -1015,6 +1055,9 @@ class KnowledgeDB:
         """
         Full-text BM25 (lexical) search against the sparse vector index.
 
+        Needs no embeddings, so it is also the degradation path when the dense
+        (semantic) leg is not available in the current runtime.
+
         Each returned Document will have a ``score`` key in its ``metadata``
         containing the BM25 relevance score (higher is more relevant).
 
@@ -1062,12 +1105,15 @@ class KnowledgeDB:
         Dense semantic search against the dense vector index.
 
         Embeds the query into a dense vector and runs a COSINE ANN search,
-        returning the semantically closest documents.
+        returning the semantically closest documents. When the dense leg is not
+        available (embeddings provider unusable) it degrades to the BM25 search
+        instead of raising.
 
         Diagram:
         flowchart TD
-            A[search_vector query] --> B[_embed_query]
-            B --> C[MilvusClient.search anns_field=dense metric=COSINE]
+            A[search_vector query] --> B[_embed_query_or_none]
+            B -- None --> S[search_sparse]
+            B -- vector --> C[MilvusClient.search anns_field=dense metric=COSINE]
             C --> D[Flatten result list-of-lists]
             D --> E[db_results_to_documents include_score=True]
             E --> F[Return List of Documents]
@@ -1079,7 +1125,10 @@ class KnowledgeDB:
         Returns:
             List of matching Document objects ordered by descending similarity.
         """
-        query_vector = self._embed_query(query)
+        query_vector = self._embed_query_or_none(query)
+        if query_vector is None:
+            return self.search_sparse(query=query, _limit=_limit)
+
         search_params = {
             "metric_type": "COSINE",
             "params": {},
@@ -1122,11 +1171,16 @@ class KnowledgeDB:
           - When ``use_rrf`` is True → Reciprocal Rank Fusion (RRFRanker).
           - Otherwise               → WeightedRanker with the given weights.
 
+        When the dense leg cannot be computed (embeddings provider unusable —
+        e.g. sentence-transformers not installed) the search degrades to
+        ``search_sparse`` so callers still get BM25 results.
+
         Diagram:
         flowchart TD
-            A[search_hybrid query] --> B[_embed_query]
-            B --> C[Build sparse AnnSearchRequest]
-            B --> D[Build dense AnnSearchRequest]
+            A[search_hybrid query] --> B[_embed_query_or_none]
+            B -- None --> S[search_sparse fallback]
+            B -- vector --> C[Build sparse AnnSearchRequest]
+            B -- vector --> D[Build dense AnnSearchRequest]
             C --> E[hybrid_search with Ranker]
             D --> E
             E --> F[Flatten result list-of-lists]
@@ -1143,7 +1197,9 @@ class KnowledgeDB:
         Returns:
             List of matching Document objects ordered by descending fused score.
         """
-        query_vector = self._embed_query(query)
+        query_vector = self._embed_query_or_none(query)
+        if query_vector is None:
+            return self.search_sparse(query=query, _limit=_limit)
 
         # Over-fetch from each leg so the reranker has more candidates to fuse
         leg_limit = max(_limit, _limit * 2)

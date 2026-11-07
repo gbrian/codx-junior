@@ -20,6 +20,19 @@ Lifecycle semantics
 - ``restart_container(session)``            : starts an existing (stopped)
   container, or recreates it if the container no longer exists.
 
+Project folder sharing
+----------------------
+``configure_share`` maps any number of project folders into the container before
+the ``docker run`` command is built, so the user (live view) and the AI exchange
+files with the project:
+
+- every selected folder is bind mounted under a single tree,
+  ``/home/<project_name>/<folder>`` (the project root, when mounted, *is*
+  ``/home/<project_name>``), optionally read-only per folder;
+- the downloads folder is a project folder too: when it lives inside one of the
+  mounted folders the browser writes there directly, otherwise it gets its own
+  bind at ``/downloads``.  ``Browser.setDownloadBehavior`` points Chromium to it.
+
 Configuration (environment variables)
 -------------------------------------
 ``CODX_BROWSER_IMAGE``            Chromium image (default
@@ -27,6 +40,9 @@ Configuration (environment variables)
 ``CODX_BROWSER_NETWORK``          Docker network (default
                                   ``codx-junior_default``).
 ``CODX_BROWSER_AUTO_PULL``        Pull the image when missing (default ``1``).
+``CODX_BROWSER_SHARE_PROJECT``    Mount project folders (default ``1``).
+``CODX_BROWSER_HOME_ROOT``        Container root of the project tree
+                                  (default ``/home``).
 ``CODX_BROWSER_PUBLIC_BASE_URL``  Override the public VNC base URL.
 ``CODX_BROWSER_AUTH_MIDDLEWARE``  Traefik auth middleware name
                                   (default ``codx-junior-auth``; empty disables).
@@ -37,16 +53,17 @@ Configuration (environment variables)
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Optional, List
+from typing import Any, Optional, List
 from urllib.parse import urlparse
 
-from codx.junior.browser.model import BrowserSession
+from codx.junior.browser.model import BrowserSession, SharedFolder
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +79,15 @@ CONTAINER_PROJECT_LABEL = "codx-junior.browser.project"
 CONTAINER_SESSION_LABEL = "codx-junior.browser.session"
 MAX_SESSIONS = 10
 DOCKER_READY_TIMEOUT = 60
+
+#: Container root holding the project folders (``/home/<project_name>/...``).
+DEFAULT_HOME_ROOT = "/home"
+#: Container path given to the downloads folder when it needs its own mount.
+DEFAULT_DOWNLOADS_MOUNT = "/downloads"
+#: Project folder (relative to the project root) receiving the downloads.
+DEFAULT_DOWNLOADS_FOLDER = ".codx/browser_downloads"
+#: Hard cap on the number of folders mounted in one session.
+MAX_SHARED_FOLDERS = 20
 
 
 def _env_flag(name: str, default: bool = True) -> bool:
@@ -93,6 +119,46 @@ def _normalize_domain(value: str) -> str:
     return f"http://{domain}"
 
 
+def _safe_name(value: Optional[str], fallback: str = "project") -> str:
+    """
+    Turn a project name into a valid single folder name.
+
+    Slashes, spaces and other unsafe characters become ``-`` so the value is
+    always usable as ``/home/<name>``.
+
+    Example:
+        >>> _safe_name("My Project/v2")
+        'My-Project-v2'
+    """
+    name = re.sub(r"[^A-Za-z0-9._-]+", "-", (value or "").strip()).strip("-._")
+    return name or fallback
+
+
+def _container_path(value: Optional[str], label: str = "path") -> str:
+    """
+    Validate and normalize an absolute container path.
+
+    Args:
+        value: Path given by the caller (``/downloads``, ``downloads``...).
+        label: Name used in the error message.
+
+    Returns:
+        str: Normalized absolute path without a trailing slash.
+
+    Raises:
+        ValueError: When the path is empty or contains ``..``.
+
+    Example:
+        >>> _container_path("work/docs/")
+        '/work/docs'
+    """
+    path = (value or "").strip().replace("\\", "/")
+    parts = [part for part in path.split("/") if part not in ("", ".")]
+    if any(part == ".." for part in parts):
+        raise ValueError(f"{label} '{value}' cannot contain '..'")
+    return "/" + "/".join(parts)
+
+
 class DockerBrowserManager:
     #: Exposed as a class attribute for callers enforcing the session quota.
     MAX_SESSIONS = MAX_SESSIONS
@@ -105,7 +171,9 @@ class DockerBrowserManager:
     - a persistent Chromium profile mounted at ``/config``,
     - a Traefik route for the Selkies live view (no path stripping; the image
       is started with ``SUBFOLDER=/browser/<session_id>/``),
-    - the CDP proxy mounted read-only at ``/cdp_proxy.py``.
+    - the CDP proxy mounted read-only at ``/cdp_proxy.py``,
+    - every selected project folder mounted under ``/home/<project_name>`` and
+      the downloads folder (see :meth:`configure_share`).
     """
 
     def __init__(
@@ -113,6 +181,10 @@ class DockerBrowserManager:
         browser_sessions_path: str,
         traefik_domain: Optional[str] = None,
         project_id: Optional[str] = None,
+        project_root_path: Optional[str] = None,
+        project_name: Optional[str] = None,
+        home_root: Optional[str] = None,
+        project_readonly: bool = False,
     ):
         """
         Initialize the Docker manager.
@@ -123,10 +195,23 @@ class DockerBrowserManager:
             traefik_domain: Domain used in Traefik rules (defaults to
                 ``CODX_JUNIOR_DOMAIN`` or ``localhost``).
             project_id: Project identifier used to scope container cleanup.
+            project_root_path: Host folder of the project; when set (and sharing
+                is not disabled) its folders can be mounted inside the sessions.
+            project_name: Name used to build the container home folder
+                (defaults to the project folder name).
+            home_root: Container root of the project tree (default ``/home``).
+            project_readonly: Mount the shared folders read-only by default.
         """
         self.browser_sessions_path = browser_sessions_path
         self.traefik_domain = (traefik_domain or os.environ.get("CODX_JUNIOR_DOMAIN") or "localhost").strip()
         self.project_id = project_id
+        self.project_root_path = (project_root_path or "").strip() or None
+        self.home_root = (home_root or os.environ.get("CODX_BROWSER_HOME_ROOT") or DEFAULT_HOME_ROOT).strip()
+        self.project_readonly = bool(project_readonly)
+        self.project_name = _safe_name(
+            project_name or (os.path.basename(self.project_root_path or "") or "")
+        )
+        self.share_project_enabled = _env_flag("CODX_BROWSER_SHARE_PROJECT", True)
         self.image = (os.environ.get("CODX_BROWSER_IMAGE") or DEFAULT_BROWSER_IMAGE).strip()
         self.network = (os.environ.get("CODX_BROWSER_NETWORK") or DEFAULT_DOCKER_NETWORK).strip()
         self.cdp_proxy_port = _env_int("CODX_BROWSER_CDP_PROXY_PORT", DEFAULT_CDP_PROXY_PORT)
@@ -135,11 +220,265 @@ class DockerBrowserManager:
         self.auto_pull = _env_flag("CODX_BROWSER_AUTO_PULL", True)
         os.makedirs(browser_sessions_path, exist_ok=True)
         logger.debug(
-            "DockerBrowserManager initialized at '%s' (domain: %s, image: %s)",
+            "DockerBrowserManager initialized at '%s' (domain: %s, image: %s, project: %s, home: %s)",
             browser_sessions_path,
             self.traefik_domain,
             self.image,
+            self.project_root_path or "-",
+            self.home_path,
         )
+
+    # -------------------------------------------------------------------------
+    # Project folder sharing
+    # -------------------------------------------------------------------------
+
+    @property
+    def home_path(self) -> str:
+        """Container folder holding the project tree (``/home/<project_name>``)."""
+        return f"{self.home_root.rstrip('/')}/{self.project_name}"
+
+    def can_share_project(self) -> bool:
+        """Return True when a project folder is known and sharing is enabled."""
+        return bool(
+            self.share_project_enabled
+            and self.project_root_path
+            and os.path.isdir(self.project_root_path)
+        )
+
+    def configure_share(
+        self,
+        session: BrowserSession,
+        share_project: Optional[bool] = None,
+        share_folders: Optional[List[Any]] = None,
+        readonly: Optional[bool] = None,
+        downloads_folder: Optional[str] = None,
+        downloads_mount: Optional[str] = None,
+    ) -> BrowserSession:
+        """
+        Attach the folder mapping (and the downloads folder) to a session.
+
+        Every selected project folder is bind mounted under
+        ``/home/<project_name>``; the mapping is stored on the session and
+        consumed by :meth:`_build_run_command` when the container is created.
+
+        Args:
+            session: Session being created or started.
+            share_project: Mount the project root at ``/home/<project_name>``.
+                ``None`` mounts it only when no specific folder was listed.
+            share_folders: Folders to mount. Each entry is either a project
+                relative path (``"docs"``, ``"docs/api"``) or a dict with
+                ``folder``/``name``/``mount_path``/``readonly``.
+            readonly: Mount the listed folders read-only (``None`` keeps the
+                manager setting; a per-folder ``readonly`` wins).
+            downloads_folder: Project-relative folder receiving the downloads
+                (default ``.codx/browser_downloads/<session_id>``).
+            downloads_mount: Container path forcing a dedicated downloads mount.
+                ``None`` reuses the shared folder that already contains it.
+
+        Returns:
+            The session with ``shared_folders``/``downloads_*`` filled in.
+
+        Raises:
+            RuntimeError: When sharing is explicitly requested but the project
+                folder is unknown or ``CODX_BROWSER_SHARE_PROJECT`` is disabled.
+            ValueError: When a folder is missing, outside the project, or the
+                mapping exceeds :data:`MAX_SHARED_FOLDERS`.
+        """
+        specs = [spec for spec in (share_folders or []) if spec]
+        if share_project is True and not self.can_share_project():
+            raise RuntimeError(
+                "Cannot share project folders with the browser session: "
+                "the project path is unknown or CODX_BROWSER_SHARE_PROJECT is disabled"
+            )
+        if len(specs) > MAX_SHARED_FOLDERS:
+            raise ValueError(
+                f"At most {MAX_SHARED_FOLDERS} folders can be mounted in one session"
+            )
+
+        if share_project is None:
+            # Default: the whole project, unless the caller picked folders
+            share_root = self.can_share_project() and not specs
+        else:
+            share_root = bool(share_project)
+
+        shares: List[SharedFolder] = []
+        if self.can_share_project():
+            if share_root:
+                shares.append(self._build_share("", readonly=readonly))
+            for spec in specs:
+                share = self._build_share_from_spec(spec, readonly=readonly)
+                # A mounted parent already exposes the same files
+                if any(existing.contains(share.host_path) for existing in shares):
+                    continue
+                if any(existing.mount_path == share.mount_path for existing in shares):
+                    continue
+                shares.append(share)
+
+        session.project_name = self.project_name
+        session.home_path = self.home_path
+        session.shared_folders = shares
+        self._configure_downloads(
+            session,
+            downloads_folder=downloads_folder,
+            downloads_mount=downloads_mount,
+        )
+        logger.info(
+            "Session %s mounts %d folder(s) under %s: %s; downloads: %s -> %s",
+            str(session.id)[:8],
+            len(shares),
+            self.home_path,
+            ", ".join(f"{share.host_path}->{share.mount_path}" for share in shares) or "-",
+            session.downloads_path or "-",
+            session.downloads_mount or "-",
+        )
+        return session
+
+    def _build_share_from_spec(self, spec: Any, readonly: Optional[bool] = None) -> SharedFolder:
+        """
+        Build a :class:`SharedFolder` from a string or a dict/model spec.
+
+        Accepted shapes: ``"docs"``, ``{"folder": "docs", "name": "Docs",
+        "mount_path": "/work/docs", "readonly": True}``.
+        """
+        data = spec.model_dump() if hasattr(spec, "model_dump") else spec
+        if isinstance(data, dict):
+            folder = data.get("folder") or data.get("path") or ""
+            name = data.get("name")
+            mount_path = data.get("mount_path") or data.get("mount")
+            share_readonly = data.get("readonly")
+        else:
+            folder, name, mount_path, share_readonly = str(data), None, None, None
+        return self._build_share(
+            folder=folder,
+            name=name,
+            mount_path=mount_path,
+            readonly=readonly if share_readonly is None else bool(share_readonly),
+        )
+
+    def _build_share(
+        self,
+        folder: str = "",
+        name: Optional[str] = None,
+        mount_path: Optional[str] = None,
+        readonly: Optional[bool] = None,
+    ) -> SharedFolder:
+        """
+        Resolve and validate one folder of the project.
+
+        Args:
+            folder: Project-relative folder (``""`` for the project root).
+            name: Optional label (defaults to the folder name).
+            mount_path: Container path override (default
+                ``/home/<project_name>/<folder>``).
+            readonly: Read-only mount (``None`` keeps the manager setting).
+
+        Raises:
+            ValueError: When the folder is outside the project or missing.
+        """
+        if not self.can_share_project():
+            raise RuntimeError("The project folder is not available for sharing")
+
+        base = os.path.abspath(self.project_root_path)
+        parts = [
+            part for part in (folder or "").strip().replace("\\", "/").split("/")
+            if part not in ("", ".")
+        ]
+        if any(part == ".." for part in parts):
+            raise ValueError(f"share folder '{folder}' is outside the project")
+        relative = "/".join(parts)
+        host_path = os.path.abspath(os.path.join(base, relative)) if relative else base
+        if host_path != base and not host_path.startswith(base + os.sep):
+            raise ValueError(f"share folder '{folder}' is outside the project")
+        if not os.path.isdir(host_path):
+            raise ValueError(f"share folder '{folder}' does not exist in the project")
+
+        target = (
+            _container_path(mount_path, "mount_path")
+            if mount_path
+            else (self.home_path if not relative else f"{self.home_path}/{relative}")
+        )
+        return SharedFolder(
+            name=(name or "").strip() or (relative or self.project_name),
+            folder=relative,
+            host_path=host_path,
+            mount_path=target,
+            readonly=self.project_readonly if readonly is None else bool(readonly),
+        )
+
+    def _configure_downloads(
+        self,
+        session: BrowserSession,
+        downloads_folder: Optional[str] = None,
+        downloads_mount: Optional[str] = None,
+    ) -> None:
+        """
+        Decide where the browser downloads are written.
+
+        The downloads folder is a project folder: when it lives inside one of the
+        mounted folders it is reachable without an extra bind, otherwise it gets
+        its own mount (``/downloads`` unless ``downloads_mount`` is given).
+
+        Raises:
+            ValueError: When ``downloads_folder`` is outside the project.
+        """
+        base = os.path.abspath(self.project_root_path) if self.can_share_project() else None
+        folder = (downloads_folder or "").strip().replace("\\", "/").strip("/")
+
+        if base:
+            folder = folder or f"{DEFAULT_DOWNLOADS_FOLDER}/{session.id}"
+            host_path = os.path.abspath(os.path.join(base, folder))
+            if host_path != base and not host_path.startswith(base + os.sep):
+                raise ValueError(
+                    f"downloads folder '{downloads_folder}' is outside the project"
+                )
+            relative = os.path.relpath(host_path, base).replace(os.sep, "/")
+            parts = [part for part in relative.split("/") if part not in ("", ".")]
+            if any(part == ".." for part in parts):
+                raise ValueError(
+                    f"downloads folder '{downloads_folder}' is outside the project"
+                )
+            relative = "/".join(parts)
+        else:
+            host_path = os.path.join(self._get_session_folder(session.id), "downloads")
+            relative = None
+
+        os.makedirs(host_path, exist_ok=True)
+        session.downloads_path = host_path
+        session.downloads_folder = relative
+
+        if downloads_mount:
+            session.downloads_mount = _container_path(downloads_mount, "downloads mount")
+            session.downloads_own_mount = True
+            return
+
+        covering = session.covering_share(host_path, writable_only=True)
+        if covering:
+            inside = os.path.relpath(host_path, covering.host_path).replace(os.sep, "/")
+            session.downloads_mount = covering.container_path(
+                "" if inside == "." else inside
+            )
+            session.downloads_own_mount = False
+        else:
+            session.downloads_mount = DEFAULT_DOWNLOADS_MOUNT
+            session.downloads_own_mount = True
+
+    def _build_share_mounts(self, session: BrowserSession) -> List[str]:
+        """
+        Build the ``-v`` values mapping the project folders and the downloads.
+
+        Folders are mounted with their own read-only flag; the downloads folder
+        is always writable (that is where the user and the AI save what they
+        download) and only gets a bind when it is not already inside a mount.
+        """
+        mounts: List[str] = []
+        for share in session.shared_folders:
+            os.makedirs(share.host_path, exist_ok=True)
+            suffix = ":ro" if share.readonly else ""
+            mounts.append(f"{share.host_path}:{share.mount_path}{suffix}")
+        if session.downloads_path and session.downloads_mount and session.downloads_own_mount:
+            os.makedirs(session.downloads_path, exist_ok=True)
+            mounts.append(f"{session.downloads_path}:{session.downloads_mount}")
+        return mounts
 
     # -------------------------------------------------------------------------
     # Container lifecycle
@@ -163,6 +502,11 @@ class DockerBrowserManager:
         profile_path = self._profile_path(session.id)
         os.makedirs(profile_path, exist_ok=True)
         self._ensure_owned(profile_path)
+
+        if not session.shared_folders and not session.downloads_path:
+            # Session built by hand (or created before folder sharing): never
+            # enable sharing implicitly, only provide a downloads folder.
+            self.configure_share(session, share_project=False)
 
         container_name = f"{CONTAINER_PREFIX}{session.id[:8]}"
         path_prefix = self._path_prefix(session.id)
@@ -411,6 +755,12 @@ class DockerBrowserManager:
             "--security-opt", "seccomp=unconfined",
             "--entrypoint", "/bin/bash",
         ]
+
+        # Project folders + downloads folder: files flow both ways (see
+        # configure_share). They are separate binds so read-only shares still
+        # allow downloads.
+        for mount in self._build_share_mounts(session):
+            cmd.extend(["-v", mount])
 
         for label in self._build_traefik_labels(
             router_name=router_name,

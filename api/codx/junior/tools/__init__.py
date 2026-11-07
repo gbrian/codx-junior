@@ -166,6 +166,14 @@ from .browser_tools import (
     FINISH_SESSION_TOOL_JSON,
     BROWSER_TOOL_SETTINGS,
 )
+from .browser_script_tools import (
+    list_browser_scripts,
+    get_browser_script,
+    save_browser_script,
+    delete_browser_script,
+    BROWSER_SCRIPT_TOOLS,
+    BROWSER_SCRIPT_TOOL_NAMES,
+)
 from .model import ToolResponse, ToolSettings
 
 # Configure logging
@@ -248,6 +256,12 @@ __all__ = [
     "get_source_code",
     "browser_activity",
     "finish_session",
+    "list_browser_scripts",
+    "get_browser_script",
+    "save_browser_script",
+    "delete_browser_script",
+    "BROWSER_SCRIPT_TOOLS",
+    "BROWSER_SCRIPT_TOOL_NAMES",
     "test_tool",
 ]
 
@@ -1614,6 +1628,12 @@ TOOLS = [
         "tags": ["orchestration", "delegation", "subagents", "parallel", "kanban"],
         "tool_call": delegate
     },
+    # -- Browser scripts: reusable per-site navigation recipes ---------------
+    # Source of truth: codx/junior/tools/browser_script_tools.py
+    # (list_browser_scripts, get_browser_script, save_browser_script,
+    #  delete_browser_script). Spread here so this file never has to be
+    # rewritten when the recipe tool set grows.
+    *BROWSER_SCRIPT_TOOLS,
 ]
 
 # Made with ❤️ by codx-junior

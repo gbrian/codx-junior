@@ -13,6 +13,34 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_EMBEDDINGS_MODEL = "all-MiniLM-L6-v2"
 
+# Markers used by the embeddings layer when the local provider is selected but
+# the library is not installed (or cannot be used) in this environment.
+EMBEDDINGS_UNAVAILABLE_MARKERS = (
+    "sentence-transformers",
+    "sentence_transformers",
+    "local embeddings",
+)
+
+
+def is_embeddings_unavailable(error: BaseException) -> bool:
+    """
+    Tell whether *error* means "embeddings cannot be used in this environment".
+
+    That is the class of failures that must degrade to lexical (BM25) search
+    instead of breaking the caller: the optional dependency is missing, or the
+    local provider was selected in a runtime that cannot load it.
+
+    Args:
+        error: Exception raised while loading / using the embeddings provider.
+
+    Returns:
+        True when the error is an embeddings-unavailability error.
+    """
+    if isinstance(error, ImportError):
+        return True
+    message = str(error).lower()
+    return any(marker in message for marker in EMBEDDINGS_UNAVAILABLE_MARKERS)
+
 
 class LocalEmbeddingsModel:
     """

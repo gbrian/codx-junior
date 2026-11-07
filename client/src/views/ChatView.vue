@@ -5,6 +5,7 @@ import Chat from '@/components/chat/Chat.vue'
 import TaskSettings from '@/components/kanban/TaskSettings.vue'
 import ChatSelector from '@/components/chat/ChatSelector.vue'
 import ExportChat from '@/components/chat/ExportChat.vue'
+import ChatDumpDialog from '@/components/chat/ChatDumpDialog.vue'
 import ChatHistoryViewer from '@/components/chat/ChatHistoryViewer.vue'
 import ChatSidebar from '@/components/chat/ChatSidebar.vue'
 import ChatViewHeader from '@/components/chat/ChatViewHeader.vue'
@@ -35,6 +36,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
       :isCompact="compactSidebar"
       :chatProfiles="chatProfiles"
       :channelMode="isChannelChat"
+      :canDump="canDumpChat"
       @select="onSelectSidebarChat"
       @add-subtask="onSidebarAddSubtask"
       @action="handleSidebarAction"
@@ -70,6 +72,7 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
           :isCompact="false"
           :chatProfiles="chatProfiles"
           :channelMode="isChannelChat"
+          :canDump="canDumpChat"
           @select="onSelectSidebarChat"
           @add-subtask="onSidebarAddSubtask"
           @action="handleSidebarAction"
@@ -270,6 +273,17 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
       <ExportChat :chat="theChat" @close="showExportChat = false" />
     </modal>
 
+    <!-- Admin-only raw chat dump (postmortem). The dialog builds the JSON from
+         the loaded chat plus the run/environment context and offers download
+         and clipboard copy. -->
+    <modal class="max-w-4xl w-11/12" close="true" @close="showDumpChat = false" v-if="showDumpChat">
+      <ChatDumpDialog
+        :chat="theChat"
+        :childrenChats="childrenChats"
+        @close="showDumpChat = false"
+      />
+    </modal>
+
     <modal close="true" @close="showChatSelector = false" v-if="showChatSelector">
       <ChatSelector />
     </modal>
@@ -285,8 +299,11 @@ export default {
   // `channelMode` turns the view into a group conversation: task features
   // (subtasks, project context, status, cost, tags, template, chat mode) are
   // hidden inside the child components (see ChatViewHeader, ChatSidebar, Chat).
-  // Both default to false so every other usage of ChatView stays identical.
-  props: ['chatMode', 'chat', 'kanban', 'params', 'hideChatSidebar', 'channelMode'],
+  // `dumpEnabled` is an explicit override for the admin-only chat dump: when
+  // omitted the permission is read from the signed-in user (fails closed).
+  // All of them default to false/undefined so every other usage of ChatView
+  // stays identical.
+  props: ['chatMode', 'chat', 'kanban', 'params', 'hideChatSidebar', 'channelMode', 'dumpEnabled'],
   data() {
     return {
       showFile: null,
@@ -303,6 +320,8 @@ export default {
       projectContext: null,
       showChatSelector: false,
       showExportChat: false,
+      // Admin-only postmortem dump dialog
+      showDumpChat: false,
       chatSearch: null,
       targetProject: null,
       showHistoryWall: false,
@@ -326,6 +345,26 @@ export default {
   computed: {
     isMobile() {
       return this.$ui?.isMobile
+    },
+    // ─── Admin-only surfaces ───────────────────────────────────────────────
+    // The chat dump exposes prompts, tool calls and usage data, so it is
+    // restricted to admins. The flag is read defensively and FAILS CLOSED: an
+    // unknown user store keeps the action hidden instead of leaking it. The
+    // UI only decides whether to render the entry point; anything persisted
+    // server-side must keep enforcing the role.
+    isAdminUser() {
+      const user = this.$storex?.user || null
+      if (!user) return false
+      if (user.is_admin !== undefined) return !!user.is_admin
+      if (user.isAdmin !== undefined) return !!user.isAdmin
+      if (Array.isArray(user.roles)) return user.roles.includes('admin')
+      return user.role === 'admin'
+    },
+    // Host override wins so a host that already knows the role (or a test) does
+    // not depend on the shape of the user store.
+    canDumpChat() {
+      if (this.dumpEnabled !== undefined) return !!this.dumpEnabled
+      return this.isAdminUser
     },
     // Messenger / channel view: a hosted group conversation. Hosts either pass
     // `channel-mode` (MessengerView) or simply use the `channel` chat mode.
@@ -430,6 +469,7 @@ export default {
         this.showLogs = false
         // A freshly opened chat starts with the compact mobile header
         this.showMobileDetails = false
+        this.showDumpChat = false
         this.runError = ''
         this.loadHierarchy()
         this.loadChatProfiles()
@@ -907,6 +947,7 @@ export default {
         'link-chats': () => this.showChatSelector = true,
         'new-tag': () => this.newTag = '',
         'export': () => this.showExportChat = true,
+        'dump': () => this.showDumpChat = true,
         'reload': () => this.reloadChat(),
         'save': () => this.saveChatInfo(),
         'settings': () => this.showTaskSettings = true

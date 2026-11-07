@@ -10,6 +10,17 @@ from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
 
 
+class BrowserSharedFolder(BaseModel):
+    """One project folder mounted inside the browser container."""
+
+    id: Optional[str] = Field(default=None, description="Immutable share identifier")
+    name: Optional[str] = Field(default=None, description="Human-readable label")
+    folder: Optional[str] = Field(default=None, description="Project-relative folder ('' = project root)")
+    host_path: str = Field(description="Host folder bind mounted into the container")
+    mount_path: str = Field(description="Container path of the folder (e.g. /home/proj/docs)")
+    readonly: bool = Field(default=False, description="Whether the folder is mounted read-only")
+
+
 class BrowserSessionResponse(BaseModel):
     """Response model for a browser session."""
 
@@ -25,6 +36,23 @@ class BrowserSessionResponse(BaseModel):
     vnc_path: Optional[str] = Field(default=None, description="Same-origin live view path")
     debug_url: Optional[str] = Field(default=None, description="DevTools/CDP WebSocket URL")
     browser_profile_path: Optional[str] = Field(default=None, description="Persistent Chromium profile path")
+    project_name: Optional[str] = Field(default=None, description="Project name used for the container home folder")
+    home_path: Optional[str] = Field(default=None, description="Container folder holding the project folders")
+    shared_folders: List[BrowserSharedFolder] = Field(
+        default_factory=list, description="Project folders mounted in the container"
+    )
+    downloads_path: Optional[str] = Field(
+        default=None, description="Host folder receiving the browser downloads"
+    )
+    downloads_folder: Optional[str] = Field(
+        default=None, description="Project-relative folder receiving the downloads"
+    )
+    downloads_mount: Optional[str] = Field(
+        default=None, description="Container path where the downloads are written"
+    )
+    downloads_own_mount: bool = Field(
+        default=True, description="Whether the downloads folder has its own bind mount"
+    )
     current_url: Optional[str] = Field(default=None, description="Currently loaded page URL")
     current_title: Optional[str] = Field(default=None, description="Currently loaded page title")
     last_action: Optional[str] = Field(default=None, description="Last user/AI action")
@@ -50,6 +78,30 @@ class BrowserSessionCreateRequest(BaseModel):
     description: Optional[str] = Field(default=None, description="Optional session description")
     chat_id: Optional[str] = Field(default=None, description="Optional chat ID to connect the session to")
     initial_url: Optional[str] = Field(default=None, description="Optional URL opened at startup")
+    share_project: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Mount the whole project at /home/<project_name>. Omit it to mount "
+            "the project root only when share_folders is empty."
+        ),
+    )
+    share_folders: Optional[List[Any]] = Field(
+        default=None,
+        description=(
+            "Project folders to mount under /home/<project_name>/<folder>. Each "
+            "entry is a relative path ('docs', 'docs/api') or an object with "
+            "folder, name, mount_path and readonly."
+        ),
+    )
+    readonly: Optional[bool] = Field(default=None, description="Mount the listed folders read-only")
+    downloads_folder: Optional[str] = Field(
+        default=None,
+        description="Project-relative folder receiving the downloads (.codx/browser_downloads/<id> by default)",
+    )
+    downloads_mount: Optional[str] = Field(
+        default=None,
+        description="Container path forcing a dedicated downloads mount (e.g. /downloads)",
+    )
 
 
 class BrowserSessionUpdateRequest(BaseModel):
@@ -133,6 +185,34 @@ class BrowserSourceResponse(BaseModel):
     error: Optional[str] = Field(default=None, description="Error message if failed")
 
 
+class BrowserSharedFile(BaseModel):
+    """One file the browser session saved inside the project."""
+
+    name: str = Field(description="File name")
+    relative_path: str = Field(description="Path relative to the session downloads folder")
+    path: str = Field(description="Project-relative path (absolute when outside the project)")
+    container_path: str = Field(description="Path of the file inside the browser container")
+    size: int = Field(description="File size in bytes")
+    modified_at: str = Field(description="ISO timestamp of the last modification")
+
+
+class BrowserSharedFilesResponse(BaseModel):
+    """Project folder mapping and files shared with a browser session."""
+
+    session_id: str = Field(description="Session ID")
+    project_name: Optional[str] = Field(default=None, description="Project name")
+    home_path: Optional[str] = Field(default=None, description="Container folder holding the project folders")
+    folders: List[BrowserSharedFolder] = Field(
+        default_factory=list, description="Project folders mounted in the container"
+    )
+    downloads_path: Optional[str] = Field(default=None, description="Host downloads folder")
+    downloads_folder: Optional[str] = Field(default=None, description="Project-relative downloads folder")
+    downloads_mount: Optional[str] = Field(default=None, description="Container downloads path")
+    downloads_own_mount: bool = Field(default=True, description="Whether the downloads folder has its own bind")
+    count: int = Field(default=0, description="Number of files returned")
+    files: List[BrowserSharedFile] = Field(default_factory=list, description="Downloaded files")
+
+
 class BrowserActivityEntry(BaseModel):
     """One user/AI action recorded in the session audit trail."""
 
@@ -184,6 +264,21 @@ class SioBrowserCreateRequest(BaseModel):
     description: Optional[str] = Field(default=None, description="Optional session description")
     initial_url: Optional[str] = Field(default=None, description="Optional URL opened at startup")
     chat_id: Optional[str] = Field(default=None, description="Optional chat ID to connect the session to")
+    share_project: Optional[bool] = Field(
+        default=None,
+        description="Mount the whole project at /home/<project_name> (None uses the default)",
+    )
+    share_folders: Optional[List[Any]] = Field(
+        default=None,
+        description="Project folders to mount under /home/<project_name>/<folder>",
+    )
+    readonly: Optional[bool] = Field(default=None, description="Mount the listed folders read-only")
+    downloads_folder: Optional[str] = Field(
+        default=None, description="Project-relative folder receiving the downloads"
+    )
+    downloads_mount: Optional[str] = Field(
+        default=None, description="Container path forcing a dedicated downloads mount"
+    )
 
 
 class SioBrowserDeleteRequest(BaseModel):
