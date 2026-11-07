@@ -156,11 +156,13 @@ from .browser_tools import (
     browse_action,
     get_screenshot,
     get_source_code,
+    browser_activity,
     finish_session,
     START_SESSION_TOOL_JSON,
     BROWSE_ACTION_TOOL_JSON,
     GET_SCREENSHOT_TOOL_JSON,
     GET_SOURCE_CODE_TOOL_JSON,
+    BROWSER_ACTIVITY_TOOL_JSON,
     FINISH_SESSION_TOOL_JSON,
     BROWSER_TOOL_SETTINGS,
 )
@@ -244,6 +246,7 @@ __all__ = [
     "browse_action",
     "get_screenshot",
     "get_source_code",
+    "browser_activity",
     "finish_session",
     "test_tool",
 ]
@@ -1567,6 +1570,12 @@ TOOLS = [
         "settings": BROWSER_TOOL_SETTINGS,
         "tags": ["browser", "web", "automation", "content"],
         "tool_call": get_source_code
+    },
+    {
+        "tool_json": BROWSER_ACTIVITY_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "automation", "audit", "co-browsing"],
+        "tool_call": browser_activity
     },
     {
         "tool_json": FINISH_SESSION_TOOL_JSON,

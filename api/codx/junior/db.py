@@ -364,6 +364,14 @@ class Chat(BaseModel):
     pinned: Optional[bool] = Field(default=False)
     is_template: Optional[bool] = Field(default=False, description="Chat will be used as temlate")
     description: str = Field(default='')
+    meta_data: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Free-form chat-level metadata persisted with the chat. "
+            "Used, for example, by the browser co-browsing session snapshot "
+            "(meta_data['browser'])."
+        )
+    )
     messages: List[Message] = Field(default=[])
     created_at: str = Field(default_factory=lambda: str(datetime.now()))
     updated_at: str = Field(default_factory=lambda: str(datetime.now()))

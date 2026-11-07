@@ -487,8 +487,11 @@ export default {
           chat_id: this.workingChat.id
         }
 
-        await this.$storex.browsers.createSession(sessionData)
+        const session = await this.$storex.browsers.createSession(sessionData)
         this.closeBrowserSessionDialog()
+        if (session?.id) {
+          await this.$storex.browsers.runSession(session.id)
+        }
       } catch (error) {
         console.error('[ChatSidebar] Error creating browser session:', error)
       } finally {

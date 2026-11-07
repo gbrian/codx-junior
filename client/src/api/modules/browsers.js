@@ -1,284 +1,126 @@
 /**
- * Browsers API module
- * Handles all browser-related API operations: list, CRUD, navigate, screenshot, etc.
+ * Browsers API module.
+ *
+ * Thin wrapper around the co-browsing REST API.  Every page action is sent to
+ * the same backend `action` endpoint used by the AI tools, so the live VNC view
+ * and the AI always operate on the exact same browser page.
  */
 
 export const browsersModule = (API) => ({
   // ── List & Retrieval ───────────────────────────────────────────────────
 
-  /**
-   * List all browsers with optional filters
-   */
   async list(filters) {
-    let qs = ""
+    let qs = ''
     if (filters) {
       const params = Object.entries(filters)
         .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-        .join("&")
+        .join('&')
       qs = `?${params}`
     }
     return API.get(`/api/browsers${qs}`)
   },
 
+  async get(sessionId) {
+    return API.get(`/api/browsers/${sessionId}`)
+  },
+
+  // ── CRUD & lifecycle ────────────────────────────────────────────────────
+
   /**
-   * Get a specific browser by ID
+   * Create a browser session.
+   * @param {Object} payload - { name, chat_id?, initial_url? }
    */
-  async get(browserId) {
-    return API.get(`/api/browsers/${browserId}`)
+  async create(payload) {
+    return API.post('/api/browsers', payload)
+  },
+
+  async update(sessionId, payload) {
+    return API.put(`/api/browsers/${sessionId}`, payload)
+  },
+
+  async delete(sessionId) {
+    return API.delete(`/api/browsers/${sessionId}`)
+  },
+
+  async restart(sessionId) {
+    return API.post(`/api/browsers/${sessionId}/restart`, {})
   },
 
   /**
-   * Get browser status by ID
+   * Return (or create) the chat linked to a browser session. The returned chat
+   * has the browser profile active so the agent can drive the same page.
    */
-  async getStatus(browserId) {
-    return API.get(`/api/browsers/${browserId}/status`)
+  async createChat(sessionId, chatId = null, createNew = false) {
+    const payload = {}
+    if (chatId) payload.chat_id = chatId
+    if (createNew) payload.create_new = true
+    return API.post(`/api/browsers/${sessionId}/chat`, payload)
   },
 
-  // ── CRUD Operations ────────────────────────────────────────────────────
-
-  /**
-   * Create a new browser instance
-   * @param {Object} browserConfig - Browser configuration (profile, headless, etc.)
-   */
-  async create(browserConfig) {
-    return API.post('/api/browsers', browserConfig)
+  async stop(sessionId) {
+    return API.post(`/api/browsers/${sessionId}/stop`, {})
   },
 
+  // ── Page actions ────────────────────────────────────────────────────────
+
   /**
-   * Update browser configuration
+   * Execute a page action.  See the backend `BrowserSessionActionRequest`.
    */
-  async update(browserId, browserConfig) {
-    return API.put(`/api/browsers/${browserId}`, browserConfig)
+  async action(sessionId, payload) {
+    return API.post(`/api/browsers/${sessionId}/action`, payload)
   },
 
-  /**
-   * Delete a browser instance
-   */
-  async delete(browserId) {
-    return API.delete(`/api/browsers/${browserId}`)
+  navigate(sessionId, url) {
+    return this.action(sessionId, { action: 'navigate', url })
   },
 
-  // ── Browser Navigation & Actions ───────────────────────────────────────
-
-  /**
-   * Navigate to a URL
-   */
-  async navigate(browserId, url) {
-    return API.post(`/api/browsers/${browserId}/navigate`, { url })
+  back(sessionId) {
+    return this.action(sessionId, { action: 'back' })
   },
 
-  /**
-   * Get current page URL
-   */
-  async getCurrentUrl(browserId) {
-    return API.get(`/api/browsers/${browserId}/current-url`)
+  forward(sessionId) {
+    return this.action(sessionId, { action: 'forward' })
   },
 
-  /**
-   * Get page title
-   */
-  async getPageTitle(browserId) {
-    return API.get(`/api/browsers/${browserId}/page-title`)
+  refresh(sessionId) {
+    return this.action(sessionId, { action: 'refresh' })
   },
 
-  /**
-   * Go back (previous page)
-   */
-  async goBack(browserId) {
-    return API.post(`/api/browsers/${browserId}/back`, {})
+  click(sessionId, selector) {
+    return this.action(sessionId, { action: 'click', selector })
   },
 
-  /**
-   * Go forward (next page)
-   */
-  async goForward(browserId) {
-    return API.post(`/api/browsers/${browserId}/forward`, {})
+  fill(sessionId, selector, value) {
+    return this.action(sessionId, { action: 'fill', selector, value })
   },
 
-  /**
-   * Refresh the page
-   */
-  async refresh(browserId) {
-    return API.post(`/api/browsers/${browserId}/refresh`, {})
+  execute(sessionId, script) {
+    return this.action(sessionId, { action: 'execute', script })
   },
 
-  // ── Screenshot & Snapshots ─────────────────────────────────────────────
-
-  /**
-   * Take a screenshot of the current page
-   * @param {string} browserId - Browser ID
-   * @param {Object} options - Screenshot options (format, fullPage, etc.)
-   */
-  async screenshot(browserId, options = {}) {
-    return API.post(`/api/browsers/${browserId}/screenshot`, options)
+  text(sessionId) {
+    return this.action(sessionId, { action: 'text' })
   },
 
-  /**
-   * Get screenshot URL
-   */
-  async getScreenshotUrl(browserId) {
-    return API.connection.prepareUrl(`/api/browsers/${browserId}/screenshot`)
+  links(sessionId) {
+    return this.action(sessionId, { action: 'links' })
   },
 
-  // ── Page Interaction ────────────────────────────────────────────────────
-
-  /**
-   * Execute JavaScript in the page context
-   */
-  async execute(browserId, script) {
-    return API.post(`/api/browsers/${browserId}/execute`, { script })
+  async screenshot(sessionId, fullPage = true) {
+    return API.post(`/api/browsers/${sessionId}/screenshot`, { full_page: fullPage })
   },
 
-  /**
-   * Click an element
-   */
-  async click(browserId, selector) {
-    return API.post(`/api/browsers/${browserId}/click`, { selector })
+  async source(sessionId) {
+    return API.get(`/api/browsers/${sessionId}/source`)
   },
 
-  /**
-   * Type text in an element
-   */
-  async type(browserId, selector, text) {
-    return API.post(`/api/browsers/${browserId}/type`, { selector, text })
+  // ── Co-browsing audit + cost ────────────────────────────────────────────
+
+  async activity(sessionId, limit = 100) {
+    return API.get(`/api/browsers/${sessionId}/activity?limit=${encodeURIComponent(limit)}`)
   },
 
-  /**
-   * Fill form field
-   */
-  async fill(browserId, selector, value) {
-    return API.post(`/api/browsers/${browserId}/fill`, { selector, value })
-  },
-
-  /**
-   * Get element text
-   */
-  async getElementText(browserId, selector) {
-    return API.get(`/api/browsers/${browserId}/element-text?selector=${encodeURIComponent(selector)}`)
-  },
-
-  /**
-   * Get element HTML
-   */
-  async getElementHtml(browserId, selector) {
-    return API.get(`/api/browsers/${browserId}/element-html?selector=${encodeURIComponent(selector)}`)
-  },
-
-  /**
-   * Check if element exists
-   */
-  async elementExists(browserId, selector) {
-    return API.get(`/api/browsers/${browserId}/element-exists?selector=${encodeURIComponent(selector)}`)
-  },
-
-  /**
-   * Wait for element to appear
-   */
-  async waitForElement(browserId, selector, timeout = 30000) {
-    return API.post(`/api/browsers/${browserId}/wait-for-element`, { selector, timeout })
-  },
-
-  // ── Cookie & Storage Management ────────────────────────────────────────
-
-  /**
-   * Get all cookies
-   */
-  async getCookies(browserId) {
-    return API.get(`/api/browsers/${browserId}/cookies`)
-  },
-
-  /**
-   * Set a cookie
-   */
-  async setCookie(browserId, cookie) {
-    return API.post(`/api/browsers/${browserId}/cookies`, cookie)
-  },
-
-  /**
-   * Delete a cookie
-   */
-  async deleteCookie(browserId, name) {
-    return API.delete(`/api/browsers/${browserId}/cookies?name=${encodeURIComponent(name)}`)
-  },
-
-  /**
-   * Clear all cookies
-   */
-  async clearCookies(browserId) {
-    return API.post(`/api/browsers/${browserId}/cookies/clear`, {})
-  },
-
-  /**
-   * Get local storage
-   */
-  async getLocalStorage(browserId) {
-    return API.get(`/api/browsers/${browserId}/storage/local`)
-  },
-
-  /**
-   * Set local storage value
-   */
-  async setLocalStorage(browserId, key, value) {
-    return API.post(`/api/browsers/${browserId}/storage/local`, { key, value })
-  },
-
-  /**
-   * Delete local storage value
-   */
-  async deleteLocalStorage(browserId, key) {
-    return API.delete(`/api/browsers/${browserId}/storage/local?key=${encodeURIComponent(key)}`)
-  },
-
-  /**
-   * Clear local storage
-   */
-  async clearLocalStorage(browserId) {
-    return API.post(`/api/browsers/${browserId}/storage/local/clear`, {})
-  },
-
-  // ── Page Analysis ──────────────────────────────────────────────────────
-
-  /**
-   * Get page HTML content
-   */
-  async getPageContent(browserId) {
-    return API.get(`/api/browsers/${browserId}/page-content`)
-  },
-
-  /**
-   * Get all links on the page
-   */
-  async getLinks(browserId) {
-    return API.get(`/api/browsers/${browserId}/links`)
-  },
-
-  /**
-   * Get all images on the page
-   */
-  async getImages(browserId) {
-    return API.get(`/api/browsers/${browserId}/images`)
-  },
-
-  /**
-   * Get page metadata
-   */
-  async getMetadata(browserId) {
-    return API.get(`/api/browsers/${browserId}/metadata`)
-  },
-
-  /**
-   * Search for text on page
-   */
-  async findText(browserId, text) {
-    return API.get(`/api/browsers/${browserId}/find-text?text=${encodeURIComponent(text)}`)
-  },
-
-  // ── Message Handling (Chat Integration) ─────────────────────────────────
-
-  /**
-   * Send a message to the browser (for chat integration)
-   */
-  async message(chat) {
-    return API.post('/api/browser', chat)
+  async cost(sessionId) {
+    return API.get(`/api/browsers/${sessionId}/cost`)
   }
 })

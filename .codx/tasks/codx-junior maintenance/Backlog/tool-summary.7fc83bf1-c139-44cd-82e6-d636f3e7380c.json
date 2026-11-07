@@ -1,0 +1,222 @@
+{
+  "id": "7fc83bf1-c139-44cd-82e6-d636f3e7380c",
+  "doc_id": null,
+  "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "root_id": "7fc83bf1-c139-44cd-82e6-d636f3e7380c",
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "API",
+  "status_history": [
+    {
+      "doc_id": "6cb4ad8f-e972-4566-8a56-68b63fca5e75",
+      "from_status": null,
+      "to_status": "API",
+      "user": null,
+      "at": "2026-11-07T11:17:20.818751",
+      "meta_data": null
+    }
+  ],
+  "tags": [],
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/ai/smol/smol_agent.py"
+  ],
+  "check_lists": [],
+  "profiles": [],
+  "users": [],
+  "name": "Tool summary",
+  "pinned": false,
+  "is_template": false,
+  "description": "1. **Request:** In codx-api (codx-junior FastAPI backend), when a task restarts after hitting a tool-usage limit, the model must be able to read prior tool execution results instead of re-running them \u2014 so the limit summary must be improved and previous results made accessible.\n2. **Approach:** Added a per-chat persistent store of full tool results, plus a planned `previous_tool_results` capability and a richer summary emitted by the loop guard when limits are reached.\n3. **New module:** `codx/junior/ai/smol/tool_results_store.py`, containing `ToolResultRecord`, `merge_results`, `truncate_result`, and `ToolResultsStore` (process-local cache + best-effort atomic JSON persistence at `<base>/tool_results/<project_id>/<chat_id>.json`).\n4. **Design guarantees:** errors are logged and swallowed so storage never breaks a run; results are deduplicated by tool+args, capped at 20k chars/200 records/8MB, and identical calls can be served from cache.\n5. **Status:** File content was written; the change envelope appeared truncated at the end, so the write should be verified and the summary/tool wiring (`previous_tool_results`, `LoopGuard`) still needs to be connected and tested.",
+  "meta_data": null,
+  "messages": [
+    {
+      "doc_id": "87852647-939c-4747-9936-149f80a4e7e8",
+      "role": "user",
+      "task_item": "",
+      "content": "When restarting a task that has failed from tools limit usage, we must allow the model to read all tools execution results to avoid re-executing them.\nSo improve the the summary generated when limits are reached and allow next execution to access previous tools results if needed.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-07 11:17:22.776486",
+      "updated_at": "2026-11-07T11:17:22.776563",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/ai/smol/smol_agent.py"
+      ],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [],
+      "user": "gbrian",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "97c4b165-684e-4907-a0de-d384a4ce798a",
+      "role": "assistant",
+      "task_item": "",
+      "content": "I'll start by checking what the project already knows about this agent, then implement the change.No prior conventions on this agent. Implementing now: a per-chat store of full tool results plus a `previous_tool_results` capability, and a much richer limit summary.\n\n<file_change path=\"codx/junior/ai/smol/tool_results_store.py\" language=\"python\" change_type=\"new\" encoding=\"text\">\n\"\"\"\nPer-chat persistent store of tool execution results.\n\nWhy\n---\n:class:`SmolAgent` no longer merges tool output into the assistant message, so\nthe result of a tool call only lives in the tool message of the run that\nexecuted it. When a run stops because a tool limit was reached (see\n:class:`LoopGuard`), or when the user restarts/continues the task in a later\nturn, the model loses those results and would have to re-execute every tool to\nrecover the information.\n\nThis module keeps the complete results of every tool executed for a chat so the\nnext run can:\n    * show the model a compact ledger of what was already done, and\n    * serve any stored result in full through the ``previous_tool_results``\n      tool (and straight from the tool cache for identical calls).\n\nStorage is best-effort and never fatal: records are always kept in a\nprocess-local layer and, when a base path is available, mirrored to\n``<base>/tool_results/<project_id>/<chat_id>.json``.\n\"\"\"\nimport json\nimport logging\nimport os\nimport re\nimport time\nfrom dataclasses import dataclass, field\nfrom typing import Any, Dict, Iterable, List, Optional\n\nlogger = logging.getLogger(__name__)\n\n#: Version of the on-disk payload (bump when the shape changes).\nSTORE_VERSION: int = 1\n\n#: Folder (inside the project's codx path) holding the JSON payloads.\nSTORE_DIRNAME: str = \"tool_results\"\n\n#: Maximum characters kept per tool result.\nMAX_RESULT_CHARS: int = 20000\n\n#: Maximum number of results kept per chat (oldest ones are dropped).\nMAX_RECORDS: int = 200\n\n#: Safety net for the size of a single on-disk payload.\nMAX_FILE_BYTES: int = 8 * 1024 * 1024\n\n_UNSAFE_CHARS = re.compile(r\"[^A-Za-z0-9._-]+\")\n\n# Process-local layer: keeps results when no base path is available and makes\n# them survive a failed (or disabled) disk write.\n_MEMORY_STORE: Dict[str, List[\"ToolResultRecord\"]] = {}\n\n\ndef _safe_name(value: Any, default: str = \"unknown\") -> str:\n    \"\"\"Return a filesystem-safe name derived from *value*.\"\"\"\n    name = _UNSAFE_CHARS.sub(\"_\", str(value or \"\")).strip(\"._-\")\n    return (name or default)[:80]\n\n\ndef truncate_result(value: Any, max_chars: int = MAX_RESULT_CHARS) -> str:\n    \"\"\"\n    Return *value* as a string, truncated to *max_chars* characters.\n\n    Args:\n        value:     Tool result (usually a string, anything is serialised).\n        max_chars: Maximum number of characters kept.\n\n    Returns:\n        The result as text, capped with a truncation marker.\n    \"\"\"\n    if isinstance(value, str):\n        text = value\n    else:\n        try:\n            text = json.dumps(value, ensure_ascii=False, default=str)\n        except (TypeError, ValueError):\n            text = str(value)\n    if len(text) > max_chars:\n        text = text[:max_chars] + \"\\n\u2026 [truncated]\"\n    return text\n\n\n@dataclass\nclass ToolResultRecord:\n    \"\"\"One executed tool call and the result the model received for it.\"\"\"\n    tool: str\n    args: Dict[str, Any] = field(default_factory=dict)\n    result: str = \"\"\n    tool_call_id: str = \"\"\n    success: bool = True\n    duration_ms: float = 0.0\n    created_at: float = 0.0\n\n    def key(self) -> str:\n        \"\"\"\n        Return the identity used to deduplicate records.\n\n        The same tool called with the same arguments yields the same key, so a\n        replayed (cached) call replaces its original record instead of\n        duplicating it.\n        \"\"\"\n        try:\n            args = json.dumps(\n                self.args or {}, sort_keys=True, ensure_ascii=False, default=str\n            )\n        except (TypeError, ValueError):\n            args = str(self.args)\n        return f\"{self.tool}|{args}\"\n\n    def to_dict(self) -> Dict[str, Any]:\n        \"\"\"Return a JSON-serialisable representation (result capped).\"\"\"\n        return {\n            \"tool\": self.tool,\n            \"tool_call_id\": self.tool_call_id,\n            \"args\": self.args or {},\n            \"result\": truncate_result(self.result),\n            \"success\": bool(self.success),\n            \"duration_ms\": float(self.duration_ms or 0.0),\n            \"created_at\": float(self.created_at or 0.0),\n        }\n\n    @classmethod\n    def from_dict(cls, data: Any) -> Optional[\"ToolResultRecord\"]:\n        \"\"\"Rebuild a record from :meth:`to_dict` output (None when invalid).\"\"\"\n        if not isinstance(data, dict):\n            return None\n        tool = str(data.get(\"tool\") or \"\").strip()\n        if not tool:\n            return None\n        args = data.get(\"args\")\n        if not isinstance(args, dict):\n            args = {}\n        try:\n            duration_ms = float(data.get(\"duration_ms\") or 0.0)\n        except (TypeError, ValueError):\n            duration_ms = 0.0\n        try:\n            created_at = float(data.get(\"created_at\") or 0.0)\n        except (TypeError, ValueError):\n            created_at = 0.0\n        return cls(\n            tool=tool,\n            args=args,\n            result=str(data.get(\"result\") or \"\"),\n            tool_call_id=str(data.get(\"tool_call_id\") or \"\"),\n            success=bool(data.get(\"success\", True)),\n            duration_ms=duration_ms,\n            created_at=created_at,\n        )\n\n\ndef merge_results(\n    existing: Optional[Iterable[ToolResultRecord]],\n    new: Optional[Iterable[ToolResultRecord]],\n) -> List[ToolResultRecord]:\n    \"\"\"\n    Merge two record lists, newest record winning for the same tool + args.\n\n    Order is preserved (first execution position) so the ledger reads\n    chronologically and cache seeding keeps the latest results last.\n\n    Args:\n        existing: Records already stored.\n        new:      Records to add/replace.\n\n    Returns:\n        The merged list, capped to :data:`MAX_RECORDS` (newest kept).\n    \"\"\"\n    merged: List[ToolResultRecord] = []\n    index: Dict[str, int] = {}\n    for record in list(existing or []) + list(new or []):\n        if not isinstance(record, ToolResultRecord):\n            continue\n        key = record.key()\n        if key in index:\n            merged[index[key]] = record\n        else:\n            index[key] = len(merged)\n            merged.append(record)\n    if len(merged) > MAX_RECORDS:\n        merged = merged[-MAX_RECORDS:]\n    return merged\n\n\nclass ToolResultsStore:\n    \"\"\"\n    Read/write the tool results stored for one project + chat pair.\n\n    Two layers are used: an in-process dict (always available) and, when\n    ``base_path`` is provided, a JSON file per chat. Every filesystem operation\n    is best-effort: failures are logged and swallowed so a storage problem can\n    never break a chat run.\n    \"\"\"\n\n    def __init__(\n        self,\n        base_path: Optional[str] = None,\n        project_id: str = \"\",\n        chat_id: str = \"\",\n    ) -> None:\n        \"\"\"\n        Args:\n            base_path:  Root folder for the payloads (usually the project's\n                        ``.codx`` folder). ``None`` disables disk persistence.\n            project_id: Project identifier (also used as sub-folder name).\n            chat_id:    Chat identifier the results belong to.\n        \"\"\"\n        self.base_path = str(base_path) if base_path else None\n        self.project_id = str(project_id or \"\")\n        self.chat_id = str(chat_id or \"\")\n        self._memory_key = (\n            f\"{_safe_name(self.project_id, 'project')}/\"\n            f\"{_safe_name(self.chat_id, 'chat')}\"\n        )\n\n    @property\n    def path(self) -> Optional[str]:\n        \"\"\"Return the JSON file backing this chat (None when disk is disabled).\"\"\"\n        if not self.base_path or not self.chat_id:\n            return None\n        return os.path.join(\n            self.base_path,\n            STORE_DIRNAME,\n            _safe_name(self.project_id, \"project\"),\n            f\"{_safe_name(self.chat_id, 'chat')}.json\",\n        )\n\n    def load(self) -> List[ToolResultRecord]:\n        \"\"\"Return the stored records (disk first, process cache merged in).\"\"\"\n        records = self._read_file()\n        memory = list(_MEMORY_STORE.get(self._memory_key) or [])\n        if not records:\n            return memory\n        return merge_results(records, memory) if memory else records\n\n    def append(\n        self,\n        records: Iterable[ToolResultRecord],\n    ) -> List[ToolResultRecord]:\n        \"\"\"\n        Add *records* to the store and return the merged list.\n\n        Args:\n            records: Newly executed tool results.\n\n        Returns:\n            Everything stored for this chat after the merge.\n        \"\"\"\n        merged = merge_results(self.load(), list(records or []))\n        _MEMORY_STORE[self._memory_key] = merged\n        self._write_file(merged)\n        return merged\n\n    # \u2500\u2500 Disk layer (best-effort) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n    def _payload(self, records: List[ToolResultRecord]) -> Dict[str, Any]:\n        \"\"\"Build the on-disk payload for *records*.\"\"\"\n        return {\n            \"version\": STORE_VERSION,\n            \"project_id\": self.project_id,\n            \"chat_id\": self.chat_id,\n            \"updated_at\": time.time(),\n            \"results\": [record.to_dict() for record in records],\n        }\n\n    def _read_file(self) -> List[ToolResultRecord]:\n        \"\"\"Read the payload of this chat (empty list on any problem).\"\"\"\n        path = self.path\n        if not path or not os.path.isfile(path):\n            return []\n        try:\n            with open(path, \"r\", encoding=\"utf-8\") as handle:\n                payload = json.load(handle)\n        except (OSError, ValueError) as ex:\n            logger.warning(\"ToolResultsStore: cannot read %s: %s\", path, ex)\n            return []\n\n        items = payload.get(\"results\") if isinstance(payload, dict) else None\n        records: List[ToolResultRecord] = []\n        for item in items or []:\n            record = ToolResultRecord.from_dict(item)\n            if record is not None:\n                records.append(record)\n        return records\n\n    def _write_file(self, records: List[ToolResultRecord]) -> None:\n        \"\"\"Persist *records* atomically (never raises).\"\"\"\n        path = self.path\n        if not path:\n            return\n        try:\n            os.makedirs(os.path.dirname(path), exist_ok=True)\n            data = json.dumps(self._payload(records), ensure_ascii=False)\n            if len(data) > MAX_FILE_BYTES:\n                # Keep only the newest half, then the newest 10, until it fits.\n                for kept in (len(records) // 2, 10):\n                    if len(data) <= MAX_FILE_BYTES or kept < 1:\n                        break\n                    data = json.dumps(\n                        self._payload(records[-kept:]), ensure_ascii=False\n                    )\n            tmp_path = f\"{path}.tmp\"\n            with open(tmp_path, \"w\", encoding=\"utf-8\") as handle:\n                handle.write(data)\n            os.replace(tmp_path, path)\n        except (OSError, TypeError, ValueError) as ex:\n            logger.warning(\n                \"ToolResultsStore: cannot write %s (keeping results in memory): %s\",\n                path,\n                ex,\n            )\n\n# Made with \u2764\ufe0f by codx-junior\n</file_change>\n</\uff5c\uff5cDSML\uff5c\uff5c parameter>\n</\uff5c\uff5cDSML\uff5c\uff5c invoke>\n</\uff5c\uff5cDSML\uff5c\uff5c calls>",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-07 11:17:23.283038",
+      "updated_at": "2026-11-07T11:23:24.774404",
+      "attachments": [],
+      "files": [],
+      "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+      "meta_data": {
+        "start_time": 1794050243.2829754,
+        "cancellation_token_id": "735bd514-3ab4-427b-a5ad-6f90d0a989e8",
+        "model": "deepseek-flash",
+        "analytics": {
+          "prompt_tokens": 75100,
+          "completion_tokens": 21126,
+          "total_tokens": 96226,
+          "tools": {
+            "profile_knowledge_search": {
+              "count": 1,
+              "errors": 0,
+              "total_ms": 2714.088834822178
+            },
+            "profile_learning": {
+              "count": 1,
+              "errors": 0,
+              "total_ms": 84.24724452197552
+            }
+          }
+        },
+        "time_taken": 116.43633198738098,
+        "first_chunk_time_taken": 0.3253493309020996
+      },
+      "tool_events": [
+        {
+          "tool": "profile_knowledge_search",
+          "tool_call_id": "call_00_rtIT5Ff7TJL5suvpsZ0V7213",
+          "status": "done",
+          "request": {
+            "query": "SmolAgent tool loop LoopGuard tool usage summary conventions"
+          },
+          "response": "{\n  \"profiles\": [\n    \"orchestrator\",\n    \"software_developer\"\n  ],\n  \"query\": \"SmolAgent tool loop LoopGuard tool usage summary conventions\",\n  \"count\": 0,\n  \"results\": [],\n  \"next\": \"Nothing matched. Do not invent knowledge: if the information is durable, learn it now with action='remember' (short rule) or action='write_file' (reference material).\"\n}",
+          "output": "\u2713 No profile knowledge matching `SmolAgent tool loop LoopGuard tool usage summary conventions` in orchestrator, software_developer",
+          "duration_ms": 2714.088834822178,
+          "error": null
+        },
+        {
+          "tool": "profile_learning",
+          "tool_call_id": "call_01_N40SfgHrgCgWJiiTn6qR1201",
+          "status": "done",
+          "request": {
+            "action": "overview",
+            "profile_name": "software_developer"
+          },
+          "response": "{\n  \"profile\": \"software_developer\",\n  \"rules\": [\n    {\n      \"title\": \"Profiles API & knowledge UI conventions\",\n      \"chars\": 0,\n      \"source\": \"codx-api\",\n      \"editable\": true,\n      \"preview\": \"\"\n    },\n    {\n      \"title\": \"REST conventions for profiles endpoints\",\n      \"chars\": 835,\n      \"source\": \"codx-api\",\n      \"editable\": true,\n      \"preview\": \"- Identity lives in the URL: `/profiles/knowledge/{profile_name}` + `project_id` as a **query** param on every endpoint. Never put `project_id`/`profile_name` i\"\n    },\n    {\n      \"title\": \"Profile knowledge UI\",\n      \"chars\": 341,\n      \"source\": \"codx-api\",\n      \"editable\": true,\n      \"preview\": \"- `ProfileKnowledgePanel.vue` (rules/files tabs, budget bar, confirm modal) is mounted in `ProfileViewer.vue`; it reads `can_write` from the server and renders \"\n    },\n    {\n      \"title\": \"WhatsApp / Channels board convention\",\n      \"chars\": 778,\n      \"source\": \"codx-api\",\n      \"editable\": true,\n      \"preview\": \"All WhatsApp / external-channel work is tracked on board **Channels**, column **WhatsApp** (see `channels/whatsapp-bridge-architecture.md`).\"\n    },\n    {\n      \"title\": \"Kanban boards / sprints / task destinations\",\n      \"chars\": 1104,\n      \"source\": \"codx-api\",\n      \"editable\": true,\n      \"preview\": \"Kanban catalogue = `.codx/tasks/kanban.json` (`{version, boards: {name: {id,title,description,type,parent_id,columns[],active,last_update}}, tags}`) and is read\"\n    },\n    {\n      \"title\": \"Identity: ids are canonical, names are labels\",\n      \"chars\": 1022,\n      \"source\": \"codx-api\",\n      \"editable\": true,\n      \"preview\": \"Every persisted element has an immutable `id` (UUID) and names/titles are only LABELS.\"\n    }\n  ],\n  \"knowledge_files\": [\n    {\n      \"file\": \"channels/whatsapp-bridge-architecture.md\",\n      \"source\": \"codx-api\",\n      \"size\": 4103,\n      \"path\": \"/home/codx-junior-projects/codx-junior/api/.codx/profiles/software_developer/knowledge/channels/whatsapp-bridge-architecture.md\"\n    }\n  ],\n  \"rules_file\": \"/home/codx-junior-projects/codx-junior/api/.codx/profiles/software_developer/enrich.md\",\n  \"knowledge_folder\": \"/home/codx-junior-projects/codx-junior/api/.codx/profiles/software_developer/knowledge\",\n  \"limits\": {\n    \"max_rule_chars\": 4000,\n    \"max_rules\": 40\n  }\n}",
+          "output": "### Profile knowledge: `software_developer`\n\n**Learned rules** \u2014 6 rule(s), 4080 chars (limit 4000 chars/rule; these are injected in EVERY chat)\n- **Profiles API & knowledge UI conventions** (0 chars, editable) \u2014 \n- **REST conventions for profiles endpoints** (835 chars, editable) \u2014 - Identity lives in the URL: `/profiles/knowledge/{profile_name}` + `project_id` as a **query** param on every endpoint. Never put `project_id`/`profile_name` i\n- **Profile knowledge UI** (341 chars, editable) \u2014 - `ProfileKnowledgePanel.vue` (rules/files tabs, budget bar, confirm modal) is mounted in `ProfileViewer.vue`; it reads `can_write` from the server and renders \n- **WhatsApp / Channels board convention** (778 chars, editable) \u2014 All WhatsApp / external-channel work is tracked on board **Channels**, column **WhatsApp** (see `channels/whatsapp-bridge-architecture.md`).\n- **Kanban boards / sprints / task destinations** (1104 chars, editable) \u2014 Kanban catalogue = `.codx/tasks/kanban.json` (`{version, boards: {name: {id,title,description,type,parent_id,columns[],active,last_update}}, tags}`) and is read\n- **Identity: ids are canonical, names are labels** (1022 chars, editable) \u2014 Every persisted element has an immutable `id` (UUID) and names/titles are only LABELS.\n\n> 1 knowledge file(s)\n\n**File** | **Source** | **Size** | **Path**\n---|---|---|---\n`channels/whatsapp-bridge-architecture.md` | codx-api | 4103 B | `.codx/profiles/software_developer/knowledge/channels/whatsapp-bridge-architecture.md`\n\nRules file: `.codx/profiles/software_developer/enrich.md`\nKnowledge folder: `.codx/profiles/software_developer/knowledge/`\n\n> Use `read` (with `title` or `file_name`) to see the full content, `remember`/`forget` for rules, `write_file`/`delete_file` for files and `promote` to move content between the two.",
+          "duration_ms": 84.24724452197552,
+          "error": null
+        }
+      ],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "6ebd848b3d59",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "cost": 0.0239406,
+      "cost_info": {
+        "iteration_cost_cxjcoins": 0.0239406,
+        "chat_cost_cxjcoins": 0.0239406,
+        "estimation_cost_cxjcoins": null,
+        "budget_reached": false,
+        "input_tokens": 75100,
+        "output_tokens": 21126,
+        "total_tokens": 96226,
+        "input_cost_cxjcoins": 0.011264999999999999,
+        "output_cost_cxjcoins": 0.0126756,
+        "tool_cost_cxjcoins": 0.0
+      },
+      "profiles": [
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [
+        "gbrian"
+      ],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-11-07 11:17:20.601188",
+  "updated_at": "2026-11-07T11:23:24.774897",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "Backlog",
+  "sprints": [
+    "codx-junior maintenance"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/Backlog/tool-summary.7fc83bf1-c139-44cd-82e6-d636f3e7380c.json",
+  "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.0239406,
+  "run_id": null,
+  "run_status": null,
+  "run_step_id": null,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-11-07T11:19:23.415906+00:00",
+      "summary": "1. **Request:** In codx-api (codx-junior FastAPI backend), when a task restarts after hitting a tool-usage limit, the model must be able to read prior tool execution results instead of re-running them \u2014 so the limit summary must be improved and previous results made accessible.\n2. **Approach:** Added a per-chat persistent store of full tool results, plus a planned `previous_tool_results` capability and a richer summary emitted by the loop guard when limits are reached.\n3. **New module:** `codx/junior/ai/smol/tool_results_store.py`, containing `ToolResultRecord`, `merge_results`, `truncate_result`, and `ToolResultsStore` (process-local cache + best-effort atomic JSON persistence at `<base>/tool_results/<project_id>/<chat_id>.json`).\n4. **Design guarantees:** errors are logged and swallowed so storage never breaks a run; results are deduplicated by tool+args, capped at 20k chars/200 records/8MB, and identical calls can be served from cache.\n5. **Status:** File content was written; the change envelope appeared truncated at the end, so the write should be verified and the summary/tool wiring (`previous_tool_results`, `LoopGuard`) still needs to be connected and tested.",
+      "message_ids": [
+        "87852647-939c-4747-9936-149f80a4e7e8",
+        "97c4b165-684e-4907-a0de-d384a4ce798a"
+      ]
+    }
+  ],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false,
+  "external_source": null,
+  "external_id": null,
+  "external_parent_id": null,
+  "external_instance_id": null,
+  "external_status": null,
+  "external_url": null,
+  "external_updated_at": null
+}

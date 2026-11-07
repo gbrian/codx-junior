@@ -17,13 +17,15 @@ from pydantic import BaseModel, Field, model_validator
 
 class BrowserSession(BaseModel):
     """
-    Represents the state of a Firefox browser session running in Docker.
+    Represents the state of a Chromium co-browsing session running in Docker.
 
     Stores connection details, ports, and session metadata.
     Persisted as JSON in Chat.meta_data["browser"] and as file in session folder.
 
     A single session may be connected to **several chats** (``chat_ids``); the
-    ``name`` is supplied by the caller when the session is created.
+    ``name`` is supplied by the caller when the session is created.  The same
+    browser is displayed to users (live VNC view) and automated by the AI
+    (Chrome DevTools Protocol), so both operate on the exact same page.
     """
 
     id: Optional[str] = Field(
@@ -33,6 +35,10 @@ class BrowserSession(BaseModel):
     name: Optional[str] = Field(
         default=None,
         description="Human-readable session name given at creation"
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="Optional free-form description of the session"
     )
     container_id: Optional[str] = Field(
         default=None,
@@ -48,7 +54,11 @@ class BrowserSession(BaseModel):
     )
     vnc_url: Optional[str] = Field(
         default=None,
-        description="VNC connection URL via Traefik routing"
+        description="Live view (VNC/Selkies) URL via Traefik routing"
+    )
+    vnc_path: Optional[str] = Field(
+        default=None,
+        description="Same-origin live view path (e.g. /browser/<id>/)"
     )
     debug_url: Optional[str] = Field(
         default=None,
@@ -58,9 +68,25 @@ class BrowserSession(BaseModel):
         default=None,
         description="Currently loaded page URL in browser"
     )
+    engine: str = Field(
+        default="chromium",
+        description="Browser engine powering the session (chromium)"
+    )
     browser_profile_path: Optional[str] = Field(
         default=None,
-        description="Path to persistent Firefox profile (cookies, etc.)"
+        description="Path to the persistent Chromium profile (cookies, logins, etc.)"
+    )
+    current_title: Optional[str] = Field(
+        default=None,
+        description="Title of the page currently loaded in the browser"
+    )
+    last_action: Optional[str] = Field(
+        default=None,
+        description="Last action performed by a user or the AI"
+    )
+    last_action_at: Optional[str] = Field(
+        default=None,
+        description="ISO timestamp of the last action"
     )
     chat_ids: List[str] = Field(
         default_factory=list,
@@ -126,6 +152,12 @@ class BrowserSession(BaseModel):
     def mark_active(self) -> None:
         """Update last_active timestamp to now."""
         self.last_active = datetime.utcnow().isoformat()
+
+    def mark_action(self, action: str) -> None:
+        """Record the last action and its timestamp."""
+        self.last_action = action
+        self.last_action_at = datetime.utcnow().isoformat()
+        self.mark_active()
 
     def add_chat(self, chat_id: str) -> None:
         """Connect a chat to this session (idempotent)."""

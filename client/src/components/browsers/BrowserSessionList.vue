@@ -1,26 +1,113 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import ConfirmDialog from '../ConfirmDialog.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full gap-2 p-3 bg-base-100">
-    <!-- Header -->
-    <div class="flex items-center justify-between gap-2 flex-shrink-0">
-      <h2 class="text-lg font-bold truncate">Browser Sessions</h2>
+  <!-- Collapsed: icon rail -->
+  <div v-if="collapsed" class="flex flex-col items-center h-full w-full py-3 bg-base-100">
+    <!-- Brand mark -->
+    <div
+      class="w-10 h-10 flex-shrink-0 rounded-xl bg-primary/15 text-primary flex items-center justify-center"
+      title="Browser Sessions"
+      aria-hidden="true"
+    >
+      <i class="fa-solid fa-window-restore"></i>
+    </div>
+
+    <!-- Expand toggle -->
+    <button
+      @click="$emit('toggle-collapse')"
+      class="btn btn-xs btn-ghost btn-circle mt-2 text-base-content/50 hover:text-base-content"
+      title="Expand sidebar"
+      aria-label="Expand sidebar"
+      aria-expanded="false"
+    >
+      <i class="fa-solid fa-chevron-right text-[10px]"></i>
+    </button>
+
+    <div class="w-6 border-t border-base-content/10 mt-2 mb-2 flex-shrink-0"></div>
+
+    <!-- Session rail -->
+    <div class="flex-1 w-full min-h-0 overflow-y-auto flex flex-col items-center gap-1.5 px-2 pb-2">
+      <div v-if="isLoading" class="flex items-center justify-center py-4">
+        <div class="loading loading-spinner loading-xs"></div>
+      </div>
+
+      <template v-else>
+        <button
+          v-for="session in sessions"
+          :key="session.id"
+          @click="handleSelectSession(session.id)"
+          class="relative w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center text-sm font-semibold uppercase transition-colors duration-150 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          :class="sessionItemClass(session)"
+          :title="session.name"
+          :aria-label="`Select session ${session.name}`"
+          :aria-current="selectedSessionId === session.id ? 'true' : 'false'"
+        >
+          {{ sessionInitial(session) }}
+          <span
+            v-if="session.status"
+            class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-base-100"
+            :class="statusDotClass(session.status)"
+            aria-hidden="true"
+          ></span>
+        </button>
+
+        <div v-if="sessions.length === 0" class="py-3 text-base-content/40" title="No browser sessions yet">
+          <i class="fa-solid fa-inbox"></i>
+        </div>
+      </template>
+    </div>
+
+    <div class="w-6 border-t border-base-content/10 mb-2 flex-shrink-0"></div>
+
+    <!-- Bottom actions -->
+    <div class="flex flex-col items-center gap-2 flex-shrink-0">
       <button
-        @click="toggleNewForm"
-        class="btn btn-sm btn-primary btn-circle flex-shrink-0"
-        :title="showNewForm ? 'Cancel' : 'New Session'"
+        @click="handleRailNewSession"
+        class="btn btn-sm btn-primary btn-circle"
+        title="New Session"
+        aria-label="New browser session"
       >
-        <i :class="showNewForm ? 'fa-solid fa-times' : 'fa-solid fa-plus'"></i>
+        <i class="fa-solid fa-plus"></i>
+      </button>
+      <button
+        @click="reloadSessions"
+        class="btn btn-sm btn-ghost btn-circle text-base-content/50 hover:text-base-content"
+        title="Reload sessions"
+        aria-label="Reload browser sessions"
+      >
+        <i class="fa-solid fa-arrows-rotate"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Expanded -->
+  <div v-else class="flex flex-col h-full bg-base-100 p-3 pb-4">
+    <!-- Header (brand row with collapse toggle) -->
+    <div class="flex items-center gap-2.5 px-1 flex-shrink-0">
+      <div class="w-10 h-10 flex-shrink-0 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
+        <i class="fa-solid fa-window-restore"></i>
+      </div>
+      <h2 class="text-base font-bold truncate flex-1">Browser Sessions</h2>
+      <button
+        @click="$emit('toggle-collapse')"
+        class="btn btn-xs btn-ghost btn-circle flex-shrink-0 text-base-content/50 hover:text-base-content"
+        title="Collapse sidebar"
+        aria-label="Collapse sidebar"
+        aria-expanded="true"
+      >
+        <i class="fa-solid fa-chevron-left text-[10px]"></i>
       </button>
     </div>
 
+    <div class="border-t border-base-content/10 mt-3 mb-2 flex-shrink-0"></div>
+
     <!-- New Session Form -->
-    <div v-if="showNewForm" class="card bg-base-200 p-3 flex-shrink-0 space-y-2">
-      <div class="form-control gap-2 text-sm">
+    <div v-if="showNewForm" class="rounded-xl bg-base-200 p-3 flex-shrink-0 space-y-2">
+      <div class="form-control gap-2">
         <label class="label p-0">
-          <span class="label-text font-semibold">Session Name</span>
+          <span class="label-text font-semibold text-xs">Session Name</span>
         </label>
         <input
           v-model="newSessionName"
@@ -31,7 +118,7 @@ import { computed, ref, onMounted } from 'vue'
         />
 
         <label class="label p-0 pt-1">
-          <span class="label-text font-semibold">URL</span>
+          <span class="label-text font-semibold text-xs">URL</span>
         </label>
         <input
           v-model="newSessionUrl"
@@ -41,14 +128,14 @@ import { computed, ref, onMounted } from 'vue'
           @keyup.enter="handleCreateSession"
         />
 
-        <label class="label cursor-pointer p-0 pt-1">
+        <label class="label cursor-pointer p-0 pt-1 justify-start gap-2">
           <input v-model="newSessionHeadless" type="checkbox" class="checkbox checkbox-sm" />
-          <span class="label-text ml-2">Headless Mode</span>
+          <span class="label-text text-xs">Headless Mode</span>
         </label>
 
         <button
           @click="handleCreateSession"
-          class="btn btn-primary btn-sm mt-2"
+          class="btn btn-primary btn-sm mt-1"
           :disabled="!newSessionName.trim()"
         >
           Create Session
@@ -57,7 +144,7 @@ import { computed, ref, onMounted } from 'vue'
     </div>
 
     <!-- Sessions List -->
-    <div class="flex-1 overflow-y-auto space-y-1">
+    <div class="flex-1 min-h-0 overflow-y-auto mt-1 space-y-0.5">
       <div v-if="isLoading" class="flex items-center justify-center py-8">
         <div class="loading loading-spinner loading-sm"></div>
         <span class="ml-2 text-sm">Loading sessions...</span>
@@ -68,81 +155,124 @@ import { computed, ref, onMounted } from 'vue'
         <p class="text-sm">No browser sessions yet</p>
       </div>
 
-      <div
-        v-for="session in sessions"
-        :key="session.id"
-        @click="handleSelectSession(session.id)"
-        class="card p-3 cursor-pointer transition-all"
-        :class="[
-          selectedSessionId === session.id
-            ? 'bg-primary text-primary-content shadow-md'
-            : 'bg-base-200 hover:bg-base-300'
-        ]"
-      >
-        <div class="space-y-1">
-          <!-- Session Name & Status -->
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="font-semibold truncate flex-1">{{ session.name }}</h3>
+      <template v-else>
+        <div
+          v-for="session in sessions"
+          :key="session.id"
+          class="group flex items-center gap-1 pl-0 pr-1 rounded-full transition-colors duration-150"
+          :class="sessionRowClass(session)"
+        >
+          <button
+            @click="handleSelectSession(session.id)"
+            class="flex-1 min-w-0 flex items-center gap-2.5 pl-3 pr-2 py-2 text-left rounded-full focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+            :aria-label="`Select session ${session.name}`"
+            :aria-current="selectedSessionId === session.id ? 'true' : 'false'"
+          >
+            <span
+              class="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center text-[11px] font-semibold uppercase"
+              :class="selectedSessionId === session.id ? 'bg-primary/20 text-primary' : 'bg-base-200 text-base-content/70'"
+            >
+              {{ sessionInitial(session) }}
+            </span>
+            <span class="flex-1 min-w-0">
+              <span
+                class="block text-sm truncate"
+                :class="selectedSessionId === session.id ? 'font-semibold text-primary' : 'text-base-content/80'"
+              >
+                {{ session.name }}
+              </span>
+              <span class="block text-[11px] truncate text-base-content/50">{{ session.url }}</span>
+            </span>
             <span
               v-if="session.status"
-              class="badge badge-sm"
-              :class="[
-                session.status === 'running'
-                  ? 'badge-success'
-                  : session.status === 'stopped'
-                  ? 'badge-warning'
-                  : 'badge-ghost'
-              ]"
-            >
-              {{ session.status }}
-            </span>
-          </div>
+              class="w-2 h-2 flex-shrink-0 rounded-full"
+              :class="statusDotClass(session.status)"
+              :title="session.status"
+              aria-hidden="true"
+            ></span>
+          </button>
 
-          <!-- Session URL (hide on mobile if selected) -->
-          <div v-if="!isMobile || selectedSessionId !== session.id" class="text-xs truncate opacity-75">
-            {{ session.url }}
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="flex gap-1 pt-2 flex-wrap">
+          <!-- Actions: quiet until hover/focus on desktop, always visible on touch -->
+          <div class="flex items-center gap-0.5 flex-shrink-0 opacity-100 md:opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
             <button
-              @click="(e) => handleRunSession(session.id, e)"
-              class="btn btn-xs btn-success flex-1 min-w-[60px]"
-              title="Run Session"
+              @click="handleRunSession(session.id, $event)"
+              class="btn btn-ghost btn-xs btn-circle text-base-content/40 hover:text-success"
+              title="Run session"
+              :aria-label="`Run session ${session.name}`"
             >
-              <i class="fa-solid fa-play"></i>
-              <span v-if="!isMobile">Run</span>
+              <i class="fa-solid fa-play text-[10px]"></i>
             </button>
             <button
-              @click="(e) => { e.stopPropagation(); startEditingSession(session.id) }"
-              class="btn btn-xs btn-info"
-              title="Edit Session"
+              @click="handleEditSession(session.id, $event)"
+              class="btn btn-ghost btn-xs btn-circle text-base-content/40 hover:text-info"
+              title="Edit session"
+              :aria-label="`Edit session ${session.name}`"
             >
-              <i class="fa-solid fa-gear"></i>
-              <span v-if="!isMobile">Edit</span>
+              <i class="fa-solid fa-gear text-[10px]"></i>
             </button>
             <button
-              @click="(e) => handleDeleteSession(session.id, e)"
-              class="btn btn-xs btn-error"
-              title="Delete Session"
+              @click="handleDeleteSession(session.id, $event)"
+              class="btn btn-ghost btn-xs btn-circle text-base-content/40 hover:text-error"
+              title="Delete session"
+              :aria-label="`Delete session ${session.name}`"
             >
-              <i class="fa-solid fa-trash"></i>
+              <i class="fa-solid fa-trash text-[10px]"></i>
             </button>
           </div>
         </div>
-      </div>
+      </template>
+    </div>
+
+    <!-- Footer action -->
+    <div class="flex-shrink-0 pt-3 mt-2 border-t border-base-content/10">
+      <button
+        @click="toggleNewForm"
+        class="btn btn-sm w-full"
+        :class="showNewForm ? 'btn-ghost text-base-content/70' : 'btn-primary'"
+      >
+        <i :class="showNewForm ? 'fa-solid fa-times' : 'fa-solid fa-plus'"></i>
+        {{ showNewForm ? 'Cancel' : 'New Session' }}
+      </button>
     </div>
   </div>
+
+  <!-- Delete confirmation modal -->
+  <ConfirmDialog
+    v-if="deleteTarget"
+    title="Delete session"
+    :message="`Delete browser session '${deleteTarget.name}'?`"
+    hint="The session and its browser state will be removed. This cannot be undone."
+    icon="fa-trash"
+    icon-class="text-error"
+    confirm-label="Delete"
+    confirm-icon="fa-trash"
+    confirm-class="btn-error"
+    :busy="deleting"
+    @confirm="confirmDeleteSession"
+    @cancel="deleteTarget = null"
+  />
 </template>
 
 <script>
 export default {
   name: 'BrowserSessionList',
+  components: {
+    ConfirmDialog
+  },
+  props: {
+    collapsed: {
+      type: Boolean,
+      default: false
+    }
+  },
+  emits: ['toggle-collapse'],
   data() {
     return {
       newSessionName: '',
       newSessionUrl: 'http://example.com',
-      newSessionHeadless: false
+      newSessionHeadless: false,
+      deleteTarget: null,
+      deleting: false
     }
   },
   computed: {
@@ -157,14 +287,37 @@ export default {
     },
     showNewForm() {
       return this.$storex.browsers.showNewSessionForm
-    },
-    isMobile() {
-      return this.$storex.ui.isMobile
     }
   },
   methods: {
-    async mounted() {
-      await this.$storex.browsers.loadSessions()
+    sessionInitial(session) {
+      const label = (session.name || session.url || '?').trim()
+      return label.charAt(0)
+    },
+    sessionItemClass(session) {
+      if (this.selectedSessionId === session.id) {
+        return 'bg-primary/10 text-primary'
+      }
+      return 'text-base-content/60 hover:bg-base-200 hover:text-base-content'
+    },
+    sessionRowClass(session) {
+      if (this.selectedSessionId === session.id) {
+        return 'bg-primary/10'
+      }
+      return 'hover:bg-base-200'
+    },
+    statusDotClass(status) {
+      if (status === 'running') return 'bg-success'
+      if (status === 'stopped') return 'bg-warning'
+      return 'bg-base-content/30'
+    },
+    reloadSessions() {
+      this.$storex.browsers.loadSessions()
+    },
+    handleRailNewSession() {
+      // Expand the sidebar so the creation form becomes visible
+      this.$emit('toggle-collapse')
+      this.$storex.browsers.toggleNewSessionForm(true)
     },
     handleSelectSession(sessionId) {
       this.$storex.browsers.selectSession(sessionId)
@@ -191,14 +344,21 @@ export default {
         console.error('Failed to create session:', error)
       }
     },
-    async handleDeleteSession(sessionId, event) {
+    handleDeleteSession(sessionId, event) {
       event.stopPropagation()
-      if (!confirm('Are you sure you want to delete this session?')) return
+      this.deleteTarget = this.sessions.find(session => session.id === sessionId) || null
+    },
+    async confirmDeleteSession() {
+      if (!this.deleteTarget) return
 
+      this.deleting = true
       try {
-        await this.$storex.browsers.deleteSession(sessionId)
+        await this.$storex.browsers.deleteSession(this.deleteTarget.id)
+        this.deleteTarget = null
       } catch (error) {
         console.error('Failed to delete session:', error)
+      } finally {
+        this.deleting = false
       }
     },
     async handleRunSession(sessionId, event) {
@@ -209,11 +369,12 @@ export default {
         console.error('Failed to run session:', error)
       }
     },
+    handleEditSession(sessionId, event) {
+      event.stopPropagation()
+      this.$storex.browsers.startEditingSession(sessionId)
+    },
     toggleNewForm() {
       this.$storex.browsers.toggleNewSessionForm()
-    },
-    startEditingSession(sessionId) {
-      this.$storex.browsers.startEditingSession(sessionId)
     }
   },
   inject: ['$storex'],

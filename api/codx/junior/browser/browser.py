@@ -4,8 +4,9 @@ Browser — single entry point for every Playwright usage in codx-junior.
 Two responsibilities live here so the rest of the application never imports
 playwright directly:
 
-    1. ``Browser``: automation of a remote Firefox container through the
-       DevTools Protocol (navigation, scripts, screenshots, page content).
+    1. ``Browser``: automation of a remote Chromium container through the
+       Chrome DevTools Protocol (navigation, scripts, screenshots, page
+       content).  The same browser is shown to users through the live VNC view.
     2. ``PdfPrinter`` / ``print_pdf``: rendering of pages with a local headless
        Chromium, used by the document converter (rich HTML slides -> PDF).
 
@@ -22,7 +23,7 @@ The installation happens once per process, is logged and can be disabled with
 
 Chart:
     flowchart LR
-        A[Browser session] --> B[DockerFirefoxManager]
+        A[Browser session] --> B[DockerBrowserManager]
         B --> C[Browser\nCDP automation]
         D[doc_converter] --> E[print_pdf]
         E --> F{Chromium?}
@@ -47,7 +48,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from codx.junior.browser.model import BrowserSession
-from codx.junior.browser.docker_firefox_manager import DockerFirefoxManager
+from codx.junior.browser.docker_browser_manager import DockerBrowserManager
 
 logger = logging.getLogger(__name__)
 
@@ -798,20 +799,21 @@ class Browser:
     """
     High-level browser automation interface using Playwright.
 
-    Manages Playwright context lifecycle and provides methods
-    for page interaction (navigate, execute JS, take screenshots, etc.).
+    Manages Playwright context lifecycle and provides methods for page
+    interaction (navigate, execute JS, take screenshots, etc.).
 
-    ``connect()`` attaches to the *existing* page of the remote browser when one
-    is available, so consecutive tool calls act on the same shared page.
+    ``connect()`` attaches to the *existing* page of the shared browser when one
+    is available, so consecutive tool calls act on the same page the user is
+    watching and controlling through the live VNC view.
     """
 
-    def __init__(self, session: BrowserSession, docker_manager: DockerFirefoxManager):
+    def __init__(self, session: BrowserSession, docker_manager: DockerBrowserManager):
         """
         Initialize Browser.
 
         Args:
             session: BrowserSession with container info
-            docker_manager: DockerFirefoxManager instance
+            docker_manager: DockerBrowserManager instance
         """
         self.session = session
         self.docker_manager = docker_manager
@@ -822,13 +824,15 @@ class Browser:
 
     async def connect(self) -> None:
         """
-        Connect to the remote browser via the DevTools Protocol.
+        Connect to the remote Chromium via the DevTools Protocol.
 
-        Reuses the first existing context/page when present so that the shared
-        browser state (current URL, DOM) is preserved across calls.
+        The session's ``debug_url`` is a WebSocket URL served by the in-container
+        CDP proxy (see ``DockerBrowserManager``).  Existing contexts/pages are
+        reused so the shared browser state (current URL, DOM, logged-in
+        sessions) is preserved across tool calls.
 
         Raises:
-            RuntimeError: If connection fails
+            RuntimeError: If connection fails.
         """
         try:
             from playwright.async_api import async_playwright
@@ -836,9 +840,10 @@ class Browser:
             self.playwright = await async_playwright().start()
 
             debug_url = self.session.debug_url
-            logger.info("Connecting to browser at: %s", debug_url)
+            if not debug_url:
+                raise RuntimeError("session has no debug_url (container is not running)")
 
-            # Attach to the running browser
+            logger.info("Connecting to browser at: %s", debug_url)
             self.browser = await self.playwright.chromium.connect_over_cdp(debug_url)
 
             # Reuse an existing context/page when available (shared browser)
@@ -849,9 +854,32 @@ class Browser:
                 self.context = await self.browser.new_context()
 
             pages = self.context.pages
-            self.page = pages[0] if pages else await self.context.new_page()
+            self.page = await self._select_active_page(pages)
+            if not self.page:
+                self.page = await self.context.new_page()
 
-            logger.info("Browser connected: session %s", _short_id(self.session.id))
+            # Restore the requested start URL if Chromium opened an empty tab
+            # (e.g. the initial target was still loading when the probe passed).
+            if (
+                (not self.page.url or self.page.url == "about:blank")
+                and self.session.current_url
+                and self.session.current_url not in ("about:blank", "chrome://newtab/")
+            ):
+                try:
+                    await self.page.goto(
+                        self.session.current_url,
+                        wait_until=BROWSER_WAIT_UNTIL_FALLBACK,
+                        timeout=BROWSER_TIMEOUT_MS,
+                    )
+                except Exception as ex:
+                    logger.warning("Could not restore start URL %s: %s", self.session.current_url, ex)
+
+            await self._sync_location()
+            logger.info(
+                "Browser connected: session %s (%s)",
+                _short_id(self.session.id),
+                self.session.current_url or "about:blank",
+            )
             self.session.mark_active()
 
         except Exception as e:
@@ -860,29 +888,76 @@ class Browser:
             self.session.error = str(e)
             raise RuntimeError(f"Browser connection failed: {e}")
 
+    async def _select_active_page(self, pages):
+        """
+        Choose the page the user is actually looking at.
+
+        A browser may keep background tabs (and Chromium sometimes opens an
+        extra tab at startup).  Picking the last page blindly can make the AI
+        drive a different tab than the live VNC view, so prefer the page whose
+        document is visible/focused, then fall back to the last non-blank page.
+        """
+        if not pages:
+            return None
+
+        visible = []
+        focused = []
+        for page in pages:
+            try:
+                if await page.evaluate("document.visibilityState === 'visible'"):
+                    visible.append(page)
+                    if await page.evaluate("document.hasFocus()"):
+                        focused.append(page)
+            except Exception:
+                continue
+
+        if focused:
+            return focused[-1]
+        if visible:
+            return visible[-1]
+
+        candidates = [
+            page for page in pages
+            if page.url and page.url not in ("about:blank", "chrome://newtab/")
+        ]
+        return candidates[-1] if candidates else pages[-1]
+
+    async def _sync_location(self) -> None:
+        """Refresh the session's cached URL/title from the live page."""
+        if not self.page:
+            return
+        try:
+            self.session.current_url = self.page.url or self.session.current_url
+        except Exception:
+            pass
+        try:
+            self.session.current_title = await self.page.title()
+        except Exception:
+            pass
+
     async def navigate(self, url: str) -> str:
         """
-        Navigate to a URL.
+        Navigate to a URL and return the page title.
 
-        Args:
-            url: URL to navigate to
-
-        Returns:
-            Current page title
-
-        Raises:
-            RuntimeError: If page not connected
+        ``networkidle`` is tried first (good for static apps) but many live
+        applications keep websockets/polling open, so the wait strategy falls
+        back to ``load`` instead of failing the whole navigation.
         """
         if not self.page:
             raise RuntimeError("Browser not connected")
 
         try:
             logger.info("Navigating to: %s", url)
-            await self.page.goto(url, wait_until=BROWSER_WAIT_UNTIL)
-            title = await self.page.title()
-            self.session.current_url = url
+            try:
+                await self.page.goto(url, wait_until=BROWSER_WAIT_UNTIL, timeout=BROWSER_TIMEOUT_MS)
+            except Exception as ex:
+                logger.warning("networkidle navigation failed (%s); retrying with 'load'", ex)
+                await self.page.goto(
+                    url, wait_until=BROWSER_WAIT_UNTIL_FALLBACK, timeout=BROWSER_TIMEOUT_MS
+                )
+            await self._sync_location()
             self.session.mark_active()
-            return title
+            return self.session.current_title or ""
         except Exception as e:
             logger.exception("Navigation failed")
             raise RuntimeError(f"Navigation to {url} failed: {e}")
@@ -909,15 +984,20 @@ class Browser:
 
         try:
             result = await self.page.evaluate(expression)
+            await self._sync_location()
             self.session.mark_active()
             return result
         except Exception as e:
             logger.exception("Script execution failed")
             raise RuntimeError(f"Script execution failed: {e}")
 
-    async def get_screenshot(self) -> str:
+    async def get_screenshot(self, full_page: bool = True) -> str:
         """
         Take a screenshot of the current page.
+
+        Args:
+            full_page: Capture the whole scrollable page (default) or only the
+                visible viewport.
 
         Returns:
             Base64-encoded PNG image (data: URI)
@@ -929,7 +1009,7 @@ class Browser:
             raise RuntimeError("Browser not connected")
 
         try:
-            screenshot_bytes = await self.page.screenshot(full_page=True)
+            screenshot_bytes = await self.page.screenshot(full_page=bool(full_page))
             b64 = base64.b64encode(screenshot_bytes).decode("utf-8")
             self.session.mark_active()
             return f"data:image/png;base64,{b64}"
@@ -952,6 +1032,7 @@ class Browser:
 
         try:
             content = await self.page.content()
+            await self._sync_location()
             self.session.mark_active()
             return content
         except Exception as e:
@@ -975,11 +1056,45 @@ class Browser:
             text = await self.page.evaluate(
                 normalize_script("return document.body ? document.body.innerText : ''")
             )
+            await self._sync_location()
             self.session.mark_active()
             return text
         except Exception as e:
             logger.exception("get_text failed")
             raise RuntimeError(f"get_text failed: {e}")
+
+    async def get_links(self) -> List[Dict[str, str]]:
+        """
+        Return the links visible on the current page.
+
+        Useful for agents that need to discover resources/navigation targets
+        without downloading the full HTML.
+
+        Returns:
+            List of dictionaries with ``text``, ``href`` and ``title`` keys.
+        """
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            links = await self.page.evaluate(
+                normalize_script(
+                    """
+                    return Array.from(document.querySelectorAll('a[href]'))
+                      .slice(0, 500)
+                      .map(a => ({
+                        text: (a.innerText || a.textContent || '').trim().slice(0, 200),
+                        href: a.href,
+                        title: (a.getAttribute('title') || '').slice(0, 200)
+                      }));
+                    """
+                )
+            )
+            await self._sync_location()
+            self.session.mark_active()
+            return links or []
+        except Exception as e:
+            logger.exception("get_links failed")
+            raise RuntimeError(f"get_links failed: {e}")
 
     async def click(self, selector: str) -> None:
         """
@@ -996,6 +1111,7 @@ class Browser:
 
         try:
             await self.page.click(selector)
+            await self._sync_location()
             self.session.mark_active()
             logger.debug("Clicked: %s", selector)
         except Exception as e:
@@ -1018,11 +1134,56 @@ class Browser:
 
         try:
             await self.page.fill(selector, text)
+            await self._sync_location()
             self.session.mark_active()
             logger.debug("Filled %s with text", selector)
         except Exception as e:
             logger.exception("Fill failed for selector: %s", selector)
             raise RuntimeError(f"Fill on {selector} failed: {e}")
+
+    async def press(self, selector: str, key: str) -> None:
+        """Press a keyboard key on an element (``Enter``, ``Tab``, ...)."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            await self.page.press(selector, key)
+            await self._sync_location()
+            self.session.mark_active()
+        except Exception as e:
+            raise RuntimeError(f"Press {key} on {selector} failed: {e}")
+
+    async def select(self, selector: str, value: str) -> None:
+        """Select an option in a ``<select>`` element."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            await self.page.select_option(selector, value)
+            await self._sync_location()
+            self.session.mark_active()
+        except Exception as e:
+            raise RuntimeError(f"Select {value} on {selector} failed: {e}")
+
+    async def hover(self, selector: str) -> None:
+        """Hover an element."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            await self.page.hover(selector)
+            self.session.mark_active()
+        except Exception as e:
+            raise RuntimeError(f"Hover on {selector} failed: {e}")
+
+    async def scroll(self, x: int = 0, y: int = 0) -> None:
+        """Scroll the page by the given pixel offsets."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            await self.page.evaluate(
+                normalize_script(f"window.scrollBy({int(x)}, {int(y)})")
+            )
+            self.session.mark_active()
+        except Exception as e:
+            raise RuntimeError(f"Scroll failed: {e}")
 
     async def wait_for_selector(self, selector: str, timeout: int = 5000) -> None:
         """
@@ -1040,16 +1201,54 @@ class Browser:
 
         try:
             await self.page.wait_for_selector(selector, timeout=timeout)
+            await self._sync_location()
         except Exception as e:
             logger.exception("Wait for selector failed: %s", selector)
             raise RuntimeError(f"Timeout waiting for {selector}: {e}")
+
+    async def go_back(self) -> str:
+        """Go back in history and return the resulting title."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            await self.page.go_back(wait_until=BROWSER_WAIT_UNTIL_FALLBACK, timeout=BROWSER_TIMEOUT_MS)
+            await self._sync_location()
+            self.session.mark_active()
+            return self.session.current_title or ""
+        except Exception as e:
+            raise RuntimeError(f"Back navigation failed: {e}")
+
+    async def go_forward(self) -> str:
+        """Go forward in history and return the resulting title."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            await self.page.go_forward(wait_until=BROWSER_WAIT_UNTIL_FALLBACK, timeout=BROWSER_TIMEOUT_MS)
+            await self._sync_location()
+            self.session.mark_active()
+            return self.session.current_title or ""
+        except Exception as e:
+            raise RuntimeError(f"Forward navigation failed: {e}")
+
+    async def reload(self) -> str:
+        """Reload the current page and return the resulting title."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            await self.page.reload(wait_until=BROWSER_WAIT_UNTIL_FALLBACK, timeout=BROWSER_TIMEOUT_MS)
+            await self._sync_location()
+            self.session.mark_active()
+            return self.session.current_title or ""
+        except Exception as e:
+            raise RuntimeError(f"Reload failed: {e}")
 
     async def close(self) -> None:
         """
         Detach from the remote browser (the container keeps running).
 
-        Closes only the Playwright connection — the remote Firefox page/state
-        survives so it can be reused by the next call.
+        Closes only the Playwright connection — the shared Chromium page/state
+        survives so it can be reused by the next call and remains visible in
+        the user's live VNC view.
         """
         try:
             if self.context and self.browser and self.browser.contexts:
@@ -1069,7 +1268,7 @@ class PdfPrinter:
     """
     Prints a rendered page to PDF with a local headless Chromium.
 
-    Unlike :class:`Browser`, which drives the shared Firefox container, this
+    Unlike :class:`Browser`, which drives the shared Chromium container, this
     launches its own headless Chromium so printing is isolated from the user
     session and works without Docker. JavaScript, modern CSS (flexbox/grid),
     custom fonts and background images are printed as a browser shows them,
