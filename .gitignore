@@ -40,3 +40,4 @@ localai-models
 # Local DSH bridge secret
 .dsh-codx-junior/
 kasm-user
+chromium_profile

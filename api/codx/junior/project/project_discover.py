@@ -20,6 +20,14 @@ logger = logging.getLogger(__name__)
 _ALL_PROJECTS: Optional[Dict[str, CODXJuniorSettings]] = None
 _ALL_PROJECTS_PROC: Optional[Thread] = None
 
+# Fragment of the git dir a linked worktree points to:
+# ``<main repo>/.git/worktrees/<name>``
+GIT_WORKTREE_GITDIR_MARKER = "/worktrees/"
+
+# Folder name used to hold PR worktrees inside (or next to) a repository:
+# ``<repo>/.worktrees/<branch>``
+WORKTREE_FOLDER_NAME = ".worktrees"
+
 def is_project_visible(settings: CODXJuniorSettings) -> bool:
     project_is_visible = not CODX_JUNIOR_HIDDEN or \
         "/codx-junior/" not in settings.codx_path
@@ -84,36 +92,66 @@ def is_path_child_of(child_path: str, parent_path: str) -> bool:
 
 def is_git_worktree(project_path: str) -> bool:
     """
-    Return True when ``project_path`` is a linked git worktree checkout.
+    Return whether a project folder is a worktree.
 
-    A linked worktree has a ``.git`` *file* (``gitdir: <repo>/.git/worktrees/<name>``)
-    instead of the main checkout's ``.git`` directory. Submodules also use a
-    ``.git`` file, but their target lives under ``.git/modules``, so they are not
-    mistaken for worktrees.
+    Two layouts are recognised:
+
+    1. **Path based** — the folder lives under a ``.worktrees`` directory
+       (``/projects/app/.worktrees/fix-login``). These copies may even keep a
+       regular ``.git`` directory, so the path is checked first.
+    2. **Linked worktree** — ``git worktree add`` keeps a ``.git`` **file**
+       with a ``gitdir:`` line pointing to ``<main repo>/.git/worktrees/<name>``,
+       whereas a regular repository keeps a ``.git`` **directory**.
+
+    codx-junior creates a worktree per PR branch, and the worktree carries a copy
+    of the tracked ``.codx/project.json`` (same ``project_id`` as its main
+    repository). Discovering it would register a duplicate project serving a
+    temporary branch checkout, so worktrees are always ignored.
 
     Args:
-        project_path: Absolute project path.
+        project_path: Absolute path of the project root.
 
     Returns:
-        True for a linked worktree, False for the main checkout / submodule.
+        True when the folder is a worktree, False otherwise.
 
-    Example:
-        >>> is_git_worktree('/repos/app/.worktrees/feature')
+    Examples:
+        >>> is_git_worktree('/projects/app/.worktrees/codx-junior-fix-login')
         True
-        >>> is_git_worktree('/repos/app')
+        >>> is_git_worktree('/projects/app-worktrees/codx-junior-fix-login')
+        True
+        >>> is_git_worktree('/projects/app')
         False
     """
     if not project_path:
         return False
-    dot_git = os.path.join(os.path.normpath(project_path), ".git")
-    if not os.path.isfile(dot_git):
+
+    normalized_path = os.path.normpath(project_path)
+
+    # Worktrees created under a ``.worktrees`` folder are ignored by path, so
+    # they are skipped even when their ``.git`` looks like a regular repository
+    path_segments = normalized_path.replace("\\", "/").split("/")
+    if WORKTREE_FOLDER_NAME in path_segments:
+        return True
+
+    git_path = os.path.join(normalized_path, ".git")
+    if not os.path.isfile(git_path):
+        # No ``.git`` at all, or a regular repository (a directory)
         return False
+
     try:
-        with open(dot_git, "r", encoding="utf-8", errors="ignore") as handle:
-            content = handle.read(4096)
-    except OSError:
+        with open(git_path, "r", encoding="utf-8", errors="replace") as git_file:
+            content = git_file.read().strip()
+    except (IOError, OSError) as ex:
+        logger.warning("Could not read %s: %s", git_path, ex)
         return False
-    return "/worktrees/" in content.replace("\\", "/")
+
+    if not content.lower().startswith("gitdir:"):
+        return False
+
+    git_dir = content.split(":", 1)[1].strip().replace("\\", "/")
+    # Submodules point to ``<main repo>/.git/modules/<name>``: they are real
+    # projects, only the linked worktrees are ignored
+    return GIT_WORKTREE_GITDIR_MARKER in f"/{git_dir}"
 
 
 def find_all_projects(force: bool = False) -> Dict[str, CODXJuniorSettings]:
@@ -162,9 +200,17 @@ def update_project_snapshot(settings: CODXJuniorSettings) -> None:
 
     Used after a project's settings are saved so the Traefik route builder sees
     the new rules immediately, without waiting for a full discovery scan.
+    Settings loaded from a worktree are ignored: they describe the main
+    repository with the same ``project_id`` and must never replace it.
     """
     global _ALL_PROJECTS
     if settings is None or not getattr(settings, "project_id", None):
+        return
+    if is_git_worktree(getattr(settings, "abs_project_path", "")):
+        logger.info(
+            "Ignoring project snapshot for git worktree %s",
+            settings.abs_project_path,
+        )
         return
     if _ALL_PROJECTS is None:
         _ALL_PROJECTS = {}
@@ -337,13 +383,20 @@ def _update_all_projects() -> None:
     Background worker that scans the filesystem for all ``.codx/project.json``
     files and populates the global ``_ALL_PROJECTS`` cache.
 
+    Worktrees are skipped (see :func:`is_git_worktree`): they hold a copy of
+    the tracked ``.codx/project.json`` with the same ``project_id`` as their
+    main repository, so registering them would shadow the real project with a
+    temporary PR branch checkout.
+
     Diagram:
     flowchart TD
         A[_update_all_projects] --> B[find / -name .codx]
         B --> C[Filter paths with project.json]
-        C --> D{R/W permissions?}
-        D -- No --> E[Skip path]
-        D -- Yes --> F[Parse CODXJuniorSettings]
+        C --> D{Worktree (.worktrees / linked)?}
+        D -- Yes --> D1[Ignore path]
+        D -- No --> E{R/W permissions?}
+        E -- No --> E1[Skip path]
+        E -- Yes --> F[Parse CODXJuniorSettings]
         F --> G{Valid project?}
         G -- Yes --> H[Register in all_projects dict]
         G -- No  --> I[Log and skip]
@@ -380,28 +433,23 @@ def _update_all_projects() -> None:
 
         existing_project = all_projects.get(candidate.project_id)
         if existing_project:
-            existing_path = existing_project.abs_project_path
-            candidate_path = candidate.abs_project_path
-            if os.path.normpath(candidate_path) == os.path.normpath(existing_path):
-                return False
-
-            # A linked worktree and the main checkout can share the same
-            # project_id (the worktree carries a copy of .codx/project.json).
-            # The main checkout is the canonical project: prefer it no matter
-            # which one the filesystem scan visits first, so the app never
-            # silently points a project at a worktree on another branch.
-            candidate_is_worktree = is_git_worktree(candidate_path)
-            existing_is_worktree = is_git_worktree(existing_path)
-            if candidate_is_worktree != existing_is_worktree:
-                return existing_is_worktree
-
-            if not is_path_child_of(candidate_path, projects_root_path):
+            if not is_path_child_of(candidate.abs_project_path, projects_root_path):
                 # Prefer projects inside the configured root on duplicates
                 return False
         return True
 
     for codx_path in paths:
         try:
+            project_root_path = os.path.dirname(os.path.normpath(codx_path))
+            if is_git_worktree(project_root_path):
+                # PR worktrees are temporary branch checkouts of a project that
+                # is already registered: never treat them as projects
+                logger.info(
+                    "[find_all_projects] ignoring worktree at %s",
+                    project_root_path,
+                )
+                continue
+
             project_file_path = f"{codx_path}/project.json"
             # Verify that the process has read/write access before loading
             if not (

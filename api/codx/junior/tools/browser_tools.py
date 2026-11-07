@@ -1,37 +1,41 @@
 """
 Browser session tools for codx-junior agents.
 
-These tools let the LLM drive a real, isolated Firefox browser running in a
-Docker container (managed by ``BrowserManager``). The browser is exposed to the
-user through the web/VNC endpoint stored on the session.
-
-Sessions are created with a human-readable ``name`` and can be shared by several
-chats at once (``session.chat_ids``).
+These tools let the LLM drive the same real Chromium browser the user is
+watching and controlling through the live VNC view (managed by
+``BrowserManager``).  There is no separate "AI browser": user and AI share one
+page, one set of cookies and one history.
 
 Tools
 -----
 - ``start_session``      – create & start (or resume) a browser session.
-- ``browse_action``      – navigate / click / fill / execute JS / read text.
+- ``browse_action``      – navigate / click / fill / execute JS / read text /
+                           back / forward / refresh / wait / press / select /
+                           hover / scroll / links.
 - ``get_screenshot``     – capture a PNG screenshot of the current page.
 - ``get_source_code``    – return the current page HTML.
-- ``finish_session``     – stop (and by default delete) the session, persisting
-                           the Firefox profile.
+- ``browser_activity``   – recent user/AI actions on the session (co-browsing
+                           awareness).
+- ``finish_session``     – stop (default) or delete the session. Stopping keeps
+                           the Chromium profile; deleting removes it too.
 
 Settings
 --------
 Every tool receives ``settings`` (CODXJuniorSettings) through the
-``project_settings`` injection mechanism. All tools are ``async`` and return a
-:class:`ToolResponse` (dual-response) so the chat can render a user-facing
-summary while the model receives the machine-readable content.
+``project_settings`` injection mechanism and ``chat_id`` (from the running
+SmolAgent) when its signature declares it.  All tools are ``async`` and return
+:class:`ToolResponse` so the chat can render a user-facing summary while the
+model receives machine-readable content.
 """
 
 import asyncio
 import logging
+import time
 from datetime import datetime
 from typing import Any, Dict, Optional
 
 from codx.junior.settings import CODXJuniorSettings
-from .model import ToolResponse, ToolSettings
+from .model import ToolResponse
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +48,14 @@ BROWSER_TOOL_SETTINGS: Dict[str, Any] = {
     "project_settings": True,
     "dual_response": True,
     "scope": "chat",
+    # Browser state changes between calls: never serve a cached result.
+    "cache": False,
 }
 
 #: Hard cap on the HTML returned by ``get_source_code`` (keeps LLM context sane).
 MAX_SOURCE_CHARS = 60000
+#: Hard cap on visible text returned by ``browse_action(text)``.
+MAX_TEXT_CHARS = 12000
 
 
 def _settings_from(kwargs: Dict[str, Any]) -> CODXJuniorSettings:
@@ -79,8 +87,9 @@ def _summary(session) -> str:
         f"name={session.name or '(unnamed)'}\n"
         f"status={session.status}\n"
         f"chats={', '.join(session.chat_ids) or '(none)'}\n"
-        f"vnc_url={session.vnc_url or '(starting)'}\n"
-        f"current_url={session.current_url or '(blank)'}"
+        f"live_view={session.vnc_url or '(starting)'}\n"
+        f"current_url={session.current_url or '(blank)'}\n"
+        f"current_title={session.current_title or '(blank)'}"
     )
 
 
@@ -99,21 +108,30 @@ def _persist_to_chat(settings: CODXJuniorSettings, session, chat_id: Optional[st
         logger.warning("Could not persist browser session to chat %s: %s", chat_id, ex)
 
 
-async def start_session(name: str = None, chat_id: str = None, **kwargs) -> ToolResponse:
+async def start_session(
+    name: str = None,
+    chat_id: str = None,
+    initial_url: str = None,
+    description: str = None,
+    **kwargs,
+) -> ToolResponse:
     """
-    Start (or resume) a browser session.
+    Start (or resume) a browser session connected to the current chat.
 
-    Creates and starts an isolated Firefox container for the chat and returns
-    the ``session_id`` plus the VNC URL the user can open to co-navigate.
+    Creates and starts an isolated Chromium container.  The returned
+    ``session_id`` is used by the other browser tools, and ``live_view`` is the
+    URL the user opens to watch and control the same browser.
 
     Args:
-        name: Human-readable session name given at creation (defaults to a
-            timestamped name when omitted).
-        chat_id: Associated chat id (used to reuse an existing running session).
+        name: Human-readable session name (defaults to a timestamped name).
+        chat_id: Associated chat id (injected by SmolAgent); used to reuse the
+            chat's existing session and to make it visible in the chat UI.
+        initial_url: Optional URL opened when the browser starts.
+        description: Optional free-form description of the session.
         **kwargs: Injected ``settings``.
 
     Returns:
-        ToolResponse with the session details.
+        ToolResponse with the session details and live-view URL.
     """
     settings = _settings_from(kwargs)
     manager = _manager(settings)
@@ -122,26 +140,44 @@ async def start_session(name: str = None, chat_id: str = None, **kwargs) -> Tool
 
     try:
         existing = manager.get_session_for_chat(chat_id) if chat_id else None
-        if existing and existing.status == "running":
-            return ToolResponse(
-                user_response=f"♻️ Browser session already running.\n```\n{_summary(existing)}\n```",
-                llm_response=(
-                    "A browser session is already running for this chat. "
-                    f"Use this session_id in subsequent calls: {existing.id}."
-                ),
-            )
+        if existing:
+            if existing.status != "running":
+                try:
+                    existing = await asyncio.to_thread(manager.restart_session, existing.id)
+                except Exception as ex:
+                    logger.warning("Could not restart browser session %s: %s", existing.id, ex)
 
-        session = await asyncio.to_thread(manager.create_session, session_name, chat_id)
+            if existing and existing.status == "running":
+                return ToolResponse(
+                    user_response=(
+                        f"♻️ Browser session already running.\n"
+                        f"[Open the live browser]({existing.vnc_url})\n"
+                        f"```\n{_summary(existing)}\n```"
+                    ),
+                    llm_response=(
+                        "A browser session is already running for this chat. "
+                        f"Use this session_id in subsequent calls: {existing.id}. "
+                        f"Live view: {existing.vnc_url}"
+                    ),
+                )
+
+        session = await asyncio.to_thread(
+            manager.create_session, session_name, chat_id, initial_url, description
+        )
         _persist_to_chat(settings, session, chat_id)
 
         llm = (
             f"Browser session '{session.name}' started. session_id: {session.id}. "
-            f"Live view (VNC): {session.vnc_url}. "
-            "Use browse_action/get_screenshot/get_source_code with this session_id. "
-            "Call finish_session when done."
+            f"Live view (same browser the user sees): {session.vnc_url}. "
+            "Use browse_action/get_screenshot/get_source_code/browser_activity "
+            "with this session_id. Call finish_session when done."
         )
         return ToolResponse(
-            user_response=f"✅ Browser session '{session.name}' ready.\n```\n{_summary(session)}\n```",
+            user_response=(
+                f"✅ Browser session '{session.name}' ready.\n"
+                f"[Open the live browser]({session.vnc_url})\n"
+                f"```\n{_summary(session)}\n```"
+            ),
             llm_response=llm,
         )
     except Exception as ex:
@@ -158,6 +194,10 @@ async def browse_action(
     selector: str = None,
     value: str = None,
     script: str = None,
+    key: str = None,
+    timeout: int = 5000,
+    x: int = 0,
+    y: int = 0,
     session_id: str = None,
     chat_id: str = None,
     **kwargs,
@@ -166,17 +206,23 @@ async def browse_action(
     Perform an action on the shared browser page.
 
     Args:
-        action: One of ``navigate``, ``click``, ``fill``, ``execute``, ``text``.
+        action: One of ``navigate``, ``click``, ``fill``, ``execute``,
+            ``text``, ``links``, ``back``, ``forward``, ``refresh``, ``wait``,
+            ``press``, ``select``, ``hover``, ``scroll``.
         url: Target URL (for ``navigate``).
-        selector: CSS selector (for ``click`` / ``fill``).
-        value: Text to fill (for ``fill``).
+        selector: CSS selector (for element actions).
+        value: Text to fill or option to select.
         script: JavaScript to run (for ``execute``; use ``return ...``).
+        key: Keyboard key for ``press``.
+        timeout: Timeout in milliseconds for ``wait``.
+        x: Horizontal scroll offset.
+        y: Vertical scroll offset.
         session_id: Session to act on (returned by ``start_session``).
         chat_id: Alternative to ``session_id`` — resolves the chat's session.
         **kwargs: Injected ``settings``.
 
     Returns:
-        ToolResponse with the action result.
+        ToolResponse with the action result, current URL and title.
     """
     settings = _settings_from(kwargs)
     manager = _manager(settings)
@@ -188,14 +234,34 @@ async def browse_action(
             llm_response="No browser session available. Start one with start_session.",
         )
     if session.status != "running":
-        return ToolResponse(
-            user_response=f"❌ Session is not running (status: {session.status}).",
-            llm_response=f"Session {session.id} is not running (status: {session.status}).",
-        )
+        # A stopped container can usually be resumed without losing the profile.
+        try:
+            session = await asyncio.to_thread(manager.restart_session, session.id)
+        except Exception as ex:
+            return ToolResponse(
+                user_response=f"❌ Session is not running and could not be restarted: {ex}",
+                llm_response=f"Session {session.id} is not running (status: {session.status}) and restart failed: {ex}",
+            )
 
     action = (action or "").lower().strip()
-    browser = await manager.connect_browser(session)
+    params = {
+        key_name: value
+        for key_name, value in {
+            "url": url,
+            "selector": selector,
+            "value": value,
+            "script": script,
+            "key": key,
+            "timeout": timeout,
+            "x": x,
+            "y": y,
+        }.items()
+        if value is not None
+    }
+    started_at = time.monotonic()
+    browser = None
     try:
+        browser = await manager.connect_browser(session)
         if action == "navigate":
             if not url:
                 raise ValueError("url is required for navigate")
@@ -221,36 +287,110 @@ async def browse_action(
             data = f"script result: {result}"
 
         elif action in ("text", "read"):
-            text = await browser.get_text()
-            text = (text or "").strip()
-            data = f"page text:\n{text[:8000]}"
+            text = (await browser.get_text() or "").strip()
+            data = f"page text:\n{text[:MAX_TEXT_CHARS]}"
+
+        elif action == "links":
+            links = await browser.get_links()
+            lines = [f"- {link.get('text') or '(no text)'} → {link.get('href')}" for link in links[:200]]
+            data = f"links ({len(links)}):\n" + "\n".join(lines)
+
+        elif action == "back":
+            title = await browser.go_back()
+            data = f"went back\ntitle: {title}"
+
+        elif action == "forward":
+            title = await browser.go_forward()
+            data = f"went forward\ntitle: {title}"
+
+        elif action == "refresh":
+            title = await browser.reload()
+            data = f"page refreshed\ntitle: {title}"
+
+        elif action == "wait":
+            if not selector:
+                raise ValueError("selector is required for wait")
+            await browser.wait_for_selector(selector, timeout=timeout or 5000)
+            data = f"element appeared: {selector}"
+
+        elif action == "press":
+            if not selector or not key:
+                raise ValueError("selector and key are required for press")
+            await browser.press(selector, key)
+            data = f"pressed {key} on {selector}"
+
+        elif action == "select":
+            if not selector or value is None:
+                raise ValueError("selector and value are required for select")
+            await browser.select(selector, value)
+            data = f"selected {value} on {selector}"
+
+        elif action == "hover":
+            if not selector:
+                raise ValueError("selector is required for hover")
+            await browser.hover(selector)
+            data = f"hovered {selector}"
+
+        elif action == "scroll":
+            await browser.scroll(x=x or 0, y=y or 0)
+            data = f"scrolled by x={x or 0}, y={y or 0}"
 
         else:
             raise ValueError(
-                f"unknown action '{action}' (use navigate|click|fill|execute|text)"
+                "unknown action '%s' (use navigate|click|fill|execute|text|links|"
+                "back|forward|refresh|wait|press|select|hover|scroll)" % action
             )
 
         session.mark_active()
         manager.save_session(session)
+        manager.log_activity(
+            session,
+            actor="ai",
+            action=action,
+            chat_id=chat_id,
+            params=params,
+            url=session.current_url,
+            title=session.current_title,
+            duration_ms=(time.monotonic() - started_at) * 1000,
+            result={"message": data[:1000]},
+        )
         logger.info("browse_action '%s' completed for session %s", action, session.id[:8])
 
         return ToolResponse(
-            user_response=f"✅ `{action}` done on session {session.id[:8]}.\n\n{data}",
-            llm_response=f"Action '{action}' on session {session.id} succeeded.\n{data}",
+            user_response=(
+                f"✅ `{action}` done on session {session.id[:8]}.\n\n{data}\n\n"
+                f"URL: {session.current_url or '(blank)'}\nTitle: {session.current_title or '(blank)'}"
+            ),
+            llm_response=(
+                f"Action '{action}' on session {session.id} succeeded.\n{data}\n"
+                f"URL: {session.current_url or '(blank)'}\nTitle: {session.current_title or '(blank)'}"
+            ),
         )
     except Exception as ex:
         logger.exception("browse_action failed: %s", ex)
+        manager.log_activity(
+            session,
+            actor="ai",
+            action=action or "unknown",
+            chat_id=chat_id,
+            params=params,
+            success=False,
+            error=str(ex),
+            duration_ms=(time.monotonic() - started_at) * 1000,
+        )
         return ToolResponse(
             user_response=f"❌ `{action}` failed: {ex}",
             llm_response=f"Action '{action}' on session {session.id} failed: {ex}",
         )
     finally:
-        await browser.close()
+        if browser is not None:
+            await browser.close()
 
 
 async def get_screenshot(
     session_id: str = None,
     chat_id: str = None,
+    full_page: bool = True,
     **kwargs,
 ) -> ToolResponse:
     """
@@ -259,6 +399,7 @@ async def get_screenshot(
     Args:
         session_id: Session to capture (or ``chat_id`` to resolve it).
         chat_id: Alternative to ``session_id``.
+        full_page: Capture the whole scrollable page (default) or the viewport.
         **kwargs: Injected ``settings``.
 
     Returns:
@@ -274,23 +415,44 @@ async def get_screenshot(
             llm_response="No running browser session available for screenshot.",
         )
 
-    browser = await manager.connect_browser(session)
+    started_at = time.monotonic()
+    browser = None
     try:
-        data_uri = await browser.get_screenshot()
+        browser = await manager.connect_browser(session)
+        data_uri = await browser.get_screenshot(full_page=full_page)
         session.mark_active()
         manager.save_session(session)
+        manager.log_activity(
+            session,
+            actor="ai",
+            action="screenshot",
+            chat_id=chat_id,
+            params={"full_page": bool(full_page)},
+            url=session.current_url,
+            title=session.current_title,
+            duration_ms=(time.monotonic() - started_at) * 1000,
+        )
         return ToolResponse(
             user_response=f"📸 Screenshot of session {session.id[:8]}:\n\n![screenshot]({data_uri})",
-            llm_response=f"Screenshot captured for session {session.id}.",
+            llm_response=(
+                f"Screenshot captured for session {session.id} "
+                f"(url: {session.current_url or '(blank)'}, title: {session.current_title or '(blank)'})."
+            ),
         )
     except Exception as ex:
         logger.exception("get_screenshot failed: %s", ex)
+        manager.log_activity(
+            session, actor="ai", action="screenshot", chat_id=chat_id,
+            success=False, error=str(ex),
+            duration_ms=(time.monotonic() - started_at) * 1000,
+        )
         return ToolResponse(
             user_response=f"❌ Screenshot failed: {ex}",
             llm_response=f"Screenshot failed for session {session.id}: {ex}",
         )
     finally:
-        await browser.close()
+        if browser is not None:
+            await browser.close()
 
 
 async def get_source_code(
@@ -319,41 +481,111 @@ async def get_source_code(
             llm_response="No running browser session available for source retrieval.",
         )
 
-    browser = await manager.connect_browser(session)
+    started_at = time.monotonic()
+    browser = None
     try:
+        browser = await manager.connect_browser(session)
         html = await browser.get_content()
         truncated = (html or "")[:MAX_SOURCE_CHARS]
         session.mark_active()
         manager.save_session(session)
+        manager.log_activity(
+            session,
+            actor="ai",
+            action="source",
+            chat_id=chat_id,
+            url=session.current_url,
+            title=session.current_title,
+            duration_ms=(time.monotonic() - started_at) * 1000,
+            result={"chars": len(html or "")},
+        )
         return ToolResponse(
-            user_response=f"📄 Source of session {session.id[:8]} (url: {session.current_url}):\n```html\n{truncated}\n```",
-            llm_response=f"HTML source for session {session.id} (url: {session.current_url}):\n{truncated}",
+            user_response=(
+                f"📄 Source of session {session.id[:8]} "
+                f"(url: {session.current_url}, title: {session.current_title}):\n"
+                f"```html\n{truncated}\n```"
+            ),
+            llm_response=(
+                f"HTML source for session {session.id} "
+                f"(url: {session.current_url}, title: {session.current_title}):\n{truncated}"
+            ),
         )
     except Exception as ex:
         logger.exception("get_source_code failed: %s", ex)
+        manager.log_activity(
+            session, actor="ai", action="source", chat_id=chat_id,
+            success=False, error=str(ex),
+            duration_ms=(time.monotonic() - started_at) * 1000,
+        )
         return ToolResponse(
             user_response=f"❌ Failed to read source: {ex}",
             llm_response=f"Source retrieval failed for session {session.id}: {ex}",
         )
     finally:
-        await browser.close()
+        if browser is not None:
+            await browser.close()
+
+
+async def browser_activity(
+    session_id: str = None,
+    chat_id: str = None,
+    limit: int = 30,
+    **kwargs,
+) -> ToolResponse:
+    """
+    Return the recent user/AI actions on the shared browser session.
+
+    This lets the agent notice what the user did between tool calls (the user
+    can click/type/navigate directly in the live view).  It is also the audit
+    trail required for co-browsing.
+    """
+    settings = _settings_from(kwargs)
+    manager = _manager(settings)
+    session = _resolve_session(manager, session_id=session_id, chat_id=chat_id)
+
+    if not session:
+        return ToolResponse(
+            user_response="❌ No browser session found.",
+            llm_response="No browser session available. Start one with start_session.",
+        )
+
+    entries = manager.get_activity(session.id, limit=limit)
+    if not entries:
+        return ToolResponse(
+            user_response=f"🧾 No activity recorded yet for session {session.id[:8]}.",
+            llm_response=f"No activity recorded for session {session.id}.",
+        )
+
+    lines = []
+    for entry in entries:
+        actor = entry.get("actor") or "?"
+        action = entry.get("action") or "?"
+        status = "ok" if entry.get("success", True) else "error"
+        url = entry.get("url") or ""
+        lines.append(f"- [{entry.get('ts')}] {actor}: {action} ({status}) {url}".rstrip())
+    text = "\n".join(lines)
+    return ToolResponse(
+        user_response=f"🧾 Recent activity for session {session.id[:8]}:\n{text}",
+        llm_response=f"Recent activity for session {session.id}:\n{text}",
+    )
 
 
 async def finish_session(
     session_id: str = None,
     chat_id: str = None,
-    delete: bool = True,
+    delete: bool = False,
     **kwargs,
 ) -> ToolResponse:
     """
-    Finish a browser session, persisting its profile.
+    Finish a browser session. Stopping keeps its profile; deleting removes it.
 
     Args:
         session_id: Session to finish (or ``chat_id`` to resolve it).
         chat_id: Alternative to ``session_id``.
-        delete: When True (default) the container is removed and the session
-            folder deleted. When False the container is only stopped (the
-            session can be restarted later).
+        delete: When True the container is removed and the session folder
+            (including its Chromium profile) is deleted. When False (default)
+            the container is only stopped and the profile is preserved for a
+            later restart.
         **kwargs: Injected ``settings``.
 
     Returns:
@@ -380,7 +612,10 @@ async def finish_session(
         logger.info("finish_session: %s session %s", verb, session.id[:8])
         return ToolResponse(
             user_response=f"🧹 Browser session {session.id[:8]} {verb}.",
-            llm_response=f"Browser session {session.id} {verb}. Profile persisted.",
+            llm_response=(
+                f"Browser session {session.id} {verb}. "
+                + ("Profile preserved." if not delete else "Profile deleted with the session.")
+            ),
         )
     except Exception as ex:
         logger.exception("finish_session failed: %s", ex)
@@ -399,10 +634,10 @@ START_SESSION_TOOL_JSON = {
     "function": {
         "name": "start_session",
         "description": (
-            "Start (or resume) a real, isolated Firefox browser session. Provide a short, "
-            "human-readable name for the session. Returns a session_id (use it in the other "
-            "browser tools) and a VNC url the user can open to watch/co-navigate. A session "
-            "may be shared by several chats."
+            "Start (or resume) the real Chromium browser shared with the user. Provide a short, "
+            "human-readable name. Returns a session_id (use it in the other browser tools) and a "
+            "live-view URL the user can open to watch and control the same browser. A session may "
+            "be shared by several chats."
         ),
         "parameters": {
             "type": "object",
@@ -411,9 +646,17 @@ START_SESSION_TOOL_JSON = {
                     "type": "string",
                     "description": "Human-readable name for the session (e.g. 'flight search').",
                 },
+                "initial_url": {
+                    "type": "string",
+                    "description": "Optional URL to open when the browser starts.",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Optional short description of the session.",
+                },
                 "chat_id": {
                     "type": "string",
-                    "description": "Chat id used to reuse an existing running session and to connect this chat to it (optional).",
+                    "description": "Chat id used to reuse an existing session and make it visible in the chat UI (optional).",
                 },
             },
             "required": ["name"],
@@ -428,14 +671,20 @@ BROWSE_ACTION_TOOL_JSON = {
         "description": (
             "Drive the shared browser page. Supported actions: "
             "navigate (url), click (selector), fill (selector, value), "
-            "execute (script), text (read visible page text)."
+            "execute (script), text (read visible page text), links (list links), "
+            "back, forward, refresh, wait (selector, timeout), press (selector, key), "
+            "select (selector, value), hover (selector), scroll (x, y)."
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["navigate", "click", "fill", "execute", "text"],
+                    "enum": [
+                        "navigate", "click", "fill", "execute", "text", "links",
+                        "back", "forward", "refresh", "wait", "press", "select",
+                        "hover", "scroll",
+                    ],
                     "description": "Action to perform on the page.",
                 },
                 "session_id": {
@@ -445,13 +694,17 @@ BROWSE_ACTION_TOOL_JSON = {
                 "url": {"type": "string", "description": "Target URL (navigate)."},
                 "selector": {
                     "type": "string",
-                    "description": "CSS selector (click / fill).",
+                    "description": "CSS selector (click / fill / wait / press / select / hover).",
                 },
-                "value": {"type": "string", "description": "Text to fill (fill)."},
+                "value": {"type": "string", "description": "Text to fill or option to select."},
                 "script": {
                     "type": "string",
                     "description": "JavaScript to run (execute); use 'return ...' to get a value.",
                 },
+                "key": {"type": "string", "description": "Keyboard key for press (e.g. Enter)."},
+                "timeout": {"type": "integer", "description": "Wait timeout in milliseconds."},
+                "x": {"type": "integer", "description": "Horizontal scroll offset."},
+                "y": {"type": "integer", "description": "Vertical scroll offset."},
             },
             "required": ["action"],
         },
@@ -469,7 +722,11 @@ GET_SCREENSHOT_TOOL_JSON = {
                 "session_id": {
                     "type": "string",
                     "description": "Session id returned by start_session.",
-                }
+                },
+                "full_page": {
+                    "type": "boolean",
+                    "description": "Capture the whole page (default true) or only the viewport.",
+                },
             },
             "required": [],
         },
@@ -494,13 +751,39 @@ GET_SOURCE_CODE_TOOL_JSON = {
     },
 }
 
+BROWSER_ACTIVITY_TOOL_JSON = {
+    "type": "function",
+    "function": {
+        "name": "browser_activity",
+        "description": (
+            "Return the recent actions performed by the user and the AI on the shared browser "
+            "session. Use it to notice what the user did directly in the live view."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Session id returned by start_session.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of recent entries (default 30).",
+                },
+            },
+            "required": [],
+        },
+    },
+}
+
 FINISH_SESSION_TOOL_JSON = {
     "type": "function",
     "function": {
         "name": "finish_session",
         "description": (
-            "Finish the browser session, persisting its profile. By default the "
-            "container is deleted; set delete=false to only stop it (restartable)."
+            "Finish the browser session. By default the container is stopped and the "
+            "Chromium profile is kept for a later restart; set delete=true to remove "
+            "the container, session metadata and profile."
         ),
         "parameters": {
             "type": "object",
@@ -511,7 +794,7 @@ FINISH_SESSION_TOOL_JSON = {
                 },
                 "delete": {
                     "type": "boolean",
-                    "description": "Delete the container (default true) or just stop it (false).",
+                    "description": "Delete the container and profile (true) or only stop it and keep the profile (false, default).",
                 },
             },
             "required": [],

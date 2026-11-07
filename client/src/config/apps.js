@@ -159,6 +159,18 @@ export const APPS = {
     route: () => ({ name: 'browsers' })
   },
 
+  'browser-viewer': {
+    id: 'browser-viewer', title: 'Browser', component: 'browser-viewer', icon: 'fa-regular fa-compass',
+    multiInstance: true,
+    desktopKey: p => (p.sessionId ? `browser-${p.sessionId}` : undefined),
+    desktopTabId: p => (p.sessionId ? `browser-${p.sessionId}` : undefined),
+    desktopParams: p => ({ sessionId: p.sessionId }),
+    route: p => ({
+      name: 'browser-session',
+      params: { sessionId: p.sessionId, sessionName: p.name || p.sessionName }
+    })
+  },
+
   // ── Infrastructure (Docker) ───────────────────────────────────────────────
   // Deployed containers, compose stacks, images, volumes, networks and daemon
   // events for the active host. Desktop mode → dockview panel; single/mobile

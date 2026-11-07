@@ -15,14 +15,20 @@ class BrowserSessionResponse(BaseModel):
 
     id: str = Field(description="Unique session identifier")
     name: Optional[str] = Field(default=None, description="Human-readable session name")
+    description: Optional[str] = Field(default=None, description="Optional session description")
     chat_ids: List[str] = Field(default_factory=list, description="Chat IDs connected to this session")
     container_id: Optional[str] = Field(default=None, description="Docker container ID")
     container_name: Optional[str] = Field(default=None, description="Container name")
     status: str = Field(description="Session status: idle, running, stopped, error")
-    vnc_url: Optional[str] = Field(default=None, description="VNC access URL via Traefik")
-    debug_url: Optional[str] = Field(default=None, description="DevTools/CDP connection URL")
-    browser_profile_path: Optional[str] = Field(default=None, description="Persistent Firefox profile path")
+    engine: str = Field(default="chromium", description="Browser engine (chromium)")
+    vnc_url: Optional[str] = Field(default=None, description="Live view (VNC/Selkies) URL via Traefik")
+    vnc_path: Optional[str] = Field(default=None, description="Same-origin live view path")
+    debug_url: Optional[str] = Field(default=None, description="DevTools/CDP WebSocket URL")
+    browser_profile_path: Optional[str] = Field(default=None, description="Persistent Chromium profile path")
     current_url: Optional[str] = Field(default=None, description="Currently loaded page URL")
+    current_title: Optional[str] = Field(default=None, description="Currently loaded page title")
+    last_action: Optional[str] = Field(default=None, description="Last user/AI action")
+    last_action_at: Optional[str] = Field(default=None, description="Timestamp of the last action")
     created_at: str = Field(description="ISO timestamp when created")
     last_active: str = Field(description="ISO timestamp of last activity")
     error: Optional[str] = Field(default=None, description="Error message if failed")
@@ -41,17 +47,58 @@ class BrowserSessionCreateRequest(BaseModel):
     """Request model to create a new browser session."""
 
     name: str = Field(description="Human-readable session name")
+    description: Optional[str] = Field(default=None, description="Optional session description")
     chat_id: Optional[str] = Field(default=None, description="Optional chat ID to connect the session to")
+    initial_url: Optional[str] = Field(default=None, description="Optional URL opened at startup")
+
+
+class BrowserSessionUpdateRequest(BaseModel):
+    """Request model to update a browser session."""
+
+    name: Optional[str] = Field(default=None, description="New human-readable session name")
+
+
+class BrowserSessionChatRequest(BaseModel):
+    """Optional chat selection when opening a chat from a browser session."""
+
+    chat_id: Optional[str] = Field(
+        default=None,
+        description="Existing chat to link. Omit to reuse/create the session's chat.",
+    )
+    create_new: bool = Field(
+        default=False,
+        description=(
+            "When true, always create a new chat even if the session already "
+            "has linked chats. Ignored when chat_id is provided."
+        ),
+    )
+
+
+class BrowserSessionChatResponse(BaseModel):
+    """Chat linked to a browser session, ready to be rendered in the UI."""
+
+    session: BrowserSessionResponse
+    chat: Dict[str, Any]
 
 
 class BrowserSessionActionRequest(BaseModel):
-    """Request model for browser actions (navigate, click, fill)."""
+    """Request model for browser actions (navigate, click, fill, execute...)."""
 
-    action: str = Field(description="Action type: navigate, click, fill, execute, text")
-    selector: Optional[str] = Field(default=None, description="CSS selector (for click/fill)")
-    value: Optional[str] = Field(default=None, description="Value to fill (for fill action)")
+    action: str = Field(
+        description=(
+            "Action type: navigate, click, fill, execute, text, links, back, "
+            "forward, refresh, wait, press, select, hover, scroll, screenshot"
+        )
+    )
+    selector: Optional[str] = Field(default=None, description="CSS selector (click/fill/wait/press/select/hover)")
+    value: Optional[str] = Field(default=None, description="Value to fill/select")
     url: Optional[str] = Field(default=None, description="URL to navigate to")
     script: Optional[str] = Field(default=None, description="JavaScript to execute")
+    key: Optional[str] = Field(default=None, description="Keyboard key for press")
+    timeout: Optional[int] = Field(default=5000, description="Timeout in milliseconds (wait)")
+    x: Optional[int] = Field(default=0, description="Horizontal scroll offset")
+    y: Optional[int] = Field(default=0, description="Vertical scroll offset")
+    full_page: Optional[bool] = Field(default=True, description="Capture the full page (screenshot)")
 
 
 class BrowserActionResponse(BaseModel):
@@ -60,6 +107,12 @@ class BrowserActionResponse(BaseModel):
     success: bool = Field(description="Whether action succeeded")
     message: str = Field(description="Action result message")
     data: Optional[Dict[str, Any]] = Field(default=None, description="Action-specific data")
+
+
+class BrowserScreenshotRequest(BaseModel):
+    """Request model for a screenshot (all fields optional)."""
+
+    full_page: bool = Field(default=True, description="Capture the whole scrollable page")
 
 
 class BrowserScreenshotResponse(BaseModel):
@@ -76,7 +129,47 @@ class BrowserSourceResponse(BaseModel):
     success: bool = Field(description="Whether retrieval succeeded")
     html: Optional[str] = Field(default=None, description="HTML content (truncated)")
     url: Optional[str] = Field(default=None, description="Current page URL")
+    title: Optional[str] = Field(default=None, description="Current page title")
     error: Optional[str] = Field(default=None, description="Error message if failed")
+
+
+class BrowserActivityEntry(BaseModel):
+    """One user/AI action recorded in the session audit trail."""
+
+    ts: str
+    session_id: Optional[str] = None
+    chat_id: Optional[str] = None
+    actor: str
+    action: str
+    success: bool = True
+    params: Dict[str, Any] = Field(default_factory=dict)
+    url: Optional[str] = None
+    title: Optional[str] = None
+    duration_ms: Optional[float] = None
+    error: Optional[str] = None
+    result: Optional[str] = None
+
+
+class BrowserActivityResponse(BaseModel):
+    """Response model for the browser activity audit trail."""
+
+    session_id: str
+    count: int
+    activity: List[BrowserActivityEntry] = Field(default_factory=list)
+
+
+class BrowserCostResponse(BaseModel):
+    """AI cost/usage summary for the chats connected to a browser session."""
+
+    session_id: str
+    chats: List[Dict[str, Any]] = Field(default_factory=list)
+    total_cost_cxjcoins: float = 0.0
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+    total_tokens: int = 0
+    total_llm_calls: int = 0
+    total_tool_calls: int = 0
+    window: str = "all-time"
 
 
 # ============================================================================
@@ -88,6 +181,8 @@ class SioBrowserCreateRequest(BaseModel):
 
     codx_path: str = Field(description="Project codx path")
     name: str = Field(description="Human-readable session name")
+    description: Optional[str] = Field(default=None, description="Optional session description")
+    initial_url: Optional[str] = Field(default=None, description="Optional URL opened at startup")
     chat_id: Optional[str] = Field(default=None, description="Optional chat ID to connect the session to")
 
 
@@ -123,6 +218,7 @@ class BrowserStatusEvent(BaseModel):
     )
     session_id: Optional[str] = Field(default=None, description="Session ID")
     name: Optional[str] = Field(default=None, description="Human-readable session name")
+    description: Optional[str] = Field(default=None, description="Optional session description")
     chat_ids: List[str] = Field(default_factory=list, description="Chats connected to the session")
     container_id: Optional[str] = Field(default=None, description="Docker container ID")
     message: str = Field(description="Human-readable status message")

@@ -111,6 +111,11 @@ CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
 os.makedirs(f"{CODX_JUNIOR_STATIC_FOLDER}/uploads", exist_ok=True)
 
 GLOBAL_REQUEST_TIMEOUT_SECONDS=30
+# Browser lifecycle calls may need to pull the Chromium image and wait for the
+# container to expose both VNC and CDP. Give them a longer budget than a normal
+# API request so the first session does not fail with a 504.
+BROWSER_REQUEST_TIMEOUT_SECONDS = int(os.environ.get("CODX_BROWSER_REQUEST_TIMEOUT_SECONDS", "600"))
+BROWSER_LIFECYCLE_PREFIX = "/api/browsers"
 
 # ── API performance logging ────────────────────────────────────────────────────
 # Records every HTTP call's duration/status into the API logs storage so that
@@ -303,8 +308,11 @@ async def add_codx_junior_settings(request: Request, call_next):
 async def timeout_middleware(request: Request, call_next):
     try:
         start_time = time.time()
+        timeout = GLOBAL_REQUEST_TIMEOUT_SECONDS
+        if request.url.path.startswith(BROWSER_LIFECYCLE_PREFIX):
+            timeout = BROWSER_REQUEST_TIMEOUT_SECONDS
         logger.info("HTTP starting: %s", request.url)
-        return await asyncio.wait_for(call_next(request), timeout=GLOBAL_REQUEST_TIMEOUT_SECONDS)
+        return await asyncio.wait_for(call_next(request), timeout=timeout)
 
     except asyncio.TimeoutError:
         process_time = time.time() - start_time

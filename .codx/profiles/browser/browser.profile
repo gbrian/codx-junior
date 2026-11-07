@@ -2,7 +2,7 @@
   "name": "browser",
   "url": "",
   "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=browser",
-  "description": "Browser assistant. Drives a shared, isolated Firefox session to navigate the web and answer user requests.",
+  "description": "Browser assistant. Drives a shared, isolated Chromium session (live VNC view + CDP tools) to navigate the web and answer user requests alongside the user.",
   "category": "assistant",
   "file_match": "",
   "content": null,
@@ -17,7 +17,8 @@
     "browse_action",
     "get_screenshot",
     "get_source_code",
-    "finish_session"
+    "finish_session",
+    "browser_activity"
   ],
   "tags": [],
   "api_settings": {

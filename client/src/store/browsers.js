@@ -10,7 +10,10 @@ export const state = () => ({
   loading: false,
   error: null,
   editingSessionId: null,
-  showNewSessionForm: false
+  showNewSessionForm: false,
+  activityBySession: {},
+  costBySession: {},
+  loadingActivity: false
 })
 
 export const getters = getterTree(state, {
@@ -25,7 +28,16 @@ export const getters = getterTree(state, {
     return state.sessions.find(s => s.id === id)
   },
 
+  activityFor: (state) => (sessionId) => {
+    return state.activityBySession[sessionId] || []
+  },
+
+  costFor: (state) => (sessionId) => {
+    return state.costBySession[sessionId] || null
+  },
+
   isLoading: state => state.loading,
+  isLoadingActivity: state => state.loadingActivity,
   hasError: state => !!state.error,
   errorMessage: state => state.error
 })
@@ -51,6 +63,8 @@ export const mutations = mutationTree(state, {
     if (state.selectedSessionId === sessionId) {
       state.selectedSessionId = null
     }
+    delete state.activityBySession[sessionId]
+    delete state.costBySession[sessionId]
   },
 
   selectSession(state, sessionId) {
@@ -63,6 +77,10 @@ export const mutations = mutationTree(state, {
 
   setLoading(state, loading) {
     state.loading = loading
+  },
+
+  setLoadingActivity(state, loading) {
+    state.loadingActivity = loading
   },
 
   setError(state, error) {
@@ -83,8 +101,30 @@ export const mutations = mutationTree(state, {
 
   toggleNewSessionForm(state, show) {
     state.showNewSessionForm = show !== undefined ? show : !state.showNewSessionForm
+  },
+
+  setActivity(state, { sessionId, activity }) {
+    state.activityBySession = {
+      ...state.activityBySession,
+      [sessionId]: activity || []
+    }
+  },
+
+  setCost(state, { sessionId, cost }) {
+    state.costBySession = {
+      ...state.costBySession,
+      [sessionId]: cost || null
+    }
   }
 })
+
+function notify(type, text) {
+  try {
+    $storex.ui.addNotification({ text, type })
+  } catch (e) {
+    // Notifications are best-effort (e.g. when the store boots headless)
+  }
+}
 
 export const actions = actionTree(
   { state, getters, mutations },
@@ -93,8 +133,8 @@ export const actions = actionTree(
       commit('setLoading', true)
       commit('clearError')
       try {
-        const { sessions } = await API.browsers.list()
-        commit('setSessions', sessions || [])
+        const response = await API.browsers.list()
+        commit('setSessions', response?.sessions || [])
       } catch (error) {
         commit('setError', error.message || 'Failed to load sessions')
         console.error('[Browsers] Error loading sessions:', error)
@@ -106,20 +146,21 @@ export const actions = actionTree(
     async createSession({ commit }, sessionData) {
       commit('clearError')
       try {
-        const session = await API.browsers.create(sessionData)
+        const payload = {
+          name: sessionData.name,
+          description: sessionData.description || null,
+          chat_id: sessionData.chat_id || null,
+          initial_url: sessionData.initial_url || sessionData.url || null
+        }
+        const session = await API.browsers.create(payload)
         commit('addSession', session)
+        commit('selectSession', session.id)
         commit('toggleNewSessionForm', false)
-        $storex.ui.addNotification({
-          text: `Browser session "${session.name}" created`,
-          type: 'success'
-        })
+        notify('success', `Browser session "${session.name}" created`)
         return session
       } catch (error) {
         commit('setError', error.message || 'Failed to create session')
-        $storex.ui.addNotification({
-          text: error.message || 'Failed to create session',
-          type: 'error'
-        })
+        notify('error', error.message || 'Failed to create session')
         throw error
       }
     },
@@ -127,22 +168,32 @@ export const actions = actionTree(
     async updateSession({ commit }, sessionData) {
       commit('clearError')
       try {
-        const session = await API.browsers.update(sessionData.id, sessionData)
+        const session = await API.browsers.update(sessionData.id, {
+          name: sessionData.name
+        })
         commit('updateSession', session)
         commit('clearEditingSession')
-        $storex.ui.addNotification({
-          text: `Browser session "${session.name}" updated`,
-          type: 'success'
-        })
+        notify('success', `Browser session "${session.name}" updated`)
         return session
       } catch (error) {
         commit('setError', error.message || 'Failed to update session')
-        $storex.ui.addNotification({
-          text: error.message || 'Failed to update session',
-          type: 'error'
-        })
+        notify('error', error.message || 'Failed to update session')
         throw error
       }
+    },
+
+    async stopSession({ commit }, sessionId) {
+      const session = await API.browsers.stop(sessionId)
+      commit('updateSession', session)
+      notify('success', 'Browser session stopped')
+      return session
+    },
+
+    async restartSession({ commit }, sessionId) {
+      const session = await API.browsers.restart(sessionId)
+      commit('updateSession', session)
+      notify('success', 'Browser session restarted')
+      return session
     },
 
     async deleteSession({ commit }, sessionId) {
@@ -150,16 +201,10 @@ export const actions = actionTree(
       try {
         await API.browsers.delete(sessionId)
         commit('deleteSession', sessionId)
-        $storex.ui.addNotification({
-          text: 'Browser session deleted',
-          type: 'success'
-        })
+        notify('success', 'Browser session deleted')
       } catch (error) {
         commit('setError', error.message || 'Failed to delete session')
-        $storex.ui.addNotification({
-          text: error.message || 'Failed to delete session',
-          type: 'error'
-        })
+        notify('error', error.message || 'Failed to delete session')
         throw error
       }
     },
@@ -191,27 +236,89 @@ export const actions = actionTree(
       try {
         const session = await API.browsers.get(sessionId)
         if (!session) throw new Error('Session not found')
-
-        // Open session in AppWindow
-        $storex.ui.showApp({
-          tabId: `browser-${sessionId}`,
-          name: session.name,
-          component: 'browser-viewer',
-          params: {
-            sessionId: sessionId,
-            session: session
+        if (!session.vnc_path && session.vnc_url) {
+          // Best-effort same-origin path for older persisted sessions.
+          try {
+            session.vnc_path = new URL(session.vnc_url, window.location.origin).pathname
+          } catch (e) {
+            session.vnc_path = session.vnc_url
           }
-        })
+        }
 
+        // Central navigation knows whether we are in desktop mode (dockview
+        // panel) or single/mobile mode (route) and does the right thing.
+        $storex.$navigation?.browsers?.open(sessionId, session.name)
         return session
       } catch (error) {
         commit('setError', error.message || 'Failed to run session')
-        $storex.ui.addNotification({
-          text: error.message || 'Failed to run session',
-          type: 'error'
-        })
+        notify('error', error.message || 'Failed to run session')
         throw error
       }
+    },
+
+    async loadActivity({ commit }, { sessionId, limit = 100 } = {}) {
+      if (!sessionId) return []
+      commit('setLoadingActivity', true)
+      try {
+        const response = await API.browsers.activity(sessionId, limit)
+        commit('setActivity', { sessionId, activity: response?.activity || [] })
+        return response?.activity || []
+      } catch (error) {
+        console.error('[Browsers] Error loading activity:', error)
+        return []
+      } finally {
+        commit('setLoadingActivity', false)
+      }
+    },
+
+    async loadCost({ commit }, sessionId) {
+      if (!sessionId) return null
+      try {
+        const cost = await API.browsers.cost(sessionId)
+        commit('setCost', { sessionId, cost })
+        return cost
+      } catch (error) {
+        console.error('[Browsers] Error loading cost:', error)
+        return null
+      }
+    },
+
+    /**
+     * Get (or create) the chat linked to a browser session.
+     *
+     * The endpoint reuses the session's chat when it already has one, otherwise
+     * creates it and activates the `browser` profile so the AI can drive the
+     * shared page from the browser-sessions view.
+     */
+    async ensureChat({ commit }, { sessionId, chatId = null, createNew = false } = {}) {
+      if (!sessionId) return null
+      const response = await API.browsers.createChat(sessionId, chatId, createNew)
+      if (response?.session) {
+        commit('updateSession', response.session)
+      }
+      const chat = response?.chat || null
+      if (chat?.id) {
+        await $storex.chats.loadChat(chat)
+      }
+      return chat
+    },
+
+    async navigate({ dispatch }, { sessionId, url }) {
+      const result = await API.browsers.navigate(sessionId, url)
+      await dispatch('loadActivity', { sessionId, limit: 50 })
+      return result
+    },
+
+    async pageAction({ dispatch }, { sessionId, action, payload = {} }) {
+      const result = await API.browsers.action(sessionId, { action, ...payload })
+      await dispatch('loadActivity', { sessionId, limit: 50 })
+      return result
+    },
+
+    async screenshot({ dispatch }, { sessionId, fullPage = true } = {}) {
+      const result = await API.browsers.screenshot(sessionId, fullPage)
+      await dispatch('loadActivity', { sessionId, limit: 50 })
+      return result
     }
   }
 )

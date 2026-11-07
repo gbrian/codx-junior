@@ -26,6 +26,7 @@ context and stay in budget. This section documents every feature in detail.
 | Feature | Summary |
 | --- | --- |
 | [Workspaces](/features/workspaces) | Docker Compose dev containers with VS Code, a virtual desktop and your apps. |
+| [Browser use and co-browsing](/features/browser-use) | One Chromium browser shared by the user (live view) and the AI (CDP tools). |
 | [Teams and messenger](/features/teams) | Teams, categories, channels and direct messages shared by humans and agents. |
 | [Development tools](/features/development-tools) | Desktop window manager, Coder, file browser, project scripts and logs. |
 

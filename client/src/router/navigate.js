@@ -55,11 +55,7 @@ export default function Navigate({ $router, $storex }) {
       })
     },
     browser: {
-      list: () => ({ name: 'browsers' }),
-      open: (sessionId, sessionName) => ({
-        name: 'browser-session',
-        params: { sessionId, sessionName }
-      })
+      list: () => ({ name: 'browsers' })
     },
     // Team view. The optional team id makes an individual team addressable at
     // "/:projectName/team/:teamId" (see router/index.ts + views/TeamView.vue).
@@ -326,6 +322,18 @@ export default function Navigate({ $router, $storex }) {
         return true
       }
 
+      // ── Browser session route → keep the store selection in sync ──
+      // "/:projectName/browsers/:sessionId" renders the browser-sessions screen,
+      // which shows the session panel (live browser + docked chat) only for the
+      // SELECTED session. The selection lives in the store, so a deep link or a
+      // refresh on that URL must restore it from the route param.
+      if (to.name === 'browser-session' && to.params.sessionId) {
+        const sessionId = String(to.params.sessionId)
+        if ($storex.browsers.selectedSessionId !== sessionId) {
+          $storex.browsers.selectSession(sessionId)
+        }
+      }
+
       // ── Any other named route renders as-is ──────────────────────
       // Single mode (every route except ".../desktop") shows one app at a
       // time; desktop mode is the dockview workspace. The active route is the
@@ -472,31 +480,23 @@ export default function Navigate({ $router, $storex }) {
         openApp('browser-sessions')
       },
 
+      // Open a session in the browser-sessions workspace.
+      //
+      // That screen is the ONLY place a live browser is docked: its panel owns
+      // the [ live browser | session chat ] splitter (see
+      // components/browsers/BrowserSessionPanel.vue). Opening a separate
+      // 'browser-viewer' panel instead produced a second, chat-less browser —
+      // the session chat stayed behind in the sessions panel or, worse, was
+      // opened as its own panel outside the splitter. Selecting the session and
+      // showing the workspace keeps browser and chat in the same split.
       open(sessionId, sessionName) {
         if (!sessionId) {
           console.warn('[Navigation] browsers.open: invalid sessionId', sessionId)
           return
         }
 
-        const name = sessionName || `session-${sessionId}`
-        const location = $storex.ui.isMobile
-          ? routes.browser.open(sessionId, name)
-          : null
-
-        if (location) {
-          $router.push(location)
-          return
-        }
-
-        $storex.ui.showApp({
-          tabId: `browser-${sessionId}`,
-          name,
-          component: 'browser-viewer',
-          params: {
-            sessionId,
-            session: { id: sessionId, name }
-          }
-        })
+        $storex.browsers.selectSession(sessionId)
+        openApp('browser-sessions', { name: sessionName || undefined })
       }
     },
 

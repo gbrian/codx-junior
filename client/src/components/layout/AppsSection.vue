@@ -133,6 +133,16 @@ import { isOpenInNewTabEvent, openProjectInNewTab } from '@/utils/projectLinks'
         @click="handleNavigateToFileExplorer"
       />
 
+      <!-- Running Chromium sessions shared by the user and the AI. Opens the
+           session manager (list + live co-browsing view) on desktop and the
+           "/:projectName/browsers" route in single / mobile mode. -->
+      <NavItem
+        icon="fa-regular fa-compass"
+        label="Browser sessions"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToBrowserSessions"
+      />
+
       <NavItem
         icon="fas fa-code-branch"
         label="Git"
@@ -293,6 +303,11 @@ export default {
     },
     handleNavigateToFileExplorer() {
       this.openApp('file-explorer')
+    },
+    // Opens the co-browsing session manager so the user can create, inspect,
+    // open, restart or delete the Chromium sessions shared with the AI.
+    handleNavigateToBrowserSessions() {
+      this.openApp('browser-sessions')
     },
     handleNavigateToGitView() {
       this.openApp('git-view')

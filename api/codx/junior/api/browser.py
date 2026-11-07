@@ -7,10 +7,13 @@ REST Endpoints:
     GET    /api/browsers              - List all sessions
     POST   /api/browsers              - Create new session
     GET    /api/browsers/<session_id> - Get session details
+    PUT    /api/browsers/<session_id> - Rename session
     DELETE /api/browsers/<session_id> - Stop & delete session
     POST   /api/browsers/<session_id>/action     - Execute browser action
     POST   /api/browsers/<session_id>/screenshot - Take screenshot
     GET    /api/browsers/<session_id>/source     - Get page source
+    GET    /api/browsers/<session_id>/activity   - User/AI audit trail
+    GET    /api/browsers/<session_id>/cost       - AI cost/usage summary
     POST   /api/browsers/<session_id>/restart    - Restart session
     POST   /api/browsers/<session_id>/stop       - Stop session (keep container)
 
@@ -24,7 +27,9 @@ Socket.IO Events (real-time status updates for long-running operations):
 """
 
 import logging
-from typing import Optional
+import time
+from typing import Any, Dict, Optional
+
 from fastapi import APIRouter, HTTPException, Request, status
 
 from codx.junior.engine.session import CODXJuniorSession
@@ -34,10 +39,16 @@ from codx.junior.api.browser_models import (
     BrowserSessionResponse,
     BrowserSessionListResponse,
     BrowserSessionCreateRequest,
+    BrowserSessionUpdateRequest,
+    BrowserSessionChatRequest,
+    BrowserSessionChatResponse,
     BrowserSessionActionRequest,
     BrowserActionResponse,
     BrowserScreenshotResponse,
     BrowserSourceResponse,
+    BrowserActivityResponse,
+    BrowserCostResponse,
+    BrowserScreenshotRequest,
 )
 from codx.junior.chat_manager import ChatManager
 
@@ -128,7 +139,7 @@ async def create_session(request: Request, req: BrowserSessionCreateRequest):
     """
     Create and start a new browser session.
 
-    Starts a Firefox Docker container with Traefik routing and a persistent profile.
+    Starts a Chromium Docker container with Traefik routing and a persistent profile.
     The session is named (``req.name``) and optionally connected to ``req.chat_id``.
     Multiple chats may connect to the same session.
     """
@@ -136,8 +147,8 @@ async def create_session(request: Request, req: BrowserSessionCreateRequest):
         session = await get_session_context(request)
         browser_manager = _browser_manager(session)
 
-        browser_session = browser_manager.create_session(name=req.name, chat_id=req.chat_id)
-
+        chat = None
+        chat_manager = None
         if req.chat_id:
             chat_manager = ChatManager(session.settings)
             chat = chat_manager.find_by_id(req.chat_id)
@@ -145,6 +156,14 @@ async def create_session(request: Request, req: BrowserSessionCreateRequest):
                 logger.error("create_session: chat not found: %s", req.chat_id)
                 raise HTTPException(status_code=404, detail="Chat not found")
 
+        browser_session = browser_manager.create_session(
+            name=req.name,
+            chat_id=req.chat_id,
+            initial_url=req.initial_url,
+            description=req.description,
+        )
+
+        if chat and chat_manager:
             browser_manager.save_session_to_chat(browser_session, chat)
             chat_manager.save_chat(chat)
 
@@ -195,6 +214,122 @@ async def get_session(request: Request, session_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.put(
+    "/{session_id}",
+    response_model=BrowserSessionResponse,
+    summary="Update a browser session",
+    responses={
+        200: {"description": "Session updated"},
+        401: {"description": "Unauthorized"},
+        404: {"description": "Session not found"},
+        500: {"description": "Server error"},
+    },
+)
+async def update_session(request: Request, session_id: str, req: BrowserSessionUpdateRequest):
+    """Update the human-readable name of a browser session."""
+    try:
+        session = await get_session_context(request)
+        browser_manager = _browser_manager(session)
+        browser_session = browser_manager.update_session(session_id, name=req.name)
+        if not browser_session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return BrowserSessionResponse(**browser_session.to_dict())
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("update_session: unexpected error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/{session_id}/chat",
+    response_model=BrowserSessionChatResponse,
+    summary="Open or create the chat linked to a session",
+    responses={
+        200: {"description": "Chat linked to the session"},
+        401: {"description": "Unauthorized"},
+        404: {"description": "Session or chat not found"},
+        500: {"description": "Server error"},
+    },
+)
+async def open_session_chat(
+    request: Request,
+    session_id: str,
+    req: Optional[BrowserSessionChatRequest] = None,
+):
+    """
+    Return a chat that can drive the browser session from the session view.
+
+    If the session already has a linked chat, that chat is reused. If it has
+    none (or the caller passes a different ``chat_id``), a chat is created and
+    linked to the session. Chats opened this way get the built-in ``browser``
+    profile so the agent receives the browser tools.
+    """
+    from codx.junior.db import Chat
+
+    try:
+        session = await get_session_context(request)
+        browser_manager = _browser_manager(session)
+        browser_session = browser_manager.get_session(session_id)
+        if not browser_session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        chat_manager = ChatManager(session.settings)
+        chat = None
+
+        requested_chat_id = req.chat_id if req else None
+        create_new = bool(req.create_new) if req else False
+        if requested_chat_id:
+            chat = chat_manager.find_by_id(requested_chat_id)
+            if not chat:
+                raise HTTPException(status_code=404, detail="Chat not found")
+        elif not create_new and browser_session.chat_ids:
+            chat = chat_manager.find_by_id(browser_session.chat_ids[0])
+
+        browser_profile_available = False
+        try:
+            browser_profile_available = bool(
+                session.get_profile_manager().get_profiles_by_name(["browser"])
+            )
+        except Exception as ex:
+            logger.debug("Could not check the browser profile: %s", ex)
+
+        if not chat:
+            base_name = f"Browser: {browser_session.name or browser_session.id[:8]}"
+            suffix = f" ({len(browser_session.chat_ids) + 1})" if browser_session.chat_ids else ""
+            chat = Chat(
+                name=f"{base_name}{suffix}",
+                mode="chat",
+                project_id=session.settings.project_id,
+                owner_project_id=session.settings.project_id,
+                profiles=["browser"] if browser_profile_available else [],
+                meta_data={},
+            )
+            chat_manager.save_chat(chat)
+
+        # The chat explicitly asks to operate this browser: make sure the
+        # browser profile (and therefore the browser tools) is active.
+        if browser_profile_available and "browser" not in (chat.profiles or []):
+            chat.profiles = [*(chat.profiles or []), "browser"]
+
+        browser_manager.save_session_to_chat(browser_session, chat)
+        chat_manager.save_chat(chat)
+        logger.info(
+            "open_session_chat: session %s linked to chat %s",
+            session_id[:8], chat.id,
+        )
+        return BrowserSessionChatResponse(
+            session=BrowserSessionResponse(**browser_session.to_dict()),
+            chat=chat.model_dump(),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("open_session_chat: unexpected error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete(
     "/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -239,7 +374,7 @@ async def delete_session(request: Request, session_id: str):
     },
 )
 async def restart_session(request: Request, session_id: str):
-    """Restart a stopped browser session (preserves the Firefox profile)."""
+    """Restart a stopped browser session (preserves the Chromium profile)."""
     try:
         session = await get_session_context(request)
         browser_manager = _browser_manager(session)
@@ -304,7 +439,34 @@ async def stop_session(request: Request, session_id: str):
     },
 )
 async def execute_action(request: Request, session_id: str, req: BrowserSessionActionRequest):
-    """Execute a browser action (navigate, click, fill, execute, text)."""
+    """
+    Execute a browser action on the shared page.
+
+    The action is performed through the same CDP connection the AI uses, so the
+    user's live VNC view reflects it immediately.
+    """
+    browser = None
+    browser_manager = None
+    browser_session = None
+    action = (req.action or "").lower().strip()
+    started_at = time.monotonic()
+    params: Dict[str, Any] = {
+        key: value
+        for key, value in {
+            "url": req.url,
+            "selector": req.selector,
+            "value": req.value,
+            "script": req.script,
+            "key": req.key,
+            "timeout": req.timeout,
+            "x": req.x,
+            "y": req.y,
+            "full_page": req.full_page,
+        }.items()
+        if value is not None
+    }
+    title = None
+
     try:
         session = await get_session_context(request)
         browser_manager = _browser_manager(session)
@@ -325,53 +487,132 @@ async def execute_action(request: Request, session_id: str, req: BrowserSessionA
             )
 
         browser = await browser_manager.connect_browser(browser_session)
-        try:
-            action = (req.action or "").lower()
 
-            if action == "navigate":
-                if not req.url:
-                    raise HTTPException(400, "URL required for navigate action")
-                title = await browser.navigate(req.url)
-                message, data = f"Navigated to {req.url}", {"title": title, "url": req.url}
+        if action == "navigate":
+            if not req.url:
+                raise HTTPException(400, "URL required for navigate action")
+            title = await browser.navigate(req.url)
+            message, data = f"Navigated to {req.url}", {"title": title, "url": req.url}
 
-            elif action == "click":
-                if not req.selector:
-                    raise HTTPException(400, "Selector required for click action")
-                await browser.click(req.selector)
-                message, data = f"Clicked {req.selector}", {"selector": req.selector}
+        elif action == "click":
+            if not req.selector:
+                raise HTTPException(400, "Selector required for click action")
+            await browser.click(req.selector)
+            message, data = f"Clicked {req.selector}", {"selector": req.selector}
 
-            elif action == "fill":
-                if not req.selector or req.value is None:
-                    raise HTTPException(400, "Selector and value required for fill action")
-                await browser.fill(req.selector, req.value)
-                message, data = f"Filled {req.selector}", {"selector": req.selector, "value": req.value}
+        elif action == "fill":
+            if not req.selector or req.value is None:
+                raise HTTPException(400, "Selector and value required for fill action")
+            await browser.fill(req.selector, req.value)
+            message, data = f"Filled {req.selector}", {"selector": req.selector, "value": req.value}
 
-            elif action == "execute":
-                if not req.script:
-                    raise HTTPException(400, "Script required for execute action")
-                result = await browser.execute_script(req.script)
-                message, data = "Script executed", {"result": result}
+        elif action == "execute":
+            if not req.script:
+                raise HTTPException(400, "Script required for execute action")
+            result = await browser.execute_script(req.script)
+            message, data = "Script executed", {"result": result}
 
-            elif action in ("text", "read"):
-                text = await browser.get_text()
-                message, data = "Page text read", {"text": text}
+        elif action == "text" or action == "read":
+            text = await browser.get_text()
+            message, data = "Page text read", {"text": text}
 
-            else:
-                raise HTTPException(400, f"Unknown action: {req.action}")
+        elif action == "links":
+            links = await browser.get_links()
+            message, data = "Page links read", {"links": links}
 
-            browser_session.mark_active()
-            browser_manager.save_session(browser_session)
-            logger.info("execute_action: '%s' completed for session %s", action, session_id[:8])
-            return BrowserActionResponse(success=True, message=message, data=data)
+        elif action == "back":
+            title = await browser.go_back()
+            message, data = "Navigated back", {"title": title}
 
-        finally:
-            await browser.close()
+        elif action == "forward":
+            title = await browser.go_forward()
+            message, data = "Navigated forward", {"title": title}
 
-    except HTTPException:
+        elif action == "refresh":
+            title = await browser.reload()
+            message, data = "Page refreshed", {"title": title}
+
+        elif action == "wait":
+            if not req.selector:
+                raise HTTPException(400, "Selector required for wait action")
+            await browser.wait_for_selector(req.selector, timeout=req.timeout or 5000)
+            message, data = f"Element appeared: {req.selector}", {"selector": req.selector}
+
+        elif action == "press":
+            if not req.selector or not req.key:
+                raise HTTPException(400, "Selector and key required for press action")
+            await browser.press(req.selector, req.key)
+            message, data = f"Pressed {req.key} on {req.selector}", {"selector": req.selector, "key": req.key}
+
+        elif action == "select":
+            if not req.selector or req.value is None:
+                raise HTTPException(400, "Selector and value required for select action")
+            await browser.select(req.selector, req.value)
+            message, data = f"Selected {req.value} on {req.selector}", {"selector": req.selector, "value": req.value}
+
+        elif action == "hover":
+            if not req.selector:
+                raise HTTPException(400, "Selector required for hover action")
+            await browser.hover(req.selector)
+            message, data = f"Hovered {req.selector}", {"selector": req.selector}
+
+        elif action == "scroll":
+            await browser.scroll(x=req.x or 0, y=req.y or 0)
+            message, data = "Page scrolled", {"x": req.x or 0, "y": req.y or 0}
+
+        elif action == "screenshot":
+            screenshot = await browser.get_screenshot(full_page=bool(req.full_page))
+            message, data = "Screenshot captured", {"screenshot": screenshot, "full_page": bool(req.full_page)}
+
+        else:
+            raise HTTPException(400, f"Unknown action: {req.action}")
+
+        data.update({
+            "url": browser_session.current_url,
+            "title": browser_session.current_title,
+        })
+        browser_manager.save_session(browser_session)
+        browser_manager.log_activity(
+            browser_session,
+            actor="user",
+            action=action,
+            params=params,
+            url=browser_session.current_url,
+            title=browser_session.current_title,
+            duration_ms=(time.monotonic() - started_at) * 1000,
+            result={"message": message},
+        )
+        logger.info("execute_action: '%s' completed for session %s", action, session_id[:8])
+        return BrowserActionResponse(success=True, message=message, data=data)
+
+    except HTTPException as ex:
+        if browser_session is not None and browser_manager is not None:
+            browser_manager.log_activity(
+                browser_session,
+                actor="user",
+                action=action or "unknown",
+                params=params,
+                success=False,
+                error=str(ex.detail),
+                duration_ms=(time.monotonic() - started_at) * 1000,
+            )
         raise
     except Exception as e:
         logger.exception("execute_action: unexpected error: %s", e)
+        if browser_session is not None and browser_manager is not None:
+            browser_manager.log_activity(
+                browser_session,
+                actor="user",
+                action=action or "unknown",
+                params=params,
+                success=False,
+                error=str(e),
+                duration_ms=(time.monotonic() - started_at) * 1000,
+            )
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if browser is not None:
+            await browser.close()
 
 
 @router.post(
@@ -385,7 +626,7 @@ async def execute_action(request: Request, session_id: str, req: BrowserSessionA
         500: {"description": "Server error"},
     },
 )
-async def take_screenshot(request: Request, session_id: str):
+async def take_screenshot(request: Request, session_id: str, req: Optional[BrowserScreenshotRequest] = None):
     """Take a screenshot of the current page."""
     try:
         session = await get_session_context(request)
@@ -408,9 +649,17 @@ async def take_screenshot(request: Request, session_id: str):
 
         browser = await browser_manager.connect_browser(browser_session)
         try:
-            screenshot = await browser.get_screenshot()
+            screenshot = await browser.get_screenshot(full_page=req.full_page if req else True)
             browser_session.mark_active()
             browser_manager.save_session(browser_session)
+            browser_manager.log_activity(
+                browser_session,
+                actor="user",
+                action="screenshot",
+                params={"full_page": bool(req.full_page) if req else True},
+                url=browser_session.current_url,
+                title=browser_session.current_title,
+            )
             logger.info("take_screenshot: screenshot completed for session %s", session_id[:8])
             return BrowserScreenshotResponse(success=True, screenshot=screenshot)
         finally:
@@ -459,14 +708,90 @@ async def get_source(request: Request, session_id: str):
             url = browser_session.current_url
             browser_session.mark_active()
             browser_manager.save_session(browser_session)
+            browser_manager.log_activity(
+                browser_session,
+                actor="user",
+                action="source",
+                url=url,
+                title=browser_session.current_title,
+                result={"chars": len(html or "")},
+            )
             logger.info("get_source: source retrieved for session %s", session_id[:8])
-            return BrowserSourceResponse(success=True, html=html, url=url)
+            return BrowserSourceResponse(
+                success=True,
+                html=html,
+                url=url,
+                title=browser_session.current_title,
+            )
         finally:
             await browser.close()
 
     except Exception as e:
         logger.exception("get_source: unexpected error: %s", e)
         return BrowserSourceResponse(success=False, error=str(e))
+
+
+@router.get(
+    "/{session_id}/activity",
+    response_model=BrowserActivityResponse,
+    summary="Get the user/AI audit trail",
+    responses={
+        200: {"description": "Activity entries"},
+        401: {"description": "Unauthorized"},
+        404: {"description": "Session not found"},
+    },
+)
+async def get_activity(request: Request, session_id: str, limit: int = 100):
+    """Return the most recent user and AI actions performed on the session."""
+    try:
+        session = await get_session_context(request)
+        browser_manager = _browser_manager(session)
+        browser_session = browser_manager.get_session(session_id)
+        if not browser_session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        entries = browser_manager.get_activity(session_id, limit=limit)
+        return BrowserActivityResponse(
+            session_id=session_id,
+            count=len(entries),
+            activity=entries,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("get_activity: unexpected error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/{session_id}/cost",
+    response_model=BrowserCostResponse,
+    summary="Get the AI cost/usage summary",
+    responses={
+        200: {"description": "Cost summary"},
+        401: {"description": "Unauthorized"},
+        404: {"description": "Session not found"},
+    },
+)
+async def get_cost(request: Request, session_id: str):
+    """
+    Return the accumulated AI cost, tokens, LLM calls and tool calls for every
+    chat connected to the browser session.
+
+    The numbers come from SmolAgent's token-usage analytics and ``Chat.cost``,
+    so they reconcile with the chat header's cost indicator.
+    """
+    try:
+        session = await get_session_context(request)
+        browser_manager = _browser_manager(session)
+        browser_session = browser_manager.get_session(session_id)
+        if not browser_session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        return BrowserCostResponse(**browser_manager.get_cost_summary(session_id))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("get_cost: unexpected error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
@@ -486,6 +811,8 @@ async def sio_browser_create(sid: str, data: dict, codxjunior_session: CODXJunio
     channel = SessionChannel(sio=sio, sid=sid)
     chat_id = data.get("chat_id")
     name = data.get("name")
+    initial_url = data.get("initial_url")
+    description = data.get("description")
 
     if not codxjunior_session:
         _emit(channel, {"status": "error", "message": "Missing codx_path", "error": "Missing codx_path"})
@@ -506,7 +833,12 @@ async def sio_browser_create(sid: str, data: dict, codxjunior_session: CODXJunio
         _emit(channel, {"status": "starting", "message": "Creating browser session...", "name": name, "chat_id": chat_id})
 
         browser_manager = codxjunior_session.get_browser_manager()
-        browser_session = browser_manager.create_session(name=name, chat_id=chat_id)
+        browser_session = browser_manager.create_session(
+            name=name,
+            chat_id=chat_id,
+            initial_url=initial_url,
+            description=description,
+        )
 
         _emit(channel, {
             "status": "created",

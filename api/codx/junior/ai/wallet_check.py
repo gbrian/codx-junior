@@ -60,8 +60,20 @@ def check_user_wallet(user: CodxUser) -> None:
             f"User '{user.username}' wallet is disabled."
         )
 
-    # No spending limits configured → unlimited, just allow
-    if not wallet.spending_limits:
+    # No spending limits configured → unlimited, just allow.  Tolerate a
+    # non-iterable value (legacy/partially-populated wallet models) instead of
+    # failing the AI request: no limits means unlimited.
+    raw_limits = getattr(wallet, "spending_limits", None)
+    try:
+        spending_limits = list(raw_limits) if raw_limits else []
+    except TypeError:
+        logger.warning(
+            "check_user_wallet: user '%s' has an invalid spending_limits value (%r); allowing.",
+            user.username,
+            raw_limits,
+        )
+        return
+    if not spending_limits:
         logger.debug(
             "check_user_wallet: user '%s' has no spending limits — allowing.",
             user.username,
@@ -72,7 +84,7 @@ def check_user_wallet(user: CodxUser) -> None:
     today_spent = _get_today_spent(user.username)
 
     # Check each spending limit against analytics-sourced spend
-    for limit in wallet.spending_limits:
+    for limit in spending_limits:
         remaining = limit.limit_cxjcoins - today_spent
         logger.debug(
             "check_user_wallet: user '%s' [%s] today_spent=%.4f limit=%.4f remaining=%.4f",

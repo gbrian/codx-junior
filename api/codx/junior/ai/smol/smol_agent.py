@@ -1336,8 +1336,14 @@ class SmolAgent:
         # Build the typed run result (replaces the previous untyped
         # ``additional_kwargs = {"cost": ..., "chat_cost": ...}`` contract).
         analytics_summary = run_context.analytics.summary()
+        if not isinstance(analytics_summary, dict):
+            analytics_summary = {}
         tool_stats: Dict[str, Dict[str, Any]] = analytics_summary.get("tools", {}) or {}
+        if not isinstance(tool_stats, dict):
+            tool_stats = {}
         cache_stats = tool_cache.stats()
+        if not isinstance(cache_stats, dict):
+            cache_stats = {}
 
         cost_info = CostInfo(
             iteration_cost_cxjcoins=iteration_cost,
@@ -1953,6 +1959,18 @@ class SmolAgent:
                     sig = inspect.signature(tool["tool_call"])
                     if "session" in sig.parameters:
                         params["session"] = self.session
+                except (ValueError, TypeError):
+                    pass
+            # Tools that act on the current conversation (browser sessions,
+            # task tools...) receive the chat id when their signature declares
+            # it. This is what links an AI-created browser session to the chat
+            # the user is looking at, instead of relying on the model to know
+            # the opaque chat id.
+            if chat_id and "chat_id" not in params:
+                try:
+                    sig = inspect.signature(tool["tool_call"])
+                    if "chat_id" in sig.parameters:
+                        params["chat_id"] = chat_id
                 except (ValueError, TypeError):
                     pass
 
