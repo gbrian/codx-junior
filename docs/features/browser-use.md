@@ -13,7 +13,11 @@ there is one page, one history, one cookie jar and one live view.
 - Ask the AI to navigate, click, fill forms, run JavaScript, read the page text,
   list links, take screenshots, inspect the HTML source, or review what the user
   did recently.
+- Hand control back and forth explicitly. The AI pauses when the human types or
+  clicks in the live view, and can request a handoff for login/MFA/captcha.
 - Keep the browser profile (cookies, logins, local storage) across restarts.
+- Save and replay per-site scripts in one tool call instead of one LLM turn per
+  step.
 
 ## Architecture
 
@@ -43,6 +47,13 @@ there is one page, one history, one cookie jar and one live view.
   network; both actors therefore drive the **same page**.
 - **Persistence** — the container mounts
   `.codx/browser_sessions/<session_id>/chromium_profile` at `/config`.
+- **Runtime** — the API keeps one Playwright connection per session (idle
+  disconnect after 5 minutes) and serializes actions with a per-session lock.
+  A 1-second watcher drains the in-page recorder, so human clicks/edits/tab
+  switches show up as `actor=user` activity without polling the whole log.
+- **Navigation** — `domcontentloaded` plus a short best-effort `load` wait;
+  `networkidle` is no longer used (it timed out on live sites and the old code
+  navigated a second time).
 
 ## Using it
 
@@ -53,7 +64,14 @@ then select it. The live browser is embedded in the panel:
 
 - address bar, back, forward and refresh send actions through the REST API;
 - clicking and typing in the iframe controls the browser directly;
-- the **Shared activity** panel shows `User`, `AI` and `System` actions;
+- the control badge shows who is driving (`AI`, `You active`, `You drive`);
+  **Take control** pauses the AI and **Give back** resumes it;
+- a handoff banner appears when the AI needs the human (login/MFA/captcha);
+  complete it and click **I'm done — give back to AI**;
+- the **Ask AI** button sends the current URL, title, selected text and active
+  field to the browser chat;
+- the **Shared activity** panel shows `User`, `AI` and `System` actions live
+  (click/fill/submit/scroll/tab switch included);
 - the **AI cost** panel shows the SmolAgent token usage and cxjcoins of every
   chat linked to the session;
 - the session list on the left can be collapsed with the chevron on its edge,
@@ -71,10 +89,15 @@ Browser tools are available to the agent by default (`browser` tools):
 | Tool | Purpose |
 | --- | --- |
 | `start_session` | Start or resume the chat's shared browser. Returns `session_id` and the live-view URL. |
-| `browse_action` | `navigate`, `click`, `fill`, `execute`, `text`, `links`, `back`, `forward`, `refresh`, `wait`, `press`, `select`, `hover`, `scroll`. |
+| `browse_action` | `navigate`, `click`, `fill`, `execute`, `text`, `links`, `snapshot`, `back`, `forward`, `refresh`, `wait`, `press`, `select`, `hover`, `scroll`, tabs, and `batch` (several steps in one call). Click/fill by `ref` from a snapshot or by selector/text. |
+| `browser_status` | Connection, URL/title, tabs and who controls the page. |
+| `browser_control` | `status`, `handoff`, `take_control`, `give_back`, `pause`. |
 | `get_screenshot` | Capture the current page (the user sees the image inline). |
 | `get_source_code` | Return the page HTML (capped to keep model context small). |
-| `browser_activity` | Recent user/AI actions, so the AI notices manual changes. |
+| `browser_activity` | Recent user/AI actions, so the AI notices manual changes; supports `actor` and `since` filters. |
+| `list_browser_scripts` / `get_browser_script` | Find/read a saved recipe. |
+| `run_browser_script` | Execute a whole saved recipe in one call, on one connection. |
+| `save_browser_script` / `delete_browser_script` | Maintain the per-site library (versioned, soft delete). |
 | `finish_session` | Stop (or delete) the session, keeping the Chromium profile. |
 
 The running chat id is injected automatically into these tools, so a session
@@ -116,11 +139,52 @@ The API process needs access to the Docker socket, as it does for workspaces.
 
 - Every user/AI action is appended to
   `.codx/browser_sessions/<session_id>/activity.jsonl` with timestamp, actor,
-  action, parameters, URL, title, duration and result/error.
+  action, parameters, URL, title, duration and result/error. Input values are
+  redacted (`value_redacted` + `value_length`) so passwords never land in the
+  audit trail. The endpoint tail-reads the file and pushes new entries over
+  Socket.IO (`codx-junior-browser-activity`).
+- The in-page recorder captures human clicks, edits, submits, Enter keys, scrolls
+  and tab switches. It tags AI-dispatched events so they are not attributed to
+  the human.
 - SmolAgent records token usage and cxjcoins through the existing analytics
   pipeline (`/api/browsers/{id}/cost` reconciles with the chat cost header).
 - Tool calls are also archived by SmolAgent's tool-usage analytics, including
   the action, arguments and result.
+
+## Co-browsing protocol
+
+Control is explicit:
+
+```text
+ai_driving --user clicks/types--> user_active (AI yields)
+user_active --10 s idle--> ai_driving
+ai_driving --handoff(login/MFA/captcha)--> user_control (AI paused)
+user_control --"I'm done" / Give back--> ai_driving
+```
+
+- `POST /api/browsers/{id}/control` (`take_control`, `give_back`, `pause`,
+  `handoff`, `status`) moves the lease; the UI shows a control badge and a
+  handoff banner.
+- The AI must call `browser_activity(actor="user")` after a pause and must not
+  act while `controller="user"` or the user is recently active.
+- Before clicking, the AI can use refs from `browse_action(action="snapshot")`
+  so the target is stable and the page shows what was clicked.
+- The page recorder is installed in every tab; when the human switches tabs in
+  the VNC view, the runtime follows the visible tab and logs `switch_tab`.
+
+## Performance notes
+
+- One Playwright connection per session removes the old ~0.45–0.55 s
+  connect/disconnect cost per tool call (measured; subsequent actions are
+  ~10–20 ms of overhead).
+- `run_browser_script` executes a 20-step recipe in one LLM turn and one
+  connection.
+- Session create/stop/delete run off the API event loop; delete uses
+  `docker rm -f` and moves the profile to `.trash` before deleting it.
+- Activity is tail-read and pushed over Socket.IO; the UI polls only as a
+  fallback every 15 s, and cost is refreshed at most once a minute.
+- Script metadata lives in `meta.json` (the old `script.json` collided with the
+  `steps` code file, which made saved recipes load empty).
 
 ## Requirements and notes
 

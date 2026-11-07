@@ -218,6 +218,8 @@ class DockerBrowserManager:
         self.vnc_port = _env_int("CODX_BROWSER_VNC_PORT", DEFAULT_VNC_PORT)
         self.auth_middleware = (os.environ.get("CODX_BROWSER_AUTH_MIDDLEWARE") or "codx-junior-auth").strip()
         self.auto_pull = _env_flag("CODX_BROWSER_AUTO_PULL", True)
+        self._image_ready = False
+        self._image_checked_at = 0.0
         os.makedirs(browser_sessions_path, exist_ok=True)
         logger.debug(
             "DockerBrowserManager initialized at '%s' (domain: %s, image: %s, project: %s, home: %s)",
@@ -317,10 +319,17 @@ class DockerBrowserManager:
         session.project_name = self.project_name
         session.home_path = self.home_path
         session.shared_folders = shares
+        # "No project access" means the browser must not write into the
+        # project either: keep the downloads in the session folder.  An explicit
+        # downloads folder still wins (the caller asked for that mapping).
+        use_project = None
+        if share_project is False and not specs and not downloads_folder:
+            use_project = False
         self._configure_downloads(
             session,
             downloads_folder=downloads_folder,
             downloads_mount=downloads_mount,
+            use_project=use_project,
         )
         logger.info(
             "Session %s mounts %d folder(s) under %s: %s; downloads: %s -> %s",
@@ -410,6 +419,7 @@ class DockerBrowserManager:
         session: BrowserSession,
         downloads_folder: Optional[str] = None,
         downloads_mount: Optional[str] = None,
+        use_project: Optional[bool] = None,
     ) -> None:
         """
         Decide where the browser downloads are written.
@@ -421,7 +431,8 @@ class DockerBrowserManager:
         Raises:
             ValueError: When ``downloads_folder`` is outside the project.
         """
-        base = os.path.abspath(self.project_root_path) if self.can_share_project() else None
+        can_use_project = self.can_share_project() if use_project is not False else False
+        base = os.path.abspath(self.project_root_path) if can_use_project else None
         folder = (downloads_folder or "").strip().replace("\\", "/").strip("/")
 
         if base:
@@ -571,7 +582,12 @@ class DockerBrowserManager:
             session.error = str(ex)
             raise
 
-    def stop_container(self, session: BrowserSession, remove: bool = True) -> None:
+    def stop_container(
+        self,
+        session: BrowserSession,
+        remove: bool = True,
+        fast: bool = True,
+    ) -> None:
         """
         Stop a browser container, optionally removing it.
 
@@ -579,6 +595,11 @@ class DockerBrowserManager:
             session: BrowserSession with ``container_id`` set.
             remove: When True (default) stop **and remove**. When False only
                 stop, so :meth:`restart_container` can start it again.
+            fast: Delete/stop without waiting for Chromium's graceful shutdown.
+                Docker's default 10 s grace period blocks the request path (and
+                used to block the whole API event loop).  ``docker rm -f`` is
+                the right tool for a browser container: the profile is on disk,
+                so killing Chromium loses nothing.
         """
         if not session:
             return
@@ -596,17 +617,29 @@ class DockerBrowserManager:
                 str(session.container_id)[:12],
                 remove,
             )
-            subprocess.run(
-                ["docker", "stop", session.container_id],
-                capture_output=True,
-                timeout=30,
-            )
-            if remove:
+            if remove and fast:
+                # One command, immediate SIGKILL, no 10 s grace period.
                 subprocess.run(
                     ["docker", "rm", "-f", session.container_id],
                     capture_output=True,
                     timeout=20,
                 )
+            else:
+                stop_cmd = ["docker", "stop"]
+                if fast:
+                    stop_cmd.extend(["-t", "2"])
+                stop_cmd.append(session.container_id)
+                subprocess.run(
+                    stop_cmd,
+                    capture_output=True,
+                    timeout=15,
+                )
+                if remove:
+                    subprocess.run(
+                        ["docker", "rm", "-f", session.container_id],
+                        capture_output=True,
+                        timeout=20,
+                    )
                 session.container_id = None
                 session.debug_url = None
             session.status = "stopped"
@@ -728,6 +761,12 @@ class DockerBrowserManager:
                 "--no-default-browser-check",
                 "--disable-session-crashed-bubble",
                 "--disable-restore-session-state",
+                # Keep the 100+ MB persistent profile for identity only: the
+                # HTTP/media caches are rewritten constantly and belong in the
+                # container's ephemeral /tmp.
+                "--disk-cache-dir=/tmp/codx-chromium-cache",
+                "--media-cache-dir=/tmp/codx-chromium-media",
+                "--disable-background-networking",
                 "--start-maximized",
                 "--window-size=1920,1080",
                 url,
@@ -806,6 +845,8 @@ class DockerBrowserManager:
 
     def _ensure_image(self) -> None:
         """Pull the browser image when it is missing (best effort configurable)."""
+        if self._image_ready and time.time() - self._image_checked_at < 300:
+            return
         try:
             inspect = subprocess.run(
                 ["docker", "image", "inspect", self.image],
@@ -814,6 +855,8 @@ class DockerBrowserManager:
                 timeout=20,
             )
             if inspect.returncode == 0:
+                self._image_ready = True
+                self._image_checked_at = time.time()
                 return
         except Exception as ex:
             logger.debug("Could not inspect image %s: %s", self.image, ex)
@@ -834,6 +877,8 @@ class DockerBrowserManager:
             )
             if result.returncode != 0:
                 raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+            self._image_ready = True
+            self._image_checked_at = time.time()
         except Exception as ex:
             raise RuntimeError(
                 f"Could not pull Docker image '{self.image}': {ex}. "
@@ -923,15 +968,16 @@ class DockerBrowserManager:
             if not self._container_exists(container_name):
                 raise RuntimeError(f"Browser container {container_name} exited before becoming ready")
             try:
-                self._http_get(f"http://{container_name}:{self.vnc_port}/")
-                # The proxy is usable only when Chromium's DevTools endpoint is
-                # up behind it, so verify the JSON endpoint as well.
+                # CDP is the only endpoint the AI needs to start working.  The
+                # Selkies live view can finish loading in the iframe afterwards
+                # (the UI shows its own spinner), so waiting for it here added
+                # seconds to every create with no benefit.
                 self._http_json(f"http://{container_name}:{self.cdp_proxy_port}/json/version")
-                logger.debug("Container %s is ready", container_name)
+                logger.debug("Container %s is ready (CDP)", container_name)
                 return
             except Exception as ex:
                 last_error = str(ex)
-                time.sleep(1)
+                time.sleep(0.25)
 
         raise TimeoutError(
             f"Browser container {container_name} failed to become ready in {timeout}s "

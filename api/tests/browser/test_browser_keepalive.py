@@ -280,7 +280,7 @@ def _manager(tmp_path):
     manager = BrowserManager.__new__(BrowserManager)
     manager.sessions_path = str(tmp_path)
     manager.settings = type("Settings", (), {"project_id": "project-1"})()
-    manager.docker_manager = type("Docker", (), {})()
+    manager.docker_manager = type("Docker", (), {"stop_container": lambda self, *args, **kwargs: None, "restart_container": lambda self, target: target})()
     return manager
 
 
@@ -348,7 +348,9 @@ def test_restart_session_relaunches_chromium_and_restores_the_keep_alive_tab(tmp
     assert ("stop", False) in calls
     assert "start" in calls
     assert "restart" in calls
-    assert "keep-alive" in calls
+    # The keep-alive tab/recorder are ensured by the persistent runtime on its
+    # next connection, not by opening a second Playwright connection here.
+    assert "keep-alive" not in calls
 
 
 def test_open_keep_alive_tab_is_skipped_without_a_ready_browser(tmp_path, monkeypatch):

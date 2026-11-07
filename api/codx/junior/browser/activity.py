@@ -78,7 +78,7 @@ class BrowserActivityLog:
             "actor": actor or "system",
             "action": action,
             "success": bool(success),
-            "params": _safe_params(params),
+            "params": _safe_params(params, action),
             "url": url,
             "title": title,
             "duration_ms": round(float(duration_ms), 2) if duration_ms is not None else None,
@@ -103,13 +103,26 @@ class BrowserActivityLog:
         """
         Return the most recent *limit* entries (oldest → newest).
 
-        Large logs are read tail-first so activity endpoints stay cheap.
+        The file is read tail-first: opening it and calling ``readlines()``
+        loads the whole audit trail, which grows with every click the user makes
+        in the live view.  This implementation seeks from the end and reads
+        only as many blocks as needed.
         """
         if not os.path.isfile(self.path):
             return []
+        limit = max(1, min(int(limit or 100), MAX_READ_LINES))
         try:
-            with open(self.path, "r", encoding="utf-8", errors="replace") as handle:
-                lines = handle.readlines()[-max(1, min(int(limit), MAX_READ_LINES)):]
+            with open(self.path, "rb") as handle:
+                handle.seek(0, os.SEEK_END)
+                end = handle.tell()
+                block = min(64 * 1024, max(1, end))
+                data = b""
+                while end > 0 and data.count(b"\n") <= limit:
+                    end -= block
+                    handle.seek(end)
+                    data = handle.read(block) + data
+                    block = min(block * 2, 4 * 1024 * 1024)
+            lines = data.decode("utf-8", errors="replace").splitlines()[-limit:]
         except Exception as ex:
             logger.warning("Could not read browser activity log '%s': %s", self.path, ex)
             return []
@@ -120,19 +133,43 @@ class BrowserActivityLog:
             if not line:
                 continue
             try:
-                entries.append(json.loads(line))
+                entry = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            # Old logs may predate value redaction: sanitize on read too.
+            entry["params"] = _safe_params(entry.get("params"), entry.get("action"))
+            entries.append(entry)
         return entries
 
 
-def _safe_params(params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """Trim/redact action parameters before persisting them."""
+#: Actions whose ``value`` is user input and may contain a password/token.
+_SENSITIVE_VALUE_ACTIONS = {"fill", "type", "select", "press", "insert_text"}
+
+
+def _safe_params(params: Optional[Dict[str, Any]], action: str = "") -> Dict[str, Any]:
+    """Trim/redact action parameters before persisting them.
+
+    A password typed by the AI must never be written to ``activity.jsonl`` in
+    plaintext.  For input actions the value is replaced with ``"***"`` and its
+    length is kept so the audit trail still shows that something was entered.
+    """
     if not params:
         return {}
+    action = str(action or "").lower()
     safe: Dict[str, Any] = {}
     for key, value in params.items():
         if key in ("settings", "session", "tool_cache"):
+            continue
+        if key in ("value", "text") and action in _SENSITIVE_VALUE_ACTIONS:
+            text = "" if value is None else str(value)
+            safe["value_redacted"] = True
+            safe["value_length"] = len(text)
+            continue
+        if key == "script" and isinstance(value, str):
+            # JS may embed credentials; keep enough to audit, not the secret.
+            safe[key] = value[:500]
+            if len(value) > 500:
+                safe["script_truncated"] = True
             continue
         if isinstance(value, str):
             safe[key] = value[:2000]

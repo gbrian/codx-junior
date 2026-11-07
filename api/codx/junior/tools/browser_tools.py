@@ -19,11 +19,17 @@ Tools
                            hover / scroll / links / tabs (list, open, switch,
                            close).
 - ``get_screenshot``     – capture a PNG screenshot of the current page.
-- ``get_source_code``    – return the current page HTML.
+- ``get_source_code``    – return the current page HTML (prefer ``snapshot``).
 - ``browser_activity``   – recent user/AI actions on the session (co-browsing
-                           awareness).
+                           awareness), including real VNC input.
+- ``browser_status``     – connection, tabs and who controls the page.
+- ``browser_control``    – handoff / take control / give back / pause.
 - ``finish_session``     – stop (default) or delete the session. Stopping keeps
                            the Chromium profile; deleting removes it too.
+
+The tools no longer open a Playwright connection per call: ``BrowserManager``
+keeps one persistent runtime per session (see ``browser/runtime.py``), which
+also captures human input and runs whole scripts deterministically.
 
 Settings
 --------
@@ -35,6 +41,7 @@ model receives machine-readable content.
 """
 
 import asyncio
+import json
 import logging
 import time
 from datetime import datetime
@@ -42,6 +49,7 @@ from typing import Any, Dict, List, Optional
 
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.browser import tabs as browser_tabs
+from codx.junior.browser import events as browser_events
 from .model import ToolResponse
 
 logger = logging.getLogger(__name__)
@@ -60,9 +68,9 @@ BROWSER_TOOL_SETTINGS: Dict[str, Any] = {
 }
 
 #: Hard cap on the HTML returned by ``get_source_code`` (keeps LLM context sane).
-MAX_SOURCE_CHARS = 60000
+MAX_SOURCE_CHARS = 20000
 #: Hard cap on visible text returned by ``browse_action(text)``.
-MAX_TEXT_CHARS = 12000
+MAX_TEXT_CHARS = 8000
 
 #: Actions that operate on tabs instead of the current page content.
 TAB_ACTIONS = ("tabs", "new_tab", "switch_tab", "close_tab")
@@ -80,9 +88,9 @@ def _settings_from(kwargs: Dict[str, Any]) -> CODXJuniorSettings:
 
 
 def _manager(settings: CODXJuniorSettings):
-    """Build a BrowserManager for the given settings."""
-    from codx.junior.browser.browser_manager import BrowserManager
-    return BrowserManager(settings)
+    """Return the cached BrowserManager (owns the persistent runtimes)."""
+    from codx.junior.browser.browser_manager import get_browser_manager
+    return get_browser_manager(settings)
 
 
 def _resolve_session(manager, session_id: Optional[str] = None, chat_id: Optional[str] = None):
@@ -203,7 +211,7 @@ async def start_session(
         if existing:
             if existing.status != "running":
                 try:
-                    existing = await asyncio.to_thread(manager.restart_session, existing.id)
+                    existing = await manager.restart_session(existing.id)
                 except Exception as ex:
                     logger.warning("Could not restart browser session %s: %s", existing.id, ex)
 
@@ -234,6 +242,12 @@ async def start_session(
             downloads_folder,
         )
         _persist_to_chat(settings, session, chat_id)
+        # The runtime owns the recorder/watcher; warm it in the background so
+        # the first human click is captured even before the AI acts.
+        try:
+            asyncio.create_task(manager.warm_runtime(session))
+        except RuntimeError:
+            pass
 
         llm = (
             f"Browser session '{session.name}' started. session_id: {session.id}. "
@@ -269,6 +283,10 @@ async def browse_action(
     index: int = None,
     x: int = 0,
     y: int = 0,
+    ref: str = None,
+    text: str = None,
+    steps: List[Dict[str, Any]] = None,
+    variables: Dict[str, Any] = None,
     session_id: str = None,
     chat_id: str = None,
     **kwargs,
@@ -276,21 +294,31 @@ async def browse_action(
     """
     Perform an action on the shared browser page or on its tabs.
 
+    This is the single fast path for page interaction: the session's persistent
+    runtime keeps the Playwright connection open, so an action no longer pays a
+    ~0.5 s connect/disconnect cost.  For several actions use ``action="batch"``
+    (or a saved script with ``run_browser_script``): the whole list runs on one
+    connection and one LLM turn.
+
     Args:
         action: One of ``navigate``, ``click``, ``fill``, ``execute``,
-            ``text``, ``links``, ``back``, ``forward``, ``refresh``, ``wait``,
-            ``press``, ``select``, ``hover``, ``scroll``, ``tabs``,
-            ``new_tab``, ``switch_tab``, ``close_tab``.
-        url: Target URL (for ``navigate`` and ``new_tab``).
-        selector: CSS selector (for element actions).
+            ``text``, ``links``, ``snapshot``, ``back``, ``forward``,
+            ``refresh``, ``wait``, ``press``, ``select``, ``hover``,
+            ``scroll``, ``tabs``, ``new_tab``, ``switch_tab``, ``close_tab``,
+            ``batch``.
+        url: Target URL (navigate/new_tab) or URL fragment to wait for.
+        selector: CSS selector (element actions).
         value: Text to fill or option to select.
         script: JavaScript to run (for ``execute``; use ``return ...``).
         key: Keyboard key for ``press``.
-        timeout: Timeout in milliseconds for ``wait``.
-        index: Tab index (0-based) for ``switch_tab`` / ``close_tab``; omit it to
-            act on the active tab.
+        timeout: Timeout in milliseconds for waits.
+        index: Tab index for ``switch_tab`` / ``close_tab``.
         x: Horizontal scroll offset.
         y: Vertical scroll offset.
+        ref: Element ref returned by ``snapshot`` (preferred over CSS).
+        text: Visible text to click/wait for.
+        steps: Action list for ``batch``.
+        variables: ``{{name}}`` values for ``batch``.
         session_id: Session to act on (returned by ``start_session``).
         chat_id: Alternative to ``session_id`` — resolves the chat's session.
         **kwargs: Injected ``settings``.
@@ -308,128 +336,153 @@ async def browse_action(
             llm_response="No browser session available. Start one with start_session.",
         )
     if session.status != "running":
-        # A stopped container can usually be resumed without losing the profile.
         try:
-            session = await asyncio.to_thread(manager.restart_session, session.id)
+            session = await manager.restart_session(session.id)
         except Exception as ex:
             return ToolResponse(
                 user_response=f"❌ Session is not running and could not be restarted: {ex}",
                 llm_response=f"Session {session.id} is not running (status: {session.status}) and restart failed: {ex}",
+            )
+        if not session:
+            return ToolResponse(
+                user_response="❌ The browser session no longer exists.",
+                llm_response="The browser session was deleted or cannot be resolved.",
             )
 
     action = (action or "").lower().strip()
     params = {
         key_name: value
         for key_name, value in {
-            "url": url,
-            "selector": selector,
-            "value": value,
-            "script": script,
-            "key": key,
-            "timeout": timeout,
-            "index": index,
-            "x": x,
-            "y": y,
+            "url": url, "selector": selector, "value": value, "script": script,
+            "key": key, "timeout": timeout, "index": index, "x": x, "y": y,
+            "ref": ref, "text": text,
         }.items()
         if value is not None
     }
+    if action == "batch":
+        params["steps"] = len(steps or [])
     started_at = time.monotonic()
-    browser = None
+    runtime = None
     try:
-        browser = await manager.connect_browser(session)
+        runtime = await manager.get_runtime(session)
         if action == "navigate":
             if not url:
                 raise ValueError("url is required for navigate")
-            title = await browser.navigate(url)
+            title = await runtime.run("navigate", url)
             data = f"navigated to {url}\ntitle: {title}"
 
         elif action == "click":
-            if not selector:
-                raise ValueError("selector is required for click")
-            await browser.click(selector)
-            data = f"clicked {selector}"
+            if ref:
+                await runtime.run("click_ref", ref)
+                data = f"clicked ref {ref}"
+            elif text:
+                await runtime.run("click_text", text)
+                data = f"clicked text {text!r}"
+            elif selector:
+                await runtime.run("click", selector)
+                data = f"clicked {selector}"
+            else:
+                raise ValueError("click needs ref, selector or text")
 
         elif action == "fill":
-            if not selector or value is None:
-                raise ValueError("selector and value are required for fill")
-            await browser.fill(selector, value)
-            data = f"filled {selector}"
+            if value is None:
+                raise ValueError("value is required for fill")
+            if ref:
+                await runtime.run("fill_ref", ref, str(value))
+                data = f"filled ref {ref}"
+            elif selector:
+                await runtime.run("fill", selector, str(value))
+                data = f"filled {selector}"
+            else:
+                raise ValueError("fill needs ref or selector")
 
         elif action == "execute":
             if not script:
                 raise ValueError("script is required for execute")
-            result = await browser.execute_script(script)
-            data = f"script result: {result}"
+            result = await runtime.run("execute_script", script)
+            serialized = json.dumps(result, ensure_ascii=False, default=str)
+            data = f"script result: {serialized[:4000]}"
 
         elif action in ("text", "read"):
-            text = (await browser.get_text() or "").strip()
-            data = f"page text:\n{text[:MAX_TEXT_CHARS]}"
+            page_text = (await runtime.run("get_text", read_only=True) or "").strip()
+            data = f"page text:\n{page_text[:MAX_TEXT_CHARS]}"
 
         elif action == "links":
-            links = await browser.get_links()
+            links = await runtime.run("get_links", read_only=True)
             lines = [f"- {link.get('text') or '(no text)'} → {link.get('href')}" for link in links[:200]]
             data = f"links ({len(links)}):\n" + "\n".join(lines)
 
+        elif action in ("snapshot", "page"):
+            snapshot = await runtime.run("get_snapshot", read_only=True)
+            data = _format_snapshot(snapshot)
+
         elif action == "back":
-            title = await browser.go_back()
+            title = await runtime.run("go_back")
             data = f"went back\ntitle: {title}"
 
         elif action == "forward":
-            title = await browser.go_forward()
+            title = await runtime.run("go_forward")
             data = f"went forward\ntitle: {title}"
 
         elif action == "refresh":
-            title = await browser.reload()
+            title = await runtime.run("reload")
             data = f"page refreshed\ntitle: {title}"
 
         elif action == "wait":
-            if not selector:
-                raise ValueError("selector is required for wait")
-            await browser.wait_for_selector(selector, timeout=timeout or 5000)
-            data = f"element appeared: {selector}"
+            if text:
+                await runtime.run("wait_for_text", str(text), timeout=timeout or 5000)
+                data = f"text appeared: {text!r}"
+            elif selector:
+                await runtime.run("wait_for_selector", selector, timeout=timeout or 5000)
+                data = f"element appeared: {selector}"
+            elif url:
+                await runtime.run("wait_for_url", url, timeout=timeout or 5000)
+                data = f"url matched: {url}"
+            else:
+                raise ValueError("wait needs text, selector or url")
 
         elif action == "press":
             if not selector or not key:
                 raise ValueError("selector and key are required for press")
-            await browser.press(selector, key)
+            await runtime.run("press", selector, key)
             data = f"pressed {key} on {selector}"
 
         elif action == "select":
             if not selector or value is None:
                 raise ValueError("selector and value are required for select")
-            await browser.select(selector, value)
+            await runtime.run("select", selector, value)
             data = f"selected {value} on {selector}"
 
         elif action == "hover":
             if not selector:
                 raise ValueError("selector is required for hover")
-            await browser.hover(selector)
+            await runtime.run("hover", selector)
             data = f"hovered {selector}"
 
         elif action == "scroll":
-            await browser.scroll(x=x or 0, y=y or 0)
+            await runtime.run("scroll", x=x or 0, y=y or 0)
             data = f"scrolled by x={x or 0}, y={y or 0}"
 
         elif action == "tabs":
-            tabs = await browser_tabs.list_tabs(browser)
+            tabs = await runtime.run_tabs("tabs")
             data = f"open tabs ({len(tabs)}):\n" + browser_tabs.format_tabs(tabs)
 
         elif action == "new_tab":
-            tab = await browser_tabs.open_tab(browser, url)
+            tab = await runtime.run_tabs("new_tab", url=url)
             data = (
                 f"opened tab [{tab['index']}] {tab['title'] or '(untitled)'}\n"
                 f"url: {tab['url']}"
             )
 
         elif action == "switch_tab":
-            tab = await browser_tabs.switch_tab(browser, index)
+            tab = await runtime.run_tabs("switch_tab", index=index)
             data = (
                 f"switched to tab [{tab['index']}] {tab['title'] or '(untitled)'}\n"
                 f"url: {tab['url']}"
             )
 
         elif action == "close_tab":
-            tab = await browser_tabs.close_tab(browser, index)
+            tab = await runtime.run_tabs("close_tab", index=index)
             data = (
                 f"closed tab [{tab['closed_index']}] "
                 f"{tab['closed_title'] or tab['closed_url']}\n"
@@ -437,15 +490,21 @@ async def browse_action(
                 f"url: {tab['url']}"
             )
 
+        elif action == "batch":
+            if not steps:
+                raise ValueError("steps is required for batch")
+            result = await runtime.run_steps(steps, variables or {})
+            data = _format_batch(result)
+
         else:
             raise ValueError(
                 "unknown action '%s' (use navigate|click|fill|execute|text|links|"
-                "back|forward|refresh|wait|press|select|hover|scroll|"
-                "tabs|new_tab|switch_tab|close_tab)" % action
+                "snapshot|back|forward|refresh|wait|press|select|hover|scroll|"
+                "tabs|new_tab|switch_tab|close_tab|batch)" % action
             )
 
+        session = getattr(runtime, "session", None) or session
         session.mark_active()
-        manager.save_session(session)
         manager.log_activity(
             session,
             actor="ai",
@@ -458,7 +517,6 @@ async def browse_action(
             result={"message": data[:1000]},
         )
         logger.info("browse_action '%s' completed for session %s", action, session.id[:8])
-
         return ToolResponse(
             user_response=(
                 f"✅ `{action}` done on session {session.id[:8]}.\n\n{data}\n\n"
@@ -470,7 +528,9 @@ async def browse_action(
             ),
         )
     except Exception as ex:
-        logger.exception("browse_action failed: %s", ex)
+        control_error = ex.__class__.__name__ == "BrowserControlError"
+        logger.info("browse_action '%s' stopped: %s", action, ex)
+        session = getattr(runtime, "session", None) or session
         manager.log_activity(
             session,
             actor="ai",
@@ -481,13 +541,54 @@ async def browse_action(
             error=str(ex),
             duration_ms=(time.monotonic() - started_at) * 1000,
         )
+        if control_error:
+            return ToolResponse(
+                user_response=(
+                    f"⏸ Paused: {ex}\n\n"
+                    f"The user is driving. [Open the live browser]({session.vnc_url or ''}) "
+                    "and continue when they hand control back."
+                ),
+                llm_response=(
+                    f"The AI paused because the human has control of the shared browser: {ex}\n"
+                    f"Live view: {session.vnc_url}. Use browser_activity to see what the user did, "
+                    "or browser_control(action='status'). Do not retry until the user gives control back."
+                ),
+            )
         return ToolResponse(
             user_response=f"❌ `{action}` failed: {ex}",
             llm_response=f"Action '{action}' on session {session.id} failed: {ex}",
         )
-    finally:
-        if browser is not None:
-            await browser.close()
+
+
+def _format_snapshot(snapshot: Dict[str, Any]) -> str:
+    """Render a snapshot compactly for the model (JSON, bounded)."""
+    if not isinstance(snapshot, dict):
+        return str(snapshot)
+    payload = dict(snapshot)
+    interactive = payload.get("interactive") or []
+    payload["interactive"] = interactive[:80]
+    text = payload.get("text") or ""
+    payload["text"] = text[:4000]
+    return json.dumps(payload, ensure_ascii=False, indent=None)[:14000]
+
+
+def _format_batch(result: Dict[str, Any]) -> str:
+    """Render a batch/script result without flooding the context."""
+    lines = []
+    for step in result.get("steps") or []:
+        status = "ok" if step.get("ok") else "FAIL"
+        lines.append(
+            f"- [{step.get('index')}] {status} {step.get('action')} ({step.get('ms')} ms)"
+            + (f" — {step.get('error')}" if step.get("error") else "")
+        )
+    summary = (
+        f"batch {'ok' if result.get('ok') else 'failed'} in {result.get('ms')} ms"
+        + (f" at step {result.get('failed_step')}: {result.get('error')}" if result.get("error") else "")
+    )
+    outputs = result.get("outputs") or {}
+    if outputs:
+        summary += "\noutputs: " + json.dumps(outputs, ensure_ascii=False, default=str)[:4000]
+    return summary + ("\n" + "\n".join(lines) if lines else "")
 
 
 async def get_screenshot(
@@ -519,12 +620,10 @@ async def get_screenshot(
         )
 
     started_at = time.monotonic()
-    browser = None
     try:
-        browser = await manager.connect_browser(session)
-        data_uri = await browser.get_screenshot(full_page=full_page)
-        session.mark_active()
-        manager.save_session(session)
+        runtime = await manager.get_runtime(session)
+        data_uri = await runtime.run("get_screenshot", full_page=full_page, read_only=True)
+        session = getattr(runtime, "session", None) or session
         manager.log_activity(
             session,
             actor="ai",
@@ -543,7 +642,7 @@ async def get_screenshot(
             ),
         )
     except Exception as ex:
-        logger.exception("get_screenshot failed: %s", ex)
+        logger.info("get_screenshot failed: %s", ex)
         manager.log_activity(
             session, actor="ai", action="screenshot", chat_id=chat_id,
             success=False, error=str(ex),
@@ -553,9 +652,6 @@ async def get_screenshot(
             user_response=f"❌ Screenshot failed: {ex}",
             llm_response=f"Screenshot failed for session {session.id}: {ex}",
         )
-    finally:
-        if browser is not None:
-            await browser.close()
 
 
 async def get_source_code(
@@ -585,13 +681,11 @@ async def get_source_code(
         )
 
     started_at = time.monotonic()
-    browser = None
     try:
-        browser = await manager.connect_browser(session)
-        html = await browser.get_content()
+        runtime = await manager.get_runtime(session)
+        html = await runtime.run("get_content", read_only=True)
         truncated = (html or "")[:MAX_SOURCE_CHARS]
-        session.mark_active()
-        manager.save_session(session)
+        session = getattr(runtime, "session", None) or session
         manager.log_activity(
             session,
             actor="ai",
@@ -614,7 +708,7 @@ async def get_source_code(
             ),
         )
     except Exception as ex:
-        logger.exception("get_source_code failed: %s", ex)
+        logger.info("get_source_code failed: %s", ex)
         manager.log_activity(
             session, actor="ai", action="source", chat_id=chat_id,
             success=False, error=str(ex),
@@ -624,23 +718,24 @@ async def get_source_code(
             user_response=f"❌ Failed to read source: {ex}",
             llm_response=f"Source retrieval failed for session {session.id}: {ex}",
         )
-    finally:
-        if browser is not None:
-            await browser.close()
 
 
 async def browser_activity(
     session_id: str = None,
     chat_id: str = None,
     limit: int = 30,
+    actor: str = None,
+    since: str = None,
     **kwargs,
 ) -> ToolResponse:
     """
     Return the recent user/AI actions on the shared browser session.
 
-    This lets the agent notice what the user did between tool calls (the user
-    can click/type/navigate directly in the live view).  It is also the audit
-    trail required for co-browsing.
+    This is the co-browsing awareness tool.  Human clicks, edits, submits and
+    scrolls performed in the live VNC view are captured by the in-page recorder
+    and drained by the session runtime, so they appear here as ``actor=user``
+    entries (input values are redacted).  Use ``since`` after a long action to
+    get only what changed, and ``actor="user"`` to ignore the AI's own steps.
     """
     settings = _settings_from(kwargs)
     manager = _manager(settings)
@@ -652,7 +747,21 @@ async def browser_activity(
             llm_response="No browser session available. Start one with start_session.",
         )
 
-    entries = manager.get_activity(session.id, limit=limit)
+    # Pick up events that happened since the last drain (the watcher runs every
+    # second, but a just-finished user edit must be visible immediately).
+    runtime = manager.peek_runtime(session.id)
+    if runtime is not None:
+        try:
+            await runtime.drain()
+        except Exception as ex:
+            logger.debug("browser_activity drain failed: %s", ex)
+
+    entries = manager.get_activity(session.id, limit=max(int(limit or 30) * 3, 100))
+    if actor:
+        entries = [entry for entry in entries if (entry.get("actor") or "") == actor]
+    if since:
+        entries = [entry for entry in entries if (entry.get("ts") or "") >= since]
+    entries = entries[-max(1, min(int(limit or 30), 200)):]
     if not entries:
         return ToolResponse(
             user_response=f"🧾 No activity recorded yet for session {session.id[:8]}.",
@@ -661,15 +770,29 @@ async def browser_activity(
 
     lines = []
     for entry in entries:
-        actor = entry.get("actor") or "?"
+        actor_name = entry.get("actor") or "?"
         action = entry.get("action") or "?"
         status = "ok" if entry.get("success", True) else "error"
         url = entry.get("url") or ""
-        lines.append(f"- [{entry.get('ts')}] {actor}: {action} ({status}) {url}".rstrip())
+        target = (entry.get("params") or {}).get("target") or {}
+        if not isinstance(target, dict):
+            target = {"text": str(target)}
+        detail = target.get("text") or target.get("selector") or target.get("name") or ""
+        if detail:
+            detail = f" · {str(detail)[:80]}"
+        lines.append(f"- [{entry.get('ts')}] {actor_name}: {action}{detail} ({status}) {url}".rstrip())
     text = "\n".join(lines)
+    session = getattr(runtime, "session", None) or session
+    control = (
+        f"controller={session.controller}"
+        + (f", handoff={session.handoff_reason}" if session.handoff_reason else "")
+        + (", user_active=yes" if session.user_is_active() else "")
+    )
     return ToolResponse(
         user_response=f"🧾 Recent activity for session {session.id[:8]}:\n{text}",
-        llm_response=f"Recent activity for session {session.id}:\n{text}",
+        llm_response=(
+            f"Recent activity for session {session.id} ({control}):\n{text}"
+        ),
     )
 
 
@@ -705,6 +828,10 @@ async def finish_session(
         )
 
     try:
+        runtime = manager.peek_runtime(session.id)
+        if runtime is not None:
+            await runtime.close()
+            manager._runtimes.pop(session.id, None)
         if delete:
             await asyncio.to_thread(manager.delete_session, session.id)
             verb = "deleted"
@@ -730,6 +857,120 @@ async def finish_session(
             user_response=f"❌ Failed to finish session: {ex}",
             llm_response=f"Failed to finish session {session.id}: {ex}",
         )
+
+
+async def browser_status(
+    session_id: str = None,
+    chat_id: str = None,
+    **kwargs,
+) -> ToolResponse:
+    """Return cheap status of the shared browser (connection, controller, tabs)."""
+    settings = _settings_from(kwargs)
+    manager = _manager(settings)
+    session = _resolve_session(manager, session_id=session_id, chat_id=chat_id)
+    if not session:
+        return ToolResponse(
+            user_response="❌ No browser session found.",
+            llm_response="No browser session available. Start one with start_session.",
+        )
+    try:
+        runtime = await manager.get_runtime(session)
+        state = await runtime.state()
+    except Exception as ex:
+        return ToolResponse(
+            user_response=f"❌ Could not read the browser status: {ex}",
+            llm_response=f"Browser status unavailable: {ex}",
+        )
+    text = "\n".join(f"{key}: {value}" for key, value in state.items())
+    return ToolResponse(
+        user_response=f"ℹ️ Browser status for session {session.id[:8]}:\n```\n{text}\n```",
+        llm_response=f"Browser status for session {session.id}:\n{text}",
+    )
+
+
+async def browser_control(
+    action: str,
+    reason: str = None,
+    session_id: str = None,
+    chat_id: str = None,
+    **kwargs,
+) -> ToolResponse:
+    """Manage the human/AI control lease of the shared browser.
+
+    Actions:
+        ``status``      — show who is driving (alias of browser_status);
+        ``handoff``     — pause the AI and ask the human to take over (MFA,
+                          captcha, approval). The AI must stop after this call;
+        ``take_control``— the human takes control and keeps it;
+        ``give_back``   — hand control back to the AI;
+        ``pause``       — alias of take_control with an AI reason.
+    """
+    settings = _settings_from(kwargs)
+    manager = _manager(settings)
+    session = _resolve_session(manager, session_id=session_id, chat_id=chat_id)
+    if not session:
+        return ToolResponse(
+            user_response="❌ No browser session found.",
+            llm_response="No browser session available. Start one with start_session.",
+        )
+    action = (action or "status").strip().lower()
+    try:
+        runtime = await manager.get_runtime(session)
+    except Exception as ex:
+        return ToolResponse(
+            user_response=f"❌ Could not open the browser runtime: {ex}",
+            llm_response=f"Browser runtime unavailable: {ex}",
+        )
+    if action in ("status", "info"):
+        state = await runtime.state()
+        return ToolResponse(
+            user_response=f"ℹ️ {state.get('controller', 'ai')} controls session {session.id[:8]}.",
+            llm_response=f"Browser control state: {state}",
+        )
+    if action in ("handoff", "request_handoff", "request"):
+        if not reason:
+            return ToolResponse(
+                user_response="❌ `reason` is required for a handoff.",
+                llm_response="A handoff needs a short reason (login, MFA, captcha, approval...).",
+            )
+        runtime.request_handoff(reason, chat_id=chat_id)
+        session = getattr(runtime, "session", None) or session
+        browser_events.broadcast_control(session)
+        return ToolResponse(
+            user_response=(
+                f"🙋 Handoff requested: {reason}\n\n"
+                f"[Open the live browser]({session.vnc_url or ''}) and complete it, "
+                "then click **I'm done** (or use Give back to AI)."
+            ),
+            llm_response=(
+                f"Control handed to the user because: {reason}. "
+                f"Live view: {session.vnc_url}. The AI is paused; do not act until the user "
+                "finishes and control is given back."
+            ),
+        )
+    if action in ("take_control", "take", "pause"):
+        runtime.take_control(chat_id=chat_id, reason=reason or "paused by the AI")
+        session = getattr(runtime, "session", None) or session
+        browser_events.broadcast_control(session)
+        return ToolResponse(
+            user_response=f"⏸ The user now has control of session {session.id[:8]}.",
+            llm_response=(
+                "The human now controls the page. The AI must not act. "
+                "Call browser_activity to follow their work."
+            ),
+        )
+    if action in ("give_back", "release", "resume"):
+        runtime.release(chat_id=chat_id)
+        session = getattr(runtime, "session", None) or session
+        browser_events.broadcast_control(session)
+        return ToolResponse(
+            user_response=f"▶️ Control returned to the AI for session {session.id[:8]}.",
+            llm_response="The AI has control again. Continue from the current page state.",
+        )
+    return ToolResponse(
+        user_response=f"❌ Unknown control action '{action}'.",
+        llm_response="Use status, handoff, take_control, give_back or pause.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -801,13 +1042,12 @@ BROWSE_ACTION_TOOL_JSON = {
     "function": {
         "name": "browse_action",
         "description": (
-            "Drive the shared browser page. Supported actions: "
-            "navigate (url), click (selector), fill (selector, value), "
-            "execute (script), text (read visible page text), links (list links), "
-            "back, forward, refresh, wait (selector, timeout), press (selector, key), "
-            "select (selector, value), hover (selector), scroll (x, y), "
-            "tabs (list the open tabs with their index), new_tab (url), "
-            "switch_tab (index), close_tab (index)."
+            "Drive the shared browser page. Prefer action='snapshot' first: it returns "
+            "interactive element refs (click/fill by ref) and the main text, much cheaper "
+            "than full HTML. Use action='batch' for several steps in one call. "
+            "Actions: navigate (url), click/fill (ref or selector or text), execute (script), "
+            "text, links, snapshot, back, forward, refresh, wait (text/selector/url), "
+            "press, select, hover, scroll, tabs, new_tab, switch_tab, close_tab, batch."
         ),
         "parameters": {
             "type": "object",
@@ -816,9 +1056,9 @@ BROWSE_ACTION_TOOL_JSON = {
                     "type": "string",
                     "enum": [
                         "navigate", "click", "fill", "execute", "text", "links",
-                        "back", "forward", "refresh", "wait", "press", "select",
-                        "hover", "scroll", "tabs", "new_tab", "switch_tab",
-                        "close_tab",
+                        "snapshot", "back", "forward", "refresh", "wait", "press",
+                        "select", "hover", "scroll", "tabs", "new_tab",
+                        "switch_tab", "close_tab", "batch",
                     ],
                     "description": "Action to perform on the page or on its tabs.",
                 },
@@ -828,11 +1068,19 @@ BROWSE_ACTION_TOOL_JSON = {
                 },
                 "url": {
                     "type": "string",
-                    "description": "Target URL (navigate, or the page opened by new_tab).",
+                    "description": "Target URL (navigate/new_tab) or URL fragment to wait for.",
                 },
                 "selector": {
                     "type": "string",
                     "description": "CSS selector (click / fill / wait / press / select / hover).",
+                },
+                "ref": {
+                    "type": "string",
+                    "description": "Element ref from action='snapshot' (preferred over CSS).",
+                },
+                "text": {
+                    "type": "string",
+                    "description": "Visible text to click or wait for.",
                 },
                 "value": {"type": "string", "description": "Text to fill or option to select."},
                 "script": {
@@ -843,13 +1091,23 @@ BROWSE_ACTION_TOOL_JSON = {
                 "timeout": {"type": "integer", "description": "Wait timeout in milliseconds."},
                 "index": {
                     "type": "integer",
-                    "description": (
-                        "Tab index (0-based, as listed by action='tabs') for switch_tab and "
-                        "close_tab. Omit it to act on the active tab."
-                    ),
+                    "description": "Tab index for switch_tab/close_tab (0-based, as listed by tabs).",
                 },
                 "x": {"type": "integer", "description": "Horizontal scroll offset."},
                 "y": {"type": "integer", "description": "Vertical scroll offset."},
+                "steps": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": (
+                        "For action='batch': ordered steps, e.g. "
+                        "[{action:'goto',url:'...'},{action:'fill',ref:'e3',value:'...'},"
+                        "{action:'click',text:'Sign in'},{action:'wait',text:'Dashboard'}]."
+                    ),
+                },
+                "variables": {
+                    "type": "object",
+                    "description": "Values for {{name}} placeholders in batch steps.",
+                },
             },
             "required": ["action"],
         },
@@ -882,7 +1140,7 @@ GET_SOURCE_CODE_TOOL_JSON = {
     "type": "function",
     "function": {
         "name": "get_source_code",
-        "description": "Return the HTML source of the current browser page.",
+        "description": "Return the current page HTML (capped). Prefer browse_action(action='snapshot') for reading; use this only when the markup itself matters.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -943,6 +1201,55 @@ FINISH_SESSION_TOOL_JSON = {
                 },
             },
             "required": [],
+        },
+    },
+}
+
+
+BROWSER_STATUS_TOOL_JSON = {
+    "type": "function",
+    "function": {
+        "name": "browser_status",
+        "description": (
+            "Return the shared browser status: connection, current URL/title, open tabs, "
+            "who controls the page and whether the user is active. Cheap; use it before "
+            "acting if you are unsure whether the browser is connected or the human took over."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "session_id": {"type": "string", "description": "Session id (optional)."},
+            },
+            "required": [],
+        },
+    },
+}
+
+BROWSER_CONTROL_TOOL_JSON = {
+    "type": "function",
+    "function": {
+        "name": "browser_control",
+        "description": (
+            "Manage the human/AI control lease of the shared browser. "
+            "Use action='handoff' when the task needs the human (login, MFA, captcha, payment "
+            "approval): the AI pauses and the UI shows a banner. Use action='give_back' after "
+            "the user is done, and action='status' to inspect the lease."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["status", "handoff", "take_control", "give_back", "pause"],
+                    "description": "Control operation.",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Human-readable reason for a handoff/pause.",
+                },
+                "session_id": {"type": "string", "description": "Session id (optional)."},
+            },
+            "required": ["action"],
         },
     },
 }

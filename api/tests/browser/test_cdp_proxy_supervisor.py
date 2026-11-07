@@ -295,19 +295,27 @@ def test_supervisor_bounces_the_service_when_new_tabs_keep_failing():
 
 def test_supervisor_gives_chromium_time_to_start():
     clock, advance = _clock()
+    probed = []
+
+    def probe():
+        probed.append(True)
+        return {"alive": True, "pages": 1}
+
     supervisor = cdp_proxy.ChromiumSupervisor(
         grace=30,
         clock=clock,
         dead_threshold=1,
-        probe=lambda: pytest.fail("must not probe during the grace period"),
+        probe=probe,
         opener=lambda: pytest.fail("must not open tabs"),
         restarter=lambda: pytest.fail("must not restart"),
     )
 
     assert supervisor.check()["action"] == "grace"
+    assert probed == []
 
     advance(31)
-    assert supervisor.check()["action"] in ("ok", "restarted", "unreachable", "opened")
+    assert supervisor.check()["action"] == "ok"
+    assert probed == [True]
 
 
 def test_supervisor_reports_when_the_browser_cannot_be_relaunched():

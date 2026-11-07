@@ -57,6 +57,11 @@ class BrowserSessionResponse(BaseModel):
     current_title: Optional[str] = Field(default=None, description="Currently loaded page title")
     last_action: Optional[str] = Field(default=None, description="Last user/AI action")
     last_action_at: Optional[str] = Field(default=None, description="Timestamp of the last action")
+    controller: str = Field(default="ai", description="Who may drive: ai, user or none")
+    controller_chat_id: Optional[str] = Field(default=None, description="Chat owning the control lease")
+    user_active_until: Optional[str] = Field(default=None, description="Recent user input keeps the AI paused until")
+    handoff_reason: Optional[str] = Field(default=None, description="Why the AI handed control to the user")
+    last_user_event_at: Optional[str] = Field(default=None, description="Last real user interaction captured in the page")
     created_at: str = Field(description="ISO timestamp when created")
     last_active: str = Field(description="ISO timestamp of last activity")
     error: Optional[str] = Field(default=None, description="Error message if failed")
@@ -138,11 +143,14 @@ class BrowserSessionActionRequest(BaseModel):
 
     action: str = Field(
         description=(
-            "Action type: navigate, click, fill, execute, text, links, back, "
-            "forward, refresh, wait, press, select, hover, scroll, screenshot"
+            "Action type: navigate, click, fill, execute, text, links, snapshot, "
+            "back, forward, refresh, wait, press, select, hover, scroll, "
+            "screenshot, batch"
         )
     )
     selector: Optional[str] = Field(default=None, description="CSS selector (click/fill/wait/press/select/hover)")
+    ref: Optional[str] = Field(default=None, description="Element ref from snapshot (preferred over selector)")
+    text: Optional[str] = Field(default=None, description="Visible text to click/wait for")
     value: Optional[str] = Field(default=None, description="Value to fill/select")
     url: Optional[str] = Field(default=None, description="URL to navigate to")
     script: Optional[str] = Field(default=None, description="JavaScript to execute")
@@ -151,6 +159,8 @@ class BrowserSessionActionRequest(BaseModel):
     x: Optional[int] = Field(default=0, description="Horizontal scroll offset")
     y: Optional[int] = Field(default=0, description="Vertical scroll offset")
     full_page: Optional[bool] = Field(default=True, description="Capture the full page (screenshot)")
+    steps: Optional[List[Dict[str, Any]]] = Field(default=None, description="Ordered steps for action='batch'")
+    variables: Optional[Dict[str, Any]] = Field(default=None, description="Values for {{name}} placeholders")
 
 
 class BrowserActionResponse(BaseModel):
@@ -159,6 +169,24 @@ class BrowserActionResponse(BaseModel):
     success: bool = Field(description="Whether action succeeded")
     message: str = Field(description="Action result message")
     data: Optional[Dict[str, Any]] = Field(default=None, description="Action-specific data")
+
+
+class BrowserControlRequest(BaseModel):
+    """Move the human/AI control lease of a browser session."""
+
+    action: str = Field(
+        description="take_control/take, give_back/release, pause, resume, handoff, status"
+    )
+    chat_id: Optional[str] = Field(default=None, description="Chat requesting/owning the lease")
+    reason: Optional[str] = Field(default=None, description="Why the AI hands control to the user")
+
+
+class BrowserControlResponse(BaseModel):
+    """Result of a control operation."""
+
+    success: bool = True
+    message: str
+    session: BrowserSessionResponse
 
 
 class BrowserScreenshotRequest(BaseModel):

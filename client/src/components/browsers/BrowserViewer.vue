@@ -17,9 +17,37 @@
         <span class="badge badge-xs" :class="isRunning ? 'badge-success' : 'badge-warning'">
           {{ liveBadge }}
         </span>
+        <span
+          class="badge badge-xs gap-1"
+          :class="isUserController || userActive ? 'badge-warning' : 'badge-info badge-outline'"
+          :title="controller === 'user' ? 'The human is driving; the AI is paused' : 'The AI may drive the page'"
+        >
+          <i :class="isUserController ? 'fa-solid fa-hand' : 'fa-solid fa-robot'"></i>
+          {{ controllerLabel }}
+        </span>
         <span class="text-[11px] opacity-50 truncate hidden sm:inline">{{ activeSessionId?.slice(0, 8) }}</span>
       </div>
 
+      <button
+        v-if="isUserController"
+        class="btn btn-xs btn-primary"
+        :disabled="isControlling"
+        title="Give control back to the AI"
+        @click="giveBackControl"
+      >
+        <i class="fa-solid fa-robot"></i>
+        <span class="hidden sm:inline">Give back</span>
+      </button>
+      <button
+        v-else
+        class="btn btn-xs btn-outline"
+        :disabled="isControlling || !isRunning"
+        title="Pause the AI and take control"
+        @click="takeControl"
+      >
+        <i class="fa-solid fa-hand"></i>
+        <span class="hidden sm:inline">Take control</span>
+      </button>
       <button
         class="btn btn-xs btn-ghost"
         title="Reload live view"
@@ -50,6 +78,21 @@
         @click="restartSession"
       >
         <i class="fa-solid fa-play"></i>
+      </button>
+    </div>
+
+    <!-- Handoff banner: the AI paused and the human must complete something -->
+    <div
+      v-if="handoffReason"
+      class="flex items-center gap-2 px-3 py-2 border-b border-warning/30 bg-warning/10 text-xs flex-shrink-0"
+    >
+      <i class="fa-solid fa-hand text-warning"></i>
+      <span class="flex-1 min-w-0">
+        <strong>The AI needs you:</strong>
+        <span class="opacity-80">{{ handoffReason }}</span>
+      </span>
+      <button class="btn btn-xs btn-warning" :disabled="isControlling" @click="giveBackControl">
+        I'm done — give back to AI
       </button>
     </div>
 
@@ -85,6 +128,14 @@
       >
         <span v-if="screenshotLoading" class="loading loading-spinner loading-xs"></span>
         <i v-else class="fa-solid fa-camera"></i>
+      </button>
+      <button
+        class="btn btn-xs btn-ghost"
+        title="Ask the AI about this page / selection"
+        :disabled="!isRunning"
+        @click="askAiAboutPage"
+      >
+        <i class="fa-solid fa-comment-dots"></i>
       </button>
       <button class="btn btn-xs btn-ghost" title="Refresh activity + cost" @click="refreshSessionData()">
         <i class="fa-solid fa-rotate-right"></i>
@@ -165,7 +216,8 @@
                   <span class="badge badge-xs flex-shrink-0" :class="actorClass(entry)">{{ actorLabel(entry) }}</span>
                   <span class="font-mono text-[11px] opacity-50 flex-shrink-0">{{ formatTime(entry.ts) }}</span>
                   <span class="font-medium">{{ entry.action }}</span>
-                  <span v-if="entry.url" class="truncate opacity-60 flex-1">{{ entry.url }}</span>
+                  <span v-if="activityDetail(entry)" class="truncate opacity-70">{{ activityDetail(entry) }}</span>
+                  <span v-if="entry.url" class="truncate opacity-50 flex-1">{{ entry.url }}</span>
                   <i
                     v-if="entry.success === false"
                     class="fa-solid fa-circle-exclamation text-error text-[10px]"
@@ -279,6 +331,7 @@ export default {
       showScreenshot: false,
       pollTimer: null,
       lastActivityCount: 0,
+      lastCostAt: 0,
       activityDrawerOpen: false,
       drawerId: `browser-activity-drawer-${Math.random().toString(36).slice(2, 9)}`,
       escHandler: null
@@ -340,6 +393,30 @@ export default {
       if (!this.activeSession) return 'No session'
       return this.isRunning ? 'Live' : this.activeSession.status
     },
+    controller() {
+      return this.activeSession?.controller || 'ai'
+    },
+    isUserController() {
+      return this.controller === 'user'
+    },
+    controllerLabel() {
+      if (this.controller === 'user') return 'You drive'
+      if (this.controller === 'none') return 'Paused'
+      if (this.userActive) return 'You active'
+      return 'AI drives'
+    },
+    handoffReason() {
+      return this.activeSession?.handoff_reason || null
+    },
+    isControlling() {
+      return this.$storex.browsers.isControlling
+    },
+    userActive() {
+      const until = this.activeSession?.user_active_until
+      if (!until) return false
+      const time = new Date(until).getTime()
+      return !Number.isNaN(time) && time > Date.now()
+    },
     lastActivityLabel() {
       const last = this.activity[this.activity.length - 1]
       if (!last?.ts) return ''
@@ -379,6 +456,9 @@ export default {
     }
   },
   mounted() {
+    // Real-time activity/control: the backend pushes each entry.  The timer is
+    // only a safety net for a disconnected socket (was 7 s polling before).
+    this.$storex.browsers.initRealtime()
     if (this.activeSessionId && !this.activeSession) {
       this.$storex.browsers.loadSessions()
     }
@@ -398,8 +478,44 @@ export default {
     }
   },
   methods: {
+    activityDetail(entry) {
+      const target = entry?.params?.target
+      if (!target) return ''
+      if (typeof target === 'string') return target.slice(0, 80)
+      return (target.text || target.name || target.selector || '').slice(0, 80)
+    },
     toggleActivityDrawer() {
       this.activityDrawerOpen = !this.activityDrawerOpen
+      if (this.activityDrawerOpen) this.refreshSessionData({ quiet: true })
+    },
+    async askAiAboutPage() {
+      if (!this.activeSessionId) return
+      let context = {
+        url: this.activeSession?.current_url || this.address,
+        title: this.activeSession?.current_title || ''
+      }
+      try {
+        context = (await this.$storex.browsers.pageContext(this.activeSessionId)) || context
+      } catch (error) {
+        console.warn('[BrowserViewer] Could not read page selection:', error)
+      }
+      this.$emit('ask-ai', context)
+    },
+    async takeControl() {
+      if (!this.activeSessionId) return
+      try {
+        await this.$storex.browsers.takeControl(this.activeSessionId)
+      } catch (error) {
+        this.notify('error', error.message || 'Could not take control')
+      }
+    },
+    async giveBackControl() {
+      if (!this.activeSessionId) return
+      try {
+        await this.$storex.browsers.giveBackControl(this.activeSessionId)
+      } catch (error) {
+        this.notify('error', error.message || 'Could not return control')
+      }
     },
     restoreAddress() {
       const session = this.activeSession
@@ -410,7 +526,7 @@ export default {
       this.stopPolling()
       this.pollTimer = setInterval(() => {
         if (this.isRunning) this.refreshSessionData({ quiet: true })
-      }, 7000)
+      }, 15000)
     },
     stopPolling() {
       if (this.pollTimer) {
@@ -421,11 +537,14 @@ export default {
     async refreshSessionData({ quiet = false } = {}) {
       const sessionId = this.activeSessionId
       if (!sessionId) return
-      const activity = await this.$storex.browsers.loadActivity({ sessionId, limit: 50 })
-      // Cost aggregation reads the analytics store, so only refresh it when
-      // something actually changed (or on an explicit, non-quiet refresh).
-      if (!quiet || activity.length !== this.lastActivityCount) {
+      const activity = await this.$storex.browsers.loadActivity({ sessionId, limit: 100 })
+      // Cost aggregation reads analytics and chat files: refresh it at most
+      // once a minute (or on an explicit, non-quiet refresh), never on every
+      // single activity entry.
+      const now = Date.now()
+      if (!quiet || now - this.lastCostAt > 60000) {
         await this.$storex.browsers.loadCost(sessionId)
+        this.lastCostAt = now
         this.lastActivityCount = activity.length
       }
     },

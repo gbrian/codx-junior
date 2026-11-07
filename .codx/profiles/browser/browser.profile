@@ -2,7 +2,7 @@
   "name": "browser",
   "url": "",
   "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=browser",
-  "description": "Browser assistant. Drives a shared, isolated Chromium session (live VNC view + CDP tools) to navigate the web and answer user requests alongside the user. Reuses scripts from a script library to automate the sites you visit.",
+  "description": "Browser co-pilot. Shares one real Chromium page with the user (live VNC view + CDP tools), reuses recorded scripts and hands control back and forth safely.",
   "category": "assistant",
   "file_match": "",
   "content": null,
@@ -41,19 +41,27 @@
     "token_limit_requests": []
   },
   "tools": [
-    "fetch_webpage",
     "start_session",
     "browse_action",
+    "browser_status",
+    "browser_control",
     "get_screenshot",
     "get_source_code",
-    "finish_session",
     "browser_activity",
+    "finish_session",
     "list_browser_scripts",
     "get_browser_script",
-    "delete_browser_script",
-    "save_browser_script"
+    "run_browser_script",
+    "save_browser_script",
+    "delete_browser_script"
   ],
-  "tags": [],
+  "tags": [
+    "browser",
+    "web",
+    "automation",
+    "co-browsing",
+    "scripts"
+  ],
   "api_settings": {
     "active": false,
     "model_name": null,

@@ -38,6 +38,7 @@ from codx.junior.browser.scripts import (
     BrowserScriptStore,
     STEPS,
     normalize_site,
+    parse_steps,
 )
 from codx.junior.tools.model import ToolResponse
 
@@ -275,6 +276,123 @@ async def delete_browser_script(
     return _response(f"Browser script `{script_id}` moved to `.codx/browser_scripts/.trash`.")
 
 
+async def run_browser_script(
+    script_id: Optional[str] = None,
+    title: Optional[str] = None,
+    site: Optional[str] = None,
+    variables: Optional[Dict[str, Any]] = None,
+    session_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+    project_path: Optional[str] = None,
+    settings: Any = None,
+    chat_id: Optional[str] = None,
+    **kwargs,
+) -> ToolResponse:
+    """Execute a saved script end-to-end on the shared browser.
+
+    This is the fast path for automations: the whole step list runs on the
+    session's persistent Playwright connection, in one tool call, instead of the
+    model translating each step into a separate ``browse_action``.  The model is
+    only needed again if a step fails.
+    """
+    if not settings:
+        return _response(
+            "Cannot run a browser script without the project settings. "
+            "Open the browser from a chat so the session is available."
+        )
+    store = _store(project_id=project_id, project_path=project_path, settings=settings)
+    script = store.get_script(script_id) if script_id else None
+    if not script and title:
+        script = store.find_script(title=title, site=site)
+    if not script:
+        return _response(
+            "Browser script not found. Call list_browser_scripts(site=...) first."
+        )
+    steps = parse_steps(script.code) if script.language == STEPS else []
+    if not steps:
+        return _response(
+            f"Script '{script.title}' has no executable steps (language={script.language}). "
+            "Only language='steps' scripts can run."
+        )
+
+    try:
+        from codx.junior.browser.browser_manager import get_browser_manager
+        manager = get_browser_manager(settings)
+    except Exception as ex:
+        return _response(f"Browser manager unavailable: {ex}")
+
+    session = manager.get_session(session_id) if session_id else None
+    if not session and chat_id:
+        session = manager.get_session_for_chat(chat_id)
+    if not session:
+        return _response(
+            "No browser session found. Call start_session first, then run the script."
+        )
+    if session.status != "running":
+        try:
+            import asyncio
+            session = await manager.restart_session(session.id)
+        except Exception as ex:
+            return _response(f"Session {session.id} is not running and could not be restarted: {ex}")
+
+    import time
+    started = time.monotonic()
+    try:
+        runtime = await manager.get_runtime(session)
+        result = await runtime.run_steps(steps, variables or {})
+    except Exception as ex:
+        # BrowserControlError and step failures both end here.
+        manager.log_activity(
+            session,
+            actor="ai",
+            action="run_script",
+            chat_id=chat_id,
+            params={"script_id": script.id, "title": script.title, "steps": len(steps)},
+            success=False,
+            error=str(ex),
+            duration_ms=(time.monotonic() - started) * 1000,
+        )
+        return _response(
+            f"❌ Script '{script.title}' stopped: {ex}\n\n"
+            "Call browser_activity to see the page state, fix the failing step, "
+            "and save a new version with save_browser_script(script_id=...)."
+        )
+
+    store.mark_used(script.id)
+    session = getattr(runtime, "session", None) or session
+    manager.log_activity(
+        session,
+        actor="ai",
+        action="run_script",
+        chat_id=chat_id,
+        params={"script_id": script.id, "title": script.title, "steps": len(steps)},
+        url=session.current_url,
+        title=session.current_title,
+        duration_ms=(time.monotonic() - started) * 1000,
+        result={
+            "ok": result.get("ok"),
+            "failed_step": result.get("failed_step"),
+            "ms": result.get("ms"),
+        },
+    )
+    lines = [
+        f"- [{step.get('index')}] {'ok' if step.get('ok') else 'FAIL'} {step.get('action')} ({step.get('ms')} ms)"
+        for step in (result.get("steps") or [])
+    ]
+    outputs = result.get("outputs") or {}
+    body = (
+        f"Script '{script.title}' ({script.site}, v{script.version}) "
+        f"{'completed' if result.get('ok') else 'FAILED'} in {result.get('ms')} ms.\n"
+        + "\n".join(lines)
+    )
+    if result.get("error"):
+        body += f"\nFailed at step {result.get('failed_step')}: {result.get('error')}"
+    if outputs:
+        import json
+        body += "\nOutputs: " + json.dumps(outputs, ensure_ascii=False, default=str)[:4000]
+    return _response(body)
+
+
 # --------------------------------------------------------------------------- #
 # registry entries
 # --------------------------------------------------------------------------- #
@@ -311,8 +429,8 @@ BROWSER_SCRIPT_TOOLS: List[Dict[str, Any]] = [
             "function": {
                 "name": "get_browser_script",
                 "description": (
-                    "Load a saved browser script by id (or by title + site). Returns the ordered steps to replay "
-                    "with the browse_action tool. Use it to navigate a known site faster."
+                    "Load a saved browser script by id (or by title + site). Returns the ordered steps. "
+                    "Prefer run_browser_script to execute it in one call; only read the steps when you need to repair them."
                 ),
                 "parameters": {
                     "type": "object",
@@ -337,9 +455,10 @@ BROWSER_SCRIPT_TOOLS: List[Dict[str, Any]] = [
                 "name": "save_browser_script",
                 "description": (
                     "Create or update a reusable browser script for a site. Use language='steps' and pass a JSON "
-                    "array of browse_action steps (goto, click, type, wait_for, ...). Saving the same title+site, or "
-                    "passing script_id, updates the script in place and bumps its version. Do it after a successful "
-                    "navigation so future visits are faster."
+                    "array of actions (goto/navigate, click, fill/type, press, select, hover, scroll, wait/wait_for, "
+                    "extract, assert, screenshot). Use refs from snapshot or stable selectors, and {{name}} for "
+                    "variables. Never store passwords/tokens. Saving the same title+site, or passing script_id, "
+                    "updates the script in place and bumps its version."
                 ),
                 "parameters": {
                     "type": "object",
@@ -353,8 +472,8 @@ BROWSER_SCRIPT_TOOLS: List[Dict[str, Any]] = [
                         "description": {"type": "string", "description": "What the script does / when to use it"},
                         "language": {
                             "type": "string",
-                            "enum": ["steps", "javascript", "python"],
-                            "description": "steps = browser actions replayed by the agent (preferred); javascript = in-page helper",
+                            "enum": ["steps", "javascript"],
+                            "description": "steps = deterministic browser actions (preferred); javascript = small in-page helper",
                         },
                         "tags": {"type": "array", "items": {"type": "string"}, "description": "Searchable labels, e.g. ['login','auth']"},
                         "script_id": {"type": "string", "description": "Existing script id to update"},
@@ -366,6 +485,34 @@ BROWSER_SCRIPT_TOOLS: List[Dict[str, Any]] = [
         "settings": BROWSER_SCRIPT_TOOL_SETTINGS,
         "tags": ["browser", "scripts"],
         "tool_call": save_browser_script,
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "run_browser_script",
+                "description": (
+                    "Run a saved per-site browser script end-to-end in one call. This is the fast, "
+                    "deterministic path for automations: all steps execute on the shared browser "
+                    "connection and the model only intervenes if a step fails. Pass variables for "
+                    "{{name}} placeholders."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {"type": "string", "description": "Script id from list_browser_scripts"},
+                        "title": {"type": "string", "description": "Script title when the id is unknown"},
+                        "site": {"type": "string", "description": "Domain to disambiguate a title"},
+                        "variables": {"type": "object", "description": "Values for {{name}} placeholders (never passwords)"},
+                        "session_id": {"type": "string", "description": "Session id (optional; defaults to the chat session)"},
+                    },
+                    "required": [],
+                },
+            },
+        },
+        "settings": BROWSER_SCRIPT_TOOL_SETTINGS,
+        "tags": ["browser", "scripts", "automation"],
+        "tool_call": run_browser_script,
     },
     {
         "tool_json": {

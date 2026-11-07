@@ -166,6 +166,7 @@ def test_save_session_to_chat_uses_chat_meta_data(tmp_path):
 def _manager(tmp_path, project_name="my-project", folders=("docs", "data")):
     """Build a Docker manager over a temporary project with the given folders."""
     project = tmp_path / project_name
+    project.mkdir(parents=True, exist_ok=True)
     for folder in folders:
         (project / folder).mkdir(parents=True, exist_ok=True)
     return project, DockerBrowserManager(

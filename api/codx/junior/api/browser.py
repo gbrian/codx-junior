@@ -29,6 +29,7 @@ Project folders (see ``codx/junior/api/browser_files.py``):
     GET    /api/browsers/<session_id>/files      - Folder mapping + downloads
 """
 
+import asyncio
 import logging
 import time
 from typing import Any, Dict, Optional
@@ -52,14 +53,20 @@ from codx.junior.api.browser_models import (
     BrowserActivityResponse,
     BrowserCostResponse,
     BrowserScreenshotRequest,
+    BrowserControlRequest,
+    BrowserControlResponse,
 )
 from codx.junior.chat_manager import ChatManager
+from codx.junior.browser import events as browser_events
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/browsers", tags=["browser"])
 
 BROWSER_STATUS_EVENT = "codx-junior-browser-status"
+
+#: User actions that do not change the page and therefore must not pause the AI.
+READ_ONLY_ACTIONS = {"text", "read", "links", "snapshot", "screenshot"}
 
 # ============================================================================
 # Helpers
@@ -86,8 +93,8 @@ def _browser_manager(session: CODXJuniorSession):
     manager = getattr(session, "browser_manager", None)
     if manager:
         return manager
-    from codx.junior.browser.browser_manager import BrowserManager
-    return BrowserManager(session.settings)
+    from codx.junior.browser.browser_manager import get_browser_manager
+    return get_browser_manager(session.settings)
 
 
 def _emit(channel: SessionChannel, payload: dict) -> None:
@@ -115,7 +122,7 @@ async def list_sessions(request: Request):
         session = await get_session_context(request)
         browser_manager = _browser_manager(session)
 
-        sessions = browser_manager.list_sessions()
+        sessions = await asyncio.to_thread(browser_manager.list_sessions)
         responses = [BrowserSessionResponse(**s.to_dict()) for s in sessions]
         logger.info("list_sessions: returned %d browser sessions", len(sessions))
         return BrowserSessionListResponse(count=len(responses), sessions=responses)
@@ -163,7 +170,11 @@ async def create_session(request: Request, req: BrowserSessionCreateRequest):
                 logger.error("create_session: chat not found: %s", req.chat_id)
                 raise HTTPException(status_code=404, detail="Chat not found")
 
-        browser_session = browser_manager.create_session(
+        # Docker run + readiness polling + profile setup take seconds and must
+        # never block the API event loop (which also serves chats, streaming
+        # and every other browser action).
+        browser_session = await asyncio.to_thread(
+            browser_manager.create_session,
             name=req.name,
             chat_id=req.chat_id,
             initial_url=req.initial_url,
@@ -178,6 +189,13 @@ async def create_session(request: Request, req: BrowserSessionCreateRequest):
         if chat and chat_manager:
             browser_manager.save_session_to_chat(browser_session, chat)
             chat_manager.save_chat(chat)
+
+        # Start the recorder/watcher without blocking the response.  If the
+        # user drives before the AI, their actions must still be visible.
+        try:
+            asyncio.create_task(browser_manager.warm_runtime(browser_session))
+        except RuntimeError:
+            pass
 
         logger.info(
             "create_session: created browser session %s ('%s') for chat %s with %d shared folder(s)",
@@ -368,13 +386,74 @@ async def delete_session(request: Request, session_id: str):
             logger.error("delete_session: session not found: %s", session_id)
             raise HTTPException(status_code=404, detail="Session not found")
 
-        browser_manager.delete_session(session_id)
+        await asyncio.to_thread(browser_manager.delete_session, session_id)
         logger.info("delete_session: deleted session %s", session_id[:8])
 
     except HTTPException:
         raise
     except Exception as e:
         logger.exception("delete_session: unexpected error: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/{session_id}/control",
+    response_model=BrowserControlResponse,
+    summary="Move the human/AI control lease",
+    responses={
+        200: {"description": "Control updated"},
+        400: {"description": "Invalid action"},
+        404: {"description": "Session not found"},
+    },
+)
+async def control_session(request: Request, session_id: str, req: BrowserControlRequest):
+    """Take control, hand it to the user/AI, or inspect the current lease.
+
+    Co-browsing works because both actors share one page; this endpoint makes
+    the hand-off explicit so the AI does not type over the human (and the human
+    is not surprised by an AI navigation).
+    """
+    try:
+        session = await get_session_context(request)
+        browser_manager = _browser_manager(session)
+        browser_session = browser_manager.get_session(session_id)
+        if not browser_session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        runtime = await browser_manager.get_runtime(browser_session)
+        action = (req.action or "").strip().lower()
+        if action in ("status", "info"):
+            state = await runtime.state()
+            message = (
+                f"controller={state.get('controller')} "
+                f"(user_active={state.get('user_active')}, "
+                f"connected={state.get('connected')})"
+            )
+        elif action in ("handoff", "request_handoff", "request"):
+            if not req.reason:
+                raise HTTPException(400, "reason is required for a handoff")
+            runtime.request_handoff(req.reason, chat_id=req.chat_id)
+            message = f"Control handed to the user: {req.reason}"
+        elif action in ("take_control", "take", "pause"):
+            runtime.take_control(chat_id=req.chat_id, reason=req.reason or "user took control")
+            message = "The user now controls the page"
+        elif action in ("give_back", "release", "resume"):
+            runtime.release(chat_id=req.chat_id)
+            message = "Control returned to the AI"
+        else:
+            raise HTTPException(400, f"Unknown control action: {req.action}")
+
+        browser_session = getattr(runtime, "session", None) or browser_session
+        browser_events.broadcast_control(browser_session)
+        return BrowserControlResponse(
+            success=True,
+            message=message,
+            session=BrowserSessionResponse(**browser_session.to_dict()),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("control_session: unexpected error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -427,7 +506,11 @@ async def stop_session(request: Request, session_id: str):
         session = await get_session_context(request)
         browser_manager = _browser_manager(session)
 
-        browser_session = browser_manager.stop_session(session_id)
+        if browser_manager.peek_runtime(session_id) is not None:
+            runtime = browser_manager.peek_runtime(session_id)
+            await runtime.close()
+            browser_manager._runtimes.pop(session_id, None)
+        browser_session = await asyncio.to_thread(browser_manager.stop_session, session_id)
         if not browser_session:
             logger.error("stop_session: session not found: %s", session_id)
             raise HTTPException(status_code=404, detail="Session not found")
@@ -461,7 +544,6 @@ async def execute_action(request: Request, session_id: str, req: BrowserSessionA
     The action is performed through the same CDP connection the AI uses, so the
     user's live VNC view reflects it immediately.
     """
-    browser = None
     browser_manager = None
     browser_session = None
     action = (req.action or "").lower().strip()
@@ -471,6 +553,8 @@ async def execute_action(request: Request, session_id: str, req: BrowserSessionA
         for key, value in {
             "url": req.url,
             "selector": req.selector,
+            "ref": req.ref,
+            "text": req.text,
             "value": req.value,
             "script": req.script,
             "key": req.key,
@@ -481,6 +565,8 @@ async def execute_action(request: Request, session_id: str, req: BrowserSessionA
         }.items()
         if value is not None
     }
+    if action == "batch":
+        params["steps"] = len(req.steps or [])
     title = None
 
     try:
@@ -502,92 +588,128 @@ async def execute_action(request: Request, session_id: str, req: BrowserSessionA
                 detail=f"Session not running (status: {browser_session.status})",
             )
 
-        browser = await browser_manager.connect_browser(browser_session)
-
+        runtime = await browser_manager.get_runtime(browser_session)
+        # The user is performing this action: it bypasses the AI control lease
+        # (the human is allowed to drive at any time) and marks them active.
         if action == "navigate":
             if not req.url:
                 raise HTTPException(400, "URL required for navigate action")
-            title = await browser.navigate(req.url)
+            title = await runtime.run("navigate", req.url, force=True)
             message, data = f"Navigated to {req.url}", {"title": title, "url": req.url}
 
         elif action == "click":
-            if not req.selector:
-                raise HTTPException(400, "Selector required for click action")
-            await browser.click(req.selector)
-            message, data = f"Clicked {req.selector}", {"selector": req.selector}
+            if req.ref:
+                await runtime.run("click_ref", req.ref, force=True)
+                message, data = f"Clicked ref {req.ref}", {"ref": req.ref}
+            elif req.text:
+                await runtime.run("click_text", req.text, force=True)
+                message, data = f"Clicked text {req.text!r}", {"text": req.text}
+            elif req.selector:
+                await runtime.run("click", req.selector, force=True)
+                message, data = f"Clicked {req.selector}", {"selector": req.selector}
+            else:
+                raise HTTPException(400, "Selector, ref or text required for click action")
 
         elif action == "fill":
-            if not req.selector or req.value is None:
-                raise HTTPException(400, "Selector and value required for fill action")
-            await browser.fill(req.selector, req.value)
-            message, data = f"Filled {req.selector}", {"selector": req.selector, "value": req.value}
+            if req.value is None:
+                raise HTTPException(400, "Value required for fill action")
+            if req.ref:
+                await runtime.run("fill_ref", req.ref, req.value, force=True)
+                message, data = f"Filled ref {req.ref}", {"ref": req.ref}
+            elif req.selector:
+                await runtime.run("fill", req.selector, req.value, force=True)
+                message, data = f"Filled {req.selector}", {"selector": req.selector}
+            else:
+                raise HTTPException(400, "Selector or ref required for fill action")
 
         elif action == "execute":
             if not req.script:
                 raise HTTPException(400, "Script required for execute action")
-            result = await browser.execute_script(req.script)
+            result = await runtime.run("execute_script", req.script, force=True)
             message, data = "Script executed", {"result": result}
 
         elif action == "text" or action == "read":
-            text = await browser.get_text()
+            text = await runtime.run("get_text", read_only=True, force=True)
             message, data = "Page text read", {"text": text}
 
         elif action == "links":
-            links = await browser.get_links()
+            links = await runtime.run("get_links", read_only=True, force=True)
             message, data = "Page links read", {"links": links}
 
+        elif action == "snapshot":
+            snapshot = await runtime.run("get_snapshot", read_only=True, force=True)
+            message, data = "Page snapshot captured", {"snapshot": snapshot}
+
         elif action == "back":
-            title = await browser.go_back()
+            title = await runtime.run("go_back", force=True)
             message, data = "Navigated back", {"title": title}
 
         elif action == "forward":
-            title = await browser.go_forward()
+            title = await runtime.run("go_forward", force=True)
             message, data = "Navigated forward", {"title": title}
 
         elif action == "refresh":
-            title = await browser.reload()
+            title = await runtime.run("reload", force=True)
             message, data = "Page refreshed", {"title": title}
 
         elif action == "wait":
-            if not req.selector:
-                raise HTTPException(400, "Selector required for wait action")
-            await browser.wait_for_selector(req.selector, timeout=req.timeout or 5000)
-            message, data = f"Element appeared: {req.selector}", {"selector": req.selector}
+            if req.text:
+                await runtime.run("wait_for_text", req.text, timeout=req.timeout or 5000, force=True)
+                message, data = f"Text appeared: {req.text!r}", {"text": req.text}
+            elif req.selector:
+                await runtime.run("wait_for_selector", req.selector, timeout=req.timeout or 5000, force=True)
+                message, data = f"Element appeared: {req.selector}", {"selector": req.selector}
+            elif req.url:
+                await runtime.run("wait_for_url", req.url, timeout=req.timeout or 5000, force=True)
+                message, data = f"URL matched: {req.url}", {"url": req.url}
+            else:
+                raise HTTPException(400, "Text, selector or URL required for wait action")
 
         elif action == "press":
             if not req.selector or not req.key:
                 raise HTTPException(400, "Selector and key required for press action")
-            await browser.press(req.selector, req.key)
+            await runtime.run("press", req.selector, req.key, force=True)
             message, data = f"Pressed {req.key} on {req.selector}", {"selector": req.selector, "key": req.key}
 
         elif action == "select":
             if not req.selector or req.value is None:
                 raise HTTPException(400, "Selector and value required for select action")
-            await browser.select(req.selector, req.value)
+            await runtime.run("select", req.selector, req.value, force=True)
             message, data = f"Selected {req.value} on {req.selector}", {"selector": req.selector, "value": req.value}
 
         elif action == "hover":
             if not req.selector:
                 raise HTTPException(400, "Selector required for hover action")
-            await browser.hover(req.selector)
+            await runtime.run("hover", req.selector, force=True)
             message, data = f"Hovered {req.selector}", {"selector": req.selector}
 
         elif action == "scroll":
-            await browser.scroll(x=req.x or 0, y=req.y or 0)
+            await runtime.run("scroll", x=req.x or 0, y=req.y or 0, force=True)
             message, data = "Page scrolled", {"x": req.x or 0, "y": req.y or 0}
 
         elif action == "screenshot":
-            screenshot = await browser.get_screenshot(full_page=bool(req.full_page))
+            screenshot = await runtime.run("get_screenshot", full_page=bool(req.full_page), force=True)
             message, data = "Screenshot captured", {"screenshot": screenshot, "full_page": bool(req.full_page)}
+
+        elif action == "batch":
+            if not req.steps:
+                raise HTTPException(400, "Steps required for batch action")
+            result = await runtime.run_steps(req.steps, req.variables or {}, force=True)
+            message, data = "Batch executed", {"batch": result}
 
         else:
             raise HTTPException(400, f"Unknown action: {req.action}")
 
+        browser_session = getattr(runtime, "session", None) or browser_session
+        # Read-only context reads (snapshot/text/links/screenshot) must not
+        # pause the AI: the "Ask AI about this page" button uses them right
+        # before the user sends a message.
+        if action not in READ_ONLY_ACTIONS:
+            browser_session.mark_user_active(seconds=10)
         data.update({
             "url": browser_session.current_url,
             "title": browser_session.current_title,
         })
-        browser_manager.save_session(browser_session)
         browser_manager.log_activity(
             browser_session,
             actor="user",
@@ -626,9 +748,6 @@ async def execute_action(request: Request, session_id: str, req: BrowserSessionA
                 duration_ms=(time.monotonic() - started_at) * 1000,
             )
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        if browser is not None:
-            await browser.close()
 
 
 @router.post(
@@ -663,23 +782,25 @@ async def take_screenshot(request: Request, session_id: str, req: Optional[Brows
                 error=f"Session not running (status: {browser_session.status})",
             )
 
-        browser = await browser_manager.connect_browser(browser_session)
-        try:
-            screenshot = await browser.get_screenshot(full_page=req.full_page if req else True)
-            browser_session.mark_active()
-            browser_manager.save_session(browser_session)
-            browser_manager.log_activity(
-                browser_session,
-                actor="user",
-                action="screenshot",
-                params={"full_page": bool(req.full_page) if req else True},
-                url=browser_session.current_url,
-                title=browser_session.current_title,
-            )
-            logger.info("take_screenshot: screenshot completed for session %s", session_id[:8])
-            return BrowserScreenshotResponse(success=True, screenshot=screenshot)
-        finally:
-            await browser.close()
+        runtime = await browser_manager.get_runtime(browser_session)
+        screenshot = await runtime.run(
+            "get_screenshot",
+            full_page=req.full_page if req else True,
+            read_only=True,
+            force=True,
+        )
+        browser_session = getattr(runtime, "session", None) or browser_session
+        browser_session.mark_active()
+        browser_manager.log_activity(
+            browser_session,
+            actor="user",
+            action="screenshot",
+            params={"full_page": bool(req.full_page) if req else True},
+            url=browser_session.current_url,
+            title=browser_session.current_title,
+        )
+        logger.info("take_screenshot: screenshot completed for session %s", session_id[:8])
+        return BrowserScreenshotResponse(success=True, screenshot=screenshot)
 
     except Exception as e:
         logger.exception("take_screenshot: unexpected error: %s", e)
@@ -718,29 +839,26 @@ async def get_source(request: Request, session_id: str):
                 error=f"Session not running (status: {browser_session.status})",
             )
 
-        browser = await browser_manager.connect_browser(browser_session)
-        try:
-            html = await browser.get_content()
-            url = browser_session.current_url
-            browser_session.mark_active()
-            browser_manager.save_session(browser_session)
-            browser_manager.log_activity(
-                browser_session,
-                actor="user",
-                action="source",
-                url=url,
-                title=browser_session.current_title,
-                result={"chars": len(html or "")},
-            )
-            logger.info("get_source: source retrieved for session %s", session_id[:8])
-            return BrowserSourceResponse(
-                success=True,
-                html=html,
-                url=url,
-                title=browser_session.current_title,
-            )
-        finally:
-            await browser.close()
+        runtime = await browser_manager.get_runtime(browser_session)
+        html = await runtime.run("get_content", read_only=True, force=True)
+        browser_session = getattr(runtime, "session", None) or browser_session
+        url = browser_session.current_url
+        browser_session.mark_active()
+        browser_manager.log_activity(
+            browser_session,
+            actor="user",
+            action="source",
+            url=url,
+            title=browser_session.current_title,
+            result={"chars": len(html or "")},
+        )
+        logger.info("get_source: source retrieved for session %s", session_id[:8])
+        return BrowserSourceResponse(
+            success=True,
+            html=html,
+            url=url,
+            title=browser_session.current_title,
+        )
 
     except Exception as e:
         logger.exception("get_source: unexpected error: %s", e)
@@ -757,15 +875,42 @@ async def get_source(request: Request, session_id: str):
         404: {"description": "Session not found"},
     },
 )
-async def get_activity(request: Request, session_id: str, limit: int = 100):
-    """Return the most recent user and AI actions performed on the session."""
+async def get_activity(
+    request: Request,
+    session_id: str,
+    limit: int = 100,
+    since: Optional[str] = None,
+    actor: Optional[str] = None,
+):
+    """Return the most recent user and AI actions performed on the session.
+
+    Args:
+        limit: Maximum entries (tail-read, so the endpoint is O(limit), not
+            O(file size)).
+        since: Only entries with ``ts >= since`` (ISO timestamp).
+        actor: Filter by ``user``, ``ai`` or ``system``.
+    """
     try:
         session = await get_session_context(request)
         browser_manager = _browser_manager(session)
         browser_session = browser_manager.get_session(session_id)
         if not browser_session:
             raise HTTPException(status_code=404, detail="Session not found")
+
+        # Pick up live VNC input before answering (the watcher is 1 s, but the
+        # UI asks right after an action and must see it immediately).
+        runtime = browser_manager.peek_runtime(session_id)
+        if runtime is not None:
+            try:
+                await runtime.drain()
+            except Exception as ex:
+                logger.debug("get_activity drain failed: %s", ex)
+
         entries = browser_manager.get_activity(session_id, limit=limit)
+        if actor:
+            entries = [entry for entry in entries if entry.get("actor") == actor]
+        if since:
+            entries = [entry for entry in entries if (entry.get("ts") or "") >= since]
         return BrowserActivityResponse(
             session_id=session_id,
             count=len(entries),
@@ -802,7 +947,8 @@ async def get_cost(request: Request, session_id: str):
         browser_session = browser_manager.get_session(session_id)
         if not browser_session:
             raise HTTPException(status_code=404, detail="Session not found")
-        return BrowserCostResponse(**browser_manager.get_cost_summary(session_id))
+        summary = await asyncio.to_thread(browser_manager.get_cost_summary, session_id)
+        return BrowserCostResponse(**summary)
     except HTTPException:
         raise
     except Exception as e:
@@ -997,6 +1143,7 @@ def sio_browser_stop(sid: str, data: dict, codxjunior_session: CODXJuniorSession
 
         _emit(channel, {"status": "stopping", "session_id": session_id, "message": "Stopping browser session..."})
 
+        browser_manager.forget_runtime(session_id)
         browser_session = browser_manager.stop_session(session_id)
         if not browser_session:
             _emit(channel, {"status": "error", "session_id": session_id, "message": "Session not found", "error": f"Session {session_id} not found"})

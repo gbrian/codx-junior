@@ -312,6 +312,12 @@ class BrowserScriptStore:
         return os.path.join(self.root, _safe_id(script_id))
 
     def script_json_path(self, script_id: str) -> str:
+        # Metadata must not collide with the code file: a ``steps`` script is
+        # also JSON (``script.json``), and writing both to the same path made
+        # the loader read metadata as the script body.
+        return os.path.join(self.script_dir(script_id), "meta.json")
+
+    def _legacy_json_path(self, script_id: str) -> str:
         return os.path.join(self.script_dir(script_id), "script.json")
 
     def code_path(self, script_id: str, language: str) -> str:
@@ -368,7 +374,13 @@ class BrowserScriptStore:
     def _read_script_folder(self, script_id: str) -> Optional[BrowserScript]:
         path = self.script_json_path(script_id)
         if not os.path.isfile(path):
-            return None
+            # Old layout: metadata and code both lived in ``script.json``.
+            legacy = self._legacy_json_path(script_id)
+            data = _read_json(legacy) if os.path.isfile(legacy) else None
+            if isinstance(data, dict) and data.get("title") and data.get("id"):
+                path = legacy
+            else:
+                return None
         data = _read_json(path)
         if not isinstance(data, dict):
             return None

@@ -370,6 +370,43 @@ export default {
      * decides between an existing chat and a new one, and the button never
      * appears to do nothing.
      */
+    async onAskAiAboutPage(context = {}) {
+      if (!this.selectedSession?.id) return
+      try {
+        if (!this.showChat || !this.browserChatId) {
+          await this.openChatWith({ latest: true })
+        }
+        if (!this.browserChatId) {
+          // openChatWith opened the picker because no chat was linked.
+          return
+        }
+        await this.$nextTick()
+        const chat = this.$refs.browserChat
+        if (!chat?.setEditorText) {
+          this.$storex.ui.addNotification({
+            text: 'Open the browser chat to ask the AI about this page',
+            type: 'info'
+          })
+          return
+        }
+        const lines = ['I am looking at this page in the shared browser:']
+        if (context.url) lines.push(`URL: ${context.url}`)
+        if (context.title) lines.push(`Title: ${context.title}`)
+        if (context.selection) lines.push(`Selected text: "${String(context.selection).slice(0, 600)}"`)
+        if (context.active?.name || context.active?.text) {
+          lines.push(`I was editing: ${context.active.name || context.active.text}`)
+        }
+        lines.push('', 'Please help me with: ')
+        chat.setEditorText(lines.join('\n'))
+        this.focusChat()
+      } catch (error) {
+        console.error('[BrowserSessionPanel] Could not prepare the AI question:', error)
+        this.$storex.ui.addNotification({
+          text: error.message || 'Could not prepare the question',
+          type: 'error'
+        })
+      }
+    },
     async openChatWith({ chatId = null, createNew = false, latest = false } = {}) {
       if (!this.selectedSession?.id || this.chatLoading) return
       this.chatLoading = true
@@ -530,7 +567,7 @@ export default {
       >
         <template #left>
           <div class="h-full min-w-0 min-h-0">
-            <BrowserViewer :session="selectedSession" />
+            <BrowserViewer :session="selectedSession" @ask-ai="onAskAiAboutPage" />
           </div>
         </template>
 
@@ -665,6 +702,7 @@ export default {
             <div class="flex-1 min-h-0">
               <Chat
                 v-if="browserChat"
+                ref="browserChat"
                 :chat="browserChat"
                 :hide-files-header="true"
               />

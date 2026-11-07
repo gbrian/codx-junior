@@ -49,6 +49,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from codx.junior.browser.model import BrowserSession
 from codx.junior.browser.docker_browser_manager import DockerBrowserManager
+from codx.junior.browser.recorder import RECORDER_SCRIPT, SNAPSHOT_SCRIPT
 
 logger = logging.getLogger(__name__)
 
@@ -58,10 +59,16 @@ BROWSER_ENGINE_LABEL = "playwright-chromium"
 #: CSS media types that can be emulated before printing a page.
 BROWSER_MEDIA_TYPES = ("screen", "print")
 
-#: Wait strategy used when a page is opened (waits for fonts and assets).
-BROWSER_WAIT_UNTIL = "networkidle"
-#: Fallback wait strategy for live pages that never become idle.
+#: Wait strategy used when a page is opened.  ``networkidle`` is deliberately
+#: not used: live applications keep websockets/long-polling open and the wait
+#: can only end by timing out (the old code paid up to 30 s, then navigated a
+#: second time).  ``domcontentloaded`` plus a short, best-effort ``load`` wait
+#: is what makes an action feel instant.
+BROWSER_WAIT_UNTIL = "domcontentloaded"
+#: Fallback/load state waited for after the document is parsed.
 BROWSER_WAIT_UNTIL_FALLBACK = "load"
+#: Best-effort time (ms) allowed for the ``load`` state after DOM content.
+BROWSER_LOAD_WAIT_MS = 5000
 #: Timeout (ms) applied to navigation, selectors and printing.
 BROWSER_TIMEOUT_MS = 30000
 
@@ -858,6 +865,10 @@ class Browser:
             if not self.page:
                 self.page = await self.context.new_page()
 
+            # Co-browsing: the human may be looking at a tab that is not the
+            # last one; prefer the session's remembered URL before guessing.
+            await self.install_recorder()
+
             # Restore the requested start URL if Chromium opened an empty tab
             # (e.g. the initial target was still loading when the probe passed).
             if (
@@ -916,6 +927,17 @@ class Browser:
         if visible:
             return visible[-1]
 
+        # Reconnect after the driver was idle: the session remembers the page
+        # the AI/user were on, so prefer it over an arbitrary last tab.
+        remembered = (self.session.current_url or "").strip()
+        if remembered:
+            for page in reversed(pages):
+                try:
+                    if (page.url or "").strip() == remembered:
+                        return page
+                except Exception:
+                    continue
+
         candidates = [
             page for page in pages
             if page.url and page.url not in ("about:blank", "chrome://newtab/")
@@ -935,6 +957,168 @@ class Browser:
         except Exception:
             pass
 
+    async def install_recorder(self) -> None:
+        """Inject the co-browsing recorder into the current and future documents.
+
+        The recorder captures clicks, edits, submits and scrolls performed by
+        the human in the live VNC view.  It is idempotent (the page guard keeps a
+        single instance) and must be re-applied to the current document because
+        ``add_init_script`` only covers documents created afterwards.
+        """
+        if not self.context or not self.page:
+            return
+        try:
+            await self.context.add_init_script(script=RECORDER_SCRIPT)
+        except Exception as ex:
+            logger.debug("Could not register the co-browsing recorder: %s", ex)
+        try:
+            await self.page.evaluate(RECORDER_SCRIPT)
+        except Exception as ex:
+            logger.debug("Could not install the co-browsing recorder in the page: %s", ex)
+
+    async def install_recorder_on(self, page) -> None:
+        """Install the recorder in one page (tabs opened before the injection)."""
+        if page is None:
+            return
+        try:
+            await page.evaluate(RECORDER_SCRIPT)
+        except Exception as ex:
+            logger.debug("Could not install the recorder in a tab: %s", ex)
+
+    async def set_actor(self, actor: str) -> None:
+        """Tag the next DOM events as ``ai`` or ``user`` (recorder attribution)."""
+        if not self.page:
+            return
+        try:
+            await self.page.evaluate(
+                "(value) => { if (window.__codxRec) window.__codxRec.setActor(value); }",
+                "ai" if actor == "ai" else "user",
+            )
+        except Exception:
+            pass
+
+    async def drain_events(self, page=None) -> Dict[str, Any]:
+        """Drain the in-page recorder buffer (user events + current location)."""
+        target = page or self.page
+        if not target:
+            return {}
+        try:
+            return await target.evaluate(
+                "() => (window.__codxRec ? window.__codxRec.drain() : "
+                "{events: [], url: location.href, title: document.title})"
+            )
+        except Exception as ex:
+            logger.debug("Could not drain browser events: %s", ex)
+            return {}
+
+    async def get_snapshot(self) -> Dict[str, Any]:
+        """Return a compact, model-friendly view of the current page.
+
+        Unlike :meth:`get_content`, this stays small (interactive refs + main
+        text + headings).  It also tags every interactive element with
+        ``data-codx-ref`` so :meth:`click_ref` / :meth:`fill_ref` are stable.
+        """
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            snapshot = await self.page.evaluate(SNAPSHOT_SCRIPT)
+            await self._sync_location()
+            self.session.mark_active()
+            return snapshot or {}
+        except Exception as e:
+            raise RuntimeError(f"Snapshot failed: {e}")
+
+    async def click_ref(self, ref: str) -> None:
+        """Click an element previously tagged by :meth:`get_snapshot`."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        selector = f'[data-codx-ref="{str(ref).replace(chr(34), "")}"]'
+        try:
+            await self.highlight(selector)
+            await self.page.click(selector, timeout=BROWSER_TIMEOUT_MS)
+            await self._sync_location()
+            self.session.mark_active()
+        except Exception as e:
+            raise RuntimeError(f"Click on ref {ref} failed: {e}")
+
+    async def fill_ref(self, ref: str, text: str) -> None:
+        """Fill an element previously tagged by :meth:`get_snapshot`."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        selector = f'[data-codx-ref="{str(ref).replace(chr(34), "")}"]'
+        try:
+            await self.page.fill(selector, text, timeout=BROWSER_TIMEOUT_MS)
+            await self._sync_location()
+            self.session.mark_active()
+        except Exception as e:
+            raise RuntimeError(f"Fill on ref {ref} failed: {e}")
+
+    async def click_text(self, text: str) -> None:
+        """Click the first element whose visible text matches *text*."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            await self.page.get_by_text(str(text), exact=False).first.click(timeout=BROWSER_TIMEOUT_MS)
+            await self._sync_location()
+            self.session.mark_active()
+        except Exception as e:
+            raise RuntimeError(f"Click on text {text!r} failed: {e}")
+
+    async def click_role(self, role: str, name: str) -> None:
+        """Click an element by ARIA role and accessible name."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            await self.page.get_by_role(role, name=name, exact=False).first.click(timeout=BROWSER_TIMEOUT_MS)
+            await self._sync_location()
+            self.session.mark_active()
+        except Exception as e:
+            raise RuntimeError(f"Click on role={role!r} name={name!r} failed: {e}")
+
+    async def fill_label(self, label: str, text: str) -> None:
+        """Fill an input by its associated label."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            await self.page.get_by_label(str(label), exact=False).first.fill(text, timeout=BROWSER_TIMEOUT_MS)
+            await self._sync_location()
+            self.session.mark_active()
+        except Exception as e:
+            raise RuntimeError(f"Fill on label {label!r} failed: {e}")
+
+    async def wait_for_url(self, url: str, timeout: int = 10000) -> None:
+        """Wait until the page URL matches *url* (substring/glob accepted)."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            await self.page.wait_for_url(f"**{url}**", timeout=timeout)
+            await self._sync_location()
+        except Exception as e:
+            raise RuntimeError(f"Timeout waiting for URL {url!r}: {e}")
+
+    async def wait_for_text(self, text: str, timeout: int = 10000) -> None:
+        """Wait until *text* is visible on the page."""
+        if not self.page:
+            raise RuntimeError("Browser not connected")
+        try:
+            await self.page.get_by_text(str(text), exact=False).first.wait_for(
+                state="visible", timeout=timeout
+            )
+            await self._sync_location()
+        except Exception as e:
+            raise RuntimeError(f"Timeout waiting for text {text!r}: {e}")
+
+    def is_alive(self) -> bool:
+        """True when the Playwright connection still has a usable page."""
+        try:
+            if not self.browser or not self.page:
+                return False
+            if not self.browser.is_connected():
+                return False
+            return not self.page.is_closed()
+        except Exception:
+            return False
+
     async def navigate(self, url: str) -> str:
         """
         Navigate to a URL and return the page title.
@@ -948,13 +1132,16 @@ class Browser:
 
         try:
             logger.info("Navigating to: %s", url)
+            await self.page.goto(url, wait_until=BROWSER_WAIT_UNTIL, timeout=BROWSER_TIMEOUT_MS)
+            # Many apps never reach ``networkidle``; wait for ``load`` briefly
+            # and let the caller decide whether it needs an explicit selector.
             try:
-                await self.page.goto(url, wait_until=BROWSER_WAIT_UNTIL, timeout=BROWSER_TIMEOUT_MS)
-            except Exception as ex:
-                logger.warning("networkidle navigation failed (%s); retrying with 'load'", ex)
-                await self.page.goto(
-                    url, wait_until=BROWSER_WAIT_UNTIL_FALLBACK, timeout=BROWSER_TIMEOUT_MS
+                await self.page.wait_for_load_state(
+                    BROWSER_WAIT_UNTIL_FALLBACK, timeout=BROWSER_LOAD_WAIT_MS
                 )
+            except Exception as ex:
+                logger.debug("Page %s did not reach '%s' in %sms: %s", url,
+                             BROWSER_WAIT_UNTIL_FALLBACK, BROWSER_LOAD_WAIT_MS, ex)
             await self._sync_location()
             self.session.mark_active()
             return self.session.current_title or ""
@@ -1096,6 +1283,58 @@ class Browser:
             logger.exception("get_links failed")
             raise RuntimeError(f"get_links failed: {e}")
 
+    async def highlight(self, selector: str, label: str = "AI") -> None:
+        """Draw a short-lived highlight over an element before the AI acts.
+
+        The human watches the same VNC page; a visible outline makes it obvious
+        where a click is about to land (and debug a wrong selector).  Best
+        effort: a page that blocks DOM changes must never break the action.
+        """
+        if not self.page:
+            return
+        try:
+            await self.page.evaluate(
+                """(args) => {
+                    const el = document.querySelector(args.selector);
+                    if (!el) return false;
+                    const rect = el.getBoundingClientRect();
+                    const old = document.getElementById('__codx_ai_highlight');
+                    if (old) old.remove();
+                    const box = document.createElement('div');
+                    box.id = '__codx_ai_highlight';
+                    Object.assign(box.style, {
+                        position: 'fixed',
+                        left: rect.left + 'px',
+                        top: rect.top + 'px',
+                        width: rect.width + 'px',
+                        height: rect.height + 'px',
+                        border: '2px solid #f59e0b',
+                        boxShadow: '0 0 0 3px rgba(245,158,11,.30)',
+                        borderRadius: '4px',
+                        pointerEvents: 'none',
+                        zIndex: '2147483647',
+                        transition: 'opacity .2s ease'
+                    });
+                    const tag = document.createElement('div');
+                    tag.textContent = args.label;
+                    Object.assign(tag.style, {
+                        position: 'absolute', left: '0', top: '-18px',
+                        background: '#f59e0b', color: '#111', font: '600 11px system-ui',
+                        padding: '1px 5px', borderRadius: '3px'
+                    });
+                    box.appendChild(tag);
+                    document.body.appendChild(box);
+                    setTimeout(() => {
+                        box.style.opacity = '0';
+                        setTimeout(() => box.remove(), 250);
+                    }, 900);
+                    return true;
+                }""",
+                {"selector": selector, "label": label},
+            )
+        except Exception as ex:
+            logger.debug("Could not highlight %s: %s", selector, ex)
+
     async def click(self, selector: str) -> None:
         """
         Click an element.
@@ -1110,6 +1349,7 @@ class Browser:
             raise RuntimeError("Browser not connected")
 
         try:
+            await self.highlight(selector)
             await self.page.click(selector)
             await self._sync_location()
             self.session.mark_active()

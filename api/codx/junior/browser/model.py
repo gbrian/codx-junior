@@ -17,7 +17,7 @@ container.
 import json
 import os
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 from pydantic import BaseModel, Field, model_validator
@@ -220,6 +220,31 @@ class BrowserSession(BaseModel):
         default=None,
         description="Title of the page currently loaded in the browser"
     )
+    # -- Co-browsing control -------------------------------------------------
+    # The page is shared by the human (VNC view) and the AI (CDP tools).  These
+    # fields make the hand-off explicit instead of relying on "whoever calls
+    # last wins": the AI must not type over a form the user is editing, and a
+    # session waiting for MFA/captcha must say so.
+    controller: str = Field(
+        default="ai",
+        description="Who may drive the page: 'ai', 'user' or 'none'"
+    )
+    controller_chat_id: Optional[str] = Field(
+        default=None,
+        description="Chat that owns the current control lease (when known)"
+    )
+    user_active_until: Optional[str] = Field(
+        default=None,
+        description="ISO timestamp until which recent user input keeps the AI paused"
+    )
+    handoff_reason: Optional[str] = Field(
+        default=None,
+        description="Why the AI handed control to the user (MFA, captcha, approval...)"
+    )
+    last_user_event_at: Optional[str] = Field(
+        default=None,
+        description="ISO timestamp of the last real user interaction captured in the page"
+    )
     last_action: Optional[str] = Field(
         default=None,
         description="Last action performed by a user or the AI"
@@ -310,6 +335,73 @@ class BrowserSession(BaseModel):
         self.last_action = action
         self.last_action_at = datetime.utcnow().isoformat()
         self.mark_active()
+
+    # -------------------------------------------------------------------------
+    # Co-browsing control
+    # -------------------------------------------------------------------------
+    def set_controller(
+        self,
+        controller: str,
+        chat_id: Optional[str] = None,
+        reason: Optional[str] = None,
+    ) -> None:
+        """Move the control lease to ``ai``, ``user`` or ``none``."""
+        value = str(controller or "").strip().lower()
+        if value not in ("ai", "user", "none"):
+            raise ValueError("controller must be 'ai', 'user' or 'none'")
+        self.controller = value
+        self.controller_chat_id = chat_id if value != "none" else None
+        if value == "user":
+            self.handoff_reason = (reason or "").strip() or None
+        elif value == "ai":
+            self.handoff_reason = None
+            # Giving control back explicitly overrides the "recent input" pause;
+            # otherwise a handoff would keep the AI blocked for its 10-minute
+            # user-active window even after the human pressed "Give back".
+            self.user_active_until = None
+        self.mark_active()
+
+    def mark_user_active(self, seconds: int = 10) -> None:
+        """Remember that the human is interacting with the page right now.
+
+        While this window is open the AI yields: it would otherwise type over
+        the user's input or navigate away from the field being edited.
+        """
+        now = datetime.now(timezone.utc)
+        self.last_user_event_at = now.isoformat()
+        self.user_active_until = (
+            now + timedelta(seconds=max(1, int(seconds)))
+        ).isoformat()
+        self.mark_active()
+
+    def user_is_active(self, grace_seconds: int = 0) -> bool:
+        """True while the human is considered to be driving the page."""
+        if self.controller == "user":
+            return True
+        if not self.user_active_until:
+            return False
+        try:
+            until = datetime.fromisoformat(self.user_active_until)
+        except Exception:
+            return False
+        if until.tzinfo is None:
+            until = until.replace(tzinfo=timezone.utc)
+        if grace_seconds:
+            until = until + timedelta(seconds=max(0, int(grace_seconds)))
+        return datetime.now(timezone.utc) < until
+
+    def can_ai_act(self, grace_seconds: int = 0) -> bool:
+        """True when the AI is allowed to perform a state-changing action."""
+        if self.controller == "user":
+            return False
+        if self.controller == "none":
+            return False
+        return not self.user_is_active(grace_seconds=grace_seconds)
+
+    def request_handoff(self, reason: str, chat_id: Optional[str] = None) -> None:
+        """Pause the AI and ask the human to take over the page."""
+        self.set_controller("user", chat_id=chat_id, reason=reason)
+        self.mark_user_active(seconds=600)
 
     def add_chat(self, chat_id: str) -> None:
         """Connect a chat to this session (idempotent)."""

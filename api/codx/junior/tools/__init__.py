@@ -158,18 +158,23 @@ from .browser_tools import (
     get_source_code,
     browser_activity,
     finish_session,
+    browser_status,
+    browser_control,
     START_SESSION_TOOL_JSON,
     BROWSE_ACTION_TOOL_JSON,
     GET_SCREENSHOT_TOOL_JSON,
     GET_SOURCE_CODE_TOOL_JSON,
     BROWSER_ACTIVITY_TOOL_JSON,
     FINISH_SESSION_TOOL_JSON,
+    BROWSER_STATUS_TOOL_JSON,
+    BROWSER_CONTROL_TOOL_JSON,
     BROWSER_TOOL_SETTINGS,
 )
 from .browser_script_tools import (
     list_browser_scripts,
     get_browser_script,
     save_browser_script,
+    run_browser_script,
     delete_browser_script,
     BROWSER_SCRIPT_TOOLS,
     BROWSER_SCRIPT_TOOL_NAMES,
@@ -256,9 +261,12 @@ __all__ = [
     "get_source_code",
     "browser_activity",
     "finish_session",
+    "browser_status",
+    "browser_control",
     "list_browser_scripts",
     "get_browser_script",
     "save_browser_script",
+    "run_browser_script",
     "delete_browser_script",
     "BROWSER_SCRIPT_TOOLS",
     "BROWSER_SCRIPT_TOOL_NAMES",
@@ -1596,6 +1604,18 @@ TOOLS = [
         "settings": BROWSER_TOOL_SETTINGS,
         "tags": ["browser", "web", "automation", "cleanup"],
         "tool_call": finish_session
+    },
+    {
+        "tool_json": BROWSER_STATUS_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "co-browsing", "status"],
+        "tool_call": browser_status
+    },
+    {
+        "tool_json": BROWSER_CONTROL_TOOL_JSON,
+        "settings": BROWSER_TOOL_SETTINGS,
+        "tags": ["browser", "web", "co-browsing", "control", "handoff"],
+        "tool_call": browser_control
     },
     # -- Orchestration: durable runs and isolated subagents -----------------
     {

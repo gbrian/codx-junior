@@ -78,6 +78,20 @@ export const browsersModule = (API) => ({
     return API.post(`/api/browsers/${sessionId}/stop`, {})
   },
 
+  /**
+   * Move the human/AI control lease.
+   *
+   * `take_control` pauses the AI, `give_back` resumes it, `handoff` asks the
+   * human to complete a step (login, MFA, payment approval) and `status`
+   * returns the current lease.
+   */
+  async control(sessionId, action, { chatId = null, reason = null } = {}) {
+    const payload = { action }
+    if (chatId) payload.chat_id = chatId
+    if (reason) payload.reason = reason
+    return API.post(`/api/browsers/${sessionId}/control`, payload)
+  },
+
   // ── Page actions ────────────────────────────────────────────────────────
 
   /**
@@ -133,8 +147,11 @@ export const browsersModule = (API) => ({
 
   // ── Co-browsing audit + cost ────────────────────────────────────────────
 
-  async activity(sessionId, limit = 100) {
-    return API.get(`/api/browsers/${sessionId}/activity?limit=${encodeURIComponent(limit)}`)
+  async activity(sessionId, limit = 100, { since = null, actor = null } = {}) {
+    const params = new URLSearchParams({ limit: String(limit) })
+    if (since) params.set('since', since)
+    if (actor) params.set('actor', actor)
+    return API.get(`/api/browsers/${sessionId}/activity?${params.toString()}`)
   },
 
   async cost(sessionId) {

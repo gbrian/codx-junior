@@ -56,8 +56,11 @@ import logging
 import os
 import json
 import asyncio
+import shutil
+import threading
+import time
 from datetime import datetime
-from typing import Optional, Dict, Any, List, Set
+from typing import Optional, Dict, Any, List, Set, Tuple
 from pathlib import Path
 
 from codx.junior.settings import CODXJuniorSettings
@@ -67,6 +70,7 @@ from codx.junior.browser.browser import Browser, run_coroutine_sync
 from codx.junior.browser import download_settings
 from codx.junior.browser import tabs as browser_tabs
 from codx.junior.browser.activity import BrowserActivityLog
+from codx.junior.browser import events as browser_events
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +81,26 @@ MAX_SHARED_FILES = 500
 
 #: References to the background tasks started outside a request (keep-alive tab).
 _background_tasks: Set[Any] = set()
+
+#: One BrowserManager per project.  It owns the long-lived browser runtimes, so
+#: constructing a fresh manager on every tool call would defeat the runtime
+#: cache (and recreate the Docker manager on every action).
+_MANAGERS: Dict[Tuple[str, str], "BrowserManager"] = {}
+_MANAGERS_LOCK = threading.Lock()
+
+
+def get_browser_manager(settings: CODXJuniorSettings) -> "BrowserManager":
+    """Return the cached manager of a project (thread-safe)."""
+    key = (
+        str(getattr(settings, "codx_path", "") or ""),
+        str(getattr(settings, "project_id", "") or ""),
+    )
+    with _MANAGERS_LOCK:
+        manager = _MANAGERS.get(key)
+        if manager is None:
+            manager = BrowserManager(settings)
+            _MANAGERS[key] = manager
+        return manager
 
 
 def _is_inside(path: str, base: str) -> bool:
@@ -153,6 +177,10 @@ class BrowserManager:
             project_root_path=getattr(settings, "abs_project_path", None),
             project_name=getattr(settings, "project_name", None),
         )
+        # Persistent runtimes (one Playwright connection per session).
+        self._runtimes: Dict[str, Any] = {}
+        self._runtimes_guard = threading.Lock()
+        self._cost_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
         logger.debug("BrowserManager initialized at '%s'", self.sessions_path)
 
     # -------------------------------------------------------------------------
@@ -170,7 +198,7 @@ class BrowserManager:
             f"{session_id}{SESSION_FILE_EXTENSION}",
         )
 
-    def _profile_folder(self, session_id: str) -> str:
+    def _profile_folder(self, session_or_id) -> str:
         """
         Get the host folder of the Chromium profile.
 
@@ -178,6 +206,7 @@ class BrowserManager:
         which is the browser's ``$HOME``: it holds the preferences Chromium reads
         at launch, including the download directory.
         """
+        session_id = getattr(session_or_id, "id", session_or_id)
         return os.path.join(
             self._session_folder_path(session_id), download_settings.PROFILE_FOLDER
         )
@@ -187,7 +216,7 @@ class BrowserManager:
         return [
             str(f)
             for f in Path(self.sessions_path).glob(f"*/*{SESSION_FILE_EXTENSION}")
-            if f.is_file()
+            if f.is_file() and ".trash" not in f.parts
         ]
 
     # -------------------------------------------------------------------------
@@ -319,9 +348,9 @@ class BrowserManager:
         # Start Docker container
         session = self.docker_manager.start_container(session)
 
-        # The protected tab keeps the browser window (and Chromium) alive even
-        # when the user closes every other tab. Best effort: never fatal.
-        self._open_keep_alive_tab(session)
+        # The keep-alive tab and the page recorder are ensured by the runtime
+        # on its first connection: doing it here would open a second Playwright
+        # connection (and add ~0.5 s) before the session is even returned.
 
         # Save session metadata to file
         self._save_session_file(session)
@@ -415,6 +444,7 @@ class BrowserManager:
             logger.warning("stop_session: session not found: %s", session_id)
             return None
 
+        self.forget_runtime(session_id)
         self.docker_manager.stop_container(session, remove=False)
         self._save_session_file(session)
         self.log_activity(session, actor="system", action="stop")
@@ -430,20 +460,31 @@ class BrowserManager:
         """
         session = self.get_session(session_id)
         if session:
-            # Stop & remove Docker container
+            # Stop & remove Docker container (fast kill: no 10 s grace period)
             self.log_activity(session, actor="system", action="delete")
             self.docker_manager.stop_container(session, remove=True)
             logger.info("Stopped container for session %s", session_id[:8])
 
-        # Remove session folder
+        self.forget_runtime(session_id)
+
+        # Deleting a 100+ MB Chromium profile with shutil.rmtree() on the event
+        # loop makes the whole API stutter.  Move it to .trash (same filesystem,
+        # instant) and let the caller/background cleanup remove it.
         session_folder = self._session_folder_path(session_id)
         if os.path.isdir(session_folder):
-            import shutil
+            trash = os.path.join(self.sessions_path, ".trash")
             try:
-                shutil.rmtree(session_folder)
-                logger.info("Deleted session folder: %s", session_id[:8])
+                os.makedirs(trash, exist_ok=True)
+                target = os.path.join(
+                    trash, f"{session_id}-{int(time.time())}"
+                )
+                shutil.move(session_folder, target)
+                logger.info("Moved session folder to trash: %s", session_id[:8])
+                threading.Thread(
+                    target=self._remove_trash_folder, args=(target,), daemon=True
+                ).start()
             except Exception as e:
-                logger.exception("Error deleting session folder: %s", e)
+                logger.exception("Error moving session folder to trash: %s", e)
 
     # -------------------------------------------------------------------------
     # Project folder sharing
@@ -576,6 +617,80 @@ class BrowserManager:
 
         chat.meta_data["browser"] = session.to_dict()
         logger.debug("Saved session %s to chat %s", session.id[:8], chat.id)
+
+    # -------------------------------------------------------------------------
+    # Persistent runtimes
+    # -------------------------------------------------------------------------
+
+    async def get_runtime(self, session: BrowserSession):
+        """Return (creating once) the persistent runtime of *session*."""
+        from codx.junior.browser.runtime import BrowserRuntime
+
+        if getattr(self, "_runtimes_guard", None) is None:
+            self._runtimes = {}
+            self._runtimes_guard = threading.Lock()
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            current_loop = None
+        with self._runtimes_guard:
+            runtime = self._runtimes.get(session.id)
+            stale_loop = (
+                runtime is not None
+                and runtime.loop is not None
+                and current_loop is not None
+                and runtime.loop is not current_loop
+            )
+            if runtime is None or runtime._closed or stale_loop:
+                runtime = BrowserRuntime(self, session)
+                runtime.loop = current_loop
+                self._runtimes[session.id] = runtime
+            return runtime
+
+    async def warm_runtime(self, session: BrowserSession) -> None:
+        """Connect the runtime in the background so human input is captured.
+
+        A session created from the UI may be driven by the human before the AI
+        says anything.  Connecting once here starts the page recorder and the
+        1 s watcher, so those clicks appear in the activity trail immediately.
+        """
+        try:
+            runtime = await self.get_runtime(session)
+            await runtime.drain()
+        except Exception as ex:
+            logger.debug("Could not warm browser runtime %s: %s", str(session.id)[:8], ex)
+
+    def peek_runtime(self, session_id: str):
+        """Return the runtime without creating it (or None)."""
+        return getattr(self, "_runtimes", {}).get(session_id)
+
+    def forget_runtime(self, session_id: str) -> None:
+        """Drop a session runtime and close it on the loop that owns it."""
+        runtime = getattr(self, "_runtimes", {}).pop(session_id, None)
+        if runtime is None:
+            return
+        loop = getattr(runtime, "loop", None)
+        if loop is None or not loop.is_running():
+            return
+        try:
+            current = asyncio.get_running_loop()
+        except RuntimeError:
+            current = None
+        try:
+            if current is loop:
+                _spawn_background(runtime.close())
+            elif loop.is_running():
+                asyncio.run_coroutine_threadsafe(runtime.close(), loop)
+        except RuntimeError:
+            pass
+
+    def _remove_trash_folder(self, path: str) -> None:
+        """Delete a trashed session folder off the request path."""
+        try:
+            shutil.rmtree(path, ignore_errors=True)
+            logger.info("Removed trashed session folder %s", path)
+        except Exception as ex:
+            logger.warning("Could not remove trashed session folder %s: %s", path, ex)
 
     # -------------------------------------------------------------------------
     # Browser connection + keep-alive tab
@@ -822,9 +937,14 @@ class BrowserManager:
             return None
 
         logger.info("Restarting session %s", session_id[:8])
+        runtime = self.peek_runtime(session_id)
+        if runtime is not None:
+            await runtime.close()
+            getattr(self, "_runtimes", {}).pop(session_id, None)
         session = await asyncio.to_thread(self._restart_browser, session, "restart")
-        # The relaunched browser has no tabs: restore the protection and the page.
-        self._open_keep_alive_tab(session)
+        # The runtime re-creates the keep-alive tab (and the recorder) on its
+        # next connection; doing it here would open a second Playwright
+        # connection and race the first AI action.
         return session
 
     # -------------------------------------------------------------------------
@@ -860,7 +980,7 @@ class BrowserManager:
         if session and not isinstance(session, str):
             session.mark_action(action)
             self._save_session_file(session)
-        return self._activity_log(session_id).record(
+        entry = self._activity_log(session_id).record(
             session_id=session_id,
             chat_id=chat_id,
             actor=actor,
@@ -873,6 +993,12 @@ class BrowserManager:
             error=error,
             result=result,
         )
+        # Invalidate the cost cache: chat usage changes while the user works.
+        if getattr(self, "_cost_cache", None) is not None:
+            self._cost_cache.pop(session_id, None)
+        # Live UI (no 7 s polling).  Best effort by design.
+        browser_events.broadcast_activity(session_id, entry)
+        return entry
 
     def get_activity(self, session_id: str, limit: int = 100) -> list:
         """Return the most recent activity entries for a session."""
@@ -890,6 +1016,12 @@ class BrowserManager:
         Returns:
             Dict with ``session_id``, ``chats`` (per-chat rows) and totals.
         """
+        cache = getattr(self, "_cost_cache", None)
+        if cache is None:
+            cache = self._cost_cache = {}
+        cached = cache.get(session_id)
+        if cached and time.monotonic() - cached[0] < 30:
+            return cached[1]
         session = self.get_session(session_id)
         if not session:
             return {
@@ -961,7 +1093,7 @@ class BrowserManager:
             total_calls += llm_calls
             total_tools += tool_calls
 
-        return {
+        summary = {
             "session_id": session.id,
             "chats": rows,
             "total_cost_cxjcoins": round(total_cost, 6),
@@ -972,6 +1104,8 @@ class BrowserManager:
             "total_tool_calls": total_tools,
             "window": "all-time",
         }
+        cache[session_id] = (time.monotonic(), summary)
+        return summary
 
     # -------------------------------------------------------------------------
     # Cleanup

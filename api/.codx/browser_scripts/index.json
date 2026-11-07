@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "updated_at": "2026-11-07T20:27:06+00:00",
+  "scripts": {
+    "fdbd4b23-d3ad-43f6-bfff-dbb61a9aa3c5": {
+      "id": "fdbd4b23-d3ad-43f6-bfff-dbb61a9aa3c5",
+      "title": "Open OWTB2B dev app login screen",
+      "site": "gbrian.codxjunior.com",
+      "description": "Opens the OWTB2B dev app (base path /workspace-owtb2b/). Use this as the first step before checking the sign-in / register screen.",
+      "language": "steps",
+      "tags": [
+        "dev",
+        "login",
+        "owtb2b"
+      ],
+      "version": 1,
+      "uses": 0,
+      "created_at": "2026-11-07T20:27:06+00:00",
+      "updated_at": "2026-11-07T20:27:06+00:00",
+      "last_used_at": null,
+      "folder": "fdbd4b23-d3ad-43f6-bfff-dbb61a9aa3c5"
+    }
+  }
+}

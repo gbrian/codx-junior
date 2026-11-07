@@ -13,7 +13,9 @@ export const state = () => ({
   showNewSessionForm: false,
   activityBySession: {},
   costBySession: {},
-  loadingActivity: false
+  loadingActivity: false,
+  controlLoading: false,
+  realtimeReady: false
 })
 
 export const getters = getterTree(state, {
@@ -38,6 +40,7 @@ export const getters = getterTree(state, {
 
   isLoading: state => state.loading,
   isLoadingActivity: state => state.loadingActivity,
+  isControlling: state => state.controlLoading,
   hasError: state => !!state.error,
   errorMessage: state => state.error
 })
@@ -108,6 +111,29 @@ export const mutations = mutationTree(state, {
       ...state.activityBySession,
       [sessionId]: activity || []
     }
+  },
+
+  appendActivity(state, { sessionId, entry }) {
+    if (!sessionId || !entry) return
+    const current = state.activityBySession[sessionId] || []
+    // Socket.IO can deliver the same entry the REST refresh already returned.
+    const key = `${entry.ts || ''}|${entry.actor || ''}|${entry.action || ''}|${entry.url || ''}`
+    if (current.some(item => `${item.ts || ''}|${item.actor || ''}|${item.action || ''}|${item.url || ''}` === key)) {
+      return
+    }
+    const next = [...current, entry]
+    state.activityBySession = {
+      ...state.activityBySession,
+      [sessionId]: next.slice(-300)
+    }
+  },
+
+  setControlLoading(state, loading) {
+    state.controlLoading = loading
+  },
+
+  setRealtimeReady(state, ready) {
+    state.realtimeReady = ready
   },
 
   setCost(state, { sessionId, cost }) {
@@ -272,11 +298,11 @@ export const actions = actionTree(
       }
     },
 
-    async loadActivity({ commit }, { sessionId, limit = 100 } = {}) {
+    async loadActivity({ commit }, { sessionId, limit = 100, since = null, actor = null } = {}) {
       if (!sessionId) return []
       commit('setLoadingActivity', true)
       try {
-        const response = await API.browsers.activity(sessionId, limit)
+        const response = await API.browsers.activity(sessionId, limit, { since, actor })
         commit('setActivity', { sessionId, activity: response?.activity || [] })
         return response?.activity || []
       } catch (error) {
@@ -297,6 +323,84 @@ export const actions = actionTree(
         console.error('[Browsers] Error loading cost:', error)
         return null
       }
+    },
+
+    /**
+     * Subscribe once to the browser co-browsing events.
+     *
+     * Activity and control changes are pushed by the backend, so the live view
+     * no longer polls every 7 seconds.  The REST refresh remains the fallback
+     * when the socket is not connected.
+     */
+    initRealtime({ state, commit, dispatch }) {
+      if (state.realtimeReady) return
+      const socket = $storex.api?.socket
+      if (!socket) return
+      commit('setRealtimeReady', true)
+      socket.on('codx-junior-browser-activity', (payload) => {
+        const sessionId = payload?.session_id
+        if (!sessionId || !payload?.entry) return
+        commit('appendActivity', { sessionId, entry: payload.entry })
+        const entry = payload.entry
+        const session = state.sessions.find(item => item.id === sessionId)
+        if (session) {
+          if (entry.url) session.current_url = entry.url
+          if (entry.title) session.current_title = entry.title
+        }
+      })
+      socket.on('codx-junior-browser-control', (payload) => {
+        if (payload?.session) {
+          commit('updateSession', payload.session)
+        } else if (payload?.session_id) {
+          const session = state.sessions.find(item => item.id === payload.session_id)
+          if (session) {
+            session.controller = payload.controller
+            session.handoff_reason = payload.handoff_reason
+            session.user_active_until = payload.user_active_until
+          }
+        }
+      })
+    },
+
+    async takeControl({ commit, dispatch }, sessionId) {
+      if (!sessionId) return null
+      commit('setControlLoading', true)
+      try {
+        const response = await API.browsers.control(sessionId, 'take_control', {
+          reason: 'User took control from the live view'
+        })
+        if (response?.session) commit('updateSession', response.session)
+        notify('info', 'You have control. The AI is paused.')
+        return response
+      } catch (error) {
+        notify('error', error.message || 'Could not take control')
+        throw error
+      } finally {
+        commit('setControlLoading', false)
+      }
+    },
+
+    async giveBackControl({ commit }, sessionId) {
+      if (!sessionId) return null
+      commit('setControlLoading', true)
+      try {
+        const response = await API.browsers.control(sessionId, 'give_back')
+        if (response?.session) commit('updateSession', response.session)
+        notify('success', 'Control returned to the AI')
+        return response
+      } catch (error) {
+        notify('error', error.message || 'Could not return control')
+        throw error
+      } finally {
+        commit('setControlLoading', false)
+      }
+    },
+
+    async requestHandoff({ commit }, { sessionId, reason }) {
+      if (!sessionId) return null
+      const response = await API.browsers.control(sessionId, 'handoff', { reason })
+      if (response?.session) commit('updateSession', response.session)
+      return response
     },
 
     /**
@@ -329,6 +433,24 @@ export const actions = actionTree(
       const result = await API.browsers.action(sessionId, { action, ...payload })
       await dispatch('loadActivity', { sessionId, limit: 50 })
       return result
+    },
+
+    /**
+     * Return a compact context of the current page for "Ask AI about this page".
+     *
+     * The selection is what the human highlighted in the live view; the active
+     * element tells the AI which field the human was editing.
+     */
+    async pageContext({}, sessionId) {
+      if (!sessionId) return null
+      const response = await API.browsers.action(sessionId, { action: 'snapshot' })
+      const snapshot = response?.data?.snapshot || {}
+      return {
+        url: snapshot.url,
+        title: snapshot.title,
+        selection: snapshot.selection || '',
+        active: snapshot.active || null
+      }
     },
 
     async screenshot({ dispatch }, { sessionId, fullPage = true } = {}) {

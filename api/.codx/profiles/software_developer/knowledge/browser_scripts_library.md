@@ -33,5 +33,12 @@ register_browser_script_tools(TOOLS)
 In `codx/junior/profiles/browser.profile`, add to `tools:`:
 `list_browser_scripts`, `get_browser_script`, `save_browser_script`, `delete_browser_script`.
 
-## Pending
-`run_browser_script`: replay `store.get_script(id).steps` through the existing `browse_action` plumbing.
+## Runner
+`run_browser_script` executes `store.get_script(id).steps` through
+`codx/junior/browser/actions.py` on the session's persistent runtime, in one
+tool call. `browse_action(action="batch")` uses the same runner.
+
+## Storage note
+Metadata is `meta.json`; code is `script.<ext>`. They used to share
+`script.json` for `steps`, so the loader read metadata as the body and recipes
+were empty. Legacy metadata is still read from `script.json` when present.
