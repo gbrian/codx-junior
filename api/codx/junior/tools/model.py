@@ -125,4 +125,13 @@ class ToolSettings(BaseModel):
             "processing) must opt out."
         )
     )
+    timeout_seconds: Optional[float] = Field(
+        default=None,
+        description=(
+            "Maximum seconds this tool may run before it is aborted and "
+            "reported to the model as a tool error. None uses the model/"
+            "provider timeout and finally the runtime default "
+            "(CODX_JUNIOR_TOOL_TIMEOUT_SECONDS). 0 disables the timeout."
+        )
+    )
 

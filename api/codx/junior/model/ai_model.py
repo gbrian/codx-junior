@@ -31,6 +31,13 @@ class AIProvider(BaseModel):
         default=None,
         description="Maximum number of iterative tool loops allowed per request at provider level."
     )
+    tool_timeout_seconds: Optional[float] = Field(
+        default=None,
+        description=(
+            "Maximum seconds a single tool execution may run at provider level "
+            "before it is aborted and reported to the model as a tool error."
+        )
+    )
 
 class AIModelPrice(BaseModel):
     model_name: str = Field(description="Model name as listed by the provider")
@@ -75,6 +82,13 @@ class AIModel(BaseModel):
         default=None,
         description="Maximum number of iterative tool loops allowed per request at model level (overrides provider)."
     )
+    tool_timeout_seconds: Optional[float] = Field(
+        default=None,
+        description=(
+            "Maximum seconds a single tool execution may run at model level "
+            "(overrides provider)."
+        )
+    )
 
 class AISettings(BaseModel):
     provider: Optional[str] = Field(default="")
@@ -106,6 +120,14 @@ class AISettings(BaseModel):
     max_iterations: Optional[int] = Field(
         default=None,
         description="Resolved maximum number of iterative tool loops per request (model-level takes precedence over provider-level)."
+    )
+    tool_timeout_seconds: Optional[float] = Field(
+        default=None,
+        description=(
+            "Resolved maximum seconds a single tool execution may run "
+            "(model-level takes precedence over provider-level). ``None`` "
+            "means the runtime default/environment value is used."
+        )
     )
 
 

@@ -36,48 +36,189 @@ SUBTASKS_DEPRECATED_MESSAGE = (
 router = APIRouter()
 
 
-@router.post("/chat/cancel")
-async def chat_cancel(data: dict):
+def _resolve_chat_manager(request: Request, data: Optional[dict] = None):
     """
-    Cancel an in-flight chat request by chat_id or cancellation token UUID.
+    Resolve a ``ChatManager``/settings pair for a project for chat control.
+
+    Prefers the session injected by the ``codx_path`` middleware; falls back to
+    an explicit ``codx_path`` in the payload/query string and finally to a scan
+    of the known projects by chat id, so a client can stop a turn even when it
+    only knows the chat id.
+    """
+    session = getattr(request.state, "codx_junior_session", None)
+    if session is not None:
+        return session.get_chat_manager(), session.settings
+
+    payload = data or {}
+    codx_path = payload.get("codx_path") or request.query_params.get("codx_path")
+    if codx_path:
+        try:
+            from codx.junior.chat_manager import ChatManager
+            from codx.junior.settings import CODXJuniorSettings
+
+            settings = CODXJuniorSettings.from_codx_path(codx_path)
+            return ChatManager(settings=settings), settings
+        except Exception as ex:  # pragma: no cover - defensive
+            logger.warning("chat control: invalid codx_path '%s': %s", codx_path, ex)
+
+    chat_id = payload.get("chat_id") or request.query_params.get("chat_id")
+    if chat_id:
+        try:
+            from codx.junior.chat_manager import ChatManager
+            from codx.junior.project.project_discover import find_all_projects
+
+            for settings in find_all_projects().values():
+                manager = ChatManager(settings=settings)
+                if manager.find_by_id(chat_id) is not None:
+                    return manager, settings
+        except Exception as ex:  # pragma: no cover - defensive
+            logger.warning(
+                "chat control: could not locate chat '%s' in any project: %s",
+                chat_id,
+                ex,
+            )
+    return None, None
+
+
+@router.post("/chat/cancel")
+async def chat_cancel(request: Request, data: Optional[dict] = None):
+    """
+    Cancel / stop a chat turn by chat_id or cancellation token UUID.
+
+    This also stops a **persisted** turn (one left behind by an application
+    restart, whose in-memory ``CancellationToken`` is gone): the durable turn
+    record is marked cancelled, so the recovery worker never restarts it, and
+    its orphaned ``done=False`` response message is repaired so the client
+    stops showing "processing".
 
     Expected payload (at least one key must be provided):
         {
-            "chat_id":  "<chat doc_id to cancel>",
+            "chat_id":  "<chat id to cancel>",
             "token_id": "<cancellation token UUID>"
         }
 
     Returns:
-        { "cancelled": true,  "method": "chat_id"|"token_id" }
+        { "cancelled": true,  "method": "chat_id"|"token_id", "stopped_turns": n }
         { "cancelled": false, "error": "..." }
     """
-    if not data:
-        logger.warning("chat_cancel: empty payload")
-        return {"cancelled": False, "error": "missing chat_id or token_id"}
-
-    chat_id = data.get("chat_id")
-    token_id = data.get("token_id")
+    data = data or {}
+    chat_id = data.get("chat_id") or request.query_params.get("chat_id")
+    token_id = data.get("token_id") or request.query_params.get("token_id")
+    method = None
 
     if not chat_id and not token_id:
         logger.warning("chat_cancel: missing 'chat_id' and 'token_id' in payload")
         return {"cancelled": False, "error": "missing chat_id or token_id"}
 
+    cancelled = False
     if chat_id:
         logger.info("chat_cancel: attempting cancel by chat_id='%s'", chat_id)
-        cancelled = CANCELLATION_REGISTRY.cancel(chat_id)
-        if cancelled:
+        if CANCELLATION_REGISTRY.cancel(chat_id):
             logger.info("chat_cancel: cancelled by chat_id='%s'", chat_id)
-            return {"cancelled": True, "method": "chat_id"}
+            cancelled = True
+            method = "chat_id"
 
-    if token_id:
+    if not cancelled and token_id:
         logger.info("chat_cancel: attempting cancel by token_id='%s'", token_id)
-        cancelled = CANCELLATION_REGISTRY.cancel_by_token_id(token_id)
-        if cancelled:
+        token = CANCELLATION_REGISTRY.get_by_token_id(token_id)
+        if token is not None and not chat_id:
+            chat_id = token.chat_id
+        if CANCELLATION_REGISTRY.cancel_by_token_id(token_id):
             logger.info("chat_cancel: cancelled by token_id='%s'", token_id)
-            return {"cancelled": True, "method": "token_id"}
+            cancelled = True
+            method = "token_id"
 
-    logger.warning("chat_cancel: no in-flight token found for chat_id='%s' token_id='%s'", chat_id, token_id)
+    # Stop the DURABLE side even when no live token exists (app restart, lost
+    # process, queued turn). This is what gives clients a "stop" for a turn
+    # that is no longer running in this process.
+    stopped_turns = 0
+    if chat_id:
+        try:
+            manager, settings = _resolve_chat_manager(request, data)
+            if settings is not None and getattr(settings, "codx_path", None):
+                from codx.junior.chat.turn_store import (
+                    get_turn_store,
+                    repair_incomplete_messages,
+                )
+
+                store = get_turn_store(settings.codx_path)
+                stopped_turns = store.cancel_chat(chat_id)
+                chat = manager.find_by_id(chat_id)
+                if chat is not None:
+                    repair_incomplete_messages(
+                        chat,
+                        manager,
+                        note="",
+                        error="The turn was stopped by the user",
+                        skip_turn_ids=store.live_turn_ids(),
+                    )
+                logger.info(
+                    "chat_cancel: stopped %d durable turn(s) for chat '%s'",
+                    stopped_turns,
+                    chat_id,
+                )
+        except Exception as ex:  # pragma: no cover - defensive
+            logger.exception(
+                "chat_cancel: could not stop durable turns for chat '%s': %s",
+                chat_id,
+                ex,
+            )
+
+    if cancelled or stopped_turns:
+        return {
+            "cancelled": True,
+            "method": method or "durable_turn",
+            "stopped_turns": stopped_turns,
+        }
+
+    logger.warning(
+        "chat_cancel: no in-flight token nor durable turn found for chat_id='%s' token_id='%s'",
+        chat_id,
+        token_id,
+    )
     return {"cancelled": False, "error": "no in-flight token found"}
+
+
+@router.get("/chat/processing")
+def chat_processing(request: Request):
+    """
+    List the chat turns currently processing for the request project.
+
+    Includes turns left behind by a restart (``status`` queued/running), so a
+    client can render the "processing" state and offer a stop action even when
+    the turn's original process is gone.
+
+    Returns:
+        ``{ "turns": [ {turn_id, chat_id, status, attempts, started_at,
+        updated_at, error} ] }``
+    """
+    manager, settings = _resolve_chat_manager(request)
+    if settings is None or not getattr(settings, "codx_path", None):
+        return {"turns": [], "error": "codx_path is required"}
+
+    try:
+        from codx.junior.chat.turn_store import get_turn_store
+
+        store = get_turn_store(settings.codx_path)
+        live_turn_ids = set(store.live_turn_ids())
+        turns = [
+            {
+                "turn_id": record.turn_id,
+                "chat_id": record.chat_id,
+                "status": record.status,
+                "attempts": record.attempts,
+                "max_attempts": record.max_attempts,
+                "started_at": record.started_at,
+                "updated_at": record.updated_at,
+                "error": record.error,
+                "alive": record.turn_id in live_turn_ids,
+            }
+            for record in store.list_active()
+        ]
+        return {"turns": turns}
+    except Exception as ex:
+        logger.exception("chat_processing: could not list durable turns: %s", ex)
+        return {"turns": [], "error": str(ex)}
 
 
 @router.get("/chats/recent")

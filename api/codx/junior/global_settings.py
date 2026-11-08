@@ -254,11 +254,11 @@ def _resolve_model_price(model: AIModel, provider: AIProvider):
 
 def _resolve_tool_limits(model: AIModel, provider: AIProvider) -> tuple:
     """
-    Resolve tool call and iteration limits with priority: Model > Provider > None.
+    Resolve tool-call, iteration and timeout limits with priority Model > Provider > None.
 
     Priority:
-    1. Model-level max_tool_calls/max_iterations (if set)
-    2. Provider-level max_tool_calls/max_iterations (if set)
+    1. Model-level max_tool_calls/max_iterations/tool_timeout_seconds (if set)
+    2. Provider-level max_tool_calls/max_iterations/tool_timeout_seconds (if set)
     3. None (no limit configured)
 
     Args:
@@ -266,11 +266,17 @@ def _resolve_tool_limits(model: AIModel, provider: AIProvider) -> tuple:
         provider: The AIProvider.
 
     Returns:
-        Tuple of (max_tool_calls, max_iterations) - either int or None for each.
+        Tuple of (max_tool_calls, max_iterations, tool_timeout_seconds) - each
+        one is an int/float or None when not configured.
     """
     max_tool_calls = model.max_tool_calls if model.max_tool_calls is not None else provider.max_tool_calls
     max_iterations = model.max_iterations if model.max_iterations is not None else provider.max_iterations
-    return max_tool_calls, max_iterations
+    tool_timeout_seconds = (
+        model.tool_timeout_seconds
+        if model.tool_timeout_seconds is not None
+        else provider.tool_timeout_seconds
+    )
+    return max_tool_calls, max_iterations, tool_timeout_seconds
 
 
 def get_model_settings(llm_model: str, global_settings: Optional[GlobalSettings] = None) -> AISettings:
@@ -281,6 +287,7 @@ def get_model_settings(llm_model: str, global_settings: Optional[GlobalSettings]
     - Pricing: Model > Provider price_list > Provider default > None
     - Tool calls: Model > Provider > None
     - Iterations: Model > Provider > None
+    - Tool timeout: Model > Provider > None (runtime default applies)
 
     Args:
         llm_model: Model name or ai_model identifier.
@@ -299,7 +306,9 @@ def get_model_settings(llm_model: str, global_settings: Optional[GlobalSettings]
 
     provider = get_provider_settings(model.ai_provider, global_settings=resolved_settings)
     input_price, output_price = _resolve_model_price(model, provider)
-    max_tool_calls, max_iterations = _resolve_tool_limits(model, provider)
+    max_tool_calls, max_iterations, tool_timeout_seconds = _resolve_tool_limits(
+        model, provider
+    )
 
     return AISettings(
         **model.settings.__dict__,
@@ -316,6 +325,7 @@ def get_model_settings(llm_model: str, global_settings: Optional[GlobalSettings]
         url=model.url,
         max_tool_calls=max_tool_calls,
         max_iterations=max_iterations,
+        tool_timeout_seconds=tool_timeout_seconds,
     )
 
 

@@ -12,6 +12,19 @@ DEFAULT_MAX_ITERATIONS: int = 10
 # (when not configured in model/provider settings)
 DEFAULT_MAX_TOOL_CALLS: int = 5
 
+# ── Tool execution timeout ────────────────────────────────────────────────────
+# A tool that hangs must never keep the whole chat turn (and with it the event
+# loop / process) blocked forever. Every tool execution is therefore bounded:
+#
+# * a tool settings ``timeout_seconds`` (in the tool registry) wins,
+# * then the model/provider ``tool_timeout_seconds`` (AISettings),
+# * then ``CODX_JUNIOR_TOOL_TIMEOUT_SECONDS``,
+# * then DEFAULT_TOOL_TIMEOUT_SECONDS.
+#
+# ``0`` (or a negative value) disables the timeout for a tool.
+ENV_TOOL_TIMEOUT_SECONDS: str = "CODX_JUNIOR_TOOL_TIMEOUT_SECONDS"
+DEFAULT_TOOL_TIMEOUT_SECONDS: float = 300.0
+
 # Maximum number of sequential tool-call rounds (each round may contain
 # multiple parallel tool calls) before aborting the conversation.
 MAX_TOOL_ROUNDS: int = 20

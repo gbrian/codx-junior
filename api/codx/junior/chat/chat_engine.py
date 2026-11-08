@@ -24,6 +24,12 @@ from codx.junior.ai import AI
 from codx.junior.ai.cancellation import CancellationToken, CancelledError, CANCELLATION_REGISTRY
 from codx.junior.chat_manager import ChatManager
 from codx.junior.chat.chat_event_bridge import ChatEventBridge
+from codx.junior.chat.chat_tool_memory import build_tool_memory_section
+from codx.junior.chat.turn_store import (
+    TurnCancellationWatcher,
+    get_turn_store,
+    repair_incomplete_messages,
+)
 from codx.junior.chat.chat_prompt_builder import (
     CONVERSATION_GUARDRAIL_SYSTEM_PROMPT,
     ChatPromptBuilder,
@@ -79,6 +85,18 @@ PROFILE_MANAGED_TOOLS = {
 # turn. It is consumed by SmolAgent (which strips it before reaching the
 # provider) and is what makes the agent inject the profile knowledge tools.
 PROFILES_HEADER = "profiles"
+
+# Auxiliary-summary bounds.
+#
+# ``_generate_chat_description`` runs an extra LLM call after EVERY chat turn.
+# Sending the whole transcript to obtain a 5-line summary made long chats slower
+# and more expensive on every interaction without improving the summary, so the
+# transcript is bounded to the most recent messages (and each message to a
+# reasonable size). The name suggestion of an ``auto_initialize`` chat uses the
+# same bounded history instead of the full assembled prompt.
+CHAT_DESCRIPTION_MAX_MESSAGES = 24
+CHAT_DESCRIPTION_MAX_MESSAGE_CHARS = 3000
+CHAT_INIT_MAX_MESSAGES = 6
 
 def _is_refine(mode) -> bool:
     return mode in [CHAT_MODE_TASK, CHAT_MODE_TUTORIAL] 
@@ -153,6 +171,13 @@ class ChatEngine:
     every user plus ``profile_learning`` only for users allowed to teach the
     profiles. Those tools are therefore NEVER inherited from the profile
     definition (see :data:`PROFILE_MANAGED_TOOLS`).
+
+    ADDED — tool memory: the tool events already persisted on the previous
+    turns (``Message.tool_events``) are distilled into a ``<session_memory>``
+    block appended to the conversation history of the next turn (see
+    :mod:`codx.junior.chat.chat_tool_memory`). Deduplicated results, the index
+    of already inspected files and stale markers are sent back to the model so
+    it does not re-run the same reads/searches on every interaction.
 
     COST TRACKING: the AI call returns a typed :class:`AgentRunResult`. Its
     ``cost.iteration_cost_cxjcoins`` (every LLM round plus any tool cost) is
@@ -1655,8 +1680,14 @@ class ChatEngine:
         Only includes the natural user and assistant messages from the chat,
         excluding hidden and improvement messages.
 
+        CHANGED: the original ROLE of each message is preserved (the previous
+        implementation re-alternated user/assistant by index, mislabelling a
+        user correction that followed a user message) and the transcript is
+        bounded to the most recent messages, so the per-turn summary call does
+        not grow with the conversation.
+
         :param chat: The chat whose clean history to build.
-        :return: List of clean message content strings (user and assistant only).
+        :return: List of ``(role, content)`` tuples (user and assistant only).
         """
         clean_messages = []
         
@@ -1693,7 +1724,15 @@ class ChatEngine:
                 continue
             
             if content:
-                clean_messages.append(content)
+                clean_messages.append(
+                    (
+                        message.role,
+                        content[:CHAT_DESCRIPTION_MAX_MESSAGE_CHARS],
+                    )
+                )
+
+        # Bound the transcript: the 5-line summary only needs the latest turns.
+        clean_messages = clean_messages[-CHAT_DESCRIPTION_MAX_MESSAGES:]
         
         logger.info(
             "Built clean message history for description: %d messages",
@@ -1738,15 +1777,19 @@ class ChatEngine:
                 )
                 return
             
-            # Convert clean message strings back to LangChain format
+            # Convert clean (role, content) pairs to LangChain messages.
             desc_messages = []
-            for i, content in enumerate(clean_messages):
-                # Alternate between user and assistant, starting with user
-                role = "user" if i % 2 == 0 else "assistant"
+            for role, content in clean_messages:
                 if role == "user":
                     desc_messages.append(HumanMessage(content=content))
                 else:
                     desc_messages.append(AIMessage(content=content))
+
+            # Some providers reject a transcript that starts with an assistant
+            # message: drop leading assistant turns (possible when the first
+            # user turn was filtered as file content).
+            while desc_messages and isinstance(desc_messages[0], AIMessage):
+                desc_messages.pop(0)
             
             # If in refine mode, use only the last message for context
             if is_refine and desc_messages:
@@ -1851,9 +1894,25 @@ class ChatEngine:
 
         # ------------------------------------------------------------------
         # 1. Name — AI suggestion (unchanged mechanism, name only).
+        #
+        # CHANGED: the name suggestion no longer re-sends the FULL assembled
+        # prompt (project files context, attachment parts, profile content...).
+        # A chat title only needs the recent conversation, so the bounded clean
+        # history is used instead. This removes a large duplicate request from
+        # the first turn of every auto_initialize chat.
         # ------------------------------------------------------------------
         try:
-            init_messages = messages.copy()
+            clean_messages = self._build_clean_message_history_for_description(chat)
+            init_messages = [
+                HumanMessage(content=content) if role == "user"
+                else AIMessage(content=content)
+                for role, content in clean_messages[-CHAT_INIT_MAX_MESSAGES:]
+            ]
+            # Providers expect the transcript to start with a user message.
+            while init_messages and isinstance(init_messages[0], AIMessage):
+                init_messages.pop(0)
+            if not init_messages:
+                init_messages = messages.copy()
             init_run: AgentRunResult = await ai_chat_fn(
                 messages=init_messages,
                 prompt=CHAT_INIT_PROMPT,
@@ -2056,7 +2115,10 @@ class ChatEngine:
         append_references: bool = True,
         chat_mode: str = None,
         iteration: int = 0,
-        system: str = None
+        system: str = None,
+        turn_id: Optional[str] = None,
+        turn_attempt: int = 0,
+        turn_codx_path: Optional[str] = None,
     ):
         """
         Main entry point for processing a chat interaction with a project.
@@ -2193,6 +2255,12 @@ class ChatEngine:
                           former 'agent' mode now behaves exactly as 'chat').
         :param iteration: Current iteration count (kept for analytics).
         :param system: Optional system prompt override.
+        :param turn_id: Internal — durable turn record to resume (recovery
+                        worker). When omitted, a new record is created for
+                        regular chats (never for orchestration-owned chats).
+        :param turn_attempt: Internal — attempt number stamped on the record.
+        :param turn_codx_path: Internal — project path that owns the turn
+                               record (survives a project switch).
         :return: Tuple of (updated Chat, list of Documents).
         """
         # --- Delegate to sibling engine when the turn works on another project ---
@@ -2217,7 +2285,11 @@ class ChatEngine:
                     callback=callback,
                     append_references=append_references,
                     chat_mode=chat_mode,
-                    iteration=iteration
+                    iteration=iteration,
+                    system=system,
+                    turn_id=turn_id,
+                    turn_attempt=turn_attempt,
+                    turn_codx_path=turn_codx_path or self.settings.codx_path,
                 )
             # CRASH-SAFETY: an unresolvable project must never recurse forever;
             # the turn simply continues on the current project.
@@ -2252,8 +2324,107 @@ class ChatEngine:
             # Re-use the token that was registered at iteration 0
             cancellation_token = CANCELLATION_REGISTRY.get(cancellation_key)
 
+        # ------------------------------------------------------------------
+        # Durable turn record (crash / restart recovery).
+        #
+        # The response message is already persisted incrementally, but the
+        # *intent to run* lived only in memory. A record on disk + an flock held
+        # for the duration of the turn lets the recovery worker resume the turn
+        # after a restart, and lets /api/chat/cancel stop an orphaned turn even
+        # when its process is gone. Orchestration chats are excluded: the
+        # orchestration worker already owns their recovery.
+        # ------------------------------------------------------------------
+        turn_store = None
+        turn_record = None
+        turn_manager = None
+        turn_watcher = None
+        turn_outcome = "failed"
+        turn_error: Optional[str] = None
+        is_orchestration_chat = bool(
+            getattr(chat, "run_id", None)
+            or getattr(chat, "run_step_id", None)
+            or getattr(chat, "mode", "") in (
+                ORCHESTRATION.CHAT_MODE_ORCHESTRATE,
+                ORCHESTRATION.CHAT_MODE_DELEGATE,
+            )
+        )
+        if is_root_iteration:
+            try:
+                manager = self.get_chat_manager(project_id=chat.owner_project_id)
+                turn_manager = manager
+                # Store the turn next to the CHAT (the owner project), not
+                # necessarily next to this engine: a chat can live in another
+                # project and recovery must be able to reload it from there.
+                durable_codx_path = (
+                    turn_codx_path
+                    or getattr(getattr(manager, "settings", None), "codx_path", None)
+                    or self.settings.codx_path
+                )
+                turn_store = get_turn_store(durable_codx_path)
+                # Turn any orphaned "Processing..." placeholder from a previous
+                # crash into a terminal, hidden message before the new turn.
+                # In-flight turns (another concurrent turn of this chat) are
+                # left untouched.
+                repair_incomplete_messages(
+                    chat,
+                    manager,
+                    note="",
+                    error="The previous turn was interrupted by an application restart",
+                    skip_turn_ids=turn_store.live_turn_ids(),
+                )
+                # Persist the chat (client messages, new chat id) BEFORE the
+                # turn record: recovery reloads the chat by id from disk.
+                manager.save_chat(chat=chat)
+
+                if turn_id:
+                    turn_record = turn_store.load(turn_id)
+                    if turn_record is None:
+                        logger.warning(
+                            "Resumed turn '%s' has no record on disk; creating "
+                            "a fresh one for chat '%s'",
+                            turn_id,
+                            chat.id,
+                        )
+                if turn_record is None and not is_orchestration_chat:
+                    turn_record = turn_store.begin(chat=chat, user=self.user)
+                if turn_record is not None and not turn_id:
+                    # Capture the turn options so recovery replays the SAME
+                    # request (mode, knowledge, references and extra system).
+                    turn_record.disable_knowledge = bool(disable_knowledge)
+                    turn_record.append_references = bool(append_references)
+                    turn_record.chat_mode = chat_mode
+                    turn_record.system = system
+                if turn_record is not None:
+                    turn_store.mark_running(
+                        turn_record,
+                        attempts=turn_attempt or None,
+                    )
+                    if cancellation_token is not None:
+                        # Cross-process stop: a client may stop this turn from
+                        # another process (e.g. the background worker resumed
+                        # it). Watch the durable marker and cancel locally.
+                        turn_watcher = TurnCancellationWatcher(
+                            store=turn_store,
+                            turn_id=turn_record.turn_id,
+                            token=cancellation_token,
+                        ).start()
+                    logger.info(
+                        "Durable turn '%s' running for chat '%s'",
+                        turn_record.turn_id,
+                        chat.id,
+                    )
+            except Exception as ex:
+                # Durability must never prevent a chat from running.
+                logger.exception(
+                    "Could not create the durable turn record for chat '%s': %s",
+                    chat.id,
+                    ex,
+                )
+                turn_store = None
+                turn_record = None
+
         try:
-            return await self._chat_with_project_inner(
+            result = await self._chat_with_project_inner(
                 chat=chat,
                 disable_knowledge=disable_knowledge,
                 callback=callback,
@@ -2262,8 +2433,58 @@ class ChatEngine:
                 iteration=iteration,
                 system=system,
                 cancellation_token=cancellation_token,
+                turn_record=turn_record,
             )
+            turn_outcome = (
+                "cancelled"
+                if cancellation_token is not None and cancellation_token.is_cancelled
+                else "completed"
+            )
+            return result
+        except Exception as ex:
+            turn_error = str(ex)
+            raise
         finally:
+            if turn_watcher is not None:
+                turn_watcher.stop()
+                turn_watcher = None
+            if is_root_iteration and turn_store is not None and turn_record is not None:
+                try:
+                    if turn_outcome == "completed":
+                        turn_store.complete(turn_record)
+                    elif turn_outcome == "cancelled":
+                        turn_store.cancel(
+                            turn_record, reason="The turn was cancelled by the user"
+                        )
+                    else:
+                        turn_store.fail(
+                            turn_record,
+                            turn_error or "The turn ended without completing",
+                        )
+                        # A failed turn must not leave a "processing" message
+                        # behind: hide/finish its partial response so the
+                        # client sees a terminal state.
+                        if turn_manager is not None:
+                            try:
+                                repair_incomplete_messages(
+                                    chat,
+                                    turn_manager,
+                                    note="",
+                                    error=turn_error
+                                    or "The turn ended without completing",
+                                    skip_turn_ids=turn_store.live_turn_ids(),
+                                )
+                            except Exception:  # pragma: no cover - defensive
+                                logger.exception(
+                                    "Could not repair the failed turn of chat '%s'",
+                                    chat.id,
+                                )
+                except Exception as ex:  # pragma: no cover - defensive
+                    logger.exception(
+                        "Could not finalize durable turn '%s': %s",
+                        getattr(turn_record, "turn_id", ""),
+                        ex,
+                    )
             if is_root_iteration:
                 CANCELLATION_REGISTRY.unregister(cancellation_key)
                 logger.info(
@@ -2280,6 +2501,7 @@ class ChatEngine:
         iteration: int = 0,
         system: str = None,
         cancellation_token: Optional[CancellationToken] = None,
+        turn_record: Optional[Any] = None,
     ):
         """
         Internal implementation of chat_with_project.
@@ -2385,6 +2607,9 @@ class ChatEngine:
                 user_message.get_project_id(),
             )
             response_message.meta_data = {"start_time": timing_info["start_time"]}
+            if turn_record is not None:
+                response_message.meta_data["turn_id"] = turn_record.turn_id
+                response_message.meta_data["turn_attempt"] = turn_record.attempts
             if cancellation_token:
                 response_message.meta_data["cancellation_token_id"] = cancellation_token.token_id
                 logger.debug(
@@ -2654,11 +2879,57 @@ class ChatEngine:
             #     is False. Parent content is built from EVERY visible (not
             #     hidden) message — the ``is_answer`` flag is no longer required
             #     — using each message's content, files and attachments.
+            #
+            #     ADDED — tool memory: the tool results already gathered in
+            #     previous turns (``Message.tool_events``) are distilled into a
+            #     ``<session_memory>`` block and sent back with the history, so
+            #     the agent reuses what it already knows instead of re-running
+            #     the same project_read_file / project_grep / project_search
+            #     calls on every turn. Nothing extra is executed or persisted
+            #     here: the block is rendered from the chat that is already in
+            #     memory.
             # ------------------------------------------------------------------
+            prior_messages = self.prompt_builder.collect_prior_messages(
+                chat=chat,
+                include_parent=True,
+                # Tool memory is NOT filtered by ``is_answer``: the work done by
+                # a turn is real even when its message is excluded from the
+                # rendered history (refine/vibe modes). Hidden/improvement
+                # messages are still skipped by the collector.
+                only_answers=False,
+            )
+            tool_memory_section, tool_memory_stats = build_tool_memory_section(
+                prior_messages
+            )
+            if tool_memory_stats["chars"]:
+                response_message.meta_data = {
+                    **(response_message.meta_data or {}),
+                    "tool_memory": tool_memory_stats,
+                }
+                self.event_manager.chat_event(
+                    chat=chat,
+                    message=(
+                        f"Reusing earlier work: {tool_memory_stats['rendered']} "
+                        f"tool result(s) and {tool_memory_stats['files']} "
+                        f"inspected file(s) from "
+                        f"{tool_memory_stats['calls']} call(s)"
+                    ),
+                )
+                logger.info(
+                    "Chat '%s' reuses %d earlier tool result(s) and %d file(s) "
+                    "from %d call(s) (tool memory block: %d chars)",
+                    chat.doc_id,
+                    tool_memory_stats["rendered"],
+                    tool_memory_stats["files"],
+                    tool_memory_stats["calls"],
+                    tool_memory_stats["chars"],
+                )
+
             messages = self.prompt_builder.build_message_history(
                 chat=chat,
                 include_parent_messages=True,
                 only_answers=(is_refine or is_vibe),
+                tool_memory_section=tool_memory_section,
             )
 
             ignore_documents = chat_files.copy()

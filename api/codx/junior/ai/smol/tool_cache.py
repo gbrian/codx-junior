@@ -17,12 +17,22 @@ logger = logging.getLogger(__name__)
 CacheEntry = Tuple[Any, bool]  # (result, was_successful)
 
 
+# Parameters injected by SmolAgent at execution time. They are NOT part of the
+# model-visible call identity: including them makes the store key differ from
+# the lookup key (and a pydantic settings object is not JSON serialisable), so
+# they are removed before hashing.
+_INJECTED_PARAMETER_KEYS = frozenset({"settings", "session", "chat_id", "tool_cache"})
+
+
 class ToolCache:
     """
     In-memory cache for tool execution results within a single conversation.
 
     Cache key is a SHA256 hash of `(tool_name, json.dumps(params))` to ensure
     identical tool calls always hit the cache regardless of parameter order.
+    Runtime parameters injected by the agent (``settings``, ``session``,
+    ``chat_id``, ``tool_cache``) are excluded from the key so a stored result
+    can be matched by the lookup performed with the model arguments.
 
     Cached results:
     - Bypass tool loop guards (don't count towards max_tool_calls)
@@ -54,8 +64,20 @@ class ToolCache:
             A SHA256 hex digest string.
         """
         try:
-            # Sort keys to ensure consistent hashing regardless of dict order
-            params_json = json.dumps(params, sort_keys=True, ensure_ascii=False)
+            # Sort keys to ensure consistent hashing regardless of dict order.
+            # Injected runtime parameters are not model input and must not
+            # change the call identity.
+            cache_params = {
+                key: value
+                for key, value in (params or {}).items()
+                if key not in _INJECTED_PARAMETER_KEYS
+            }
+            params_json = json.dumps(
+                cache_params,
+                sort_keys=True,
+                ensure_ascii=False,
+                default=str,
+            )
             cache_key_input = f"{tool_name}:{params_json}"
             return hashlib.sha256(
                 cache_key_input.encode("utf-8")

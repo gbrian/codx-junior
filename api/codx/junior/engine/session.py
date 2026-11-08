@@ -240,8 +240,9 @@ class CODXJuniorSession:
         operations (create / stop / restart / delete). ``get_browser`` is kept
         for backward compatibility and now delegates here.
         """
-        from codx.junior.browser.browser_manager import BrowserManager
-        return BrowserManager(settings=self.settings)
+        from codx.junior.browser.browser_manager import get_browser_manager
+        # Cached per project: it owns the persistent per-session runtimes.
+        return get_browser_manager(self.settings)
 
     def get_browser(self):
         """
@@ -250,8 +251,8 @@ class CODXJuniorSession:
         Previously returned a ``Browser`` instance; a ``Browser`` now requires a
         concrete ``BrowserSession`` + ``DockerFirefoxManager``, so this returns
         the :class:`BrowserManager` instead. Use ``get_browser_manager()`` and
-        ``BrowserManager.connect_browser(session)`` to obtain a connected
-        ``Browser``.
+        ``BrowserManager.get_runtime(session)`` and ``runtime.run(...)`` to drive
+        the shared page.
         """
         return self.get_browser_manager()
 

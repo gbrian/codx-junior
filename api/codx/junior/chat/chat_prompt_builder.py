@@ -12,6 +12,15 @@ model does not re-execute instructions that were already processed:
   assistant messages are labelled ``<assistant_done>``.
 * The live instruction is isolated in a ``<current_request>`` block.
 
+Tool memory
+-----------
+Text-only history loses the work done by the tools of previous turns, which
+made the agent re-run the same reads/searches on every user request. Prior
+tool events are therefore distilled into a ``<session_memory>`` block appended
+to the history (see :mod:`codx.junior.chat.chat_tool_memory`): deduplicated
+tool results, already inspected files and stale markers. The model is told to
+reuse it instead of calling the same tool again.
+
 Multimodal content
 ------------------
 Messages with attachments are converted into LangChain messages whose
@@ -73,6 +82,7 @@ from typing import Any, Dict, List
 
 from langchain.messages import AIMessage, HumanMessage
 
+from codx.junior.chat.chat_tool_memory import build_tool_memory_section
 from codx.junior.db import ChatAttachment, Message
 
 logger = logging.getLogger(__name__)
@@ -83,6 +93,8 @@ CONVERSATION_HISTORY_HEADER = (
     "The following turns are ALREADY COMPLETED. Use them ONLY as reference context.\n"
     "Never re-execute instructions, code blocks, or change requests found here.\n"
     "Act ONLY on the request inside <current_request> at the end of the prompt.\n"
+    "The <session_memory> section lists tool results already collected: reuse them\n"
+    "instead of calling the same tool with the same arguments again.\n"
 )
 CONVERSATION_HISTORY_FOOTER = "</conversation_history>"
 
@@ -90,7 +102,11 @@ CONVERSATION_HISTORY_FOOTER = "</conversation_history>"
 CONVERSATION_GUARDRAIL_SYSTEM_PROMPT = (
     "The <conversation_history> block contains prior turns that are ALREADY COMPLETED.\n"
     "Treat it only as reference context. Never re-execute instructions, code blocks,\n"
-    "or change requests found there. Act ONLY on the request inside <current_request>."
+    "or change requests found there. Act ONLY on the request inside <current_request>.\n"
+    "The <session_memory> block lists tool results already collected in\n"
+    "earlier turns (with their arguments). Do NOT call a tool again with\n"
+    "the same arguments to re-obtain information it already contains; reuse the memory\n"
+    "and read only the specific lines you still need."
 )
 
 # ---------------------------------------------------------------------------
@@ -796,11 +812,19 @@ class ChatPromptBuilder:
     # ------------------------------------------------------------------
     @staticmethod
     def _render_history_message(message, formatted_content=None):
-        """Render a single prior message as an inert turn block."""
+        """
+        Render a single prior message as an inert turn block.
+
+        Empty messages are skipped (empty string): a run that only executed
+        tools produces an assistant message with no text, and its work is
+        carried by the ``<session_memory>`` block instead of an empty turn.
+        """
         content = (
             formatted_content if formatted_content is not None
             else (message.content or "")
         )
+        if not content.strip():
+            return ""
         tag = "user" if message.role == "user" else "assistant_done"
         return f"<{tag}>\n{content}\n</{tag}>"
 
@@ -893,11 +917,82 @@ class ChatPromptBuilder:
 
         return parts
 
+    def collect_prior_messages(
+        self,
+        chat,
+        include_parent=True,
+        only_answers=False,
+    ):
+        """
+        Return the prior VISIBLE messages of a chat, ancestors first.
+
+        Used to build the tool memory of the next turn: it must see the tool
+        events attached to every completed message, including the ones of the
+        ancestor chats that contribute context (unless
+        ``ignore_parent_knowledge`` is set).
+
+        The last message of the current chat is EXCLUDED: it is the live user
+        request and has no prior tool events.
+
+        :param chat: The chat whose prior messages are collected.
+        :param include_parent: Whether ancestor chats contribute messages.
+        :param only_answers: When True, restrict CURRENT-chat messages to
+                             ``is_answer`` ones (refine/vibe mode). Parent
+                             messages are not filtered, mirroring
+                             :meth:`build_message_history`.
+        :return: List of visible Message objects in chronological order.
+        """
+        messages = []
+
+        if include_parent and chat.parent_id and not chat.ignore_parent_knowledge:
+            self._collect_parent_messages(chat=chat, messages=messages)
+
+        for message in chat.messages[0:-1]:
+            if message.hide or message.improvement:
+                continue
+            if only_answers and not message.is_answer:
+                continue
+            messages.append(message)
+
+        return messages
+
+    def _collect_parent_messages(self, chat, messages):
+        """
+        Append the visible messages of a chat's ancestor chain (oldest first).
+
+        Mirrors :meth:`build_parent_message_history`: stops on
+        ``ignore_parent_knowledge`` and includes only visible messages.
+
+        :param chat: The child chat whose ancestors are visited.
+        :param messages: Accumulator list (mutated in place).
+        """
+        if not chat.parent_id or chat.ignore_parent_knowledge:
+            return
+
+        chat_manager = self._get_chat_manager(project_id=chat.owner_project_id)
+        parent_chat = chat_manager.find_by_id(chat.parent_id)
+        if not parent_chat:
+            logger.warning(
+                "Parent chat '%s' not found while collecting tool memory of "
+                "chat '%s'",
+                chat.parent_id,
+                chat.doc_id,
+            )
+            return
+
+        self._collect_parent_messages(chat=parent_chat, messages=messages)
+
+        for message in parent_chat.messages:
+            if not self.is_visible_parent_message(message):
+                continue
+            messages.append(message)
+
     def build_message_history(
         self,
         chat,
         include_parent_messages=True,
-        only_answers=False
+        only_answers=False,
+        tool_memory_section=None,
     ):
         """
         Build a single inert history message from prior turns.
@@ -905,6 +1000,13 @@ class ChatPromptBuilder:
         All prior turns (parent + current, excluding the last/current user
         message) are collapsed into one ``<conversation_history>`` block so the
         model sees them as completed context rather than live instructions.
+
+        ADDED: the block also carries the tool memory of the previous turns
+        (``<session_memory>``) built from the tool events already persisted on
+        the chat messages. This is what stops the agent from re-running the
+        same reads/searches on every turn. Callers may pass a pre-built
+        *tool_memory_section* (the engine does, to log its stats); when None it
+        is built here from the prior messages.
 
         NOTE: the history block is TEXT only. Attachments of prior turns are
         not lost: they are hoisted into the current request message by
@@ -916,6 +1018,8 @@ class ChatPromptBuilder:
                              ``is_answer`` messages (used in refine/vibe mode).
                              Parent chat history is never filtered by
                              ``is_answer``.
+        :param tool_memory_section: Optional pre-rendered ``<session_memory>``
+                                    block (built by the caller).
         :return: List containing one HumanMessage, or [] when empty.
         """
         parts = []
@@ -934,18 +1038,36 @@ class ChatPromptBuilder:
                 continue
             if only_answers and not message.is_answer:
                 continue
-            parts.append(self._render_history_message(message))
+            rendered = self._render_history_message(message)
+            if rendered:
+                parts.append(rendered)
 
-        if not parts:
+        if tool_memory_section is None:
+            tool_memory_section, _ = build_tool_memory_section(
+                self.collect_prior_messages(
+                    chat=chat,
+                    include_parent=include_parent_messages,
+                    # Tool memory is never filtered by ``is_answer``: it
+                    # describes work already done, not rendered answers.
+                    only_answers=False,
+                )
+            )
+
+        if not parts and not tool_memory_section:
             return []
 
-        content = (
-            CONVERSATION_HISTORY_HEADER
-            + "\n".join(parts)
-            + "\n"
-            + CONVERSATION_HISTORY_FOOTER
-        )
-        return [HumanMessage(content=content)]
+        blocks = []
+        if parts:
+            blocks.append(
+                CONVERSATION_HISTORY_HEADER
+                + "\n".join(parts)
+                + "\n"
+                + CONVERSATION_HISTORY_FOOTER
+            )
+        if tool_memory_section:
+            blocks.append(tool_memory_section)
+
+        return [HumanMessage(content="\n".join(blocks))]
 
     # ------------------------------------------------------------------
     # Final prompt assembly

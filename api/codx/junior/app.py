@@ -230,6 +230,15 @@ APP_STOP_EVENT = asyncio.Event()
 @app.on_event("startup")
 async def startup_event():
     start_background_services(APP_STOP_EVENT)
+    # Resume chat turns interrupted by a previous shutdown/crash. Runs in the
+    # API process too (not only in the background one): the per-turn flock
+    # guarantees a single owner across processes.
+    try:
+        from codx.junior.chat.turn_recovery import start_turn_recovery
+
+        start_turn_recovery(stop_event=APP_STOP_EVENT)
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.exception("Failed to start the chat turn recovery worker: %s", ex)
     logger.info("FASTAPI startup")
 
 
@@ -237,6 +246,12 @@ async def startup_event():
 async def shutdown_event():
     logger.info("FASTAPI shutdown")
     APP_STOP_EVENT.set()
+    try:
+        from codx.junior.chat.turn_recovery import stop_turn_recovery
+
+        stop_turn_recovery()
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.exception("Failed to stop the chat turn recovery worker: %s", ex)
     await stop_background_services()
     
 @app.exception_handler(RequestValidationError)

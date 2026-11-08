@@ -82,8 +82,12 @@ notice with the same details is also streamed to the client, because previously
 a failed connection surfaced as nothing more than the provider's generic
 ``"Connection error."`` string in both the logs and the chat.
 """
+import copy
+import asyncio
 import json
 import logging
+import os
+import threading
 import time
 import uuid
 import inspect
@@ -113,6 +117,8 @@ from codx.junior.ai.smol.constants import (
     TOOL_ANALYSIS_SYSTEM_PROMPT,
     TOOL_ANALYSIS_FALLBACK_NOTE,
     ESTIMATION_COST_EXCEEDED_MSG,
+    DEFAULT_TOOL_TIMEOUT_SECONDS,
+    ENV_TOOL_TIMEOUT_SECONDS,
 )
 from codx.junior.ai.smol.loop_guard import LoopGuard, ToolLoopError
 from codx.junior.ai.smol.messages import (
@@ -153,6 +159,58 @@ CANCELLED_MESSAGE: str = "Chat was cancelled by the caller."
 TOOL_SCOPE_GLOBAL: str = "global"
 TOOL_SCOPE_CHAT: str = "chat"
 
+# Tool cache invalidation.
+#
+# Tool names are dynamic (profiles/orchestration add tools), so a stale cache is
+# avoided with a SAFE-BY-DEFAULT rule: after any tool that is not a known pure
+# read, the per-run tool cache is cleared. A new/unknown tool therefore clears
+# the cache instead of silently hiding its side effects, while the repeated
+# read/search calls that cause "reviewing the same information" stay cached.
+#
+# Mutations are detected first so a write tool whose name also contains a
+# read-ish word (``restore_changes``) still invalidates. Keep the hints in sync
+# with ``chat_tool_memory`` (which classifies prior tool results).
+_CACHE_INVALIDATING_TOOL_HINTS: Tuple[str, ...] = (
+    "write", "apply", "delete", "remove", "create", "restore", "modify",
+    "save", "update", "edit", "abandon", "close_pr",
+)
+_WHOLE_WORD_TOOL_HINTS = frozenset({"edit", "save", "update", "create"})
+
+# Tools whose result is a read of state that only a mutation can change.
+# Matched as whole words (the tool name is split on ``_``/``-``) to avoid
+# false positives such as "thread" matching "read".
+_CACHE_SAFE_TOOL_HINTS: Tuple[str, ...] = (
+    "read", "grep", "glob", "search", "list", "show", "cat", "status",
+    "inspect", "logs", "log", "images", "stats", "ps", "fetch", "diff",
+    "changes", "view", "describe",
+)
+
+
+def _tool_invalidates_cache(tool_name: str) -> bool:
+    """
+    Return True when a tool execution may invalidate cached results.
+
+    The rule is safe-by-default: known pure reads keep the cache, mutations and
+    unknown tools clear it. This guarantees a cache hit never hides a write.
+
+    :param tool_name: Name of the executed tool.
+    :return: True when cached results must be discarded.
+    """
+    lowered = (tool_name or "").lower()
+    words = lowered.replace("-", "_").split("_")
+
+    for hint in _CACHE_INVALIDATING_TOOL_HINTS:
+        if hint in _WHOLE_WORD_TOOL_HINTS:
+            if hint in words:
+                return True
+        elif hint in lowered:
+            return True
+
+    if any(hint in words for hint in _CACHE_SAFE_TOOL_HINTS):
+        return False
+    return True
+
+
 # Profile tools: read what a profile has learned for this project, and let it
 # learn new rules/knowledge files. They are NOT part of the profile definition:
 # the agent decides per run whether to inject them (see
@@ -191,6 +249,16 @@ Use xml envelope per file with the changes like in the example:
  * New file changes must follow original file formating and indentation.
  * Avoid unnecessary changes, format changes, or cleanup unless explicitely been asked for it.
  * Keep changes simple and easy to review by the user.
+
+### TOOL USAGE — do not repeat work
+ * Before calling a tool, check the conversation history and the <session_memory>
+   block: if the information is already there, use it instead of calling the tool.
+ * NEVER repeat an identical tool call (same tool + same arguments) in the same
+   conversation. The result will not change; reuse the previous result.
+ * When a large file was already read partially, request ONLY the missing
+   lines (start_line/end_line) instead of reading the whole file again.
+ * Batch independent queries/files into a single call whenever the tool
+   supports a list (bulk reads and multi-query searches).
 """
 
 
@@ -456,16 +524,21 @@ class SmolAgent:
         self.extra_system: str = (system or "").strip()
         # Store session context for tools that need access to it
         self.session: Optional[Any] = session
+        # Maximum seconds a single tool may run before it is aborted. A hung
+        # tool used to block the whole chat turn (and the event loop) forever.
+        # Priority: tool settings > model/provider > env > default.
+        self.tool_timeout_seconds: float = self._resolve_tool_timeout_seconds()
 
         self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
         logger.info(
             "SmolAgent created. USER: %s, MODEL: %s, URL: %s, "
-            "MAX_TOOL_CALLS: %s, MAX_ITERATIONS: %s",
+            "MAX_TOOL_CALLS: %s, MAX_ITERATIONS: %s, TOOL_TIMEOUT: %ss",
             user.username if user else "NONE",
             self.model,
             self.base_url,
             self.llm_settings.max_tool_calls,
             self.llm_settings.max_iterations,
+            self.tool_timeout_seconds,
         )
 
     def _build_system_message(self) -> str:
@@ -1851,6 +1924,192 @@ class SmolAgent:
                 return tool.get("tool_json")
         return None
 
+    # ── Tool timeouts ──────────────────────────────────────────────────────────
+
+    def _resolve_tool_timeout_seconds(self) -> float:
+        """
+        Resolve the default tool timeout for this agent.
+
+        Priority:
+
+        1. ``AISettings.tool_timeout_seconds`` (model > provider),
+        2. ``CODX_JUNIOR_TOOL_TIMEOUT_SECONDS``,
+        3. :data:`DEFAULT_TOOL_TIMEOUT_SECONDS`.
+
+        A value ``<= 0`` disables the timeout (tools run unbounded, as before).
+
+        Returns:
+            Timeout in seconds (0 when disabled).
+        """
+        configured = getattr(self.llm_settings, "tool_timeout_seconds", None)
+        if configured is None:
+            raw_env = os.environ.get(ENV_TOOL_TIMEOUT_SECONDS, "").strip()
+            configured = raw_env or DEFAULT_TOOL_TIMEOUT_SECONDS
+
+        try:
+            timeout = float(configured)
+        except (TypeError, ValueError):
+            logger.warning(
+                "SmolAgent: invalid tool timeout %r, using %.1fs",
+                configured,
+                DEFAULT_TOOL_TIMEOUT_SECONDS,
+            )
+            timeout = DEFAULT_TOOL_TIMEOUT_SECONDS
+        return timeout if timeout > 0 else 0.0
+
+    def _tool_timeout_seconds(self, tool_settings: Dict[str, Any]) -> float:
+        """
+        Return the timeout of a single tool, allowing a per-tool override.
+
+        Args:
+            tool_settings: The tool's ``settings`` dict.
+
+        Returns:
+            Timeout in seconds (0 when disabled).
+        """
+        raw = (tool_settings or {}).get("timeout_seconds")
+        if raw is None:
+            return self.tool_timeout_seconds
+        try:
+            timeout = float(raw)
+        except (TypeError, ValueError):
+            logger.warning(
+                "SmolAgent: invalid per-tool timeout %r, using the agent "
+                "default %.1fs",
+                raw,
+                self.tool_timeout_seconds,
+            )
+            return self.tool_timeout_seconds
+        return timeout if timeout > 0 else 0.0
+
+    @staticmethod
+    def _finish_tool_future(
+        future: "asyncio.Future",
+        result: Any = None,
+        error: Optional[BaseException] = None,
+    ) -> None:
+        """
+        Set the result/exception of *future* from the tool worker thread.
+
+        Safe when the future was already cancelled by ``asyncio.wait_for`` or
+        when the event loop was closed while the (abandoned) tool thread was
+        still running: the result is simply discarded.
+
+        Args:
+            future: Future awaited by the event loop.
+            result: Tool return value.
+            error: Exception raised by the tool.
+        """
+        if future.done():
+            return
+        try:
+            if error is not None:
+                future.set_exception(error)
+            else:
+                future.set_result(result)
+        except (asyncio.InvalidStateError, RuntimeError):
+            # Future cancelled/loop closed between the check and the set.
+            pass
+
+    async def _run_sync_tool_in_thread(
+        self,
+        func: Callable[..., Any],
+        params: Dict[str, Any],
+        func_name: str,
+    ) -> Any:
+        """
+        Run a synchronous tool in an abandoned-on-timeout daemon thread.
+
+        Running the tool in the event-loop thread would let any blocking tool
+        (network call, subprocess, lock...) freeze the whole process. The tool
+        therefore runs in a daemon thread while the event loop remains
+        responsive and can enforce the timeout: a timed-out tool is reported
+        to the model as an error and the daemon thread is left to finish on its
+        own without blocking the turn (or process shutdown).
+
+        Args:
+            func: Tool callable.
+            params: Keyword arguments for the tool.
+            func_name: Tool name (thread name / logging only).
+
+        Returns:
+            The tool's return value.
+        """
+        loop = asyncio.get_running_loop()
+        future: "asyncio.Future" = loop.create_future()
+
+        def worker() -> None:
+            try:
+                result = func(**params)
+            except BaseException as ex:  # noqa: BLE001 - re-raised in the loop
+                callback = (future, None, ex)
+            else:
+                callback = (future, result, None)
+            try:
+                loop.call_soon_threadsafe(
+                    self._finish_tool_future, callback[0], callback[1], callback[2]
+                )
+            except RuntimeError:
+                # Event loop already closed (shutdown): discard the result.
+                logger.debug(
+                    "SmolAgent: event loop closed before tool '%s' finished; "
+                    "result discarded",
+                    func_name,
+                )
+
+        threading.Thread(
+            target=worker,
+            name=f"smol-tool-{func_name}",
+            daemon=True,
+        ).start()
+        return await future
+
+    async def _invoke_tool(
+        self,
+        func: Callable[..., Any],
+        params: Dict[str, Any],
+        is_async: bool,
+        timeout_seconds: float,
+        func_name: str,
+    ) -> Any:
+        """
+        Invoke a tool with an optional hard timeout.
+
+        Synchronous tools run in a daemon thread so a blocking tool can never
+        freeze the event loop. ``asyncio.wait_for`` aborts the wait after
+        *timeout_seconds* and raises ``asyncio.TimeoutError``, handled by
+        :meth:`_execute_tool` as a normal tool error.
+
+        Args:
+            func: Tool callable.
+            params: Keyword arguments for the tool.
+            is_async: Whether the tool returns an awaitable.
+            timeout_seconds: Timeout in seconds (0 disables it).
+            func_name: Tool name for logs.
+
+        Returns:
+            The tool's return value.
+
+        Raises:
+            asyncio.TimeoutError: When the tool exceeds *timeout_seconds*.
+        """
+        timeout = float(timeout_seconds or 0)
+
+        if is_async:
+            result = func(**params)
+            if not inspect.isawaitable(result):
+                return result
+            if timeout > 0:
+                return await asyncio.wait_for(result, timeout=timeout)
+            return await result
+
+        if timeout > 0:
+            return await asyncio.wait_for(
+                self._run_sync_tool_in_thread(func, params, func_name),
+                timeout=timeout,
+            )
+        return func(**params)
+
     async def _execute_tool(
         self,
         tool_call: Dict[str, Any],
@@ -1908,6 +2167,13 @@ class SmolAgent:
         func_name: str = tool_call["function"]
         tool_call_id: Optional[str] = tool_call.get("id")
         params = self._parse_tool_arguments(tool_call.get("arguments"), func_name)
+        # Cache identity is the MODEL-visible arguments ONLY. The params dict is
+        # mutated below (settings/session/chat_id/tool_cache injection) and a
+        # tool may also mutate its nested arguments; using the mutated dict
+        # would store the result under a key the loop lookup (which parses the
+        # model arguments) can never match, silently disabling the tool cache
+        # for every project tool.
+        cache_params: Dict[str, Any] = copy.deepcopy(params)
         tool = next(
             (t for t in self.tools if t["tool_json"]["function"]["name"] == func_name),
             None,
@@ -1915,6 +2181,8 @@ class SmolAgent:
 
         success = True
         error_message: Optional[str] = None
+        timed_out: bool = False
+        tool_timeout_seconds: float = 0.0
         result_preview: str = ""
         result: Union[str, ToolResponse] = ""
         tool_start = time.monotonic()
@@ -1979,9 +2247,29 @@ class SmolAgent:
                 func_name,
                 list(params.keys()),
             )
-            result = tool["tool_call"](**params)
-            if tool_settings.get("async"):
-                result = await result
+            # A hanging tool must never block the whole turn/process: sync
+            # tools run in a daemon thread, async tools are awaited with a hard
+            # timeout. The model receives a normal tool error on timeout and can
+            # continue with a different strategy.
+            tool_timeout_seconds = self._tool_timeout_seconds(tool_settings)
+            is_async_tool = bool(
+                tool_settings.get("async")
+                or tool_settings.get("is_async")
+                or inspect.iscoroutinefunction(tool["tool_call"])
+            )
+            if tool_timeout_seconds > 0:
+                logger.debug(
+                    "SmolAgent: tool '%s' has a %ss timeout",
+                    func_name,
+                    tool_timeout_seconds,
+                )
+            result = await self._invoke_tool(
+                func=tool["tool_call"],
+                params=params,
+                is_async=is_async_tool,
+                timeout_seconds=tool_timeout_seconds,
+                func_name=func_name,
+            )
 
             # Build result_preview for the TOOL_END event payload.
             if isinstance(result, ToolResponse):
@@ -1992,9 +2280,45 @@ class SmolAgent:
 
             # Cache the result before returning (stateful tools opt out).
             if tool_cache and self._tool_is_cacheable(func_name):
-                tool_cache.set(func_name, params, result, success=True)
+                tool_cache.set(func_name, cache_params, result, success=True)
+
+            # A successful mutation invalidates every cached read/search of
+            # this run: a later call must observe the new file state instead of
+            # a pre-write cached result.
+            if tool_cache and _tool_invalidates_cache(func_name):
+                tool_cache.clear()
+                logger.info(
+                    "SmolAgent: tool '%s' changed state; tool cache cleared",
+                    func_name,
+                )
 
             return result
+
+        except asyncio.TimeoutError:
+            # The tool exceeded its timeout. The sync worker thread is daemon
+            # and left to finish on its own (a blocking Python call cannot be
+            # killed); the turn is not blocked waiting for it. The model gets a
+            # clear error so it can adapt instead of re-issuing the same call.
+            success = False
+            timed_out = True
+            error_message = (
+                f"Tool '{func_name}' timed out after "
+                f"{tool_timeout_seconds:g}s and was aborted. The operation may "
+                "still be finishing in the background; check its effect before "
+                "retrying."
+            )
+            error_result = f"Error executing tool '{func_name}': {error_message}"
+            logger.error("SmolAgent: %s", error_message)
+
+            if tool_cache and self._tool_is_cacheable(func_name):
+                tool_cache.set(func_name, cache_params, error_result, success=False)
+
+            # A timed-out mutation may have changed files partially: never
+            # trust cached reads after one.
+            if tool_cache and _tool_invalidates_cache(func_name):
+                tool_cache.clear()
+
+            return error_result
 
         except Exception as ex:
             # Catch ALL exceptions (not just OSError/ValueError/TypeError/RuntimeError)
@@ -2007,7 +2331,12 @@ class SmolAgent:
 
             # Cache the error result too so we don't re-execute a failing tool
             if tool_cache and self._tool_is_cacheable(func_name):
-                tool_cache.set(func_name, params, error_result, success=False)
+                tool_cache.set(func_name, cache_params, error_result, success=False)
+
+            # A failed mutation may still have changed files partially: never
+            # trust cached reads after one.
+            if tool_cache and _tool_invalidates_cache(func_name):
+                tool_cache.clear()
 
             return error_result
 
@@ -2050,6 +2379,8 @@ class SmolAgent:
                     tool_call_id=tool_call_id,
                     duration_ms=duration_ms,
                     error=error_message,
+                    timeout=timed_out,
+                    timeout_seconds=tool_timeout_seconds,
                 )
 
             # Archive the tool call execution with complete forensic data
@@ -2088,7 +2419,10 @@ class SmolAgent:
                     tool_definition=tool_definition,  # FORENSIC: Complete tool schema
                     tool_logs=tool_logs,  # FORENSIC: Tool execution logs
                 )
-            except OSError as ex:
+            except Exception as ex:
+                # Never let the forensic archive (which may race with a
+                # timed-out tool still running in its daemon thread) break the
+                # turn.
                 logger.warning("SmolAgent: failed to archive tool call message: %s", ex)
 
             self._record_tool_usage(
@@ -2903,7 +3237,7 @@ class SmolAgent:
                 chat_id=chat_id,
                 request_id=request_id,
             )
-        except OSError as ex:
+        except Exception as ex:
             logger.warning("SmolAgent: _record_tool_usage failed (non-fatal): %s", ex)
 
 # Made with ❤️ by codx-junior
