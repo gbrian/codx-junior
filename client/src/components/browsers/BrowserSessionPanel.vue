@@ -3,10 +3,16 @@ import BrowserViewer from './BrowserViewer.vue'
 import Chat from '@/components/chat/Chat.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import VerticalSplitter from '../layout/VerticalSplitter.vue'
+import { broadcastBrowserCollab } from '@/utils/browserCollab'
 
 export default {
   name: 'BrowserSessionPanel',
   components: { BrowserViewer, Chat, ConfirmDialog, VerticalSplitter },
+  props: {
+    // Present when the panel is rendered inside a meeting call. It enables
+    // collaborative annotations and the "share with call" action.
+    meetId: { type: String, default: null }
+  },
   data() {
     return {
       editFormData: {},
@@ -407,6 +413,111 @@ export default {
         })
       }
     },
+    /**
+     * Add an annotated browser screenshot to the session chat.
+     *
+     * The image and the textual description of every mark are inserted into the
+     * composer (not sent immediately), so the user can add context or edit the
+     * request before the AI receives it.
+     */
+    async onSendAnnotations(payload = {}) {
+      if (!payload?.dataUrl) return
+      try {
+        if (!this.showChat || !this.browserChatId) {
+          const latestChatId = await this.resolveLatestChatId()
+          if (latestChatId) {
+            await this.openChatWith({ chatId: latestChatId })
+          } else {
+            await this.openChatWith({ createNew: true })
+          }
+        }
+        await this.$nextTick()
+        const chat = this.$refs.browserChat
+        if (!chat?.addAttachmentFromDataUrl) {
+          this.downloadAnnotations(payload)
+          return
+        }
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+        const fileName = `browser-annotations-${stamp}.png`
+        const attachment = await chat.addAttachmentFromDataUrl(payload.dataUrl, fileName)
+        if (!attachment) {
+          this.downloadAnnotations(payload)
+          return
+        }
+        const lines = [
+          'I annotated the shared browser page to give you visual instructions.',
+          'The annotated screenshot is attached to this message.'
+        ]
+        if (payload.pageUrl) lines.push(`URL: ${payload.pageUrl}`)
+        if (payload.pageTitle) lines.push(`Title: ${payload.pageTitle}`)
+        if (['none', 'error'].includes(payload.captureKind)) {
+          lines.push('(The live page screenshot could not be captured; rely on the URL and the notes below.)')
+        }
+        if (payload.summary) {
+          lines.push('', 'What the drawing shows:', payload.summary)
+        }
+        lines.push(
+          '',
+          'Use the attached image together with these notes as the instructions for what to do on the page.'
+        )
+        const existing = chat.getEditorText?.() || ''
+        chat.setEditorText(existing ? `${existing}\n\n${lines.join('\n')}` : lines.join('\n'))
+        this.focusChat()
+        this.$storex.ui.addNotification({
+          text: 'Annotated screenshot added to the chat — review it and send.',
+          type: 'success'
+        })
+      } catch (error) {
+        console.error('[BrowserSessionPanel] Could not send annotations:', error)
+        this.downloadAnnotations(payload)
+      }
+    },
+    downloadAnnotations(payload) {
+      try {
+        const link = document.createElement('a')
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+        link.href = payload.dataUrl
+        link.download = `browser-annotations-${stamp}.png`
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        this.$storex.ui.addNotification({
+          text: 'The chat is unavailable, so the annotated image was downloaded.',
+          type: 'warning'
+        })
+      } catch (error) {
+        this.$storex.ui.addNotification({
+          text: error.message || 'Could not prepare the annotated image',
+          type: 'error'
+        })
+      }
+    },
+    /**
+     * Announce the session in the meeting. Peers receive it over the WebRTC
+     * data channel and can open the same VNC view, sharing the page and the
+     * annotation layer.
+     */
+    onShareSession(session = {}) {
+      if (!this.meetId || !session.sessionId) return
+      const user = this.$storex.users?.user || {}
+      broadcastBrowserCollab(this.meetId, {
+        kind: 'browser-session',
+        sessionId: session.sessionId,
+        sessionName: session.name || 'Browser session',
+        pageUrl: session.url || '',
+        pageTitle: session.title || '',
+        user: {
+          username: user.username || 'guest',
+          name: user.name || user.username || 'Guest',
+          avatar: user.avatar || ''
+        }
+      })
+      this.$storex.ui.addNotification({
+        text: `Browser session "${session.name || 'session'}" shared with the call`,
+        type: 'success'
+      })
+    },
+
     async openChatWith({ chatId = null, createNew = false, latest = false } = {}) {
       if (!this.selectedSession?.id || this.chatLoading) return
       this.chatLoading = true
@@ -567,7 +678,13 @@ export default {
       >
         <template #left>
           <div class="h-full min-w-0 min-h-0">
-            <BrowserViewer :session="selectedSession" @ask-ai="onAskAiAboutPage" />
+            <BrowserViewer
+              :session="selectedSession"
+              :meet-id="meetId"
+              @ask-ai="onAskAiAboutPage"
+              @send-annotations="onSendAnnotations"
+              @share-session="onShareSession"
+            />
           </div>
         </template>
 

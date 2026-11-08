@@ -95,6 +95,24 @@ import MicIndicator from './MicIndicator.vue'
         <i class="fa-solid fa-comments text-white text-base"></i>
       </button>
 
+      <!-- Shared browser -->
+      <div class="relative">
+        <button
+          @click="$emit('browser')"
+          class="w-11 h-11 lg:w-12 lg:h-12 rounded-full flex items-center justify-center transition-all duration-150 active:scale-95"
+          :class="activePanelTab === 'browser' && !panelCollapsed ? 'bg-primary hover:bg-primary/80' : 'bg-[#3c4043] hover:bg-[#4c5055]'"
+          title="Shared browser"
+          aria-label="Shared browser"
+        >
+          <i class="fa-solid fa-window-maximize text-white text-base"></i>
+        </button>
+        <span
+          v-if="hasSharedBrowser"
+          class="absolute -top-0.5 -right-0.5 w-3 h-3 bg-primary rounded-full border-2 border-[#1c1e20] animate-pulse"
+          title="A participant shared a browser session"
+        ></span>
+      </div>
+
       <!-- People panel toggle -->
       <button
         @click="$emit('people')"
@@ -140,10 +158,11 @@ export default {
     isRequestingScreen: { type: Boolean, default: false },
     activePanelTab: { type: String, default: 'people' },
     panelCollapsed: { type: Boolean, default: true },
+    hasSharedBrowser: { type: Boolean, default: false },
     duration: { type: String, default: '00:00' },
     isInitiator: { type: Boolean, default: false }
   },
-  emits: ['toggle-mute', 'toggle-camera', 'start-screen-share', 'settings', 'invite', 'chat', 'people', 'leave', 'end'],
+  emits: ['toggle-mute', 'toggle-camera', 'start-screen-share', 'settings', 'invite', 'chat', 'browser', 'people', 'leave', 'end'],
   computed: {
     isScreenSharing() {
       return this.screenShareCount > 0

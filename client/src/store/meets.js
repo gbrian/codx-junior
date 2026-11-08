@@ -2,6 +2,11 @@ import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import { $storex } from '.'
 import { API } from '../api/api'
 import { normalizeMeetCode, generateMeetCode } from '../utils/meetCode'
+import {
+  attachCollabDataChannel,
+  closeCollabChannel,
+  createCollabDataChannel
+} from '../utils/browserCollab'
 
 export const namespaced = true
 
@@ -140,7 +145,7 @@ function meetToClient(meet, fallback = {}) {
  * `peerId` is the device-scoped key (see `peerIdOf`) so two devices logged in
  * with the same account get independent connections instead of sharing one.
  */
-function ensurePeer(ctx, meetId, peerId, username = '') {
+function ensurePeer(ctx, meetId, peerId, username = '', { offerer = false } = {}) {
   peerConnections[meetId] = peerConnections[meetId] || {}
   const existing = peerConnections[meetId][peerId]
   if (existing) {
@@ -167,6 +172,14 @@ function ensurePeer(ctx, meetId, peerId, username = '') {
     }
   }
 
+  // Collaboration data channel (browser annotations, presence, "share this
+  // session"). The offerer creates it; the answering side receives it here.
+  pc.ondatachannel = (event) => {
+    if (event.channel?.label === 'codx-browser-collab') {
+      attachCollabDataChannel(meetId, peerId, event.channel)
+    }
+  }
+
   // Publish the local media we already have when the peer is created.
   const stream = localStreams[meetId]
   if (stream) {
@@ -176,11 +189,13 @@ function ensurePeer(ctx, meetId, peerId, username = '') {
   }
 
   peerConnections[meetId][peerId] = pc
+  if (offerer) createCollabDataChannel(meetId, peerId, pc)
   return pc
 }
 
 function closePeer(ctx, meetId, peerId) {
   const pc = peerConnections[meetId]?.[peerId]
+  closeCollabChannel(meetId, peerId)
   if (pc) {
     try { pc.close() } catch (e) { /* ignore */ }
     delete peerConnections[meetId][peerId]
@@ -1129,7 +1144,7 @@ export const actions = actionTree(
       if (!meetId || !to) return
       const peerId = peerIdOf(to, toSid)
       try {
-        const pc = ensurePeer(ctx, meetId, peerId, username || to)
+        const pc = ensurePeer(ctx, meetId, peerId, username || to, { offerer: true })
         if (pc.signalingState !== 'stable') return
         const offer = await pc.createOffer()
         await pc.setLocalDescription(offer)

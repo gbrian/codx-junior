@@ -5,7 +5,9 @@ import MeetInviteModal from '@/components/meet/MeetInviteModal.vue'
 import MeetSettingsModal from '@/components/meet/MeetSettingsModal.vue'
 import MeetControls from '@/components/meet/MeetControls.vue'
 import MicIndicator from '@/components/meet/MicIndicator.vue'
+import MeetBrowserPanel from '@/components/meet/MeetBrowserPanel.vue'
 import ChatView from '@/views/ChatView.vue'
+import { onBrowserCollab } from '@/utils/browserCollab'
 </script>
 
 <template>
@@ -327,6 +329,7 @@ import ChatView from '@/views/ChatView.vue'
             :is-requesting-screen="isRequestingScreen"
             :active-panel-tab="activePanelTab"
             :panel-collapsed="panelCollapsed"
+            :has-shared-browser="!!sharedBrowserSession"
             :duration="formattedDuration"
             :is-initiator="isInitiator"
             @toggle-mute="onToggleMute"
@@ -336,6 +339,7 @@ import ChatView from '@/views/ChatView.vue'
             @invite="showInviteModal = true"
             @chat="openMeetChat"
             @people="togglePanel('people')"
+            @browser="openMeetBrowser"
             @leave="onLeaveMeet"
             @end="onEndMeet"
           />
@@ -371,6 +375,17 @@ import ChatView from '@/views/ChatView.vue'
             Chat
           </button>
           <button
+            @click="openMeetBrowser"
+            :class="activePanelTab === 'browser' ? 'border-b-2 border-primary text-white' : 'border-b-2 border-transparent text-white/40'"
+            class="flex-1 btn btn-ghost btn-sm rounded-none gap-2 text-xs font-semibold"
+          >
+            <i class="fa-solid fa-window-maximize"></i>
+            Browser
+            <span v-if="sharedBrowserSession" class="badge badge-xs badge-primary" title="A participant shared a browser session">
+              live
+            </span>
+          </button>
+          <button
             @click="panelCollapsed = true"
             class="btn btn-ghost btn-sm btn-circle text-white/40 hover:text-white mr-1"
             title="Close panel"
@@ -381,6 +396,13 @@ import ChatView from '@/views/ChatView.vue'
 
         <div class="flex-1 min-h-0 overflow-hidden">
           <MeetParticipants v-if="activePanelTab === 'people'" :meet="currentMeet" />
+          <MeetBrowserPanel
+            v-if="activePanelTab === 'browser'"
+            :meet-id="currentMeet.meetId"
+            :current-user="currentUserName"
+            :shared-session="sharedBrowserSession"
+            class="h-full"
+          />
           <div v-if="activePanelTab === 'chat'" class="flex flex-col h-full">
             <div v-if="!meetChatData" class="flex-1 flex flex-col items-center justify-center gap-4 p-6 text-center">
               <div class="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center">
@@ -445,6 +467,11 @@ export default {
       activePanelTab: 'people',
       panelCollapsed: true,
       isResizingPanel: false,
+      // Last browser session announced by a call participant. Kept here (not
+      // only in the browser tab) so the notification arrives even when the tab
+      // is closed and is ready when the user opens it.
+      sharedBrowserSession: null,
+      browserCollabUnsubscribe: null,
       startXPanel: 0,
       // Join by code
       joinCode: '',
@@ -566,7 +593,8 @@ export default {
       immediate: true
     },
     currentMeet: {
-      handler(newVal) {
+      handler(newVal, oldVal) {
+        if (newVal?.meetId !== oldVal?.meetId) this.sharedBrowserSession = null
         if (newVal && !this.activeMeetId) {
           this.activeMeetId = newVal.meetId
         }
@@ -619,6 +647,7 @@ export default {
     }
     document.addEventListener('mousemove', this.onResizePanelMove)
     document.addEventListener('mouseup', this.onResizePanelEnd)
+    this.browserCollabUnsubscribe = onBrowserCollab((event) => this.onBrowserCollabEvent(event))
   },
   beforeUnmount() {
     const meetId = this.activeMeetId
@@ -632,6 +661,7 @@ export default {
     }
     document.removeEventListener('mousemove', this.onResizePanelMove)
     document.removeEventListener('mouseup', this.onResizePanelEnd)
+    if (this.browserCollabUnsubscribe) this.browserCollabUnsubscribe()
   },
   methods: {
     // ─── Formatting ─────────────────────────────────────────────────────────
@@ -689,6 +719,37 @@ export default {
       } else {
         this.activePanelTab = tab
       }
+    },
+
+    /** A participant shared a browser session in this call. */
+    onBrowserCollabEvent(event) {
+      if (!event || event.kind !== 'browser-session') return
+      const currentId = this.currentMeet?.meetId || this.activeMeetId
+      if (currentId && event.meetId && event.meetId !== currentId) return
+      this.sharedBrowserSession = event
+      const who = event.user?.name || event.user?.username || 'A participant'
+      this.$storex.ui.addNotification({
+        text: `${who} shared browser session "${event.sessionName || 'session'}" — open the Browser tab to join`,
+        type: 'info'
+      })
+    },
+
+    /**
+     * Open the shared-browser panel. The panel is wider than the chat/people
+     * panel because a co-browsing session needs room for the page and the
+     * annotation toolbar.
+     */
+    openMeetBrowser() {
+      if (this.panelCollapsed) {
+        this.activePanelTab = 'browser'
+        this.panelCollapsed = false
+      } else if (this.activePanelTab === 'browser') {
+        this.panelCollapsed = true
+        return
+      } else {
+        this.activePanelTab = 'browser'
+      }
+      if (this.activePanelWidth < 44) this.activePanelWidth = 44
     },
 
     // ─── Meet chat ──────────────────────────────────────────────────────────

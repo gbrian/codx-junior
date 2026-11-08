@@ -792,6 +792,44 @@ export default {
         return null
       }
     },
+    /**
+     * Attach a file to the message being composed.
+     *
+     * Public entry point used by the browser annotation board: the board
+     * captures the page plus the user's marks to a data URL and the panel adds
+     * it to the composer together with the textual instructions.
+     */
+    async addAttachmentFile(file) {
+      if (!file) return null
+      this.inputCollapsed = false
+      const attachment = await this.prepareAttachmentFromFile(file)
+      if (!attachment) return null
+      this.attachments = [...this.attachments, attachment]
+      return attachment
+    },
+    /** Add an image data URL as an attachment of the message being composed. */
+    async addAttachmentFromDataUrl(dataUrl, fileName = 'annotation.png') {
+      try {
+        const response = await fetch(dataUrl)
+        if (!response.ok) throw new Error('Could not read the annotated image')
+        const blob = await response.blob()
+        const file = new File([blob], fileName, { type: blob.type || 'image/png' })
+        return await this.addAttachmentFile(file)
+      } catch (error) {
+        console.error('[Chat] Could not add the annotated image:', error)
+        this.$ui?.addNotification?.({ text: error.message || 'Could not attach the annotated image', type: 'error' })
+        return null
+      }
+    },
+    /** Current composer text (used to append instructions without losing it). */
+    getEditorText() {
+      return this.$refs.inputBox?.getEditorText() ?? ''
+    },
+    /** Focus the composer after an external action inserted content. */
+    focusEditor() {
+      this.inputCollapsed = false
+      this.$nextTick(() => this.$refs.inputBox?.focusEditor?.())
+    },
     extractFileNameFromUrl(url) {
       try {
         const pathname = new URL(url).pathname

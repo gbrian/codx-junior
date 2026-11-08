@@ -122,6 +122,26 @@
       </form>
       <button
         class="btn btn-xs btn-ghost"
+        :class="annotating && 'btn-active text-primary'"
+        title="Draw on the page and send the marks to the AI"
+        :disabled="!isRunning"
+        :aria-pressed="annotating ? 'true' : 'false'"
+        @click="toggleAnnotation"
+      >
+        <i class="fa-solid fa-pen-ruler"></i>
+        <span v-if="annotationCount" class="badge badge-xs badge-primary">{{ annotationCount }}</span>
+      </button>
+      <button
+        v-if="meetId"
+        class="btn btn-xs btn-ghost"
+        title="Share this browser session with the call"
+        :disabled="!isRunning"
+        @click="shareWithMeet"
+      >
+        <i class="fa-solid fa-users"></i>
+      </button>
+      <button
+        class="btn btn-xs btn-ghost"
         title="AI/user screenshot"
         :disabled="!isRunning || screenshotLoading"
         @click="takeScreenshot"
@@ -160,9 +180,11 @@
           <div class="relative h-full min-h-[240px] bg-black/40">
             <iframe
               v-if="isRunning && vncEmbedUrl"
+              ref="liveFrame"
               :key="iframeKey"
               :src="vncEmbedUrl"
               class="w-full h-full border-0 bg-black"
+              :class="annotating && 'pointer-events-none'"
               allow="clipboard-read; clipboard-write; fullscreen"
               @load="onFrameLoaded"
             ></iframe>
@@ -179,6 +201,24 @@
             >
               <span class="loading loading-spinner loading-lg"></span>
             </div>
+
+            <!-- Annotation board: draws over the live page, syncs between call
+                 participants and exports screenshot + marks to the chat. -->
+            <BrowserAnnotationBoard
+              v-if="isRunning"
+              v-show="annotating"
+              :key="activeSessionId || 'no-session'"
+              :active="annotating"
+              :session-id="activeSessionId"
+              :page-url="activeSession?.current_url || address"
+              :page-title="activeSession?.current_title || ''"
+              :meet-id="meetId"
+              :current-user="currentUser"
+              :get-screenshot="captureBoardBackground"
+              @close="closeAnnotation"
+              @change="onAnnotationsChange"
+              @send="onAnnotationsSend"
+            />
           </div>
         </div>
 
@@ -299,6 +339,8 @@
 </template>
 
 <script>
+import BrowserAnnotationBoard from './BrowserAnnotationBoard.vue'
+
 /**
  * BrowserViewer — shared AI/user co-browsing surface.
  *
@@ -314,17 +356,24 @@
  */
 export default {
   name: 'BrowserViewer',
+  components: { BrowserAnnotationBoard },
+  emits: ['ask-ai', 'send-annotations', 'share-session'],
   props: {
     sessionId: { type: String, default: null },
     session: { type: Object, default: null },
     params: { type: Object, default: null },
-    compact: { type: Boolean, default: false }
+    compact: { type: Boolean, default: false },
+    // Meeting id enables collaborative annotations over the WebRTC data
+    // channel used by the call.
+    meetId: { type: String, default: null }
   },
   data() {
     return {
       address: '',
       iframeKey: 0,
       loadingFrame: true,
+      annotating: false,
+      annotationCount: 0,
       navigating: false,
       screenshotLoading: false,
       screenshot: null,
@@ -363,6 +412,9 @@ export default {
     },
     isRunning() {
       return this.activeSession?.status === 'running'
+    },
+    currentUser() {
+      return this.$storex.users?.user || null
     },
     vncEmbedUrl() {
       const session = this.activeSession
@@ -436,7 +488,8 @@ export default {
   watch: {
     activeSessionId: {
       immediate: true,
-      handler() {
+      handler(value, previous) {
+        if (value !== previous) this.closeAnnotation()
         this.restoreAddress()
         this.refreshSessionData()
       }
@@ -448,6 +501,9 @@ export default {
       if (value === 'running') {
         this.loadingFrame = true
         this.iframeKey += 1
+      } else {
+        this.closeAnnotation()
+        this.annotationCount = 0
       }
     },
     activityDrawerOpen(open) {
@@ -487,6 +543,109 @@ export default {
     toggleActivityDrawer() {
       this.activityDrawerOpen = !this.activityDrawerOpen
       if (this.activityDrawerOpen) this.refreshSessionData({ quiet: true })
+    },
+
+    // ── Annotation board ───────────────────────────────────────────────────
+    toggleAnnotation() {
+      if (!this.isRunning) return
+      this.annotating = !this.annotating
+    },
+    closeAnnotation() {
+      this.annotating = false
+    },
+    onAnnotationsChange({ count } = {}) {
+      this.annotationCount = count || 0
+    },
+    onAnnotationsSend(payload) {
+      this.$emit('send-annotations', payload)
+    },
+    shareWithMeet() {
+      const session = this.activeSession
+      if (!session) return
+      this.$emit('share-session', {
+        sessionId: session.id,
+        name: session.name,
+        url: session.current_url || this.address,
+        title: session.current_title || ''
+      })
+    },
+    /**
+     * Background for the annotated export.
+     *
+     * The live Selkies view is same-origin, so when the iframe exposes a
+     * <canvas>/<video> we can capture exactly what the user sees (including the
+     * browser chrome). That keeps the marks pixel-aligned with the screenshot.
+     * When the access fails (cross-origin tunnel), fall back to the page
+     * screenshot from the browser runtime.
+     */
+    async captureBoardBackground() {
+      const live = this.captureLiveFrame()
+      if (live) return { dataUrl: live, kind: 'live' }
+      if (!this.activeSessionId) return { dataUrl: null, kind: 'none' }
+      try {
+        const response = await this.$storex.browsers.screenshot({
+          sessionId: this.activeSessionId,
+          fullPage: false
+        })
+        if (response?.success && response.screenshot) {
+          return { dataUrl: response.screenshot, kind: 'page' }
+        }
+      } catch (error) {
+        console.warn('[BrowserViewer] Could not capture page for annotations', error)
+      }
+      return { dataUrl: null, kind: 'none' }
+    },
+    captureLiveFrame() {
+      let doc = null
+      try {
+        doc = this.$refs.liveFrame?.contentDocument || null
+      } catch (error) {
+        return null
+      }
+      if (!doc) return null
+
+      const candidates = []
+      const visit = (root) => {
+        if (!root || candidates.length > 80) return
+        root.querySelectorAll?.('canvas, video').forEach((element) => {
+          candidates.push(element)
+        })
+        root.querySelectorAll?.('*').forEach((element) => {
+          if (element.shadowRoot) visit(element.shadowRoot)
+        })
+      }
+      visit(doc)
+
+      let best = null
+      let bestArea = 0
+      candidates.forEach((element) => {
+        const rect = element.getBoundingClientRect?.()
+        if (!rect || rect.width < 120 || rect.height < 80) return
+        const width = Number(element.videoWidth || element.width || element.clientWidth || 0)
+        const height = Number(element.videoHeight || element.height || element.clientHeight || 0)
+        if (width < 120 || height < 80) return
+        if (element.tagName === 'VIDEO' && element.readyState < 2) return
+        const area = width * height
+        if (area > bestArea) {
+          bestArea = area
+          best = element
+        }
+      })
+      if (!best) return null
+
+      try {
+        const width = Number(best.videoWidth || best.width || best.clientWidth)
+        const height = Number(best.videoHeight || best.height || best.clientHeight)
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(best, 0, 0, width, height)
+        return canvas.toDataURL('image/png')
+      } catch (error) {
+        console.warn('[BrowserViewer] Live frame is not capturable', error)
+        return null
+      }
     },
     async askAiAboutPage() {
       if (!this.activeSessionId) return
