@@ -41,3 +41,4 @@ localai-models
 .dsh-codx-junior/
 kasm-user
 chromium_profile
+.codx/orchestration/worker.json
