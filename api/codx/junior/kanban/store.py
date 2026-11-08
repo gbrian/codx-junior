@@ -21,6 +21,18 @@ Identity
 ``id`` and ``folder`` are immutable. ``title`` is a label: renaming a board or a
 column changes nothing on disk, so **no task is moved or rewritten**.
 
+Column defaults
+---------------
+A column may also declare the defaults of the tasks created in it, resolved by
+:meth:`KanbanStore.column_defaults`:
+
+* ``project_id`` - the TARGET project those tasks work on (``Chat.project_id``);
+  the task file keeps living in the OWNER project (``Chat.owner_project_id``),
+* ``profiles``   - profiles every new task inherits.
+
+Both survive a full-document write because :meth:`KanbanStore._normalize_columns`
+carries them over (falling back to the stored value when the writer omits them).
+
 Compatibility
 -------------
 :meth:`KanbanStore.load` returns the *assembled* legacy shape::
@@ -58,6 +70,7 @@ from codx.junior.kanban.model import (
     LEGACY_FILE,
     LOCK_FILE,
     STORE_VERSION,
+    clean_profiles,
     safe_folder,
 )
 from codx.junior.migrations.kanban_v1_to_v2 import migrate_kanban_v1_to_v2
@@ -354,6 +367,98 @@ class KanbanStore:
             logger.warning("kanban: cannot list '%s': %s", parent_path, ex)
         return None
 
+    # ------------------------------------------------------------------
+    # Column defaults (used by task creation)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _column_items(info: Dict[str, Any]) -> List[Any]:
+        """
+        Return the raw columns of a catalogue board entry as a list.
+
+        Three shapes are supported because the catalogue is also written by
+        hand and by older clients: ``{title: {...}}`` dict, list of dicts and
+        list of plain strings.
+
+        Args:
+            info: Board entry of the catalogue.
+
+        Returns:
+            List of raw column nodes.
+        """
+        columns = info.get("columns") if isinstance(info, dict) else None
+        if isinstance(columns, dict):
+            return [
+                {"title": name, **(value if isinstance(value, dict) else {})}
+                for name, value in columns.items()
+            ]
+        if isinstance(columns, list):
+            return columns
+        return []
+
+    def _column_entry(
+        self,
+        board: Optional[str],
+        column: Optional[str],
+    ) -> Dict[str, Any]:
+        """
+        Return the catalogue entry of a single column.
+
+        Args:
+            board: Board title (case insensitive).
+            column: Column title (case insensitive).
+
+        Returns:
+            The stored column dict (``{"title", "id", "color", ...}``) or an
+            empty dict when the board or the column does not exist.
+        """
+        board_title = str(board or DEFAULT_BOARD).strip() or DEFAULT_BOARD
+        column_title = str(column or DEFAULT_COLUMN).strip() or DEFAULT_COLUMN
+
+        info = self._catalogue().get(board_title.lower()) or {}
+        wanted = column_title.lower()
+
+        for entry in self._column_items(info):
+            if isinstance(entry, str):
+                if entry.strip().lower() == wanted:
+                    return {"title": entry}
+            elif isinstance(entry, dict):
+                title = str(entry.get("title") or entry.get("name") or "").strip()
+                if title.lower() == wanted:
+                    return entry
+        return {}
+
+    def column_defaults(
+        self,
+        board: Optional[str],
+        column: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Return the defaults a NEW task inherits from its destination column.
+
+        A column may declare the project its tasks work on and the profiles
+        they inherit. ``project_id`` is the TARGET project only: the task file
+        keeps being stored in the OWNER project (``Chat.owner_project_id``), so
+        a board of project A can drive work on project B.
+
+        Args:
+            board: Board title (``Chat.board``).
+            column: Column title (``Chat.column``).
+
+        Returns:
+            ``{"project_id": Optional[str], "profiles": List[str]}`` (empty
+            values when the column declares no defaults).
+
+        Example:
+            >>> store.column_defaults("Roadmap", "Backend")
+            {'project_id': 'b6f1...', 'profiles': ['software_developer']}
+        """
+        entry = self._column_entry(board=board, column=column)
+        project_id = str(entry.get("project_id") or "").strip() or None
+        return {
+            "project_id": project_id,
+            "profiles": clean_profiles(entry.get("profiles")),
+        }
+
     def board_dirs(self) -> List[str]:
         """
         Return the folders that hold chats (every directory except ``boards``).
@@ -420,10 +525,17 @@ class KanbanStore:
         previous: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Normalize a board's columns to ``[{id, title, color, folder, order}]``.
+        Normalize a board's columns to
+        ``[{id, title, color, folder, order, project_id, profiles}]``.
 
         ``id`` and ``folder`` are inherited from *previous* (matched by title)
         so a rename of a column keeps the chats where they are.
+
+        ``project_id`` and ``profiles`` (the defaults handed to the tasks
+        created in the column) are inherited too, but only when the incoming
+        column does not define them: an explicit ``None``/empty list clears the
+        target, an omitted key keeps the stored one. That keeps partial writers
+        (a tool adding another column, an older client) from wiping targets.
 
         Args:
             columns: Raw columns (list of dicts/strings or a ``{title: {...}}`` dict).
@@ -458,6 +570,9 @@ class KanbanStore:
             if not title:
                 continue
             previous_column = by_title.get(title.lower()) or {}
+            # Targets: explicit value wins (None/'' clears), omitted keeps stored.
+            project_id = column.get("project_id", previous_column.get("project_id"))
+            profiles = column.get("profiles", previous_column.get("profiles"))
             normalized.append({
                 "id": column.get("id") or previous_column.get("id") or str(uuid.uuid4()),
                 "title": title,
@@ -466,6 +581,8 @@ class KanbanStore:
                 "folder": column.get("folder") or previous_column.get("folder")
                           or safe_folder(title, DEFAULT_COLUMN),
                 "order": column.get("order") if column.get("order") is not None else order,
+                "project_id": str(project_id or "").strip() or None,
+                "profiles": clean_profiles(profiles),
             })
         return normalized
 

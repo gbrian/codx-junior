@@ -7,13 +7,20 @@ format** (see :mod:`codx.junior.kanban.store`):
 ```
 .codx/tasks/
   index.json                       { version: 2, boards: [ {id,title,type,parent_id,folder,order} ], tags }
-  boards/<board_id>/board.json     { id,title,description,type,parent_id,folder,columns:[{id,title,color,folder,order}] }
+  boards/<board_id>/board.json     { id,title,description,type,parent_id,folder,columns:[{id,title,color,folder,order,project_id,profiles}] }
   <folder>/<column_folder>/<slug>.<chat_id>.json
 ```
 
 ``folder`` is **immutable**: it is the name of the directory that holds the
 board/column chats. ``title`` is only a label, so renaming a board or a column
 changes nothing on disk and no task has to be rewritten.
+
+Columns may additionally declare the defaults of the tasks created in them
+(see :meth:`codx.junior.kanban.store.KanbanStore.column_defaults`):
+
+* ``project_id`` - the TARGET project those tasks work on (the file keeps
+  living in the OWNER project),
+* ``profiles``   - profiles every new task inherits.
 
 This module must stay dependency free (no imports from the rest of codx-junior)
 because both the store and the migration import it.
@@ -23,6 +30,8 @@ Made with ❤️ by codx-junior
 
 import os
 import re
+
+from typing import Any, List
 
 # Bumped whenever the on-disk layout changes in a breaking way.
 STORE_VERSION = 2
@@ -91,5 +100,40 @@ def is_store_file(file_path: str) -> bool:
         return True
     parts = os.path.normpath(file_path).split(os.sep)
     return BOARDS_DIR in parts
+
+
+def clean_profiles(value: Any) -> List[str]:
+    """
+    Normalize the ``profiles`` a board column hands to its new tasks.
+
+    The chat engine re-emits profiles as ``@name`` mentions, so a stored
+    ``@name`` (or ``@@name``) would never resolve to a profile. Leading ``@``
+    are stripped, blanks dropped and duplicates removed.
+
+    Args:
+        value: A string, a list/tuple/set or None.
+
+    Returns:
+        De-duplicated profile names, order preserved.
+
+    Example:
+        >>> clean_profiles(["@backend", "backend", " ui ", None])
+        ['backend', 'ui']
+    """
+    if value is None:
+        return []
+    if isinstance(value, str):
+        value = [value]
+    try:
+        items = list(value)
+    except TypeError:
+        return []
+
+    names: List[str] = []
+    for item in items:
+        clean = str(item or "").lstrip("@").strip()
+        if clean and clean not in names:
+            names.append(clean)
+    return names
 
 # Made with ❤️ by codx-junior

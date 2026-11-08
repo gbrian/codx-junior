@@ -7,13 +7,28 @@ import MeetControls from '@/components/meet/MeetControls.vue'
 import MicIndicator from '@/components/meet/MicIndicator.vue'
 import MeetBrowserPanel from '@/components/meet/MeetBrowserPanel.vue'
 import ChatView from '@/views/ChatView.vue'
+import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 import { onBrowserCollab } from '@/utils/browserCollab'
 </script>
 
 <template>
-  <div class="flex h-full overflow-hidden bg-[#1c1e20]">
-    <!-- Main Meet Area -->
-    <div class="flex-1 flex flex-col min-w-0">
+  <div class="h-full overflow-hidden bg-[#1c1e20]">
+    <!-- One vertical splitter owns the call layout: the meeting surface on the
+         left and the People / Chat / Browser panels on the right. The handle is
+         draggable and its last position is remembered. -->
+    <VerticalSplitter
+      class="h-full"
+      show-handle
+      persist-key="meet.panels"
+      :show-left="true"
+      :show-right="!!currentMeet && !panelCollapsed"
+      :panels="{
+        left: { minSize: 45, defaultSize: 70, class: 'h-full min-w-0' },
+        right: { minSize: 18, defaultSize: 30, class: 'h-full min-w-0' }
+      }"
+    >
+      <template #left>
+        <div class="flex h-full min-w-0 flex-col">
 
       <!-- Header (always shown) -->
       <MeetHeader
@@ -344,18 +359,15 @@ import { onBrowserCollab } from '@/utils/browserCollab'
             @end="onEndMeet"
           />
         </div>
-      </div>
-    </div>
+        </div>
+        </div>
+      </template>
 
-    <!-- ─────────────────────────────────────────── -->
-    <!-- Right Panel: People / Chat                  -->
-    <!-- ─────────────────────────────────────────── -->
-    <transition name="panel-slide">
-      <div
-        v-if="currentMeet && !panelCollapsed"
-        class="border-l border-white/5 flex flex-col bg-[#202124] shrink-0"
-        :style="{ width: activePanelWidth + '%' }"
-      >
+      <!-- ─────────────────────────────────────────── -->
+      <!-- Right Panel: People / Chat / Browser         -->
+      <!-- ─────────────────────────────────────────── -->
+      <template #right>
+        <div class="flex h-full min-w-0 flex-col border-l border-white/5 bg-[#202124]">
         <!-- Tab bar -->
         <div class="flex items-center border-b border-white/5 bg-[#1c1e20]">
           <button
@@ -427,8 +439,9 @@ import { onBrowserCollab } from '@/utils/browserCollab'
             />
           </div>
         </div>
-      </div>
-    </transition>
+        </div>
+      </template>
+    </VerticalSplitter>
 
     <!-- Modals -->
     <MeetInviteModal
@@ -463,16 +476,13 @@ export default {
       showInviteModal: false,
       showCallSettings: false,
       callSettings: {},
-      activePanelWidth: 30,
       activePanelTab: 'people',
       panelCollapsed: true,
-      isResizingPanel: false,
       // Last browser session announced by a call participant. Kept here (not
       // only in the browser tab) so the notification arrives even when the tab
       // is closed and is ready when the user opens it.
       sharedBrowserSession: null,
       browserCollabUnsubscribe: null,
-      startXPanel: 0,
       // Join by code
       joinCode: '',
       joinError: null,
@@ -645,8 +655,6 @@ export default {
     } catch (e) {
       console.warn('[MeetView] Could not load saved settings')
     }
-    document.addEventListener('mousemove', this.onResizePanelMove)
-    document.addEventListener('mouseup', this.onResizePanelEnd)
     this.browserCollabUnsubscribe = onBrowserCollab((event) => this.onBrowserCollabEvent(event))
   },
   beforeUnmount() {
@@ -659,8 +667,6 @@ export default {
       this.$storex.meets.setLocalStream({ meetId, stream: null })
       this.$storex.meets.leaveMeet({ meetId }).catch(() => {})
     }
-    document.removeEventListener('mousemove', this.onResizePanelMove)
-    document.removeEventListener('mouseup', this.onResizePanelEnd)
     if (this.browserCollabUnsubscribe) this.browserCollabUnsubscribe()
   },
   methods: {
@@ -749,7 +755,6 @@ export default {
       } else {
         this.activePanelTab = 'browser'
       }
-      if (this.activePanelWidth < 44) this.activePanelWidth = 44
     },
 
     // ─── Meet chat ──────────────────────────────────────────────────────────
@@ -1088,35 +1093,6 @@ export default {
       await this.onLeaveMeet()
       this.$router.push({ name: 'home' })
     },
-
-    // ─── Panel resize ────────────────────────────────────────────────────────
-    startResizePanel(e) {
-      this.isResizingPanel = true
-      this.startXPanel = e.clientX
-    },
-    onResizePanelMove(e) {
-      if (!this.isResizingPanel) return
-      const delta = e.clientX - this.startXPanel
-      this.activePanelWidth = Math.max(20, Math.min(50, this.activePanelWidth - (delta / window.innerWidth) * 100))
-    },
-    onResizePanelEnd() {
-      if (this.isResizingPanel) {
-        this.isResizingPanel = false
-      }
-    }
   }
 }
 </script>
-
-<style scoped>
-.panel-slide-enter-active,
-.panel-slide-leave-active {
-  transition: width 0.25s ease, opacity 0.2s ease;
-  overflow: hidden;
-}
-.panel-slide-enter-from,
-.panel-slide-leave-to {
-  width: 0 !important;
-  opacity: 0;
-}
-</style>

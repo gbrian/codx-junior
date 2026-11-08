@@ -57,6 +57,26 @@ test('annotationBounds normalizes a rectangle drawn bottom-up', () => {
   assert.ok(Math.abs(bounds.h - 0.1) < 1e-9)
 })
 
+test('annotationBounds honours an explicitly resized text box', () => {
+  const text = createAnnotation({ tool: 'text', point: { x: 0.2, y: 0.3 }, text: 'A resized label' })
+  text.w = 0.25
+  text.h = 0.08
+  const bounds = annotationBounds(text)
+  assert.ok(Math.abs(bounds.x - 0.2) < 1e-9)
+  assert.ok(Math.abs(bounds.y - 0.3) < 1e-9)
+  assert.ok(Math.abs(bounds.w - 0.25) < 1e-9)
+  assert.ok(Math.abs(bounds.h - 0.08) < 1e-9)
+})
+
+test('annotationBounds uses the sticky-note height after resizing', () => {
+  const note = createAnnotation({ tool: 'note', point: { x: 0.1, y: 0.1 }, text: 'note' })
+  note.w = 0.3
+  note.h = 0.2
+  const bounds = annotationBounds(note)
+  assert.ok(Math.abs(bounds.w - 0.3) < 1e-9)
+  assert.ok(Math.abs(bounds.h - 0.2) < 1e-9)
+})
+
 test('findAnnotationAt returns the topmost matching mark', () => {
   const bottom = createAnnotation({ tool: 'rect', point: { x: 0.2, y: 0.2 } })
   bottom.w = 0.4

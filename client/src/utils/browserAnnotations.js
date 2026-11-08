@@ -152,8 +152,11 @@ export function annotationBounds(annotation) {
     return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y }
   }
   if (annotation.tool === 'text') {
-    // The exact text box depends on the renderer; this approximation is only
-    // used for selection / hit testing and is deliberately generous.
+    // After a resize the explicit box wins; before that the text box depends on
+    // the renderer, so the approximation is deliberately generous.
+    if (annotation.w > 0 && annotation.h > 0) {
+      return { x: annotation.x, y: annotation.y, w: annotation.w, h: annotation.h }
+    }
     const width = Math.max(0.04, Math.min(0.9, (annotation.text || '').length * 0.009))
     return { x: annotation.x, y: annotation.y, w: width, h: 0.045 }
   }
@@ -396,7 +399,10 @@ export function drawAnnotation(ctx, annotation, width, height, images) {
     ctx.textBaseline = 'top'
     const x = annotation.x * width
     const y = annotation.y * height
-    const lines = String(annotation.text || '').split(/\r?\n/)
+    const maxWidth = annotation.w > 0 ? annotation.w * width : 0
+    const lines = maxWidth
+      ? wrapText(ctx, annotation.text || '', maxWidth)
+      : String(annotation.text || '').split(/\r?\n/)
     // A subtle dark halo keeps light text readable on white pages and dark
     // text readable on dark pages, without painting a full background.
     ctx.lineWidth = Math.max(2, fontSize * 0.16)
@@ -415,8 +421,15 @@ export function drawAnnotation(ctx, annotation, width, height, images) {
     const metrics = measureNote(ctx, annotation, width, height)
     const x = annotation.x * width
     const y = annotation.y * height
-    const noteWidth = Math.min(metrics.width, width - x - 8)
-    const noteHeight = metrics.height
+    const noteWidth = Math.min(
+      Math.max(60, (annotation.w || 0.24) * width),
+      width - x - 8
+    )
+    // Once the user resizes the note its explicit height wins; the text wraps
+    // to the new width and is clipped if the note is made very short.
+    const noteHeight = annotation.h > 0
+      ? Math.max(30, annotation.h * height)
+      : metrics.height
 
     ctx.save()
     ctx.shadowColor = 'rgba(0, 0, 0, 0.35)'
@@ -432,12 +445,18 @@ export function drawAnnotation(ctx, annotation, width, height, images) {
     roundedRect(ctx, x, y, noteWidth, noteHeight, 8)
     ctx.stroke()
 
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(x, y, noteWidth, noteHeight)
+    ctx.clip()
     ctx.fillStyle = '#1f2937'
     ctx.font = `500 ${metrics.fontSize}px ${TEXT_FONT}`
     ctx.textBaseline = 'top'
-    metrics.lines.forEach((line, index) => {
+    const lines = wrapText(ctx, annotation.text || '', Math.max(30, noteWidth - metrics.padding * 2))
+    lines.forEach((line, index) => {
       ctx.fillText(line, x + metrics.padding, y + metrics.padding + index * metrics.lineHeight)
     })
+    ctx.restore()
     ctx.restore()
     return
   }

@@ -414,63 +414,106 @@ export default {
       }
     },
     /**
-     * Add an annotated browser screenshot to the session chat.
+     * Send the annotated browser screenshot.
      *
-     * The image and the textual description of every mark are inserted into the
-     * composer (not sent immediately), so the user can add context or edit the
-     * request before the AI receives it.
+     * The board's "Send" action asks for two things: copy the PNG to the
+     * clipboard, and — when a chat pane is open — post it as a NEW message
+     * (not a composer draft) with the generated visual instructions.
      */
     async onSendAnnotations(payload = {}) {
       if (!payload?.dataUrl) return
-      try {
-        if (!this.showChat || !this.browserChatId) {
-          const latestChatId = await this.resolveLatestChatId()
-          if (latestChatId) {
-            await this.openChatWith({ chatId: latestChatId })
-          } else {
-            await this.openChatWith({ createNew: true })
+      const copied = await this.copyAnnotatedImage(payload.dataUrl)
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      const fileName = `browser-annotations-${stamp}.png`
+      const chat = this.showChat ? this.$refs.browserChat : null
+
+      if (chat?.sendAnnotatedMessage) {
+        try {
+          const sent = await chat.sendAnnotatedMessage({
+            content: this.buildAnnotationPrompt(payload),
+            dataUrl: payload.dataUrl,
+            fileName
+          })
+          if (sent) {
+            this.$storex.ui.addNotification({
+              text: copied
+                ? 'Annotated screenshot copied to the clipboard and sent to the chat.'
+                : 'Annotated screenshot sent to the chat (clipboard copy was not available).',
+              type: 'success'
+            })
+            return
           }
+        } catch (error) {
+          console.error('[BrowserSessionPanel] Could not send annotations:', error)
+          this.$storex.ui.addNotification({
+            text: error.message || 'Could not send the annotated screenshot to the chat',
+            type: 'error'
+          })
         }
-        await this.$nextTick()
-        const chat = this.$refs.browserChat
-        if (!chat?.addAttachmentFromDataUrl) {
-          this.downloadAnnotations(payload)
-          return
-        }
-        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-        const fileName = `browser-annotations-${stamp}.png`
-        const attachment = await chat.addAttachmentFromDataUrl(payload.dataUrl, fileName)
-        if (!attachment) {
-          this.downloadAnnotations(payload)
-          return
-        }
-        const lines = [
-          'I annotated the shared browser page to give you visual instructions.',
-          'The annotated screenshot is attached to this message.'
-        ]
-        if (payload.pageUrl) lines.push(`URL: ${payload.pageUrl}`)
-        if (payload.pageTitle) lines.push(`Title: ${payload.pageTitle}`)
-        if (['none', 'error'].includes(payload.captureKind)) {
-          lines.push('(The live page screenshot could not be captured; rely on the URL and the notes below.)')
-        }
-        if (payload.summary) {
-          lines.push('', 'What the drawing shows:', payload.summary)
-        }
-        lines.push(
-          '',
-          'Use the attached image together with these notes as the instructions for what to do on the page.'
-        )
-        const existing = chat.getEditorText?.() || ''
-        chat.setEditorText(existing ? `${existing}\n\n${lines.join('\n')}` : lines.join('\n'))
-        this.focusChat()
+      }
+
+      if (copied) {
         this.$storex.ui.addNotification({
-          text: 'Annotated screenshot added to the chat — review it and send.',
-          type: 'success'
+          text: 'Annotated screenshot copied to the clipboard. Open the chat to send it.',
+          type: 'info'
         })
-      } catch (error) {
-        console.error('[BrowserSessionPanel] Could not send annotations:', error)
+      } else {
         this.downloadAnnotations(payload)
       }
+    },
+    /** Prompt that accompanies the annotated screenshot in the chat. */
+    buildAnnotationPrompt(payload = {}) {
+      const lines = [
+        'I annotated the shared browser page to give you visual instructions.',
+        'The annotated screenshot is attached to this message.'
+      ]
+      if (payload.pageUrl) lines.push(`URL: ${payload.pageUrl}`)
+      if (payload.pageTitle) lines.push(`Title: ${payload.pageTitle}`)
+      if (['none', 'error'].includes(payload.captureKind)) {
+        lines.push('(The live page screenshot could not be captured; rely on the URL and the notes below.)')
+      }
+      if (payload.summary) {
+        lines.push('', 'What the drawing shows:', payload.summary)
+      }
+      lines.push(
+        '',
+        'Use the attached image together with these notes as the instructions for what to do on the page.'
+      )
+      return lines.join('\n')
+    },
+    /**
+     * Copy the annotated PNG to the system clipboard.
+     * The ClipboardItem is created inside the click task (before any await) so
+     * browsers keep the user activation required by `clipboard.write`.
+     */
+    async copyAnnotatedImage(dataUrl) {
+      try {
+        const blob = this.dataUrlToBlob(dataUrl)
+        if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+          throw new Error('Clipboard image copy is not supported here')
+        }
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ])
+        return true
+      } catch (error) {
+        console.warn('[BrowserSessionPanel] Could not copy annotations to clipboard:', error)
+        return false
+      }
+    },
+    /** Convert a data URL to a Blob without an async fetch (keeps activation). */
+    dataUrlToBlob(dataUrl) {
+      const comma = String(dataUrl).indexOf(',')
+      if (comma < 0) throw new Error('Invalid annotated image data')
+      const header = dataUrl.slice(0, comma)
+      const base64 = dataUrl.slice(comma + 1)
+      const mime = /data:([^;]+)/i.exec(header)?.[1] || 'image/png'
+      const binary = atob(base64)
+      const bytes = new Uint8Array(binary.length)
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index)
+      }
+      return new Blob([bytes], { type: mime })
     },
     downloadAnnotations(payload) {
       try {
@@ -482,7 +525,7 @@ export default {
         link.click()
         link.remove()
         this.$storex.ui.addNotification({
-          text: 'The chat is unavailable, so the annotated image was downloaded.',
+          text: 'Clipboard access is unavailable, so the annotated image was downloaded.',
           type: 'warning'
         })
       } catch (error) {

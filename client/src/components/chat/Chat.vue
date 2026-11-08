@@ -807,19 +807,65 @@ export default {
       this.attachments = [...this.attachments, attachment]
       return attachment
     },
+    /** Build a ChatAttachment from a data URL without touching the composer. */
+    async createAttachmentFromDataUrl(dataUrl, fileName = 'annotation.png') {
+      const response = await fetch(dataUrl)
+      if (!response.ok) throw new Error('Could not read the annotated image')
+      const blob = await response.blob()
+      const file = new File([blob], fileName, { type: blob.type || 'image/png' })
+      return await this.prepareAttachmentFromFile(file)
+    },
     /** Add an image data URL as an attachment of the message being composed. */
     async addAttachmentFromDataUrl(dataUrl, fileName = 'annotation.png') {
       try {
-        const response = await fetch(dataUrl)
-        if (!response.ok) throw new Error('Could not read the annotated image')
-        const blob = await response.blob()
-        const file = new File([blob], fileName, { type: blob.type || 'image/png' })
-        return await this.addAttachmentFile(file)
+        const attachment = await this.createAttachmentFromDataUrl(dataUrl, fileName)
+        if (!attachment) return null
+        this.inputCollapsed = false
+        this.attachments = [...this.attachments, attachment]
+        return attachment
       } catch (error) {
         console.error('[Chat] Could not add the annotated image:', error)
         this.$ui?.addNotification?.({ text: error.message || 'Could not attach the annotated image', type: 'error' })
         return null
       }
+    },
+    /**
+     * Send an annotated browser screenshot as a new message to this chat.
+     *
+     * The board's "Send" action uses this instead of stuffing the composer:
+     * the user asked for a new message with the screenshot, and their current
+     * draft must stay where it is.
+     */
+    async sendAnnotatedMessage({ content, dataUrl, fileName = 'annotation.png' } = {}) {
+      if (this.readOnly || !dataUrl) return false
+      const message = String(content || '').trim()
+      if (!message) return false
+      let attachment = null
+      try {
+        attachment = await this.createAttachmentFromDataUrl(dataUrl, fileName)
+      } catch (error) {
+        console.error('[Chat] Could not attach the annotated screenshot:', error)
+        return false
+      }
+      if (!attachment) return false
+      const userMessage = this.chatSvc.getUserMessage({
+        message,
+        project_id: this.messageProject?.project_id,
+        files: [],
+        profiles: [...new Set([...this.selectorProfileNames, ...this.textProfileNames])],
+        attachments: [attachment.toJSON()],
+        metadata: this.metadata,
+        user: this.$user.username
+      })
+      await this.chatSvc.addMessage({ chat: this.chat, message: userMessage })
+      const shouldSend = this.isGroup
+        ? !!this.lastMessage?.profiles?.length
+        : (!this.isChannel || this.lastMessage?.profiles?.length)
+      if (shouldSend) {
+        await this.sendChatMessage(this.chat)
+        this.$emit('send-message', this.lastMessage)
+      }
+      return true
     },
     /** Current composer text (used to append instructions without losing it). */
     getEditorText() {

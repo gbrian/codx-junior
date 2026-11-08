@@ -17,13 +17,46 @@
       @drop.prevent="onDropImage"
     ></canvas>
 
-    <!-- Toolbar -->
+    <!-- Resize handles for the selected mark. The box is DOM (not canvas) so
+         the handles stay crisp and keep receiving pointer events while the
+         canvas is repainted. -->
+    <div v-if="selectionRect" class="pointer-events-none absolute inset-0 z-10">
+      <div
+        class="absolute rounded-sm border border-sky-400/90 shadow-[0_0_0_1px_rgba(56,189,248,0.25)]"
+        :style="selectionBoxStyle"
+        aria-hidden="true"
+      ></div>
+      <div
+        v-for="handle in selectionHandles"
+        :key="handle.id"
+        class="pointer-events-auto absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-sky-400 bg-white shadow"
+        :class="handle.cursorClass"
+        :style="handle.style"
+        :aria-label="`Resize ${handle.id}`"
+        @pointerdown.stop.prevent="startResize(handle.id, $event)"
+      ></div>
+    </div>
+
+    <!-- Toolbar. It can be dragged anywhere over the page or docked as a footer
+         so it never permanently shadows the content the user is marking. -->
     <div
-      class="absolute left-1/2 top-2 z-30 -translate-x-1/2 w-[calc(100%-1rem)] max-w-[min(100%,58rem)]"
+      ref="toolbar"
+      class="absolute z-30 w-auto max-w-[calc(100%-1rem)]"
+      :class="toolbarDock === 'bottom' && !toolbarPosition && 'flex flex-col-reverse'"
+      :style="toolbarStyle"
       role="toolbar"
       aria-label="Annotation tools"
     >
       <div class="flex flex-wrap items-center gap-1 rounded-xl border border-white/10 bg-[#111827]/95 px-2 py-1.5 text-white shadow-2xl backdrop-blur">
+        <button
+          class="flex h-7 w-6 touch-none cursor-grab items-center justify-center rounded-md text-white/40 hover:bg-white/10 hover:text-white active:cursor-grabbing"
+          title="Drag the toolbar"
+          aria-label="Drag the annotation toolbar"
+          @pointerdown.prevent="startToolbarDrag"
+        >
+          <i class="fa-solid fa-grip-vertical text-[10px]" aria-hidden="true"></i>
+        </button>
+
         <div class="flex items-center gap-0.5 rounded-lg bg-white/5 p-0.5">
           <button
             v-for="item in tools"
@@ -111,12 +144,24 @@
           class="btn btn-xs gap-1 border-0 bg-primary text-primary-content hover:bg-primary/80"
           :disabled="sending || !annotations.length"
           :aria-busy="sending ? 'true' : 'false'"
-          title="Add the annotated screenshot to the chat as instructions"
+          title="Copy the annotated image and send it as a new message to the open chat"
           @click="sendToChat"
         >
           <span v-if="sending" class="loading loading-spinner loading-xs"></span>
           <i v-else class="fa-solid fa-paper-plane" aria-hidden="true"></i>
-          <span class="hidden sm:inline">{{ sending ? 'Preparing…' : 'Add to chat' }}</span>
+          <span class="hidden sm:inline">{{ sending ? 'Preparing…' : 'Send' }}</span>
+        </button>
+        <button
+          class="flex h-7 w-7 items-center justify-center rounded-md text-white/70 hover:bg-white/10 hover:text-white"
+          :title="toolbarDock === 'bottom' ? 'Dock toolbar at the top' : 'Dock toolbar as a footer'"
+          :aria-label="toolbarDock === 'bottom' ? 'Dock toolbar at the top' : 'Dock toolbar as a footer'"
+          @click="toggleToolbarDock"
+        >
+          <i
+            class="fa-solid"
+            :class="toolbarDock === 'bottom' ? 'fa-arrow-up-to-line' : 'fa-arrow-down-to-line'"
+            aria-hidden="true"
+          ></i>
         </button>
         <button
           class="flex h-7 w-7 items-center justify-center rounded-md text-white/70 hover:bg-white/10 hover:text-white"
@@ -225,6 +270,7 @@ import {
   ANNOTATION_COLORS,
   ANNOTATION_TOOLS,
   annotationBounds,
+  clamp01,
   cloneAnnotations,
   createAnnotation,
   describeAnnotations,
@@ -287,7 +333,13 @@ export default {
       presenceTimer: null,
       presenceAnnounced: false,
       keyboardHandler: null,
-      collabUnsubscribe: null
+      collabUnsubscribe: null,
+      // Toolbar docking / free drag state
+      toolbarDock: 'top',
+      toolbarPosition: null,
+      toolbarDrag: null,
+      // Selected-element resize gesture
+      resizeState: null
     }
   },
   computed: {
@@ -318,6 +370,79 @@ export default {
       const left = Math.max(8, Math.min(width - 300, this.textDraft.point.x * width))
       const top = Math.max(8, Math.min(height - 160, this.textDraft.point.y * height))
       return { left: `${left}px`, top: `${top}px` }
+    },
+    toolbarStyle() {
+      if (this.toolbarPosition) {
+        return {
+          left: `${this.toolbarPosition.x}px`,
+          top: `${this.toolbarPosition.y}px`,
+          bottom: 'auto',
+          transform: 'none'
+        }
+      }
+      if (this.toolbarDock === 'bottom') {
+        return {
+          left: '50%',
+          bottom: '0.5rem',
+          top: 'auto',
+          transform: 'translateX(-50%)'
+        }
+      }
+      return {
+        left: '50%',
+        top: '0.5rem',
+        bottom: 'auto',
+        transform: 'translateX(-50%)'
+      }
+    },
+    selectedAnnotation() {
+      if (!this.selectedId) return null
+      return this.annotations.find(annotation => annotation.id === this.selectedId) || null
+    },
+    selectionRect() {
+      const annotation = this.selectedAnnotation
+      if (!annotation || !this.canvasSize.width || !this.canvasSize.height) return null
+      const bounds = annotationBounds(annotation)
+      return {
+        // Inflate tiny boxes (a straight arrow has zero width/height) so the
+        // resize handles never collapse on top of each other.
+        x: bounds.x * this.canvasSize.width,
+        y: bounds.y * this.canvasSize.height,
+        w: Math.max(6, bounds.w * this.canvasSize.width),
+        h: Math.max(6, bounds.h * this.canvasSize.height)
+      }
+    },
+    selectionBoxStyle() {
+      if (!this.selectionRect) return {}
+      const rect = this.selectionRect
+      return {
+        left: `${rect.x}px`,
+        top: `${rect.y}px`,
+        width: `${rect.w}px`,
+        height: `${rect.h}px`
+      }
+    },
+    selectionHandles() {
+      const rect = this.selectionRect
+      if (!rect) return []
+      const positions = {
+        nw: [0, 0, 'cursor-nwse-resize'],
+        n: [0.5, 0, 'cursor-ns-resize'],
+        ne: [1, 0, 'cursor-nesw-resize'],
+        e: [1, 0.5, 'cursor-ew-resize'],
+        se: [1, 1, 'cursor-nwse-resize'],
+        s: [0.5, 1, 'cursor-ns-resize'],
+        sw: [0, 1, 'cursor-nesw-resize'],
+        w: [0, 0.5, 'cursor-ew-resize']
+      }
+      return Object.entries(positions).map(([id, [fx, fy, cursorClass]]) => ({
+        id,
+        cursorClass,
+        style: {
+          left: `${rect.x + rect.w * fx}px`,
+          top: `${rect.y + rect.h * fy}px`
+        }
+      }))
     },
     visibleParticipants() {
       return this.participants.slice(0, 4)
@@ -352,6 +477,7 @@ export default {
     }
   },
   mounted() {
+    this.loadToolbarDock()
     this.bindCollaboration()
     this.observeSize()
     this.startPresence()
@@ -364,6 +490,10 @@ export default {
     this.stopPresence()
     if (this.keyboardHandler) window.removeEventListener('keydown', this.keyboardHandler)
     if (this.windowResizeHandler) window.removeEventListener('resize', this.windowResizeHandler)
+    window.removeEventListener('pointermove', this.onToolbarDragMove)
+    window.removeEventListener('pointerup', this.endToolbarDrag)
+    window.removeEventListener('pointermove', this.onResizeMove)
+    window.removeEventListener('pointerup', this.endResize)
     if (this.collabUnsubscribe) this.collabUnsubscribe()
   },
   methods: {
@@ -537,6 +667,9 @@ export default {
       const parent = canvas?.parentElement
       if (!canvas || !parent) return
       const rect = parent.getBoundingClientRect()
+      // Hidden board (v-show while interacting with the page): keep the last
+      // size and toolbar position instead of collapsing everything to 1×1.
+      if (rect.width < 2 || rect.height < 2) return
       const width = Math.max(1, Math.round(rect.width))
       const height = Math.max(1, Math.round(rect.height))
       const dpr = Math.min(window.devicePixelRatio || 1, 2.5)
@@ -549,6 +682,7 @@ export default {
       if (this.canvasSize.width !== width || this.canvasSize.height !== height) {
         this.canvasSize = { width, height }
       }
+      this.$nextTick(() => this.clampToolbarPosition())
       this.redraw()
     },
     redraw() {
@@ -566,7 +700,7 @@ export default {
         const all = this.activeAnnotation
           ? [...this.annotations, this.activeAnnotation]
           : this.annotations
-        drawAnnotations(ctx, all, width, height, this.imageCache, this.selectedId)
+        drawAnnotations(ctx, all, width, height, this.imageCache, null)
       })
     },
     prepareOpImages(annotation) {
@@ -600,6 +734,80 @@ export default {
     chooseColor(color) {
       this.strokeColor = color
       if (this.textDraft) this.textDraft.color = color
+    },
+
+    // ── Movable / dockable toolbar ─────────────────────────────────────────
+    loadToolbarDock() {
+      try {
+        const saved = localStorage.getItem('codx-browser-annotations-toolbar-dock')
+        this.toolbarDock = saved === 'bottom' ? 'bottom' : 'top'
+      } catch (e) {
+        this.toolbarDock = 'top'
+      }
+    },
+    saveToolbarDock() {
+      try {
+        localStorage.setItem('codx-browser-annotations-toolbar-dock', this.toolbarDock)
+      } catch (e) {
+        // storage is optional
+      }
+    },
+    toggleToolbarDock() {
+      this.toolbarDock = this.toolbarDock === 'bottom' ? 'top' : 'bottom'
+      this.toolbarPosition = null
+      this.saveToolbarDock()
+      this.$nextTick(() => this.redraw())
+    },
+    startToolbarDrag(event) {
+      if (event.button !== undefined && event.button !== 0) return
+      const toolbarElement = this.$refs.toolbar
+      const boardElement = this.$el
+      if (!toolbarElement || !boardElement) return
+      const toolbar = toolbarElement.getBoundingClientRect()
+      const board = boardElement.getBoundingClientRect()
+      if (!toolbar.width || !toolbar.height || !board.width) return
+      this.toolbarPosition = {
+        x: Math.max(0, Math.min(board.width - toolbar.width, toolbar.left - board.left)),
+        y: Math.max(0, Math.min(board.height - toolbar.height, toolbar.top - board.top))
+      }
+      this.toolbarDrag = {
+        startX: event.clientX,
+        startY: event.clientY,
+        x: this.toolbarPosition.x,
+        y: this.toolbarPosition.y,
+        width: toolbar.width,
+        height: toolbar.height,
+        boardWidth: board.width,
+        boardHeight: board.height
+      }
+      event.currentTarget?.setPointerCapture?.(event.pointerId)
+      window.addEventListener('pointermove', this.onToolbarDragMove)
+      window.addEventListener('pointerup', this.endToolbarDrag)
+    },
+    onToolbarDragMove(event) {
+      const drag = this.toolbarDrag
+      if (!drag) return
+      const x = drag.x + (event.clientX - drag.startX)
+      const y = drag.y + (event.clientY - drag.startY)
+      this.toolbarPosition = {
+        x: Math.max(0, Math.min(drag.boardWidth - drag.width, x)),
+        y: Math.max(0, Math.min(drag.boardHeight - drag.height, y))
+      }
+    },
+    endToolbarDrag() {
+      this.toolbarDrag = null
+      window.removeEventListener('pointermove', this.onToolbarDragMove)
+      window.removeEventListener('pointerup', this.endToolbarDrag)
+    },
+    clampToolbarPosition() {
+      if (!this.toolbarPosition) return
+      const toolbar = this.$refs.toolbar?.getBoundingClientRect()
+      const board = this.$el?.getBoundingClientRect()
+      if (!toolbar || !board) return
+      this.toolbarPosition = {
+        x: Math.max(0, Math.min(board.width - toolbar.width, this.toolbarPosition.x)),
+        y: Math.max(0, Math.min(board.height - toolbar.height, this.toolbarPosition.y))
+      }
     },
     pickImage() {
       this.$refs.imageInput?.click()
@@ -805,6 +1013,91 @@ export default {
       this.selectedId = null
       this.broadcastRemove(annotation)
       this.redraw()
+    },
+
+    // ── Resize selected element ─────────────────────────────────────────────
+    startResize(handle, event) {
+      if (!this.selectedAnnotation || this.tool !== 'select') return
+      this.pushHistory()
+      this.resizeState = {
+        handle,
+        original: cloneAnnotations([this.selectedAnnotation])[0],
+        box: annotationBounds(this.selectedAnnotation)
+      }
+      event.currentTarget?.setPointerCapture?.(event.pointerId)
+      window.addEventListener('pointermove', this.onResizeMove)
+      window.addEventListener('pointerup', this.endResize)
+    },
+    onResizeMove(event) {
+      if (!this.resizeState) return
+      const point = this.canvasPoint(event)
+      const box = this.computeResizedBox(this.resizeState.box, this.resizeState.handle, point)
+      const next = this.resizeAnnotationToBox(this.resizeState.original, this.resizeState.box, box)
+      this.annotations = this.annotations.map(annotation => (
+        annotation.id === next.id ? next : annotation
+      ))
+      this.redraw()
+    },
+    endResize() {
+      if (this.resizeState) {
+        const selected = this.annotations.find(annotation => annotation.id === this.selectedId)
+        if (selected) this.broadcastUpdate(selected)
+      }
+      this.resizeState = null
+      window.removeEventListener('pointermove', this.onResizeMove)
+      window.removeEventListener('pointerup', this.endResize)
+    },
+    /** New normalized box for a corner/edge handle. */
+    computeResizedBox(box, handle, point) {
+      const minSize = 0.008
+      let x = box.x
+      let y = box.y
+      let w = Math.max(box.w, minSize)
+      let h = Math.max(box.h, minSize)
+      const right = x + w
+      const bottom = y + h
+      if (handle.includes('w')) {
+        x = Math.min(Math.max(point.x, 0), right - minSize)
+        w = right - x
+      } else if (handle.includes('e')) {
+        const nextRight = Math.max(Math.min(point.x, 1), x + minSize)
+        w = nextRight - x
+      }
+      if (handle.includes('n')) {
+        y = Math.min(Math.max(point.y, 0), bottom - minSize)
+        h = bottom - y
+      } else if (handle.includes('s')) {
+        const nextBottom = Math.max(Math.min(point.y, 1), y + minSize)
+        h = nextBottom - y
+      }
+      return { x, y, w, h }
+    },
+    /** Apply a new box to any kind of mark (shapes, images, strokes, text). */
+    resizeAnnotationToBox(original, from, to) {
+      const next = { ...original }
+      if (original.points) {
+        const scaleX = from.w > 0 ? to.w / from.w : 1
+        const scaleY = from.h > 0 ? to.h / from.h : 1
+        next.points = original.points.map(point => ({
+          x: clamp01(to.x + (point.x - from.x) * scaleX),
+          y: clamp01(to.y + (point.y - from.y) * scaleY)
+        }))
+        return next
+      }
+      if (original.tool === 'text') {
+        const scale = from.h > 0 ? to.h / from.h : (from.w > 0 ? to.w / from.w : 1)
+        next.x = clamp01(to.x)
+        next.y = clamp01(to.y)
+        next.w = clamp01(to.w)
+        next.h = clamp01(to.h)
+        next.fontSize = Math.max(8, Math.min(240, (original.fontSize || 18) * scale))
+        return next
+      }
+      next.x = clamp01(to.x)
+      next.y = clamp01(to.y)
+      next.w = clamp01(to.w)
+      next.h = clamp01(to.h)
+      return next
     },
 
     // ── Text / notes ────────────────────────────────────────────────────────

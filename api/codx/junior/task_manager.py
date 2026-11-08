@@ -23,6 +23,11 @@ Creation rules
    the tasks of a tree — no matter how deep — resolve to the same main task.
    That invariant is what the long-running runner relies on to decide whether a
    task belongs to a run.
+5. **The destination column may define defaults.** A kanban column can declare
+   the **target project** of its new tasks (``project_id``: the task works on
+   it, the **owner** project still stores the file) and the ``profiles`` they
+   inherit (see :meth:`KanbanStore.column_defaults`). Explicit arguments always
+   win; the column only fills the gaps.
 
 Deprecated entry points (removed by this module)
 ------------------------------------------------
@@ -40,7 +45,8 @@ flowchart TD
     M --> V{name and description?}
     V -->|no| E[ValueError: information is mandatory]
     V -->|yes| N[Normalize profiles / files / tags]
-    N --> R[link_parent: parent_id + root_id]
+    N --> D[Column defaults: target project + inherited profiles]
+    D --> R[link_parent: parent_id + root_id]
     R --> K[Build Chat mode=task + first user message]
     K --> S[ChatManager.save_chat]
     S --> T[Return the saved task]
@@ -50,7 +56,7 @@ Made with ❤️ by codx-junior
 """
 
 import logging
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from codx.junior.chat_manager import ChatManager
 from codx.junior.db import Chat, Message
@@ -63,6 +69,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_BOARD = "kanban"
 DEFAULT_COLUMN = "tasks"
 DEFAULT_MODE = "chat"
+
+# Defaults returned when the column (or the catalogue) cannot be read.
+NO_COLUMN_DEFAULTS: Dict[str, Any] = {"project_id": None, "profiles": []}
 
 
 def to_list(value: Any) -> List[str]:
@@ -184,6 +193,57 @@ class TaskManager:
                 event_manager=self.event_manager,
             )
 
+    def column_defaults(
+        self,
+        board: Optional[str],
+        column: Optional[str],
+    ) -> Dict[str, Any]:
+        """
+        Return the defaults the destination column defines for NEW tasks.
+
+        A kanban column may declare the **target project** its tasks work on
+        (``project_id``) and the ``profiles`` they inherit. The catalogue is
+        read through :attr:`ChatManager.kanban_store`; an unreadable catalogue
+        or a column without targets simply yields empty defaults, so creating a
+        task never depends on the kanban file being valid.
+
+        Args:
+            board: Destination board title.
+            column: Destination column title.
+
+        Returns:
+            ``{"project_id": Optional[str], "profiles": List[str]}``.
+
+        Example:
+            >>> TaskManager(settings).column_defaults("Roadmap", "Backend")
+            {'project_id': 'b6f1...', 'profiles': ['software_developer']}
+        """
+        store = getattr(self.chat_manager, "kanban_store", None)
+        resolver = getattr(store, "column_defaults", None)
+        if not callable(resolver):
+            return dict(NO_COLUMN_DEFAULTS)
+
+        try:
+            defaults = resolver(
+                board=(board or DEFAULT_BOARD).strip(),
+                column=(column or DEFAULT_COLUMN).strip(),
+            )
+        except Exception as ex:
+            logger.warning(
+                "TaskManager: could not read the defaults of column '%s' on "
+                "board '%s': %s",
+                column,
+                board,
+                ex,
+            )
+            return dict(NO_COLUMN_DEFAULTS)
+
+        defaults = defaults if isinstance(defaults, dict) else {}
+        return {
+            "project_id": defaults.get("project_id") or None,
+            "profiles": to_profile_names(defaults.get("profiles")),
+        }
+
     def create_task(
         self,
         name: str,
@@ -206,11 +266,6 @@ class TaskManager:
         owner_project_id: Optional[str] = None,
         user: Optional[str] = None,
         mode: str = DEFAULT_MODE,
-        estimation_cost: Optional[float] = None,
-        run_id: Optional[str] = None,
-        run_step_id: Optional[str] = None,
-        ignore_parent_knowledge: bool = False,
-        ignore_parent_files: bool = False,
     ) -> Chat:
         """
         Create and persist a task with the information provided by the caller.
@@ -220,6 +275,18 @@ class TaskManager:
         destination (board/column/sprint/state) is validated by the caller that
         knows the project catalogue (``project_manager``); this method only
         applies the defaults.
+
+        The destination **column** may define two defaults (see
+        :meth:`column_defaults`), applied here so every creation path inherits
+        them:
+
+        * ``project_id`` — the TARGET project the task works on. It never
+          replaces ``owner_project_id``: the file keeps being stored in the
+          owner project.
+        * ``profiles`` — profiles the task inherits (merged with the explicit
+          ones, explicit first).
+
+        Explicit arguments always win over the column defaults.
 
         The ancestor chain is kept consistent: ``root_id`` is stamped from the
         parent through :func:`codx.junior.identity.link_parent`, so a task
@@ -237,23 +304,16 @@ class TaskManager:
             due_date: Due date in ISO format (``YYYY-MM-DD``).
             progress: Completion percentage (clamped to 0-100).
             assignees: Assigned usernames.
-            profiles: Profiles/roles for the task (parameter only).
+            profiles: Profiles/roles for the task (merged with the column ones).
             files: Files related to the task (parameter only).
             tags: Tags for categorizing the task.
             parent_id: Parent chat id (falls back to ``parent_chat.id``).
             parent_chat: Chat that triggered the creation (scope + linkage only).
-            project_id: Project the task works on (falls back to the parent).
+            project_id: Project the task works on (falls back to the column
+                default, then to the parent, then to the current project).
             owner_project_id: Project that stores the task (falls back to the parent).
             user: Author username.
             mode: Chat mode of the task (``task`` by default).
-            estimation_cost: Optional per-chat budget (cxjcoins). Used by the
-                orchestration worker to push the run budget down to a step.
-            run_id: Optional orchestration run id (board back-reference).
-            run_step_id: Optional orchestration step id (worker cards only).
-            ignore_parent_knowledge: When True the task does not inherit the
-                parent conversation (used by isolated orchestration workers).
-            ignore_parent_files: When True the task does not inherit the parent
-                file list (used by isolated orchestration workers).
 
         Returns:
             The persisted :class:`~codx.junior.db.Chat`.
@@ -283,7 +343,11 @@ class TaskManager:
             )
 
         settings_project_id = getattr(self.settings, "project_id", None)
-        task_profiles = to_profile_names(profiles)
+        # Defaults the destination column hands to every task created in it.
+        column_defaults = self.column_defaults(board=board, column=column)
+        task_profiles = to_profile_names(
+            to_list(profiles) + list(column_defaults.get("profiles") or [])
+        )
         task_files = to_list(files)
 
         task = Chat(
@@ -303,6 +367,7 @@ class TaskManager:
             tags=to_list(tags),
             project_id=(
                 project_id
+                or column_defaults.get("project_id")
                 or getattr(parent_chat, "project_id", None)
                 or settings_project_id
             ),
@@ -312,25 +377,11 @@ class TaskManager:
                 or settings_project_id
             ),
             mode=mode,
-            estimation_cost=estimation_cost,
-            run_id=run_id,
-            run_step_id=run_step_id,
-            ignore_parent_knowledge=ignore_parent_knowledge,
-            ignore_parent_files=ignore_parent_files,
         )
 
         # Ancestor invariant: parent_id (when missing) + root_id from the parent.
-        # When only a parent_id was given, load the parent so root_id is stamped
-        # correctly (a worker card MUST roll its cost up into the run main task).
-        if parent_chat is None and task.parent_id and self.chat_manager is not None:
-            try:
-                parent_chat = self.chat_manager.find_by_id(task.parent_id)
-            except Exception as ex:  # pragma: no cover - defensive
-                logger.warning(
-                    "TaskManager: could not load parent '%s' for root_id: %s",
-                    task.parent_id,
-                    ex,
-                )
+        # When the parent chat is not loaded, save_chat resolves and backfills
+        # root_id walking parent_id.
         link_parent(chat=task, parent_chat=parent_chat)
 
         task.messages.append(
@@ -347,13 +398,16 @@ class TaskManager:
 
         logger.info(
             "TaskManager: task created id='%s' name='%s' board='%s' column='%s' "
-            "sprints=%s profiles=%s parent_id=%s root_id=%s",
+            "sprints=%s profiles=%s project_id=%s owner_project_id=%s "
+            "parent_id=%s root_id=%s",
             saved_task.id,
             saved_task.name,
             saved_task.board,
             saved_task.column,
             saved_task.sprints,
             task_profiles,
+            saved_task.project_id,
+            saved_task.owner_project_id,
             saved_task.parent_id,
             saved_task.root_id,
         )
