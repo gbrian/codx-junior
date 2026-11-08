@@ -74,6 +74,15 @@ def start_background_services(stop_event) -> None:
     except Exception as ex:  # pragma: no cover - defensive
         logger.exception("Failed to start the orchestration worker: %s", ex)
 
+    # Company autopilot. It only dispatches missions whose company explicitly
+    # enabled autonomy, and it is a no-op when no company is enabled.
+    try:
+        from codx.junior.company.autopilot import start_company_autopilot
+
+        start_company_autopilot(stop_event=stop_event)
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.exception("Failed to start the company autopilot: %s", ex)
+
 
 async def stop_background_services() -> None:
     """
@@ -92,6 +101,13 @@ async def stop_background_services() -> None:
         stop_orchestration_worker()
     except Exception as ex:  # pragma: no cover - defensive
         logger.exception("Failed to stop the orchestration worker: %s", ex)
+
+    try:
+        from codx.junior.company.autopilot import stop_company_autopilot
+
+        stop_company_autopilot()
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.exception("Failed to stop the company autopilot: %s", ex)
 
 
 def reload_models() -> None:

@@ -103,6 +103,19 @@ export const APPS = {
     route: () => ({ name: 'management-dashboard' })
   },
 
+  // Company — the top-level hybrid organization: org chart, teams of humans and
+  // AI profiles, linked projects, missions and the guard-railed autopilot.
+  // Desktop mode → dockview panel; single/mobile mode →
+  // "/:projectName/company" (see router/index.ts + views/CompanyView.vue).
+  company: {
+    id: 'company', title: 'Company', component: 'company',
+    icon: 'fa-solid fa-building-columns',
+    desktopParams: p => ({ companyId: p.companyId }),
+    route: p => (p?.companyId
+      ? { name: 'company', params: { companyId: p.companyId } }
+      : { name: 'company' })
+  },
+
   chat: {
     id: 'chat', title: 'Chat', component: 'chat', icon: 'fa-regular fa-comments',
     desktopKey: p => (p.chat?.id ? `chat-${p.chat.id}` : undefined),

@@ -126,6 +126,15 @@ import { isOpenInNewTabEvent, openProjectInNewTab } from '@/utils/projectLinks'
         @click="handleNavigateToTeam"
       />
 
+      <!-- Company: the top-level hybrid organization (org chart, teams of
+           humans + AI profiles, linked projects, missions and autonomy). -->
+      <NavItem
+        icon="fas fa-building-columns"
+        label="Company"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToCompany"
+      />
+
       <NavItem
         icon="fas fa-folder-open"
         label="File Explorer"
@@ -288,6 +297,10 @@ export default {
     // "/:projectName/management-dashboard" in single / mobile mode.
     handleNavigateToManagementDashboard() {
       this.openApp('management-dashboard')
+    },
+    handleNavigateToCompany() {
+      this.openApp('company')
+      this.$emit('close')
     },
     handleNavigateToMessenger() {
       this.openApp('messenger')

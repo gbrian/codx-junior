@@ -8,6 +8,7 @@ import { viewsModule } from './modules/views'
 import { chatsModule } from './modules/chats'
 import { orchestrationModule } from './modules/orchestration'
 import { teamsModule } from './modules/teams'
+import { companiesModule } from './modules/companies'
 import { workspacesModule } from './modules/workspaces'
 import { browsersModule } from './modules/browsers'
 import { meetsModule } from './modules/meets'
@@ -784,6 +785,18 @@ const initializeAPI = ({ project, user } = {}) => {
         API._teamsModule = teamsModule(API)
       }
       return API._teamsModule
+    },
+
+    /**
+     * Companies: the top-level hybrid organization (org chart, teams of humans
+     * + AI profiles, linked projects, missions and autopilot). See
+     * api/modules/companies.js.
+     */
+    get companies() {
+      if (!API._companiesModule) {
+        API._companiesModule = companiesModule(API)
+      }
+      return API._companiesModule
     },
 
     get meets() {

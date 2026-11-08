@@ -413,6 +413,22 @@ export default function Navigate({ $router, $storex }) {
       }
     },
 
+    companies: {
+      // Open the company dashboard (last selected / first company)
+      list() {
+        openApp('company')
+      },
+
+      // Open a specific company
+      open(companyId) {
+        if (!companyId) {
+          console.warn('[Navigation] companies.open: invalid companyId', companyId)
+          return
+        }
+        openApp('company', { companyId })
+      }
+    },
+
     // ════════════════════════════════════════════════════════════════
     // MEET NAVIGATION
     // ════════════════════════════════════════════════════════════════

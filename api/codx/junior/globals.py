@@ -65,6 +65,14 @@ CODX_JUNIOR_WORKSPACES_FOLDER = os.environ.get(
     "/home/codx-junior/codx-junior-global-settings.json/workspaces"
 )
 
+# Companies folder - the top-level hybrid organizations (org chart, teams,
+# linked projects, missions and their journal). One folder per company:
+# <companies_root>/<company_id>/company.json + journal.jsonl
+CODX_JUNIOR_COMPANIES_PATH = os.environ.get(
+    "CODX_JUNIOR_COMPANIES_PATH",
+    "/home/codx-junior/companies"
+)
+
 # Default workspace template path - contains template files to copy when creating new workspaces
 CODX_JUNIOR_DEFAULT_WORKSPACE_PATH = os.environ.get(
     "CODX_JUNIOR_DEFAULT_WORKSPACE_PATH",

@@ -14,6 +14,7 @@ const WorkspaceView = () => import('@/views/WorkspaceView.vue')
 const MessengerView = () => import('@/views/MessengerView.vue')
 const MeetView = () => import('@/views/MeetView.vue')
 const TeamView = () => import('@/views/TeamView.vue')
+const CompanyView = () => import('@/views/CompanyView.vue')
 const MetricsDashboard = () => import('@/components/analytics/MetricsDashboard.vue')
 const Desktop = () => import('@/components/desktop/Desktop.vue')
 const KanbanBoardView = () => import('@/components/kanban/board/KanbanBoardView.vue')
@@ -190,6 +191,16 @@ const router = createRouter({
       path: '/:projectName/team/:teamId?',
       name: 'team',
       component: TeamView
+    },
+    {
+      // Company — the top-level hybrid organization above projects.
+      // The optional :companyId makes a company deep-linkable inside the
+      // project-scoped shell ("/:projectName/company/<companyId>").
+      // See views/CompanyView.vue and config/apps.js → company.
+      path: '/:projectName/company/:companyId?',
+      name: 'company',
+      component: CompanyView,
+      meta: { ...mobile('Company', 'more', { hideTopBar: true }) }
     },
 
     // ── Generic app routes ────────────────────────────────────────────────

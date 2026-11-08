@@ -37,6 +37,7 @@ We are raising our seed round and onboarding early partners at **[join@codx-juni
 | **Vibe coding** | A split view with the conversation, the live file changes and a preview of the running app side by side. |
 | **Workspaces (dev containers)** | Docker Compose based workspaces created from templates (`dev-stack`, `static-site` or custom). They mount your projects and publish apps such as Coder (VS Code in the browser), a virtual desktop (noVNC / Kasm) or your own services, routed through Traefik. |
 | **Teams & messenger** | Teams with categories, channels and direct messages, all backed by chats, so humans and AI share the same conversation. |
+| **Company** | The top-level hybrid organization above projects: org chart (departments/functions), teams of humans **and** AI profiles, linked projects, missions dispatched to the project's durable orchestration runtime, and a guard-railed autopilot. See [`COMPANY.md`](COMPANY.md). |
 | **Knowledge (RAG)** | Projects are indexed into Milvus with configurable embeddings, ignore patterns and search settings. AI search, knowledge graph and keyword extraction help agents find the right context. |
 | **Profiles** | Reusable instructions (analyst, developer, teacher, wiki, …) that set the model, tools and coding standards. Profiles can be exposed as models through an OpenAI-compatible API (`/api/v1/models`, `/api/v1/completions`). |
 | **@codx mentions** | Write `@codx` in any project file and codx-junior edits, explains or improves it in place. |

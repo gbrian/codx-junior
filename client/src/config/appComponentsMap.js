@@ -56,6 +56,7 @@ export const APP_COMPONENTS_MAP = {
   // desktop and the "/:projectName/management-dashboard" route in single/mobile
   // mode (see router/index.ts + config/apps.js).
   'management-dashboard': lazy(() => import('../views/ManagementDashboardView.vue')),
+  'company': lazy(() => import('../views/CompanyView.vue')),
   // Solopreneur mode as a desktop panel (single/mobile mode uses the
   // "/solopreneur" route — see router/index.ts).
   'solopreneur': lazy(() => import('../views/SolopreneurView.vue'))

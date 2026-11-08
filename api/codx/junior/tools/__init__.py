@@ -111,6 +111,10 @@ from .team_tools import (
     TEAM_MANAGEMENT_TOOL_JSON,
     TEAM_CONTEXT_TOOL_JSON,
 )
+from .company_tools import (
+    company_management,
+    COMPANY_MANAGEMENT_TOOL_JSON,
+)
 from .project_manager_tools import project_manager, PROJECT_MANAGER_TOOL_JSON
 from .tutorial_tools import (
     tutorial_definition,
@@ -221,6 +225,7 @@ __all__ = [
     "profile_knowledge_search",
     "team_management",
     "team_context",
+    "company_management",
     "project_manager",
     "explain_image",
     "generate_image",
@@ -875,6 +880,24 @@ TOOLS = [
         "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["teams", "team-context", "composition", "orchestration"],
         "tool_call": team_context
+    },
+    {
+        "tool_json": COMPANY_MANAGEMENT_TOOL_JSON,
+        "settings": {
+            "session": True,
+            "project_settings": True,
+            "dual_response": True,
+            "scope": "chat",
+        },
+        "tags": [
+            "company",
+            "organization",
+            "teams",
+            "missions",
+            "autonomy",
+            "administration",
+        ],
+        "tool_call": company_management
     },
     {
         "tool_json": PROJECT_MANAGER_TOOL_JSON,
