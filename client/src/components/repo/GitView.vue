@@ -166,17 +166,29 @@ export default {
     conflicts() {
       return this.conflictState || this.info?.conflict_state || null
     },
-    /** The repository has unmerged files or a pending operation */
+    /** The repository has real unmerged files (not just a pending operation) */
     hasConflicts() {
-      if (this.info?.in_conflict || this.conflicts?.in_progress) return true
+      if (this.conflicts?.has_conflicts || this.info?.has_conflicts) return true
+      if (this.conflictCount > 0) return true
       return this.statusFiles.staged.some(file => file.code === 'U')
         || this.statusFiles.unstaged.some(file => file.code === 'U')
+    },
+    /** A merge/rebase/cherry-pick/revert is in progress, conflicts or not */
+    hasPendingOperation() {
+      return !!this.conflicts?.in_progress || !!this.info?.operation_in_progress
     },
     conflictCount() {
       return this.conflicts?.unresolved_count ?? this.conflicts?.conflict_count ?? 0
     },
     conflictOperationLabel() {
       return this.conflicts?.operation_label || 'Git'
+    },
+    conflictOperation() {
+      return this.conflicts?.operation || ''
+    },
+    /** Whether the pending merge/rebase can be finished from the composer */
+    pendingOperationCanCommit() {
+      return this.hasPendingOperation && this.conflictOperation === 'merge'
     },
     filteredBranches() {
       const filter = this.branchFilter.trim().toLowerCase()
@@ -342,6 +354,12 @@ export default {
       if (this.hasConflicts) {
         return `Resolve ${this.conflictCount || 'the'} conflict(s) before committing`
       }
+      if (this.hasPendingOperation) {
+        if (this.pendingOperationCanCommit) {
+          return `${this.conflictOperationLabel} in progress: commit to finish it`
+        }
+        return `${this.conflictOperationLabel} in progress: continue it from the operation panel`
+      }
       if (this.stagedFiles.length) {
         return `${this.stagedFiles.length} staged file(s) will be committed`
       }
@@ -351,7 +369,10 @@ export default {
       return 'No changes to commit'
     },
     canCommit() {
-      return !!this.commitMessage.trim() && this.workingTreeCount > 0 && !this.hasConflicts
+      if (!this.commitMessage.trim() || this.workingTreeCount <= 0) return false
+      if (this.hasConflicts) return false
+      if (this.hasPendingOperation && !this.pendingOperationCanCommit) return false
+      return true
     },
     /** Length of the commit subject (first line of the message) */
     subjectLength() {
@@ -729,7 +750,11 @@ export default {
         this.contextMenuItem('rebase', 'Rebase current onto this…', 'fa-arrows-rotate', () => this.onRebase(branch), { disabled: isCurrent || !current }),
         this.contextMenuItem('new-branch', 'New branch from…', 'fa-code-branch', () => this.openNewBranch(branch)),
         this.contextMenuDivider('branch-delete'),
-        this.contextMenuItem('delete', 'Delete branch', 'fa-trash', () => this.deleteBranch(branch), { danger: true, disabled: isCurrent }),
+        this.contextMenuItem('delete', 'Delete branch', 'fa-trash', () => this.deleteBranch(branch), {
+          danger: true,
+          disabled: isCurrent,
+          title: worktree ? `Deletes the branch and its worktree at ${worktree.path}` : undefined
+        }),
         ...(worktree
           ? [
               this.contextMenuItem('remove-worktree', 'Delete worktree', 'fa-folder-minus', () => this.removeWorktree(worktree), {
@@ -848,7 +873,11 @@ export default {
           disabled: isActiveCheckout,
           title: isActiveCheckout ? 'The checkout in use cannot be removed' : 'Remove the checkout and keep the branch'
         }),
-        this.contextMenuItem('delete-branch', 'Delete branch', 'fa-trash', () => this.deleteBranch(branch), { danger: true, disabled: !branch || isCurrent }),
+        this.contextMenuItem('delete-branch', 'Delete branch', 'fa-trash', () => this.deleteBranch(branch), {
+          danger: true,
+          disabled: !branch || isCurrent,
+          title: 'Deletes the branch and its worktree (if any), discarding uncommitted changes there'
+        }),
         this.contextMenuDivider('worktree-copy'),
         this.contextMenuItem('copy-path', 'Copy worktree path', 'fa-copy', () => this.copyText(worktree.path, 'Worktree path copied')),
         this.contextMenuItem('copy-branch', 'Copy branch name', 'fa-code-branch', () => this.copyText(branch, 'Branch name copied'), { disabled: !branch })
@@ -1731,10 +1760,26 @@ export default {
     async deleteBranch(branch) {
       if (!branch || !this.api) return
 
+      // Deleting a branch removes its worktree first: tell the user exactly
+      // which checkout disappears and how many uncommitted changes are lost.
+      const worktree = this.worktreeForBranch(branch)
+      const changeCount = worktree
+        ? worktree.changeCount || worktree.changes?.file_count || 0
+        : 0
+      const hint = [
+        worktree
+          ? `Its worktree at ${worktree.path} is removed too${changeCount ? `, discarding ${changeCount} uncommitted change(s)` : ''}.`
+          : '',
+        'The branch is removed locally. Commits that are not reachable from another branch are lost.'
+      ].filter(Boolean).join(' ')
+
       const accepted = await this.confirmAction({
-        title: 'Delete branch',
-        message: `Delete branch "${branch}"?`,
-        hint: 'The branch is removed locally. Commits that are not reachable from another branch are lost.',
+        title: worktree ? 'Delete branch and worktree' : 'Delete branch',
+        message: worktree
+          ? `Delete branch "${branch}" and its worktree?`
+          : `Delete branch "${branch}"?`,
+        details: worktree ? [worktree.path] : [],
+        hint,
         icon: 'fa-trash',
         iconClass: 'text-error',
         confirmLabel: 'Delete branch',
@@ -1743,10 +1788,15 @@ export default {
       })
       if (!accepted) return
 
-      await this.runOperation(
+      const result = await this.runOperation(
         () => this.api.repo.deleteBranch(branch),
-        `Branch ${branch} deleted`
+        null
       )
+      if (result) {
+        this.notice = result.worktree_removed
+          ? `Branch ${branch} deleted · worktree removed`
+          : `Branch ${branch} deleted`
+      }
     },
 
     /** Rebase the current branch onto the given branch (destructive, confirmed) */
@@ -1825,6 +1875,12 @@ export default {
         this.openConflictResolver()
         return
       }
+      if (this.hasPendingOperation && !this.pendingOperationCanCommit) {
+        this.error = `${this.conflictOperationLabel} in progress: continue it from the operation panel`
+        this.openConflictResolver()
+        return
+      }
+      const finishingOperation = this.pendingOperationCanCommit
       // Commit what is staged; stage everything only when nothing is staged
       const stageAll = this.stagedFiles.length === 0
       this.committing = true
@@ -1832,7 +1888,9 @@ export default {
       this.notice = null
       try {
         await this.api.repo.commit({ message, stage_all: stageAll })
-        this.notice = 'Changes committed'
+        this.notice = finishingOperation
+          ? `${this.conflictOperationLabel} committed`
+          : 'Changes committed'
         this.commitMessage = ''
         this.clearSelection()
         await this.loadRepo()
@@ -2071,7 +2129,7 @@ export default {
       </button>
     </div>
 
-    <!-- ── Conflicts (pending merge/rebase/cherry-pick/revert) ───────────── -->
+    <!-- ── Conflicts (unmerged files) ────────────────────────────────────── -->
     <div v-if="hasConflicts" class="alert alert-error rounded-none py-1 px-3 text-xs flex items-center gap-2 shrink-0">
       <i class="fa-solid fa-triangle-exclamation"></i>
       <span class="grow truncate">
@@ -2085,6 +2143,23 @@ export default {
       </span>
       <button class="btn btn-xs btn-error gap-1 shrink-0" :disabled="busy" @click="openConflictResolver()">
         <i class="fa-solid fa-code-merge"></i> Resolve conflicts
+      </button>
+    </div>
+
+    <!-- ── Operation in progress without unmerged files (clean --no-commit
+         merge, resolved merge waiting commit, paused rebase...) ─────────── -->
+    <div v-else-if="hasPendingOperation" class="alert alert-warning rounded-none py-1 px-3 text-xs flex items-center gap-2 shrink-0">
+      <i class="fa-solid fa-code-merge"></i>
+      <span class="grow truncate">
+        <b>{{ conflictOperationLabel }} in progress</b>
+        <span class="opacity-80"> — no unresolved conflicts</span>
+        <span v-if="conflicts?.squash" class="opacity-80"> · squashed changes are staged, commit them to finish</span>
+        <span v-else-if="pendingOperationCanCommit" class="opacity-80"> · commit to finish the merge</span>
+        <span v-else class="opacity-80"> · continue the operation from the panel</span>
+        <span v-if="conflicts?.source_branch" class="font-mono"> · from {{ conflicts.source_branch }}</span>
+      </span>
+      <button class="btn btn-xs btn-warning gap-1 shrink-0" :disabled="busy" @click="openConflictResolver()">
+        <i class="fa-solid fa-forward"></i> Finish {{ conflictOperationLabel.toLowerCase() }}
       </button>
     </div>
 

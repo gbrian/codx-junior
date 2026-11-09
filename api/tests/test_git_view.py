@@ -643,6 +643,22 @@ def test_remove_worktree_unlocks_and_removes_a_locked_checkout(repo, tmp_path):
     assert not os.path.exists(worktree_path)
 
 
+def test_delete_branch_removes_its_worktree(repo, tmp_path):
+    """Deleting a branch removes the checkout holding it first."""
+    worktree_path = str(tmp_path / "wt-feature")
+    run_git(repo, "worktree", "add", "-b", "feature", worktree_path, "main")
+    write_file(worktree_path, "dirty.txt", "uncommitted\n")
+
+    engine, _session = make_engine(repo)
+    result = engine.delete_branch(branch="feature")
+
+    assert result["success"] is True
+    assert result["worktree_removed"] is True
+    assert not os.path.exists(worktree_path)
+    branches = run_git(repo, "branch", "--format=%(refname:short)").splitlines()
+    assert "feature" not in branches
+
+
 def test_remove_worktree_rejects_the_main_checkout(repo):
     """The main checkout can never be removed through the worktree action."""
     engine, _session = make_engine(repo)

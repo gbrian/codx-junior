@@ -63,6 +63,29 @@ export default {
     allResolved() {
       return !this.loading && this.unresolvedCount === 0
     },
+    /** A pending merge/rebase with zero unmerged files */
+    pendingOnly() {
+      return !!this.state?.in_progress && this.unresolvedCount === 0
+    },
+    operationHint() {
+      if (!this.state?.in_progress) return 'There is no operation in progress.'
+      if (this.state?.squash) {
+        return 'The squashed changes are staged. Commit them from the composer to finish.'
+      }
+      if (this.operation === 'merge') {
+        return 'The merge finished cleanly and its changes are staged. Continue it (or commit from the composer) to finish.'
+      }
+      if (this.operation === 'rebase') {
+        return 'The rebase is waiting. Continue it to replay the remaining commits.'
+      }
+      if (this.operation === 'cherry-pick') {
+        return 'The cherry-pick is waiting. Continue it to apply the remaining change.'
+      }
+      if (this.operation === 'revert') {
+        return 'The revert is waiting. Continue it to finish.'
+      }
+      return 'Finish or abort the operation from the footer.'
+    },
     canContinue() {
       return !!this.state?.can_continue && !this.busy
     },
@@ -77,7 +100,8 @@ export default {
     },
     progressLabel() {
       if (this.loading) return 'Loading conflicts...'
-      if (!this.state?.in_progress) return 'No conflict in progress'
+      if (!this.state?.in_progress) return 'No operation in progress'
+      if (this.pendingOnly) return 'No conflicts'
       if (this.allResolved) return 'All conflicts resolved'
       return `${this.unresolvedCount} unresolved file(s)`
     },
@@ -322,11 +346,26 @@ export default {
     <div class="bg-base-100 border border-base-content/10 rounded-xl w-full max-w-6xl h-[88vh] flex flex-col shadow-2xl overflow-hidden">
       <!-- Header -->
       <div class="flex items-center gap-2 px-4 py-2.5 border-b border-base-content/10 shrink-0">
-        <i class="fa-solid fa-triangle-exclamation text-error"></i>
-        <h2 class="text-sm font-semibold">{{ operationLabel }} conflicts</h2>
-        <span class="badge badge-sm" :class="unresolvedCount ? 'badge-error' : 'badge-success'">{{ progressLabel }}</span>
+        <i
+          class="fa-solid"
+          :class="pendingOnly ? 'fa-code-merge text-warning' : 'fa-triangle-exclamation text-error'"
+        ></i>
+        <h2 class="text-sm font-semibold">
+          {{ pendingOnly ? `${operationLabel} in progress` : `${operationLabel} conflicts` }}
+        </h2>
+        <span
+          class="badge badge-sm"
+          :class="pendingOnly ? 'badge-warning' : unresolvedCount ? 'badge-error' : 'badge-success'"
+        >{{ progressLabel }}</span>
         <span v-if="state.branch" class="badge badge-sm badge-ghost font-mono max-w-[260px] truncate" :title="state.branch">
           <i class="fa-solid fa-code-branch text-[9px]"></i> {{ state.branch }}
+        </span>
+        <span
+          v-if="pendingOnly && state.source_branch"
+          class="badge badge-sm badge-ghost font-mono max-w-[220px] truncate"
+          :title="`Source: ${state.source_branch}`"
+        >
+          <i class="fa-solid fa-arrow-right text-[9px]"></i> {{ state.source_branch }}
         </span>
         <div class="grow"></div>
         <button class="btn btn-xs btn-ghost" :disabled="busy" title="Reload conflict state" @click="load()">
@@ -358,7 +397,9 @@ export default {
           </div>
           <div class="grow overflow-y-auto">
             <div v-if="loading && !conflicts.length" class="p-3 text-xs opacity-50">Loading...</div>
-            <div v-else-if="!conflicts.length" class="p-3 text-xs opacity-50">No conflicts</div>
+            <div v-else-if="!conflicts.length" class="p-3 text-xs opacity-50">
+              {{ pendingOnly ? 'No conflicted files' : 'No conflicts' }}
+            </div>
             <button
               v-for="entry in conflicts"
               :key="entry.path"
@@ -446,13 +487,22 @@ export default {
             </div>
           </template>
 
-          <!-- Every conflict resolved -->
+          <!-- No conflicted files: either a clean pending operation or all
+               conflicts already resolved. -->
           <div v-else class="grow flex flex-col items-center justify-center gap-3 text-center p-8">
-            <i class="fa-solid fa-circle-check text-4xl text-success"></i>
-            <div class="text-sm font-semibold">All conflicts resolved</div>
+            <i
+              class="fa-solid text-4xl"
+              :class="pendingOnly ? 'fa-code-merge text-warning' : 'fa-circle-check text-success'"
+            ></i>
+            <div class="text-sm font-semibold">
+              {{ pendingOnly ? `${operationLabel} in progress` : 'All conflicts resolved' }}
+            </div>
             <p class="text-xs opacity-60 max-w-md">
-              Continue the {{ operationLabel.toLowerCase() }} to finish it, or commit the staged result from the composer.
+              {{ pendingOnly ? operationHint : `Continue the ${operationLabel.toLowerCase()} to finish it, or commit the staged result from the composer.` }}
             </p>
+            <div v-if="pendingOnly && state.merge_message" class="text-[11px] opacity-60 max-w-md font-mono whitespace-pre-wrap break-words">
+              {{ state.merge_message }}
+            </div>
           </div>
         </section>
       </div>
@@ -543,6 +593,9 @@ export default {
           </button>
           <span v-else-if="conflicts.length" class="text-[11px] opacity-50">
             Resolve every file to continue the {{ operationLabel.toLowerCase() }}
+          </span>
+          <span v-else-if="pendingOnly" class="text-[11px] opacity-50">
+            {{ operationHint }}
           </span>
         </template>
       </div>

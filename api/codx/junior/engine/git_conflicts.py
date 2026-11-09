@@ -729,10 +729,12 @@ class GitConflictEngine(GitValidatorEngine):
                 the AI resolver; the UI does not need it).
 
         Returns:
-            Dict with 'success', 'in_progress', 'operation', 'operation_label',
-            'squash', 'branch', 'merge_head', 'source_branch', 'conflicts',
-            'conflict_count', 'unresolved_count', 'can_continue', 'can_abort',
-            'stash_kept' and 'errors'.
+            Dict with 'success', 'in_progress', 'has_conflicts', 'operation',
+            'operation_label', 'squash', 'branch', 'merge_head', 'source_branch',
+            'conflicts', 'conflict_count', 'unresolved_count', 'can_continue',
+            'can_abort', 'stash_kept' and 'errors'. ``in_progress`` is True for
+            a pending operation even when every file is already resolved, so
+            the UI can distinguish it from unresolved conflicts.
 
         Example:
             >>> state = engine.get_conflicts()
@@ -786,6 +788,7 @@ class GitConflictEngine(GitValidatorEngine):
             "rebase_branch": operation["rebase_branch"],
             "rebase_onto": operation["rebase_onto"],
             "conflicts": conflicts,
+            "has_conflicts": bool(conflicts),
             "conflict_count": len(conflicts),
             "unresolved_count": len(conflicts),
             "can_continue": can_continue,
@@ -833,12 +836,14 @@ class GitConflictEngine(GitValidatorEngine):
         unmerged paths and ``conflict_state`` carries the full summary.
 
         Returns:
-            Repository info dict plus 'in_conflict', 'conflicts' and
-            'conflict_state'.
+            Repository info dict plus 'in_conflict', 'operation_in_progress',
+            'has_conflicts', 'conflicts' and 'conflict_state'.
         """
         info = super().get_repo_info()
         state = self.get_conflicts(include_content=False)
         info["in_conflict"] = bool(state["in_progress"])
+        info["operation_in_progress"] = bool(state["in_progress"])
+        info["has_conflicts"] = bool(state["conflicts"])
         info["conflicts"] = [entry["path"] for entry in state["conflicts"]]
         info["conflict_state"] = state
         return info
@@ -848,11 +853,14 @@ class GitConflictEngine(GitValidatorEngine):
         Extend the working tree status with the conflict summary.
 
         Returns:
-            Status dict plus 'in_conflict', 'conflicts' and 'conflict_state'.
+            Status dict plus 'in_conflict', 'operation_in_progress',
+            'has_conflicts', 'conflicts' and 'conflict_state'.
         """
         status = super().get_repo_status()
         state = self.get_conflicts(include_content=False)
         status["in_conflict"] = bool(state["in_progress"])
+        status["operation_in_progress"] = bool(state["in_progress"])
+        status["has_conflicts"] = bool(state["conflicts"])
         status["conflicts"] = [entry["path"] for entry in state["conflicts"]]
         status["conflict_state"] = state
         return status

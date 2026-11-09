@@ -480,7 +480,11 @@ export const repoModule = (API) => ({
    * @param {Object} [params] - Options.
    * @param {boolean} [params.include_content] - Include each file content.
    * @param {boolean} [params.include_sides] - Include base/ours/theirs blobs.
-   * @returns {Promise<Object>} `{ in_progress, operation, conflicts, ... }`.
+   * `in_progress` also covers an operation with zero unmerged files (a clean
+   * `--no-commit` merge or a merge waiting to be committed); `has_conflicts`
+   * tells the two states apart.
+   *
+   * @returns {Promise<Object>} `{ in_progress, has_conflicts, operation, conflicts, ... }`.
    *
    * @example
    * const state = await api.repo.conflicts()

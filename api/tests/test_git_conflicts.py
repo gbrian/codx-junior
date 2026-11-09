@@ -181,6 +181,36 @@ def test_merge_detects_conflicts_and_keeps_the_operation(repo):
     assert info["conflicts"] == ["app.py"]
 
 
+def test_clean_no_commit_merge_is_pending_without_conflicts(repo):
+    """A clean `--no-commit` merge is in progress but has no unmerged files."""
+    run_git(repo, "checkout", "-b", "feature")
+    commit_file(repo, "feature.txt", "feature\n", "feature change")
+    run_git(repo, "checkout", "main")
+    engine = make_engine(repo)
+
+    result = engine.merge_branches("feature", "main", no_commit=True)
+    assert result["success"] is True
+    assert result["no_commit"] is True
+
+    state = engine.get_conflicts()
+    assert state["in_progress"] is True
+    assert state["has_conflicts"] is False
+    assert state["operation"] == "merge"
+    assert state["conflicts"] == []
+    assert state["unresolved_count"] == 0
+    assert state["can_continue"] is True
+
+    info = engine.get_repo_info()
+    assert info["operation_in_progress"] is True
+    assert info["has_conflicts"] is False
+    assert info["in_conflict"] is True
+
+    # The operation can be finished without any conflict resolution.
+    continued = engine.continue_operation()
+    assert continued["success"] is True
+    assert engine.get_conflicts()["in_progress"] is False
+
+
 def test_merge_conflict_is_still_aborted_by_default(repo):
     """The old abort-on-conflict behaviour is preserved without keep_conflicts."""
     create_merge_conflict(repo)
