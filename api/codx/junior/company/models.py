@@ -569,10 +569,27 @@ class CompanyTeam(BaseModel):
         """
         if not self.lead_name:
             return False
-        if any(
-            member.kind == self.lead_kind and member.name == self.lead_name
-            for member in self.members
-        ):
+        exact = next(
+            (
+                member
+                for member in self.members
+                if member.kind == self.lead_kind and member.name == self.lead_name
+            ),
+            None,
+        )
+        if exact is not None:
+            return False
+        # A write can set lead_kind and lead_name in two assignment steps; the
+        # first step would otherwise add a second copy of the SAME person under
+        # the new kind. Align the existing reference instead.
+        same_name = next(
+            (member for member in self.members if member.name == self.lead_name),
+            None,
+        )
+        if same_name is not None:
+            # The same person is already in the roster under another kind
+            # reference. Do not duplicate it and do not rewrite the existing
+            # reference: a later assignment completes the lead change.
             return False
         self.members = [
             CompanyMember(

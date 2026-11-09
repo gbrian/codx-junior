@@ -18,6 +18,14 @@ export default function Navigate({ $router, $storex }) {
   // Location for the project-scoped home, or the unscoped root while no
   // project is active yet (the guard/store scope it once one loads).
   function homeLocation() {
+    // Company mode has its own project-independent landing screen.
+    if ($storex.users?.isCompanyMode) {
+      const companyId = $storex.users.primaryCompanyId
+      return {
+        name: 'company-home',
+        params: companyId ? { companyId } : {}
+      }
+    }
     const projectName = activeProjectSegment()
     return projectName
       ? { name: 'home', params: { projectName } }
@@ -313,12 +321,30 @@ export default function Navigate({ $router, $storex }) {
       // the same on every device, so the guard only has to scope the URL:
       // there is no per-device landing redirect to apply.
       if (to.name === 'root') {
+        // Company mode has its own project-independent landing screen. It is
+        // role-driven, so a manager never has to land in a project first.
+        if ($storex.users?.isCompanyMode) {
+          return {
+            name: 'company-home',
+            params: $storex.users.primaryCompanyId
+              ? { companyId: $storex.users.primaryCompanyId }
+              : {},
+            replace: true
+          }
+        }
         const projectName = activeProjectSegment()
         if (projectName) {
           return { name: 'home', params: { projectName }, replace: true }
         }
         // No active project yet: the root bootstrap loads one and the next
         // guard pass scopes the URL to it.
+        return true
+      }
+
+      // The company shell is project-independent: never let the guard scope it
+      // to the active project (companies orchestrate projects, not the other
+      // way around).
+      if (to.name === 'company-home') {
         return true
       }
 
@@ -414,8 +440,14 @@ export default function Navigate({ $router, $storex }) {
     },
 
     companies: {
-      // Open the company dashboard (last selected / first company)
+      // Open the company dashboard (last selected / first company). Company
+      // mode uses the project-independent "/company" shell.
       list() {
+        if ($storex.users?.isCompanyMode) {
+          const companyId = $storex.users.primaryCompanyId
+          $router.push({ name: 'company-home', params: companyId ? { companyId } : {} })
+          return
+        }
         openApp('company')
       },
 
@@ -423,6 +455,10 @@ export default function Navigate({ $router, $storex }) {
       open(companyId) {
         if (!companyId) {
           console.warn('[Navigation] companies.open: invalid companyId', companyId)
+          return
+        }
+        if ($storex.users?.isCompanyMode) {
+          $router.push({ name: 'company-home', params: { companyId } })
           return
         }
         openApp('company', { companyId })

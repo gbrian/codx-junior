@@ -96,6 +96,22 @@ const router = createRouter({
       meta: { ...mobile('Solopreneur', 'more', { fullScreen: true, hideTopBar: true, hideTabs: true }) }
     },
     {
+      // Company shell — the project-INDEPENDENT landing screen of company mode.
+      //
+      // A company is global (it can orchestrate projects anywhere in the
+      // installation), so the manager-oriented shell must not require an active
+      // project. The optional :companyId keeps a company deep-linkable.
+      //
+      // The static "/company" segment ranks above "/:projectName", so the
+      // router never mistakes it for a project name. A user whose role/mode is
+      // "company" is redirected here after login (see router/navigate.js);
+      // everyone else keeps today's project workspace.
+      path: '/company/:companyId?',
+      name: 'company-home',
+      component: CompanyView,
+      meta: { ...mobile('Company', 'more', { hideTopBar: true }) }
+    },
+    {
       // Home — the welcome screen for "/<project_name>".
       // The dashboard initialises its project filter to THIS project (the URL
       // segment is the single source of truth for "where am I working").

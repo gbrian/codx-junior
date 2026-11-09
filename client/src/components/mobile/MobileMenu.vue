@@ -100,6 +100,13 @@ function openApp(app) {
     router.push({ name: 'chats' })
     return
   }
+  // Company mode has a project-independent shell ("/company"): opening the
+  // Company app from the launcher must not require a project-scoped route.
+  if (app.key === 'company' && $storex.users.isCompanyMode) {
+    const companyId = $storex.users.primaryCompanyId
+    router.push({ name: 'company-home', params: companyId ? { companyId } : {} })
+    return
+  }
   $storex.ui.openApp({ appKey: app.key })
 }
 

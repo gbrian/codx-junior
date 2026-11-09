@@ -8,9 +8,50 @@ const route = useRoute()
 const router = useRouter()
 
 const menuOpen = computed(() => $storex.ui.mobileMenuOpen)
+const isCompanyMode = computed(() => $storex.users.isCompanyMode)
+
+// Company mode gets a manager-oriented tab bar. The full application remains
+// one tap away in "More" (which always contains everything).
+const companyTabs = [
+  {
+    key: 'company',
+    label: 'Company',
+    icon: 'fa-solid fa-building-columns',
+    route: { name: 'company-home' }
+  },
+  {
+    key: 'assistant',
+    label: 'Ask',
+    icon: 'fa-solid fa-wand-magic-sparkles',
+    action: 'assistant'
+  },
+  {
+    key: 'add-person',
+    label: 'Add person',
+    icon: 'fa-solid fa-user-plus',
+    route: { name: 'company-home', query: { assistant: 'add-person' } }
+  },
+  {
+    key: 'create-team',
+    label: 'New team',
+    icon: 'fa-solid fa-people-group',
+    route: { name: 'company-home', query: { assistant: 'create-team' } }
+  },
+  {
+    key: 'more',
+    label: 'More',
+    icon: 'fa-solid fa-grip',
+    action: 'menu'
+  }
+]
+
+const tabs = computed(() => (isCompanyMode.value ? companyTabs : MOBILE_TABS))
 
 const activeTab = computed(() => {
   if (menuOpen.value) return 'more'
+  if (isCompanyMode.value) {
+    return route.name === 'company-home' ? 'company' : 'more'
+  }
   const explicit = route.meta?.mobile?.tab
   if (explicit) return explicit
   const name = route.name
@@ -24,6 +65,15 @@ const activeTab = computed(() => {
 function select(tab) {
   if (tab.action === 'menu') {
     $storex.ui.openMobileMenu()
+    return
+  }
+  if (tab.action === 'assistant') {
+    const companyId = $storex.users.primaryCompanyId
+    router.push({
+      name: 'company-home',
+      params: companyId ? { companyId } : {},
+      query: { assistant: 'open' }
+    })
     return
   }
   // Tapping the tab you are already on is a no-op instead of a redundant
@@ -43,7 +93,7 @@ function select(tab) {
     <div class="safe-area-bottom">
       <div class="grid h-[3.75rem] grid-cols-5">
         <button
-          v-for="tab in MOBILE_TABS"
+          v-for="tab in tabs"
           :key="tab.key"
           type="button"
           role="tab"

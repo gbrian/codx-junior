@@ -69,8 +69,10 @@ import WindowsMenu from '../main-menu/WindowsMenu.vue'
           @overlay-open="onOverlayOpen"
         />
         
-        <!-- Workspaces Section -->
+        <!-- Workspaces Section — hidden in company mode: the manager shell is
+             deliberately small and the full launcher lives in the main menu. -->
         <WorkspacesSection
+          v-if="!isCompanyMode"
           :workspace-apps="workspaceApps"
           :is-collapsed="isCollapsed"
           :current-workspace-id="currentWorkspaceId"
@@ -179,6 +181,9 @@ export default {
     },
     isProjectAdmin() {
       return this.$users?.isProjectAdmin || false
+    },
+    isCompanyMode() {
+      return this.$storex.users.isCompanyMode
     },
     currentWorkspaceId() {
       return this.$storex.$router.$navigation.getWorkspaceId()

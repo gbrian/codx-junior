@@ -286,6 +286,21 @@ def _action_create(
         template=action_args.get("template") or "",
         project_ids=action_args.get("project_ids") or [],
     )
+    # Enroll the creator as a company admin: the user-side membership is what
+    # the company shell, the assistant and the API authorization read.
+    actor = _actor(session)
+    if actor and actor != "ai-profile":
+        try:
+            from codx.junior.security.user_management import UserSecurityManager
+
+            UserSecurityManager().add_company_member(
+                company_id=company.id,
+                username=actor,
+                role="admin",
+                title="Owner",
+            )
+        except Exception as ex:  # pragma: no cover - auth may be disabled
+            logger.debug("Could not enroll '%s' in company '%s': %s", actor, company.id, ex)
     return ToolResponse(
         user_response=_company_md(company)
         + "\n\nUse action='snapshot' to see the organization, teams and missions.",

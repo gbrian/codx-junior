@@ -1,6 +1,6 @@
 <script setup>
-import { computed, onMounted, watchEffect } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, watch, watchEffect } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { $storex } from '@/store'
 import Login from './components/user/Login.vue'
 import Toast from './components/Toast.vue'
@@ -9,14 +9,59 @@ import NewProject from './components/project/NewProject.vue'
 import MobileShell from './components/mobile/MobileShell.vue'
 
 const route = useRoute()
+const router = useRouter()
 
 const uiReady = computed(() => $storex.ui.uiReady)
 const isLogin = computed(() => !$storex.users.user)
 const isMobile = computed(() => $storex.ui.isMobile)
+const isCompanyMode = computed(() => $storex.users.isCompanyMode)
 
 // Solopreneur mode is a product shell of its own: it owns the full viewport on
 // every device, so neither the desktop sidebar nor the mobile shell wraps it.
 const isFullScreenRoute = computed(() => route.name === 'solopreneur')
+
+// ── Company mode entry ──────────────────────────────────────────────────────
+// Role-driven landing: a manager/company admin (or a member of any company)
+// enters the company shell after login. The guard also does this when the user
+// is already loaded; this watcher covers the normal bootstrap where the router
+// guard runs before `users.login()` resolves.
+//
+// The redirect happens ONCE per browser session: switching to working mode (or
+// following a deep link into a project) must not bounce the manager back.
+const COMPANY_ENTRY_KEY = 'codx.company.entry'
+// Only the bootstrap path ("/" after a login or a mode switch) auto-enters the
+// company shell. A deep link into a project must keep working for managers.
+const enteredFromRoot = ['/', ''].includes(window.location.pathname)
+
+watch(
+  [isCompanyMode, () => route.name, isLogin, uiReady],
+  ([companyMode, routeName, login, ready]) => {
+    if (!enteredFromRoot || !ready || login || !companyMode) return
+    if (!['root', 'home'].includes(routeName)) return
+    if (sessionStorage.getItem(COMPANY_ENTRY_KEY)) return
+    sessionStorage.setItem(COMPANY_ENTRY_KEY, '1')
+    const companyId = $storex.users.primaryCompanyId
+    router.replace({
+      name: 'company-home',
+      params: companyId ? { companyId } : {}
+    }).catch(() => {})
+  },
+  { immediate: true }
+)
+
+// Switching back into company mode should land on the company shell again.
+watch(isCompanyMode, (value) => {
+  if (!value) {
+    sessionStorage.removeItem(COMPANY_ENTRY_KEY)
+    return
+  }
+  if (!enteredFromRoot || route.name === 'company-home') return
+  const companyId = $storex.users.primaryCompanyId
+  router.replace({
+    name: 'company-home',
+    params: companyId ? { companyId } : {}
+  }).catch(() => {})
+})
 
 function openAccountSettings() {
   $storex.ui.openApp({ appKey: 'account' })

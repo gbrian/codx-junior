@@ -591,10 +591,11 @@ export const actions = actionTree(
         // Top-level screens that are NOT project-scoped:
         //   • "/auth/:provider" — OAuth callbacks, owned by the router guard.
         //   • "/solopreneur"    — Solopreneur mode (see views/SolopreneurView.vue).
+        //   • "/company"        — the company shell (see views/CompanyView.vue).
         // They must not be resolved as a project name: an unknown segment would
         // activate a fallback project AND replace the deep link with the project
-        // home, so a reload of "/solopreneur" would bounce away from the screen.
-        const unscopedSegments = ['auth', 'solopreneur']
+        // home, so a reload of "/company" would bounce away from the screen.
+        const unscopedSegments = ['auth', 'solopreneur', 'company']
 
         if (segment && !unscopedSegments.includes(segment)) {
           const urlProjectName = decodeURIComponent(segment)

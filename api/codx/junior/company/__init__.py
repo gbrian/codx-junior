@@ -15,6 +15,11 @@ without the AI stack:
   missions, dispatch and autonomy cycles).
 * :mod:`codx.junior.company.templates` – starter organizations (SaaS, agency).
 * :mod:`codx.junior.company.autopilot` – background loop that runs due cycles.
+* :mod:`codx.junior.company.assistant` – the always-present manager assistant
+  (answers from the company document, executes team/user/settings actions and
+  asks one question at a time).
+* :mod:`codx.junior.company.profile_advisor` – inspects linked projects and
+  suggests which profiles/tools a new team needs (`I need an IT team`).
 
 The REST surface lives in :mod:`codx.junior.api.company`; the profile-facing
 tool lives in :mod:`codx.junior.tools.company_tools`.

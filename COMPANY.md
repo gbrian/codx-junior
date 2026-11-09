@@ -48,8 +48,11 @@ missions — ready for a human to review before anything is dispatched.
 | Background autopilot | `api/codx/junior/company/autopilot.py` |
 | REST API | `api/codx/junior/api/company.py` |
 | AI profile tool | `api/codx/junior/tools/company_tools.py` |
-| UI | `client/src/views/CompanyView.vue` + `client/src/components/company/` |
-| Tests | `tests/test_company.py` |
+| Company assistant | `api/codx/junior/company/assistant.py` + `client/src/components/company/CompanyAssistant.vue` |
+| Profile/team advisor | `api/codx/junior/company/profile_advisor.py` |
+| User roles / memberships | `api/codx/junior/model/user.py` (`CodxUser.companies`, `workspace_mode`) |
+| UI | `client/src/views/CompanyView.vue` (one screen) + `CompanySimpleHome.vue` + `CompanyAssistant.vue` |
+| Tests | `tests/test_company.py`, `tests/test_company_people.py` |
 
 ## Storage
 
@@ -77,25 +80,137 @@ Configure the root with:
 export CODX_JUNIOR_COMPANIES_PATH=/path/to/companies
 ```
 
-## Using it
+## Company mode vs working mode
+
+codx-junior has two product shells:
+
+| Shell | Who enters it | What it shows |
+| --- | --- | --- |
+| **Company** | `company_admin`, `manager`, an explicit `workspace_mode="company"`, or any user with a company membership | ONE friendly home screen (what is happening + four obvious actions) plus the always-present assistant. Teams, people, projects, missions and settings are managed by talking to codx-junior. |
+| **Working** | `user` (today's product), or an explicit `workspace_mode="work"` | Today's full project workspace (chats, boards, files, git, infra, …) |
+
+The mode is stored on the user document (`workspace_mode`: `auto` | `company` |
+`work`) and derived from the role/memberships when it is `auto`. Global admins
+keep working mode by default, so an existing installation does not change for
+them. The switch lives in **Settings → Company workspace / Working workspace**.
+
+The company entry point is project-independent: `"/company"` (optionally
+`"/company/<companyId>"`). The old project-scoped `"/<project>/company"` deep
+link still works.
+
+### Roles
+
+| Scope | Role | Can |
+| --- | --- | --- |
+| Global | `admin` | Everything; can switch modes |
+| Global | `company_admin` | Enter company mode by default |
+| Global | `manager` | Enter company mode by default |
+| Global | `user` | Working mode by default |
+| Company | `admin` | Add/remove company users, manage every company setting |
+| Company | `manager` | Manage teams, projects and missions through the assistant |
+| Company | `member` | Follow the work (read-only company views) |
+
+Every user stores the companies they belong to (`CodxUser.companies`), so the
+same account can be a manager of one company and a member of another.
+
+### The always-present assistant
+
+Every company screen docks the **codx-junior assistant** on the right (a bottom
+sheet on phones). It is the product, not a side panel: the target user is a
+manager with no technical skills, so the assistant asks **one simple question at
+a time** and does the work as the answers arrive.
+
+There is **no command syntax to memorise**. The assistant extracts the order
+from normal comments (“could you add Alice to the Platform team?”, “Alice should
+lead Platform”, “I need an IT team”), restates what it is about to do and waits
+for confirmation. Any normal agreement works: **ok**, **okay**, **fine**,
+**sure**, **yes**, **go ahead**, **do it**, **confirm**; “no”, “cancel” or
+“not now” stops it.
+
+Creation is conversational and asks only for the minimum:
+
+* `"create a team"` → “What should we call the team?” → creates it → offers to
+  add people, choose a lead or create a mission.
+* `"add a person"` → asks the name → asks what the person should do (help run the
+  company / follow the work / manage people and settings) → creates the account
+  with a temporary password. Existing users are simply enrolled.
+* `"create a mission"` → asks what it should achieve → asks the team and project
+  only when they exist → creates it and offers to start it.
+* `"show projects"` → lists every mapped project **and its child projects**
+  (projects discovered inside a mapped project's folder).
+* `"link a project"` → shows the discovered projects that are not linked yet and
+  asks which one to connect.
+* `"remove project X"` / `"unlink project X"` → confirms, then removes only the
+  company mapping (the project itself is untouched). Open missions must be
+  reassigned first.
+* `"create a new project"` / `"new project called Billing"` → asks for the name,
+  creates the project under the projects root, links it to the company and makes
+  it available for teams/missions.
+* `"I need a developer"` → inspects the linked project (languages, manifests,
+  tests, Docker, CI), suggests a specialized **Developer** profile composed from
+  the project/built-in `software_developer` and `analyst` profiles, and selects
+  the code/git tools it needs. Existing profiles are reused instead of
+  duplicated.
+* `"I need an IT team"` → inspects the project and proposes the whole roster
+  (IT Lead, Developer, Support Engineer, DevOps Engineer), which profiles to
+  reuse and which new profiles to create. It creates the profiles and the team
+  after confirmation, or can use existing profiles only.
+* `"open company settings"` → asks **what** to change, then asks for the new
+  value. The full settings form appears only if the manager explicitly chooses
+  **“Show all settings”**.
+* `"add alice to Platform"`, `"remove bob from Platform"`,
+  `"make carol lead of Platform"`, `"delete team Platform"` (with confirmation),
+  `"delete company"` (with confirmation) keep working as direct commands.
+* `"review mission X"` → asks **accept the result** or **send it back for
+  changes** (and asks for the feedback when sent back).
+* `"what needs my attention?"`, `"show teams"`, `"show missions"`,
+  `"who is in the company?"`, `"show the organization"` answer from the live
+  company document.
+
+The assistant is backed by `POST /api/companies/{id}/assistant`. It returns
+`state` for the next question, `options` for big quick-reply buttons and
+`suggestions` for what to do next. It enforces the company role server-side: a
+read-only member never gets an action that could change data.
+
+### Profiles and teams
+
+A company team is a roster of references: human users (`user:alice`) and AI
+profiles (`profile:developer`). Profiles are **project-owned** (or built-in),
+so the assistant can:
+
+1. **Reuse** a profile that already exists in the linked project or its
+   inheritance chain (`software_developer`, `analyst`, `orchestrator`, …).
+2. **Create** a new project profile that composes one or more base profiles
+   (`Profile.profiles`), grants only the selected tools (`Profile.tools`) and
+   writes plain-language instructions for the role.
+3. **Add** the profiles to a company team with the right lead and project.
+
+The advisor (`company/profile_advisor.py`) inspects the linked project folder:
+languages, manifests (`package.json`, `pyproject.toml`, `Dockerfile`, …), tests,
+Docker and CI. That context decides which roles and tools are offered.
+
+Role presets include developer, frontend/backend developer, QA, DevOps,
+security, data, design, product, technical writer and support. Team presets
+include IT, Engineering, Product, Data, Security, Support and Design.
 
 ### From the UI
 
-Open **Company** in the left navigation (or `/<project>/company`).
+Open **Company** in the left navigation (or `/company`, `/<project>/company`).
+The company shell has **one screen**:
 
-1. **New company** → pick a name and the **SaaS — codx-junior cloud** template.
-2. **Organization** → adjust the departments/functions and their leads.
-3. **Teams** → review the hybrid rosters, add humans (`user:alice`) or AI
-   profiles, pick the lead and the projects each team works on.
-4. **Projects** → link the real codx-junior projects and assign the owning team.
-5. **Missions** → review/edit the draft missions, set a team and project, then
-   **Dispatch**. The mission card shows the live orchestration run and its
-   progress.
-6. When the run completes the mission moves to **In review**. Accept it (it
-   becomes **Done**) or reject it with feedback (it returns to **Ready** and the
-   feedback is included in the next brief).
-7. Turn on **Autopilot** in the Overview when you want `auto` missions to be
-   dispatched automatically.
+1. **Create the company** — only a name is required. Templates and projects are
+   under “More options (optional)”.
+2. **Home** shows what is happening, who is in the company, the teams, the
+   mapped projects — including their **child projects** — and anything that
+   needs your attention. The Projects card has **Add** (link an existing
+   project) and **New** (create a project) actions that talk to the assistant.
+3. **Manage everything by talking to codx-junior** — add people, create teams,
+   start missions, review results and change details. The home screen includes
+   ready-made prompts such as *I need a developer*, *I need an IT team* and
+   *I need a QA*: the assistant inspects the project and proposes the profiles,
+   base profiles and tools before creating anything.
+4. The old deep links (`?tab=teams`, `?tab=people`, …) now simply ask the
+   assistant the matching question instead of opening another screen.
 
 ### From an AI profile
 
@@ -150,6 +265,19 @@ curl -X POST /api/companies \
 # Dashboard
 curl /api/companies/<id>/snapshot
 curl /api/companies/<id>/journal
+
+# People (company admins only for writes)
+curl /api/companies/<id>/members
+curl -X POST /api/companies/<id>/members \
+  -d '{"username":"carol","password":"secret","role":"manager","title":"Head of Product"}'
+curl -X PUT /api/companies/<id>/members/carol -d '{"role":"admin"}'
+curl -X DELETE /api/companies/<id>/members/carol
+
+# Always-present company assistant (chat turn or form submission)
+curl -X POST /api/companies/<id>/assistant \
+  -d '{"message":"add alice to Platform","view":"teams"}'
+curl -X POST /api/companies/<id>/assistant \
+  -d '{"form_id":"add_user","values":{"username":"carol","password":"secret","role":"manager"}}'
 
 # Organization and teams
 curl -X POST /api/companies/<id>/org-units -d '{"name":"Engineering","kind":"department"}'
@@ -262,19 +390,18 @@ UI cannot move a mission into an impossible state.
 
 ```bash
 # Pure domain tests (no AI stack, no project required)
-pytest tests/test_company.py -q
+pytest tests/test_company.py tests/test_company_people.py -q
 # or
-PYTHONPATH=api python -m unittest discover -s tests -p 'test_company.py' -v
+PYTHONPATH=api python -m unittest discover -s tests -p 'test_company*.py' -v
 ```
 
 The tests cover persistence/journaling, the SaaS template, hybrid rosters,
 profile validation, project linking, dispatch, run sync, accept/reject,
-transition validation, the autonomy guard rails and the dashboard snapshot.
+transition validation, the autonomy guard rails, the dashboard snapshot, the
+role-driven company mode, company memberships and the company assistant forms.
 
 ## Next steps
 
-* **Employee directory** — a company-level view of every human and AI profile
-  with their teams, projects and missions.
 * **Budget ledger** — aggregate `cxjcoins` across the company's runs and pause
   teams that exceed their budget.
 * **Approvals** — per-team policies for risky actions (deploy, spend, delete).

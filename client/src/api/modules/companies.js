@@ -232,6 +232,40 @@ export const companiesModule = (API) => ({
       `${BASE}/${encodeURIComponent(companyId)}/cycle`,
       { force }
     )
+  },
+
+  // ── People / company users ───────────────────────────────────────────────
+  // Only company admins may write these; the server enforces the role.
+
+  members(companyId) {
+    return API.get(`${BASE}/${encodeURIComponent(companyId)}/members`)
+  },
+
+  addMember(companyId, payload) {
+    return API.post(`${BASE}/${encodeURIComponent(companyId)}/members`, payload)
+  },
+
+  updateMember(companyId, username, payload) {
+    return API.put(
+      `${BASE}/${encodeURIComponent(companyId)}/members/${encodeURIComponent(username)}`,
+      payload
+    )
+  },
+
+  removeMember(companyId, username) {
+    return API.delete(
+      `${BASE}/${encodeURIComponent(companyId)}/members/${encodeURIComponent(username)}`
+    )
+  },
+
+  // ── Always-present company assistant ─────────────────────────────────────
+  // The UI renders every settings/team form INSIDE the assistant window; this
+  // endpoint answers a turn or executes a submitted form.
+  assistant(companyId, payload) {
+    return API.post(
+      `${BASE}/${encodeURIComponent(companyId)}/assistant`,
+      payload
+    )
   }
 })
 

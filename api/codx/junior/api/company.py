@@ -16,8 +16,14 @@ GET    /api/companies/{company_id}             company document
 PUT    /api/companies/{company_id}             update company-level fields
 DELETE /api/companies/{company_id}             delete company
 
-GET    /api/companies/{id}/snapshot            dashboard payload
+GET    /api/companies/{id}/snapshot            dashboard payload (incl. members)
 GET    /api/companies/{id}/journal             audit journal
+
+GET    /api/companies/{id}/members             human roster + company roles
+POST   /api/companies/{id}/members             add/onboard a person (company admin)
+PUT    /api/companies/{id}/members/{username}  change role/title (company admin)
+DELETE /api/companies/{id}/members/{username}  remove a person (company admin)
+POST   /api/companies/{id}/assistant           always-present company assistant
 
 POST   /api/companies/{id}/org-units           add org unit
 PUT    /api/companies/{id}/org-units/{unit}    update org unit
@@ -81,7 +87,16 @@ from codx.junior.company.manager import (
     CompanyValidationError,
 )
 from codx.junior.model.model import CodxUser
-from codx.junior.security.user_management import get_authenticated_user
+from codx.junior.model.user import (
+    COMPANY_ROLES,
+    COMPANY_ROLE_ADMIN,
+    COMPANY_ROLE_MANAGER,
+)
+from codx.junior.security.user_management import (
+    UserSecurityManager,
+    get_authenticated_user,
+)
+from codx.junior.company.assistant import CompanyAssistant
 
 logger = logging.getLogger(__name__)
 
@@ -259,6 +274,60 @@ class DeleteRequest(BaseModel):
     force: bool = False
 
 
+class CompanyMemberRequest(BaseModel):
+    """
+    Add (or onboard) a human member of a company.
+
+    Company admins can either enroll an existing codx-junior user (no password)
+    or create the account on the fly (password required by the security
+    manager).
+    """
+
+    username: str = Field(description="Login name")
+    role: str = Field(
+        default="member", description="Company role: admin | manager | member"
+    )
+    title: str = ""
+    email: str = ""
+    password: str = ""
+    user_role: str = Field(
+        default="user",
+        description="Global role for a newly created account (user by default)",
+    )
+
+
+class CompanyMemberUpdateRequest(BaseModel):
+    """Change the company role/title of an existing member."""
+
+    role: Optional[str] = None
+    title: Optional[str] = None
+
+
+class AssistantRequest(BaseModel):
+    """One turn of the always-present company assistant."""
+
+    message: str = ""
+    view: str = Field(
+        default="", description="Company view the manager is looking at"
+    )
+    history: List[Dict[str, Any]] = Field(
+        default_factory=list, description="Previous turns (role/content)"
+    )
+    state: Dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Conversation state returned by the previous turn. It is how the "
+            "assistant asks one question at a time instead of dumping a form."
+        ),
+    )
+    form_id: str = Field(
+        default="", description="Set when submitting a form rendered by the assistant"
+    )
+    values: Dict[str, Any] = Field(
+        default_factory=dict, description="Values submitted from the assistant form"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -300,28 +369,79 @@ def _run(operation):
         raise _fail(ex)
 
 
+def _company_role(company: Any, user: Optional[CodxUser]) -> str:
+    """
+    Return *user*'s effective role inside *company*.
+
+    Resolution order: global admin → company owner → membership role. A company
+    without an owner is treated as open (fresh install / migration) so the first
+    authenticated user can finish configuring it.
+    """
+    if company is None:
+        return COMPANY_ROLE_ADMIN
+    if user and getattr(user, "role", "") == "admin":
+        return COMPANY_ROLE_ADMIN
+    username = _actor(user)
+    owner = getattr(company, "owner", "") or ""
+    if owner and owner == username:
+        return COMPANY_ROLE_ADMIN
+    memberships = getattr(user, "companies", None) or []
+    membership = next(
+        (
+            item
+            for item in memberships
+            if getattr(item, "company_id", "") == getattr(company, "id", "")
+        ),
+        None,
+    )
+    if membership is not None:
+        return membership.role
+    return ""
+
+
 def _assert_can_edit(company: Any, user: Optional[CodxUser]) -> None:
     """
     Refuse writes from users that neither own the company nor are admins.
 
-    A company without an owner is editable by any authenticated user (fresh
-    install / migration); once it has one, ownership is enforced.
+    Company admins and managers may manage the work; only company admins may
+    add/remove users (see ``_assert_company_admin``). A company without an owner
+    is editable by any authenticated user (fresh install / migration); once it
+    has one, roles are enforced.
     """
     if company is None:
         return
-    if user and getattr(user, "role", "") == "admin":
-        return
     owner = getattr(company, "owner", "") or ""
-    username = _actor(user)
-    if not owner or owner == username:
+    if not owner:
+        return
+    role = _company_role(company, user)
+    if role in (COMPANY_ROLE_ADMIN, COMPANY_ROLE_MANAGER):
         return
     raise HTTPException(
         status_code=403,
         detail=(
             f"Company '{company.name}' is owned by '{owner}'. "
-            "Ask the owner or an admin to change it."
+            "Ask a company admin to grant you access."
         ),
     )
+
+
+def _assert_company_admin(company: Any, user: Optional[CodxUser]) -> None:
+    """Refuse user management from anyone but a company/global admin."""
+    if company is None:
+        return
+    # A company without an owner is still being bootstrapped (fresh install or
+    # a document created before the role model); the first authenticated user
+    # may finish configuring it.
+    if not (getattr(company, "owner", "") or ""):
+        return
+    if _company_role(company, user) != COMPANY_ROLE_ADMIN:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Only company admins can add or change company users. "
+                "Ask an admin of this company."
+            ),
+        )
 
 
 def _get_editable(company_id: str, user: Optional[CodxUser]):
@@ -372,14 +492,35 @@ def api_create_company(
 ):
     """Create a company, optionally seeded from a starter template."""
     manager = _manager()
-    return _run(
+    company_payload = _company_payload(payload)
+    # The creator owns the company unless an explicit owner is supplied. The
+    # ``owner`` field is what the authorization helpers, the UI badge and the
+    # assistant use; the membership (below) is the role index.
+    company_payload["owner"] = company_payload.get("owner") or _actor(user)
+    created = _run(
         lambda: manager.create_company(
-            _company_payload(payload),
+            company_payload,
             actor=_actor(user),
             template=payload.template,
             project_ids=payload.project_ids,
         )
     )
+    # Make the creator a company admin from the first second: the membership is
+    # what the UI, the company assistant and the authorization helpers read.
+    username = _actor(user)
+    if username and username != "system":
+        try:
+            UserSecurityManager().add_company_member(
+                company_id=created.id,
+                username=username,
+                role=COMPANY_ROLE_ADMIN,
+                title="Owner",
+            )
+        except Exception:
+            # Auth may be disabled or the user may live outside global settings;
+            # the company.owner field still grants admin rights.
+            logger.exception("Could not enroll '%s' in company '%s'", username, created.id)
+    return created
 
 
 @router.get("/companies/{company_id}")
@@ -398,11 +539,16 @@ def api_update_company(
     user: Optional[CodxUser] = Depends(get_authenticated_user),
 ):
     """Update the company-level fields."""
-    manager, _ = _run(lambda: _get_editable(company_id, user))
+    manager, company = _run(lambda: _get_editable(company_id, user))
+    changes = payload.model_dump(exclude_unset=True)
+    # Ownership transfer is an administrative act: a company manager must not
+    # be able to promote themselves by re-assigning the owner.
+    if "owner" in changes and changes.get("owner") != company.owner:
+        _assert_company_admin(company, user)
     return _run(
         lambda: manager.update_company(
             company_id,
-            payload.model_dump(exclude_unset=True),
+            changes,
             actor=_actor(user),
         )
     )
@@ -413,9 +559,10 @@ def api_delete_company(
     company_id: str,
     user: Optional[CodxUser] = Depends(get_authenticated_user),
 ):
-    """Delete a company and its journal."""
-    _run(lambda: _get_editable(company_id, user))
-    return _run(lambda: _manager().delete_company(company_id, actor=_actor(user)))
+    """Delete a company and its journal (company admins only)."""
+    manager, company = _run(lambda: _get_editable(company_id, user))
+    _assert_company_admin(company, user)
+    return _run(lambda: manager.delete_company(company_id, actor=_actor(user)))
 
 
 @router.get("/companies/{company_id}/snapshot")
@@ -438,6 +585,209 @@ def api_company_journal(
 ):
     """Return the audit journal (newest last)."""
     return _run(lambda: _manager().journal(company_id, limit=limit))
+
+
+# ---------------------------------------------------------------------------
+# People / company users
+# ---------------------------------------------------------------------------
+
+
+@router.get("/companies/{company_id}/members")
+def api_company_members(
+    company_id: str,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Return the human roster of a company (with company roles)."""
+    manager = _manager()
+    company = _run(lambda: manager.get_company(company_id))
+    return {
+        "company_id": company.id,
+        "members": _run(lambda: manager.company_members(company)),
+        "can_add_users": (
+            not (company.owner or "")
+            or _company_role(company, user) == COMPANY_ROLE_ADMIN
+        ),
+    }
+
+
+@router.post("/companies/{company_id}/members", status_code=201)
+def api_add_company_member(
+    company_id: str,
+    payload: CompanyMemberRequest,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """
+    Add a human to the company.
+
+    A company admin may either enroll an existing user or create the account on
+    the fly (``password`` supplied). This is the endpoint behind the People view
+    and the assistant's "add user" form.
+    """
+    manager = _manager()
+    company = _run(lambda: manager.get_company(company_id))
+    _assert_company_admin(company, user)
+    if payload.role not in COMPANY_ROLES:
+        raise HTTPException(status_code=400, detail=f"invalid company role '{payload.role}'")
+    if payload.user_role not in ("user", "manager", "company_admin"):
+        raise HTTPException(status_code=400, detail=f"invalid user role '{payload.user_role}'")
+    security = UserSecurityManager()
+    created = _run(
+        lambda: security.create_company_user(
+            company_id=company.id,
+            username=payload.username,
+            password=payload.password,
+            email=payload.email,
+            role=payload.role,
+            title=payload.title,
+            user_role=payload.user_role,
+        )
+    )
+    return {
+        **created,
+        "members": _run(lambda: manager.company_members(company)),
+    }
+
+
+@router.put("/companies/{company_id}/members/{username}")
+def api_update_company_member(
+    company_id: str,
+    username: str,
+    payload: CompanyMemberUpdateRequest,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Change the role/title of an existing company member."""
+    manager = _manager()
+    company = _run(lambda: manager.get_company(company_id))
+    _assert_company_admin(company, user)
+    security = UserSecurityManager()
+    if payload.role is not None and payload.role not in COMPANY_ROLES:
+        raise HTTPException(status_code=400, detail=f"invalid company role '{payload.role}'")
+    current = next(
+        (
+            member
+            for member in _run(lambda: manager.company_members(company))
+            if member["username"] == username
+        ),
+        None,
+    )
+    if current is None:
+        raise HTTPException(status_code=404, detail=f"User '{username}' is not a company member")
+    new_role = payload.role or current.get("company_role") or "member"
+    if current.get("owner") and new_role != COMPANY_ROLE_ADMIN:
+        raise HTTPException(
+            status_code=409,
+            detail="The company owner always stays an admin. Transfer ownership first.",
+        )
+    if current.get("company_role") == COMPANY_ROLE_ADMIN and new_role != COMPANY_ROLE_ADMIN:
+        admins = [
+            member for member in _run(lambda: manager.company_members(company))
+            if member.get("company_role") == COMPANY_ROLE_ADMIN
+        ]
+        if len(admins) <= 1:
+            raise HTTPException(
+                status_code=409,
+                detail="The last company admin must stay an admin. Promote another admin first.",
+            )
+    membership = _run(
+        lambda: security.add_company_member(
+            company_id=company.id,
+            username=username,
+            role=payload.role or current.get("company_role") or "member",
+            title=payload.title if payload.title is not None else current.get("title", ""),
+        )
+    )
+    return {
+        "membership": membership,
+        "members": _run(lambda: manager.company_members(company)),
+    }
+
+
+@router.delete("/companies/{company_id}/members/{username}")
+def api_delete_company_member(
+    company_id: str,
+    username: str,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """
+    Remove a human from the company.
+
+    The owner and the last company admin cannot be removed, so a company can
+    never end up without someone able to administer it.
+    """
+    manager = _manager()
+    company = _run(lambda: manager.get_company(company_id))
+    _assert_company_admin(company, user)
+    if username == company.owner:
+        raise HTTPException(
+            status_code=409,
+            detail="The company owner cannot be removed. Transfer ownership first.",
+        )
+    members = _run(lambda: manager.company_members(company))
+    target = next((member for member in members if member["username"] == username), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail=f"User '{username}' is not a company member")
+    if target.get("company_role") == COMPANY_ROLE_ADMIN:
+        admins = [member for member in members if member.get("company_role") == COMPANY_ROLE_ADMIN]
+        if len(admins) <= 1:
+            raise HTTPException(
+                status_code=409,
+                detail="The last company admin cannot be removed. Promote another admin first.",
+            )
+    removed = _run(lambda: UserSecurityManager().remove_company_member(company.id, username))
+    return {
+        "removed": removed,
+        "members": _run(lambda: manager.company_members(company)),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Assistant
+# ---------------------------------------------------------------------------
+
+
+@router.post("/companies/{company_id}/assistant")
+def api_company_assistant(
+    company_id: str,
+    payload: AssistantRequest,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """
+    One turn of the always-present company assistant.
+
+    The assistant is intentionally a **company-native** endpoint: it receives the
+    current view and the conversation history, resolves the company context and
+    either answers with the live data, executes a permitted action (team
+    management, add user, mission review) or returns a form schema the UI must
+    render inside the assistant window.
+
+    Settings dialogs are never opened by the main company screen; the assistant
+    either renders the form itself (returned as ``form``) or proposes the
+    concrete action to confirm.
+    """
+    manager = _manager()
+    company = _run(lambda: manager.get_company(company_id))
+    role = _company_role(company, user)
+    # An unowned company is still being bootstrapped: the first authenticated
+    # user can finish configuring it (same rule as the write helpers).
+    if not (company.owner or ""):
+        role = COMPANY_ROLE_ADMIN
+    can_manage = role in (COMPANY_ROLE_ADMIN, COMPANY_ROLE_MANAGER)
+    can_admin = role == COMPANY_ROLE_ADMIN
+    assistant = CompanyAssistant(manager=manager)
+    return _run(
+        lambda: assistant.respond(
+            company=company,
+            message=payload.message,
+            view=payload.view,
+            actor=_actor(user),
+            can_manage=can_manage,
+            can_admin=can_admin,
+            history=payload.history,
+            state=payload.state,
+            form_id=payload.form_id,
+            values=payload.values,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -61,6 +61,8 @@ import UserWalletSettings from './UserWalletSettings.vue'
               </label>
               <select class="select select-bordered select-sm" v-model="user.role">
                 <option value="admin">admin</option>
+                <option value="company_admin">company admin</option>
+                <option value="manager">company manager</option>
                 <option value="user">user</option>
               </select>
             </div>
@@ -121,7 +123,9 @@ import UserWalletSettings from './UserWalletSettings.vue'
             <div class="font-semibold mb-1">User info:</div>
             <ul class="list-disc list-inside pl-2 space-y-1">
               <li><strong class="text-primary">admin</strong> — Full access to all resources.</li>
-              <li><strong class="text-secondary">user</strong> — Limited to assigned projects.</li>
+              <li><strong class="text-secondary">company admin</strong> — Company shell, can add company users.</li>
+              <li><strong class="text-accent">manager</strong> — Company shell, manages teams via the assistant.</li>
+              <li><strong class="text-base-content/70">user</strong> — Limited to assigned projects (working mode).</li>
             </ul>
           </div>
         </div>

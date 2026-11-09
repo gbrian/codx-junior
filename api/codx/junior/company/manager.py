@@ -36,6 +36,7 @@ Made with ❤️ by codx-junior
 from __future__ import annotations
 
 import logging
+import os
 import re
 
 from datetime import date, datetime, timedelta
@@ -187,6 +188,9 @@ def _default_users() -> List[Dict[str, Any]]:
             {
                 "username": user.get("username", ""),
                 "avatar": user.get("avatar", ""),
+                "email": user.get("email", ""),
+                "role": user.get("role", ""),
+                "companies": user.get("companies", []),
             }
             for user in users
             if user.get("username")
@@ -353,6 +357,20 @@ class CompanyManager:
                 setattr(instance, field, value)
                 changed.append(field)
         return changed
+
+    def project_settings(self, project_id: str) -> Any:
+        """
+        Return the ``CODXJuniorSettings`` of a linked project, or ``None``.
+
+        The company assistant uses this to create project-owned profiles. It is
+        a small public wrapper around the injected provider so the assistant
+        never reaches into a private attribute.
+        """
+        try:
+            return self._project_settings_provider(project_id)
+        except Exception as ex:
+            logger.debug("Company: project settings unavailable for %s: %s", project_id, ex)
+            return None
 
     def _project_catalog(self) -> List[Dict[str, Any]]:
         """Return the (normalized) project catalog."""
@@ -2006,6 +2024,67 @@ class CompanyManager:
     # Reads for the UI / tools
     # ------------------------------------------------------------------
 
+    def child_projects(self, company: Company) -> List[Dict[str, Any]]:
+        """
+        Return the projects nested under the company's linked projects.
+
+        A company maps top-level projects; the codx-junior installation may
+        discover smaller projects inside them (``parent/sub-project``). They are
+        not separate company mappings, but managers must be able to see them
+        (and the assistant can include them in plans).
+
+        Args:
+            company: Company document.
+
+        Returns:
+            Child project descriptors with their parent reference.
+        """
+        catalog = self._project_catalog()
+
+        def is_path_child_of(child_path: str, parent_path: str) -> bool:
+            """True when child_path is strictly inside parent_path."""
+            child_path = os.path.normpath(child_path or "")
+            parent_path = os.path.normpath(parent_path or "")
+            if not child_path or not parent_path or child_path == parent_path:
+                return False
+            try:
+                return os.path.commonpath([child_path, parent_path]) == parent_path
+            except ValueError:
+                return False
+        by_id = {project["project_id"]: project for project in catalog}
+        linked_ids = {project.project_id for project in company.projects}
+        children: Dict[str, Dict[str, Any]] = {}
+        for linked in company.projects:
+            parent = by_id.get(linked.project_id)
+            parent_path = (parent or {}).get("project_path") or ""
+            if not parent_path:
+                continue
+            for candidate in catalog:
+                child_path = candidate.get("project_path") or ""
+                child_id = candidate.get("project_id") or ""
+                if not child_id or child_id in linked_ids or child_id == linked.project_id:
+                    continue
+                if not is_path_child_of(child_path, parent_path):
+                    continue
+                entry = {
+                    "project_id": child_id,
+                    "project_name": candidate.get("project_name") or child_id,
+                    "project_path": child_path,
+                    "parent_project_id": linked.project_id,
+                    "parent_project_name": linked.name or linked.project_id,
+                }
+                # A nested project can be under two mapped parents; keep the
+                # closest one (longest parent path).
+                previous = children.get(child_id)
+                if previous is None or len(parent_path) > len(previous.get("_parent_path", "")):
+                    entry["_parent_path"] = parent_path
+                    children[child_id] = entry
+        result = []
+        for entry in children.values():
+            entry.pop("_parent_path", None)
+            result.append(entry)
+        return sorted(result, key=lambda item: (item["parent_project_name"].lower(), item["project_name"].lower()))
+
     def snapshot(self, company_id: str, journal_limit: int = 30) -> Dict[str, Any]:
         """
         Build the full payload the company dashboard renders.
@@ -2038,6 +2117,10 @@ class CompanyManager:
                     ),
                 }
             )
+        child_projects = self.child_projects(company)
+        children_by_parent: Dict[str, List[Dict[str, Any]]] = {}
+        for child in child_projects:
+            children_by_parent.setdefault(child["parent_project_id"], []).append(child)
         projects = []
         for project in company.projects:
             discovered = catalog.get(project.project_id)
@@ -2047,6 +2130,7 @@ class CompanyManager:
                     "available": discovered is not None,
                     "discovered_name": (discovered or {}).get("project_name", ""),
                     "discovered_path": (discovered or {}).get("project_path", ""),
+                    "children": children_by_parent.get(project.project_id, []),
                     "open_missions": len(
                         [
                             mission
@@ -2067,15 +2151,86 @@ class CompanyManager:
         ]
         return {
             "company": company.model_dump(),
-            "counts": company.counts(),
+            "counts": {
+                **company.counts(),
+                "child_projects": len(child_projects),
+            },
             "teams": teams,
             "projects": projects,
+            "child_projects": child_projects,
             "missions": missions,
+            "members": self.company_members(company),
             "attention": attention,
             "journal": journal,
             "autonomy": company.autonomy.model_dump(),
             "due": company.autonomy.is_due(self._now()),
         }
+
+    def company_members(self, company: Company) -> List[Dict[str, Any]]:
+        """
+        Return the human roster of a company.
+
+        The roster is built from ``CodxUser.companies`` (the user-side index),
+        plus the company owner when it has no membership yet (legacy documents
+        and companies created before the role model). The owner is always
+        reported as a company admin.
+
+        Args:
+            company: Company document.
+
+        Returns:
+            Members sorted by company role (admin → manager → member) and name.
+        """
+        role_rank = {"admin": 0, "manager": 1, "member": 2}
+        members: Dict[str, Dict[str, Any]] = {}
+        for catalog_user in self._users():
+            username = self._clean(catalog_user.get("username"))
+            if not username:
+                continue
+            membership = next(
+                (
+                    item
+                    for item in (catalog_user.get("companies") or [])
+                    if str(item.get("company_id") or "") == company.id
+                ),
+                None,
+            )
+            if membership is None and username != company.owner:
+                continue
+            role = (
+                "admin"
+                if username == company.owner
+                else ((membership or {}).get("role") or "member")
+            )
+            members[username] = {
+                "username": username,
+                "email": catalog_user.get("email", ""),
+                "avatar": catalog_user.get("avatar", ""),
+                "role": catalog_user.get("role", ""),
+                "company_role": role,
+                "title": (membership or {}).get("title", ""),
+                "disabled": bool(catalog_user.get("disabled")),
+                "owner": username == company.owner,
+            }
+        # The owner may not exist in the catalog (auth disabled / fresh install).
+        if company.owner and company.owner not in members:
+            members[company.owner] = {
+                "username": company.owner,
+                "email": "",
+                "avatar": "",
+                "role": "",
+                "company_role": "admin",
+                "title": "Owner",
+                "disabled": False,
+                "owner": True,
+            }
+        return sorted(
+            members.values(),
+            key=lambda item: (
+                role_rank.get(item.get("company_role"), 9),
+                item["username"].lower(),
+            ),
+        )
 
     def references(self, project_id: Optional[str] = None) -> Dict[str, Any]:
         """

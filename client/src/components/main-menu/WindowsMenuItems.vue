@@ -72,8 +72,16 @@ export default {
       search: '',
       items: [
         { label: 'Home', icon: 'fa-solid fa-home', action: 'home' },
+        { label: 'Company', icon: 'fa-solid fa-building-columns', action: 'company' },
+        { label: 'Company settings', icon: 'fa-solid fa-building-user', action: 'company-settings' },
+        { label: 'Management', icon: 'fa-solid fa-table-columns', action: 'management-dashboard' },
+        { label: 'Projects', icon: 'fa-solid fa-cubes', action: 'projects' },
         { label: 'New project', icon: 'fa-solid fa-plus', action: 'new-project' },
         { label: 'Wiki', icon: 'fa-solid fa-graduation-cap', action: 'wiki' },
+        { label: 'Chats', icon: 'fa-regular fa-comments', action: 'chats' },
+        { label: 'Messenger', icon: 'fa-regular fa-comment-dots', action: 'messenger' },
+        { label: 'Activity', icon: 'fa-solid fa-clock-rotate-left', action: 'activity' },
+        { label: 'Git', icon: 'fa-solid fa-code-branch', action: 'git-view' },
         { label: 'Task manager', icon: 'fa-brands fa-trello', action: 'tasks' },
         { label: 'Planning', icon: 'fa-solid fa-diagram-project', action: 'planning' },
         { label: 'Team', icon: 'fa-solid fa-people-group', action: 'team' },
@@ -104,10 +112,28 @@ export default {
   },
   methods: {
     run(item) {
+      const companyLocation = query => {
+        const companyMode = this.$storex.users.isCompanyMode ||
+          !this.$storex.projects.activeProject
+        const companyId = this.$storex.users.primaryCompanyId
+        return {
+          name: companyMode ? 'company-home' : 'company',
+          params: companyMode && companyId ? { companyId } : {},
+          ...(query ? { query } : {})
+        }
+      }
       const actions = {
         home: () => this.$ui.setActiveTab('home'),
+        company: () => this.$storex.$router.push(companyLocation()).catch(() => {}),
+        'company-settings': () => this.$storex.$router.push(companyLocation({ assistant: 'settings' })).catch(() => {}),
+        'management-dashboard': () => this.$ui.openApp('management-dashboard'),
+        projects: () => this.$ui.openApp('projects'),
         'new-project': () => this.$ui.showNewProject(true),
         wiki: () => this.$ui.setActiveTab('wiki'),
+        chats: () => this.$storex.$router.push({ name: 'chats' }).catch(() => {}),
+        messenger: () => this.$storex.$router.push({ name: 'messenger' }).catch(() => {}),
+        activity: () => this.$ui.openApp('activity'),
+        'git-view': () => this.$ui.openApp('git-view'),
         tasks: () => this.$ui.setActiveTab('tasks'),
         planning: () => this.$ui.openPlanning(),
         team: () => this.$ui.setActiveTab('team'),

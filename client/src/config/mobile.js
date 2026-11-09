@@ -103,6 +103,13 @@ export const MOBILE_APP_GROUPS = [
         tone: 'info'
       },
       {
+        key: 'company',
+        title: 'Company',
+        description: 'Teams, people and missions',
+        icon: 'fa-solid fa-building-columns',
+        tone: 'primary'
+      },
+      {
         key: 'management-dashboard',
         title: 'Management',
         description: 'Pulse, blockers, delivery',

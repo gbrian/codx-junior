@@ -32,7 +32,8 @@ const showBack = computed(() => meta.value.back ?? ![
   'activity',
   'messenger',
   'chat',
-  'chat-workspace'
+  'chat-workspace',
+  'company-home'
 ].includes(route.name))
 
 const shellStyle = computed(() => ({

@@ -32,6 +32,24 @@ import MenubarItem from './MenubarItem.vue'
             Global settings
         </MenubarItem>
 
+        <!-- Product shell switch: managers can go back to the full project
+             workspace, and members/engineers with a company can enter the
+             simplified company shell. The preference is stored on the user. -->
+        <MenubarItem
+            v-if="!$users.isCompanyMode && ($users.isCompanyManager || $users.companyIds.length)"
+            @click="setWorkspaceMode('company')">
+            <i class="fa-solid fa-building-columns"></i>
+            Company workspace
+        </MenubarItem>
+        <MenubarItem v-if="$users.isCompanyMode" @click="setWorkspaceMode('work')">
+            <i class="fa-solid fa-code"></i>
+            Working workspace
+        </MenubarItem>
+        <MenubarItem v-if="$storex.api.user?.workspace_mode !== 'auto'" @click="setWorkspaceMode('auto')">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            Automatic workspace
+        </MenubarItem>
+
         <MenubarSub title="Miscellaneous">
             <div class="font-bold px-2 hover:bg-base-300">
                 Miscellaneous
@@ -122,6 +140,17 @@ export default {
         },
         showEruda() {
             window.eruda.init()
+        },
+        async setWorkspaceMode(mode) {
+            try {
+                await this.$storex.users.setWorkspaceMode(mode)
+                // Re-enter through "/" so the shell, the guard redirect and the
+                // active route are rebuilt from the new mode in one go.
+                window.location.assign('/')
+            } catch (error) {
+                console.error('[SettingsMenu] cannot change workspace mode', error)
+                this.$storex.session.onError('Could not change the workspace mode')
+            }
         }
     }
 }

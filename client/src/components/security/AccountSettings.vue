@@ -33,6 +33,23 @@ import ThemeSelector from '../ThemeSelector.vue'
         <span class="font-semibold">Email</span>
         <input type="email" v-model="user.email" class="input input-bordered w-full" placeholder="Enter your email" />
       </div>
+
+      <!-- Product shell: managers use the simplified company workspace,
+           everyone else keeps today's project workspace. "Automatic" derives
+           the shell from the role and the company memberships. -->
+      <div class="form-control">
+        <span class="font-semibold">Workspace</span>
+        <select class="select select-bordered select-sm" :value="user.workspace_mode || 'auto'"
+                @change="changeWorkspaceMode($event.target.value)">
+          <option value="auto">Automatic (from my role)</option>
+          <option value="company">Company workspace</option>
+          <option value="work">Working workspace</option>
+        </select>
+        <span class="text-[10px] text-base-content/50 mt-1">
+          Company workspace is the simplified manager view with the codx-junior assistant.
+          Working workspace is the full project-oriented codx-junior.
+        </span>
+      </div>
       
       <div class="flex justify-between items-center">
         <button type="button" class="btn btn-outline" @click="showResetPasswordModal = true">Reset Password</button>
@@ -75,6 +92,14 @@ export default {
     }
   },
   methods: {
+    async changeWorkspaceMode(mode) {
+      try {
+        await this.$users.setWorkspaceMode(mode)
+        window.location.assign('/')
+      } catch (error) {
+        this.$toast.error('Could not change the workspace mode')
+      }
+    },
     resetPassword() {
       if (this.newPassword === this.confirmPassword) {
         this.$users.resetPassword(this.newPassword)

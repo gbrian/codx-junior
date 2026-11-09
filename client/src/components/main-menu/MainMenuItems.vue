@@ -3,12 +3,60 @@ import MenubarItem from './MenubarItem.vue'
 import WorkspacesMenu from './WorkspacesMenu.vue'
 import SettingsMenu from './SettingsMenu.vue'
 import MenuDivider from './MenuDivider.vue'
+import { $storex } from '@/store'
+
+// The main menu is the one launcher that ALWAYS contains everything, in both
+// product shells (company and working mode). Apps that are simplified out of
+// the company sidebar remain reachable from here.
+function openCompanyWorkspace() {
+  const companyId = $storex.users.primaryCompanyId
+  const companyMode = $storex.users.isCompanyMode
+  $storex.$router.push({
+    name: companyMode ? 'company-home' : 'company',
+    params: companyMode
+      ? (companyId ? { companyId } : {})
+      : {}
+  })
+}
+
+function openManagementDashboard() {
+  $storex.ui.openApp('management-dashboard')
+}
+
+function openProjects() {
+  $storex.ui.openApp('projects')
+}
+
+function openCompanySettings() {
+  // Company settings live inside the assistant window: open the company shell
+  // with a one-shot query flag that CompanyView turns into an assistant turn.
+  $storex.$router.push({
+    name: 'company-home',
+    query: { assistant: 'settings' }
+  })
+}
 </script>
 
 <template>
   <MenubarItem @click="$ui.setActiveTab('home')">
     <i class="fa-solid fa-home"></i>
     Home
+  </MenubarItem>
+  <MenubarItem @click="openCompanyWorkspace">
+    <i class="fa-solid fa-building-columns"></i>
+    Company
+  </MenubarItem>
+  <MenubarItem @click="openCompanySettings">
+    <i class="fa-solid fa-building-user"></i>
+    Company settings
+  </MenubarItem>
+  <MenubarItem @click="openManagementDashboard">
+    <i class="fa-solid fa-table-columns"></i>
+    Management
+  </MenubarItem>
+  <MenubarItem @click="openProjects">
+    <i class="fa-solid fa-cubes"></i>
+    Projects
   </MenubarItem>
   <MenubarItem @click="$ui.setActiveTab('activity')">
     <i class="fa-solid fa-clock-rotate-left"></i>

@@ -52,10 +52,61 @@ import { isOpenInNewTabEvent, openProjectInNewTab } from '@/utils/projectLinks'
       @click="primaryNavExpanded = !primaryNavExpanded"
       title="Toggle Primary Navigation"
     >
-      APPS
+      {{ isCompanyMode ? 'COMPANY' : 'APPS' }}
       <i :class="primaryNavExpanded ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'" class="text-xs"></i>
     </button>
-    <div v-if="primaryNavExpanded || isCollapsed" class="flex flex-col gap-1">
+
+    <!-- ── COMPANY MODE: a deliberately small, manager-oriented navigation ──
+         The full application launcher lives in the main menu (always every
+         app, in both modes). Here managers only get the company flows plus the
+         always-present assistant. -->
+    <div v-if="isCompanyMode && (primaryNavExpanded || isCollapsed)" class="flex flex-col gap-1">
+      <NavItem
+        icon="fas fa-building-columns"
+        label="Company"
+        :is-collapsed="isCollapsed"
+        :is-primary="true"
+        @click="handleNavigateToCompanyHome"
+      />
+      <NavItem
+        icon="fas fa-wand-magic-sparkles"
+        label="Ask codx-junior"
+        :is-collapsed="isCollapsed"
+        @click="openCompanyAssistant"
+      />
+      <NavItem
+        icon="fas fa-user-plus"
+        label="Add a person"
+        :is-collapsed="isCollapsed"
+        @click="openCompanyPrompt('add-person')"
+      />
+      <NavItem
+        icon="fas fa-people-group"
+        label="Build a team"
+        :is-collapsed="isCollapsed"
+        @click="openCompanyPrompt('create-team')"
+      />
+      <NavItem
+        icon="fas fa-flag"
+        label="Start a mission"
+        :is-collapsed="isCollapsed"
+        @click="openCompanyPrompt('create-mission')"
+      />
+      <NavItem
+        icon="fas fa-bell"
+        label="What needs attention"
+        :is-collapsed="isCollapsed"
+        @click="openCompanyPrompt('work')"
+      />
+      <NavItem
+        icon="fas fa-code"
+        label="Working mode"
+        :is-collapsed="isCollapsed"
+        @click="switchToWorkingMode"
+      />
+    </div>
+
+    <div v-else-if="primaryNavExpanded || isCollapsed" class="flex flex-col gap-1">
       
       <NavItem
         icon="fas fa-plus"
@@ -196,6 +247,10 @@ export default {
     // True when the active project is in the UI store's pinned list
     isActiveProjectPinned() {
       return this.$storex.ui.isActiveProjectPinned
+    },
+    // Managers (and company members) get the simplified company navigation.
+    isCompanyMode() {
+      return this.$storex.users.isCompanyMode
     }
   },
   methods: {
@@ -301,6 +356,45 @@ export default {
     handleNavigateToCompany() {
       this.openApp('company')
       this.$emit('close')
+    },
+    // ── Company mode navigation ────────────────────────────────────────────
+    // A company is global: the shell is the project-independent "/company"
+    // route (see router/index.ts → company-home).
+    handleNavigateToCompanyHome() {
+      const companyId = this.$storex.users.primaryCompanyId
+      this.$storex.$router.push({
+        name: 'company-home',
+        params: companyId ? { companyId } : {}
+      }).catch(() => {})
+      this.$emit('close')
+    },
+    openCompanyPrompt(intent) {
+      const companyId = this.$storex.users.primaryCompanyId
+      this.$storex.$router.push({
+        name: 'company-home',
+        params: companyId ? { companyId } : {},
+        query: { assistant: intent }
+      }).catch(() => {})
+      this.$emit('close')
+    },
+    openCompanyAssistant() {
+      // CompanyView opens the assistant panel when it sees this query flag. It
+      // works both when the shell is already mounted and when we navigate to it.
+      const companyId = this.$storex.users.primaryCompanyId
+      this.$storex.$router.push({
+        name: 'company-home',
+        params: companyId ? { companyId } : {},
+        query: { assistant: 'open' }
+      }).catch(() => {})
+      this.$emit('close')
+    },
+    async switchToWorkingMode() {
+      try {
+        await this.$storex.users.setWorkspaceMode('work')
+        window.location.assign('/')
+      } catch (error) {
+        this.$storex.session.onError('Could not switch to working mode')
+      }
     },
     handleNavigateToMessenger() {
       this.openApp('messenger')
