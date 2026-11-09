@@ -95,6 +95,7 @@ TEAM_EDITABLE_FIELDS = (
     "tools",
     "tags",
     "budget_cxjcoins",
+    "requires_approval",
     "color",
     "icon",
 )
@@ -109,6 +110,7 @@ MISSION_EDITABLE_FIELDS = (
     "owner_kind",
     "owner_name",
     "dispatch_mode",
+    "requires_approval",
     "budget_cxjcoins",
     "due_date",
     "tags",
@@ -1417,6 +1419,11 @@ class CompanyManager:
         with self.store.lock(self._company_id(company_id)):
             company = self.get_company(company_id)
             self._validate_mission_destination(company, company_mission)
+            if (
+                self._mission_needs_approval(company, company_mission)
+                and company_mission.approval_status == "not_required"
+            ):
+                company_mission.approval_status = "pending"
             company.missions.append(company_mission)
             saved = self.store.save(company)
             self._event(
@@ -1570,6 +1577,14 @@ class CompanyManager:
                     "back to ready first)"
                 )
             self._validate_mission_destination(company, mission)
+            if (
+                self._mission_needs_approval(company, mission)
+                and mission.approval_status != "approved"
+            ):
+                raise CompanyConflict(
+                    f"Mission '{mission.title}' needs approval before it can be "
+                    f"dispatched (status: {mission.approval_status})."
+                )
             self._ensure_dispatch_budget(company, mission, force=force)
             brief = self.build_mission_brief(company, mission)
             try:
@@ -1765,6 +1780,99 @@ class CompanyManager:
                 mission_id=mission_id,
                 previous_run_id=previous_run,
                 reason=mission.last_error[:500],
+            )
+            return saved
+
+    def approve_mission(
+        self,
+        company_id: str,
+        mission_id: str,
+        note: str = "",
+        actor: str = "system",
+    ) -> Company:
+        """
+        Approve a mission that is gated by a mission/team approval policy.
+
+        Approval does not dispatch the mission: it only removes the gate, so a
+        human keeps control of *when* the run starts.
+
+        Args:
+            company_id: Company id.
+            mission_id: Mission id.
+            note: Optional approval note.
+            actor: Username recorded in the audit trail.
+
+        Returns:
+            The updated company.
+        """
+        with self.store.lock(self._company_id(company_id)):
+            company = self.get_company(company_id)
+            mission = company.get_mission(mission_id)
+            if mission is None:
+                raise CompanyNotFound(f"Mission '{mission_id}' not found")
+            if mission.status in ("done", "cancelled"):
+                raise CompanyConflict(
+                    f"Mission '{mission.title}' is '{mission.status}' and no "
+                    "longer needs approval"
+                )
+            mission.approval_status = "approved"
+            mission.approved_by = actor
+            mission.approved_at = now_iso()
+            mission.approval_note = self._clean(note)
+            mission.updated_at = mission.approved_at
+            saved = self.store.save(company)
+            self._event(
+                saved,
+                "mission.approved",
+                f"Mission '{mission.title}' approved",
+                actor=actor,
+                mission_id=mission_id,
+                note=mission.approval_note[:500],
+            )
+            return saved
+
+    def deny_mission(
+        self,
+        company_id: str,
+        mission_id: str,
+        note: str = "",
+        actor: str = "system",
+    ) -> Company:
+        """
+        Deny a gated mission; it cannot be dispatched until approved.
+
+        Args:
+            company_id: Company id.
+            mission_id: Mission id.
+            note: Why it was denied.
+            actor: Username recorded in the audit trail.
+
+        Returns:
+            The updated company.
+        """
+        with self.store.lock(self._company_id(company_id)):
+            company = self.get_company(company_id)
+            mission = company.get_mission(mission_id)
+            if mission is None:
+                raise CompanyNotFound(f"Mission '{mission_id}' not found")
+            if mission.status in ("done", "cancelled"):
+                raise CompanyConflict(
+                    f"Mission '{mission.title}' is '{mission.status}' and no "
+                    "longer needs approval"
+                )
+            mission.approval_status = "denied"
+            mission.approved_by = actor
+            mission.approved_at = now_iso()
+            mission.approval_note = self._clean(note)
+            mission.updated_at = mission.approved_at
+            saved = self.store.save(company)
+            self._event(
+                saved,
+                "mission.denied",
+                f"Mission '{mission.title}' denied",
+                actor=actor,
+                mission_id=mission_id,
+                note=mission.approval_note[:500],
             )
             return saved
 
@@ -2658,6 +2766,20 @@ class CompanyManager:
             if team.id != exclude_id and team.name.lower() == wanted:
                 raise CompanyConflict(f"A team named '{name}' already exists")
 
+    def _mission_needs_approval(self, company: Company, mission: Mission) -> bool:
+        """
+        Tell whether a mission is subject to an approval gate.
+
+        The gate is enabled by the mission itself or by its team policy. It is
+        intentionally dynamic: turning the team policy on blocks the next
+        dispatch even for missions created before the policy existed.
+        """
+        team = company.team(mission.team_id)
+        return bool(
+            mission.requires_approval
+            or (team is not None and team.requires_approval)
+        )
+
     def _ensure_dispatch_budget(
         self, company: Company, mission: Mission, force: bool = False
     ) -> None:
@@ -2740,6 +2862,11 @@ class CompanyManager:
             team = company.team(mission.team_id)
             if team is not None and team.autonomy == "manual":
                 continue
+            if (
+                self._mission_needs_approval(company, mission)
+                and mission.approval_status != "approved"
+            ):
+                continue
             candidates.append(mission)
         return sorted(candidates, key=self._mission_sort_key)
 
@@ -2778,7 +2905,13 @@ class CompanyManager:
         items: List[Dict[str, Any]] = []
         for mission in company.missions:
             reason = ""
-            if mission.status == "blocked":
+            if (
+                mission.status in ("ready", "blocked")
+                and self._mission_needs_approval(company, mission)
+                and mission.approval_status in ("pending", "denied")
+            ):
+                reason = "approval"
+            elif mission.status == "blocked":
                 reason = "blocked"
             elif mission.last_error:
                 reason = "error"

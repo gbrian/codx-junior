@@ -241,7 +241,7 @@ The company shell has **one screen**:
 
 ### From an AI profile
 
-Every profile can use the `company_management` tool. It exposes 28 actions:
+Every profile can use the `company_management` tool. It exposes 30 actions:
 
 ```text
 list, get, create, update, delete, references, snapshot,
@@ -250,7 +250,8 @@ add_team, update_team, delete_team,
 add_team_members, remove_team_members, set_team_lead,
 link_project, unlink_project,
 add_mission, update_mission, delete_mission,
-dispatch_mission, accept_mission, reject_mission, transition_mission,
+dispatch_mission, accept_mission, reject_mission,
+approve_mission, deny_mission, transition_mission,
 sync, configure_autonomy, run_cycle
 ```
 
@@ -320,6 +321,10 @@ curl -X POST /api/companies/<id>/missions \
 curl -X POST /api/companies/<id>/missions/<mission>/dispatch
 curl -X POST /api/companies/<id>/missions/<mission>/accept \
   -d '{"result":"Provisioning works"}'
+curl -X POST /api/companies/<id>/missions/<mission>/approve \
+  -d '{"note":"Looks safe"}'
+curl -X POST /api/companies/<id>/missions/<mission>/deny \
+  -d '{"note":"Not now"}'
 curl -X POST /api/companies/<id>/missions/sync
 
 # Autonomy
@@ -447,6 +452,30 @@ Enforcement:
 The company assistant answers “How is our budget?” from the same block, and the
 company home shows a budget card with today’s spend and the remaining amount.
 
+## Approvals
+
+A mission can be gated before it runs, either per mission
+(`Mission.requires_approval`) or by a team policy
+(`CompanyTeam.requires_approval`). A gated mission starts with
+`approval_status="pending"` and `dispatch_mission` refuses to start it until a
+human approves it:
+
+```bash
+# Approve / deny (company manager or admin)
+curl -X POST /api/companies/<id>/missions/<mission>/approve -d '{"note":"Go"}'
+curl -X POST /api/companies/<id>/missions/<mission>/deny -d '{"note":"Not now"}'
+```
+
+* Approval does **not** dispatch the mission: the human still chooses when to
+  start it.
+* `denied` missions stay blocked until they are approved.
+* The autopilot skips unapproved missions, and the attention queue reports
+  `approval` for pending/denied ones.
+* The assistant answers “show pending approvals” and supports
+  “approve <mission>” / “deny <mission>”.
+* The approval is audited with `approved_by`, `approved_at` and
+  `approval_note`.
+
 ## Mission lifecycle
 
 ```mermaid
@@ -482,12 +511,12 @@ PYTHONPATH=api python -m unittest discover -s tests -p 'test_company*.py' -v
 The tests cover persistence/journaling, the SaaS template, hybrid rosters,
 profile validation, project linking, dispatch, run sync, accept/reject,
 transition validation, the autonomy guard rails, the dashboard snapshot, the
-budget ledger and its dispatch/autopilot enforcement, the role-driven company
-mode, company memberships and the company assistant forms.
+budget ledger and its dispatch/autopilot enforcement, mission approval gates,
+the role-driven company mode, company memberships and the company assistant
+forms.
 
 ## Next steps
 
-* **Approvals** — per-team policies for risky actions (deploy, spend, delete).
 * **Company chat** — a channel per company/team where humans and profiles plan
   together before creating missions.
 * **Multi-company** — the storage and API already support it; the UI needs a

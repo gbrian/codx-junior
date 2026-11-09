@@ -178,6 +178,7 @@ class TeamRequest(BaseModel):
     tools: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
     budget_cxjcoins: float = 0.0
+    requires_approval: bool = False
     color: str = "#6366f1"
     icon: str = "fa-solid fa-people-group"
 
@@ -224,6 +225,7 @@ class MissionRequest(BaseModel):
     owner_kind: str = "user"
     owner_name: str = ""
     dispatch_mode: str = "manual"
+    requires_approval: Optional[bool] = None
     budget_cxjcoins: float = 0.0
     due_date: str = ""
     tags: List[str] = Field(default_factory=list)
@@ -246,6 +248,12 @@ class RejectRequest(BaseModel):
     """Reject a mission in review."""
 
     reason: str = ""
+
+
+class ApprovalRequest(BaseModel):
+    """Approve or deny a gated mission."""
+
+    note: str = ""
 
 
 class AutonomyRequest(BaseModel):
@@ -1107,6 +1115,38 @@ def api_reject_mission(
     return _run(
         lambda: manager.reject_mission(
             company_id, mission_id, reason=payload.reason, actor=_actor(user)
+        )
+    )
+
+
+@router.post("/companies/{company_id}/missions/{mission_id}/approve")
+def api_approve_mission(
+    company_id: str,
+    mission_id: str,
+    payload: ApprovalRequest,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Approve a mission that needs approval before dispatch."""
+    manager, _ = _run(lambda: _get_editable(company_id, user))
+    return _run(
+        lambda: manager.approve_mission(
+            company_id, mission_id, note=payload.note, actor=_actor(user)
+        )
+    )
+
+
+@router.post("/companies/{company_id}/missions/{mission_id}/deny")
+def api_deny_mission(
+    company_id: str,
+    mission_id: str,
+    payload: ApprovalRequest,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Deny a gated mission (it cannot be dispatched until approved)."""
+    manager, _ = _run(lambda: _get_editable(company_id, user))
+    return _run(
+        lambda: manager.deny_mission(
+            company_id, mission_id, note=payload.note, actor=_actor(user)
         )
     )
 

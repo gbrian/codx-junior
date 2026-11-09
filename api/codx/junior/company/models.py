@@ -99,6 +99,8 @@ MISSION_PRIORITIES = ("low", "medium", "high", "critical")
 MISSION_DISPATCH_MODES = ("manual", "auto")
 MISSION_SOURCES = ("human", "autopilot", "template")
 
+APPROVAL_STATUSES = ("not_required", "pending", "approved", "denied")
+
 AUTONOMY_LEVELS = ("off", "supervised", "autonomous")
 TEAM_AUTONOMY_LEVELS = ("manual", "supervised", "autonomous")
 
@@ -493,6 +495,10 @@ class CompanyTeam(BaseModel):
     budget_cxjcoins: float = Field(
         default=0.0,
         description="Optional AI budget for this team (0 = no limit)",
+    )
+    requires_approval: bool = Field(
+        default=False,
+        description="Missions of this team need explicit approval before dispatch",
     )
     color: str = Field(default="#6366f1", description="UI accent colour")
     icon: str = Field(default="fa-solid fa-people-group", description="UI icon")
@@ -961,6 +967,17 @@ class Mission(BaseModel):
         default=0.0,
         description="AI spend reported by the orchestration run (cxjcoins)",
     )
+    requires_approval: bool = Field(
+        default=False,
+        description="This mission needs explicit approval before dispatch",
+    )
+    approval_status: str = Field(
+        default="not_required",
+        description="not_required | pending | approved | denied",
+    )
+    approved_by: str = Field(default="", description="Username that approved it")
+    approved_at: str = Field(default="", description="Approval timestamp")
+    approval_note: str = Field(default="", description="Approval/denial note")
     due_date: str = Field(default="", description="Optional ISO due date")
     run_id: str = Field(default="", description="Orchestration run id")
     run_status: str = Field(default="", description="Last orchestration status")
@@ -1010,6 +1027,20 @@ class Mission(BaseModel):
             )
         return mode
 
+    @field_validator("approval_status", mode="before")
+    @classmethod
+    def _approval_status(cls, value: Any) -> str:
+        """Validate/normalize the approval status; 'required' means pending."""
+        status = _clean(value).lower() or "not_required"
+        if status in ("required", "needed", "awaiting"):
+            return "pending"
+        if status not in APPROVAL_STATUSES:
+            raise ValueError(
+                f"invalid approval status '{status}' (expected one of "
+                f"{', '.join(APPROVAL_STATUSES)})"
+            )
+        return status
+
     @field_validator("source", mode="before")
     @classmethod
     def _source(cls, value: Any) -> str:
@@ -1036,6 +1067,9 @@ class Mission(BaseModel):
         "run_status",
         "result",
         "last_error",
+        "approved_by",
+        "approved_at",
+        "approval_note",
         "created_by",
         mode="before",
     )
@@ -1085,6 +1119,11 @@ class Mission(BaseModel):
     def is_open(self) -> bool:
         """``True`` while the mission still needs attention."""
         return self.status in MISSION_OPEN_STATUSES
+
+    @property
+    def needs_approval(self) -> bool:
+        """``True`` when the mission is still waiting for (or denied) approval."""
+        return self.requires_approval or self.approval_status in ("pending", "denied")
 
     @property
     def is_terminal(self) -> bool:

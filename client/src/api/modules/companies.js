@@ -207,6 +207,20 @@ export const companiesModule = (API) => ({
     )
   },
 
+  approveMission(companyId, missionId, note = '') {
+    return API.post(
+      `${BASE}/${encodeURIComponent(companyId)}/missions/${encodeURIComponent(missionId)}/approve`,
+      { note }
+    )
+  },
+
+  denyMission(companyId, missionId, note = '') {
+    return API.post(
+      `${BASE}/${encodeURIComponent(companyId)}/missions/${encodeURIComponent(missionId)}/deny`,
+      { note }
+    )
+  },
+
   transitionMission(companyId, missionId, status, { force = false } = {}) {
     return API.post(
       `${BASE}/${encodeURIComponent(companyId)}/missions/${encodeURIComponent(missionId)}/transition`,

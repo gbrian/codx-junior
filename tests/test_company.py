@@ -373,6 +373,65 @@ class CompanyTestCase(unittest.TestCase):
         )
         self.assertEqual(company.get_mission(second.id).status, "running")
 
+    def test_team_approval_policy_blocks_until_approved(self):
+        company = self.create_company()
+        team = company.teams[0]
+        company = self.manager.update_team(
+            company.id, team.id, {"requires_approval": True}, actor="alice"
+        )
+        company, mission = self.add_ready_mission(company)
+        mission = company.get_mission(mission.id)
+        self.assertEqual(mission.approval_status, "pending")
+        with self.assertRaises(CompanyConflict):
+            self.manager.dispatch_mission(company.id, mission.id, actor="alice")
+
+        company = self.manager.approve_mission(
+            company.id, mission.id, note="Looks safe", actor="alice"
+        )
+        mission = company.get_mission(mission.id)
+        self.assertEqual(mission.approval_status, "approved")
+        self.assertEqual(mission.approved_by, "alice")
+        company = self.manager.dispatch_mission(company.id, mission.id, actor="alice")
+        self.assertEqual(company.get_mission(mission.id).status, "running")
+
+    def test_mission_can_require_approval_without_team_policy(self):
+        company = self.create_company()
+        company, mission = self.add_ready_mission(
+            company, requires_approval=True
+        )
+        mission = company.get_mission(mission.id)
+        self.assertEqual(mission.approval_status, "pending")
+        with self.assertRaises(CompanyConflict):
+            self.manager.dispatch_mission(company.id, mission.id, actor="alice")
+        company = self.manager.deny_mission(
+            company.id, mission.id, note="Not now", actor="alice"
+        )
+        self.assertEqual(company.get_mission(mission.id).approval_status, "denied")
+        self.assertEqual(
+            self.manager.snapshot(company.id)["attention"][0]["reason"], "approval"
+        )
+
+    def test_autopilot_skips_unapproved_mission(self):
+        company = self.create_company()
+        team = company.teams[0]
+        company = self.manager.update_team(
+            company.id, team.id, {"requires_approval": True}, actor="alice"
+        )
+        company, mission = self.add_ready_mission(company)
+        company = self.manager.update_autonomy(
+            company.id,
+            {"enabled": True, "level": "supervised", "interval_minutes": 5},
+            actor="alice",
+        )
+        result = self.manager.cycle(company.id, actor="autopilot", force=False)
+        self.assertEqual(result["status"], "ran")
+        self.assertEqual(result["dispatched"], [])
+        self.assertEqual(len(self.dispatched), 0)
+        self.assertEqual(
+            self.manager.get_company(company.id).get_mission(mission.id).status,
+            "ready",
+        )
+
     def test_team_budget_blocks_dispatch(self):
         company = self.create_company()
         team = company.teams[0]

@@ -711,6 +711,9 @@ Recent conversation:
         if "dispatch" in lowered and "mission" in lowered:
             return self._dispatch_mission(company, text, can_manage, actor)
 
+        if re.match(r"^(approve|deny)\b", lowered) or "approval" in lowered:
+            return self._approvals(company, text, can_manage, actor)
+
         if "review" in lowered and "mission" in lowered:
             return self._start_review_mission(company, text, can_manage)
 
@@ -820,6 +823,11 @@ Recent conversation:
         running = [mission for mission in company.missions if mission.status == "running"]
         review = [mission for mission in company.missions if mission.status == "review"]
         blocked = [mission for mission in company.missions if mission.status in ("blocked", "paused")]
+        approvals = [
+            mission for mission in company.missions
+            if mission.approval_status in ("pending", "denied")
+            and mission.status in ("ready", "blocked")
+        ]
         lines = [
             f"### {company.name}",
             f"**{counts['open_missions']} open mission(s)** · "
@@ -840,6 +848,11 @@ Recent conversation:
             lines += ["", "**Waiting for a human**"] + [
                 f"- {mission.title} (in review)"
                 for mission in review[:8]
+            ]
+        if approvals:
+            lines += ["", "**Waiting for approval**"] + [
+                f"- {mission.title} ({mission.approval_status})"
+                for mission in approvals[:8]
             ]
         if blocked:
             lines += ["", "**Needs attention**"] + [
@@ -932,6 +945,80 @@ Recent conversation:
                 "Show projects",
                 "Turn on autopilot" if not company.autonomy.enabled else "Turn off autopilot",
             ],
+        }
+
+    def _approvals(
+        self,
+        company: Any,
+        text: str,
+        can_manage: bool,
+        actor: str,
+    ) -> Dict[str, Any]:
+        """List pending approvals, or approve/deny a named mission."""
+        lowered = _ic(text)
+        match = re.match(r"^(approve|deny)\s+(?:mission\s+)?(.+)$", text, re.I)
+        if match and can_manage:
+            action = match.group(1).lower()
+            wanted = match.group(2).strip().strip("\"'").lower()
+            mission = next(
+                (
+                    item for item in company.missions
+                    if item.id.lower() == wanted
+                    or (item.title and item.title.lower() == wanted)
+                    or (item.title and wanted in item.title.lower())
+                ),
+                None,
+            )
+            if mission is None:
+                return {
+                    "reply": f"I could not find a mission called “{match.group(2).strip()}”.",
+                    "suggestions": ["Show pending approvals", "Show missions"],
+                }
+            if action == "approve":
+                self.manager.approve_mission(
+                    company.id, mission.id, actor=actor
+                )
+                return {
+                    "reply": (
+                        f"**{mission.title}** is approved. You can dispatch it "
+                        "whenever you are ready."
+                    ),
+                    "suggestions": ["Show missions", "What needs my attention?"],
+                }
+            self.manager.deny_mission(
+                company.id, mission.id, note="Denied from the assistant", actor=actor
+            )
+            return {
+                "reply": f"**{mission.title}** was denied and will not run.",
+                "suggestions": ["Show pending approvals", "Show missions"],
+            }
+
+        pending = [
+            mission for mission in company.missions
+            if mission.approval_status in ("pending", "denied")
+            and mission.status in ("ready", "blocked")
+        ]
+        if not pending:
+            return {
+                "reply": "Nothing is waiting for approval right now.",
+                "suggestions": ["What needs my attention?", "Show missions"],
+            }
+        lines = ["### Approvals"]
+        for mission in pending[:10]:
+            lines.append(
+                f"- **{mission.title}** · {mission.approval_status} · "
+                f"{mission.priority} priority"
+            )
+        if can_manage:
+            lines += [
+                "",
+                "Say **approve <mission>** or **deny <mission>** to decide.",
+            ]
+        else:
+            lines += ["", "Your role is read-only in this company."]
+        return {
+            "reply": "\n".join(lines),
+            "suggestions": ["Show missions", "What needs my attention?"],
         }
 
     def _teams(self, company: Any, text: str = "") -> Dict[str, Any]:

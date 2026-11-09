@@ -43,8 +43,16 @@ const reviewMissions = computed(() =>
 const runningMissions = computed(() =>
   missions.value.filter(mission => mission.status === 'running')
 )
+const approvalMissions = computed(() =>
+  missions.value.filter(
+    mission => ['pending', 'denied'].includes(mission.approval_status)
+      && ['ready', 'blocked'].includes(mission.status)
+  )
+)
 
-const firstAttention = computed(() => reviewMissions.value[0] || runningMissions.value[0] || null)
+const firstAttention = computed(() =>
+  reviewMissions.value[0] || approvalMissions.value[0] || runningMissions.value[0] || null
+)
 
 const simpleGreeting = computed(() => {
   const hour = new Date().getHours()
@@ -59,6 +67,10 @@ function ask(prompt) {
 
 function askAboutMission(mission) {
   if (!mission) return
+  if (['pending', 'denied'].includes(mission.approval_status)) {
+    ask('Show pending approvals')
+    return
+  }
   if (mission.status === 'review') {
     ask(`Review mission ${mission.title}`)
     return
@@ -231,11 +243,19 @@ function projectName(project) {
           <p v-if="firstAttention.status === 'review'" class="text-[11px] text-base-content/45 mt-1">
             The AI team finished this mission. Do you accept the result?
           </p>
+          <p v-else-if="['pending', 'denied'].includes(firstAttention.approval_status)"
+             class="text-[11px] text-base-content/45 mt-1">
+            This mission needs your approval before it can run.
+          </p>
         </div>
         <div class="flex flex-col gap-1.5 shrink-0">
           <button type="button" class="btn btn-warning btn-sm"
                   @click="askAboutMission(firstAttention)">
-            {{ firstAttention.status === 'review' ? 'Review it' : 'Ask about it' }}
+            {{
+              ['pending', 'denied'].includes(firstAttention.approval_status)
+                ? 'Review approval'
+                : (firstAttention.status === 'review' ? 'Review it' : 'Ask about it')
+            }}
           </button>
           <button type="button" class="btn btn-ghost btn-xs"
                   @click="ask('What needs my attention?')">See all</button>

@@ -197,6 +197,43 @@ class CompanyRosterAndAssistantTestCase(unittest.TestCase):
         self.assertIn("Acme cloud", status["reply"])
         self.assertIn("open mission", status["reply"])
 
+    def test_assistant_lists_and_approves_missions(self):
+        self.manager.link_project(self.company.id, "proj-1", actor="alice")
+        company = self.manager.add_team(
+            self.company.id,
+            {
+                "name": "Platform",
+                "members": ["profile:developer"],
+                "requires_approval": True,
+            },
+            actor="alice",
+        )
+        team = company.teams[-1]
+        company = self.manager.add_mission(
+            self.company.id,
+            {
+                "title": "Deploy the beta",
+                "objective": "Deploy it",
+                "team_id": team.id,
+                "project_id": "proj-1",
+                "status": "ready",
+            },
+            actor="alice",
+        )
+        mission = company.missions[-1]
+        self.assertEqual(mission.approval_status, "pending")
+
+        pending = self.ask("show pending approvals")
+        self.assertIn("Deploy the beta", pending["reply"])
+        self.assertIn("pending", pending["reply"])
+
+        approved = self.ask("approve mission Deploy the beta")
+        self.assertIn("approved", approved["reply"].lower())
+        self.assertEqual(
+            self.manager.get_company(self.company.id).get_mission(mission.id).approval_status,
+            "approved",
+        )
+
     def test_assistant_answers_budget(self):
         company = self.manager.add_mission(
             self.company.id,

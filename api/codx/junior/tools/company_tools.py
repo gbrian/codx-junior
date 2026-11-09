@@ -74,6 +74,8 @@ VALID_ACTIONS = [
     "dispatch_mission",
     "accept_mission",
     "reject_mission",
+    "approve_mission",
+    "deny_mission",
     "transition_mission",
     "sync",
     "configure_autonomy",
@@ -107,6 +109,8 @@ ACTION_ALIASES = {
     "run": "dispatch_mission",
     "accept": "accept_mission",
     "reject": "reject_mission",
+    "approve": "approve_mission",
+    "deny": "deny_mission",
     "transition": "transition_mission",
     "autonomy": "configure_autonomy",
     "cycle": "run_cycle",
@@ -476,6 +480,7 @@ def _action_add_team(company_id: str, action_args: Dict[str, Any], session: Any 
         "tools": action_args.get("tools") or [],
         "tags": action_args.get("tags") or [],
         "budget_cxjcoins": action_args.get("budget_cxjcoins") or 0.0,
+        "requires_approval": bool(action_args.get("requires_approval")),
         "color": action_args.get("color") or "#6366f1",
         "icon": action_args.get("icon") or "fa-solid fa-people-group",
     }
@@ -512,6 +517,7 @@ def _action_update_team(company_id: str, action_args: Dict[str, Any], session: A
             "tools",
             "tags",
             "budget_cxjcoins",
+            "requires_approval",
             "color",
             "icon",
         )
@@ -662,6 +668,7 @@ def _action_add_mission(company_id: str, action_args: Dict[str, Any], session: A
             "owner_kind",
             "owner_name",
             "dispatch_mode",
+            "requires_approval",
             "budget_cxjcoins",
             "due_date",
             "tags",
@@ -697,6 +704,7 @@ def _action_update_mission(company_id: str, action_args: Dict[str, Any], session
             "owner_kind",
             "owner_name",
             "dispatch_mode",
+            "requires_approval",
             "budget_cxjcoins",
             "due_date",
             "tags",
@@ -776,6 +784,42 @@ def _action_reject_mission(company_id: str, action_args: Dict[str, Any], session
         company_id,
         mission_id,
         reason=action_args.get("reason") or action_args.get("last_error") or "",
+        actor=_actor(session),
+    )
+    mission = company.get_mission(mission_id)
+    return ToolResponse(
+        user_response=_mission_md(company, mission) if mission else _company_md(company),
+        llm_response=_json(mission.model_dump() if mission else company.model_dump()),
+    )
+
+
+def _action_approve_mission(company_id: str, action_args: Dict[str, Any], session: Any = None) -> ToolResponse:
+    """Approve a mission that needs approval before dispatch."""
+    mission_id = action_args.get("mission_id")
+    if not mission_id:
+        return _error("mission_id is required for action='approve_mission'")
+    company = _manager().approve_mission(
+        company_id,
+        mission_id,
+        note=action_args.get("note") or "",
+        actor=_actor(session),
+    )
+    mission = company.get_mission(mission_id)
+    return ToolResponse(
+        user_response=_mission_md(company, mission) if mission else _company_md(company),
+        llm_response=_json(mission.model_dump() if mission else company.model_dump()),
+    )
+
+
+def _action_deny_mission(company_id: str, action_args: Dict[str, Any], session: Any = None) -> ToolResponse:
+    """Deny a gated mission."""
+    mission_id = action_args.get("mission_id")
+    if not mission_id:
+        return _error("mission_id is required for action='deny_mission'")
+    company = _manager().deny_mission(
+        company_id,
+        mission_id,
+        note=action_args.get("note") or action_args.get("reason") or "",
         actor=_actor(session),
     )
     mission = company.get_mission(mission_id)
@@ -920,6 +964,8 @@ def company_management(
     due_date: Optional[str] = None,
     result: Optional[str] = None,
     reason: Optional[str] = None,
+    note: Optional[str] = None,
+    requires_approval: Optional[bool] = None,
     enabled: Optional[bool] = None,
     level: Optional[str] = None,
     interval_minutes: Optional[int] = None,
@@ -1061,6 +1107,8 @@ def company_management(
         "due_date": due_date,
         "result": result,
         "reason": reason,
+        "note": note,
+        "requires_approval": requires_approval,
         "enabled": enabled,
         "level": level,
         "interval_minutes": interval_minutes,
@@ -1127,6 +1175,10 @@ def company_management(
             return _action_accept_mission(target, args, session=session)
         if action_name == "reject_mission":
             return _action_reject_mission(target, args, session=session)
+        if action_name == "approve_mission":
+            return _action_approve_mission(target, args, session=session)
+        if action_name == "deny_mission":
+            return _action_deny_mission(target, args, session=session)
         if action_name == "transition_mission":
             return _action_transition_mission(target, args, session=session)
         if action_name == "sync":
@@ -1170,7 +1222,8 @@ COMPANY_MANAGEMENT_TOOL_JSON = {
             "delete_team, add_team_members, remove_team_members, set_team_lead, "
             "link_project, unlink_project, add_mission, update_mission, "
             "delete_mission, dispatch_mission, accept_mission, reject_mission, "
-            "transition_mission, sync, configure_autonomy, run_cycle. "
+            "approve_mission, deny_mission, transition_mission, sync, "
+            "configure_autonomy, run_cycle. "
             "Enabling the autopilot and deleting a company require confirm=true."
         ),
         "parameters": {
@@ -1286,6 +1339,15 @@ COMPANY_MANAGEMENT_TOOL_JSON = {
                 "due_date": {"type": "string", "description": "Mission due date (ISO)."},
                 "result": {"type": "string", "description": "Outcome summary when accepting a mission."},
                 "reason": {"type": "string", "description": "Why a mission is rejected."},
+                "note": {"type": "string", "description": "Approval/denial note."},
+                "requires_approval": {
+                    "type": "boolean",
+                    "description": (
+                        "Require explicit approval before a mission can be "
+                        "dispatched. On teams it is the default policy for their "
+                        "missions; on a mission it overrides the team default."
+                    ),
+                },
                 "enabled": {"type": "boolean", "description": "Enable/disable the autopilot."},
                 "level": {
                     "type": "string",
