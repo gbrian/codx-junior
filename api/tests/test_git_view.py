@@ -229,6 +229,29 @@ def test_worktrees_list_includes_their_file_changes(repo, tmp_path):
     assert main["changes"]["file_count"] == 0
 
 
+def test_repo_info_reports_worktree_files_pending_to_merge(repo, tmp_path):
+    """The repository view knows what each worktree branch would merge."""
+    run_git(repo, "checkout", "-b", "feature")
+    commit_file(repo, "feature.txt", "feature\n", "2024-02-01T10:00:00 +0000")
+    run_git(repo, "checkout", "main")
+
+    worktree_path = str(tmp_path / "wt-feature")
+    run_git(repo, "worktree", "add", worktree_path, "feature")
+
+    engine, _session = make_engine(repo)
+    info = engine.get_repo_info()
+    worktree = next(item for item in info["worktrees"] if item["path"] == worktree_path)
+
+    status = worktree["merge_status"]
+    assert status["applicable"] is True
+    assert status["source_branch"] == "feature"
+    assert status["target_branch"] == "main"
+    assert status["has_changes"] is True
+    assert status["file_count"] == 1
+    assert status["files"] == ["feature.txt"]
+    assert status["commit_count"] == 1
+
+
 # ---------------------------------------------------------------------------
 # .gitignore editor
 # ---------------------------------------------------------------------------

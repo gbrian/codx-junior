@@ -147,7 +147,7 @@ export default {
 </script>
 
 <template>
-  <div class="branch-selector shrink-0 border-b border-base-content/10 px-2 py-1.5 bg-base-200/30">
+  <div class="branch-selector relative shrink-0 border-b border-base-content/10 px-2 py-1.5 bg-base-200/30">
     <div class="flex items-center gap-2 text-xs min-w-0">
       <!-- Source -->
       <button
@@ -197,8 +197,13 @@ export default {
       </button>
     </div>
 
-    <!-- Shared branch list: same component/visuals as the Repository sidebar -->
-    <div v-if="expanded" class="mt-1.5 border border-base-content/10 rounded-lg overflow-hidden bg-base-100">
+    <!-- Shared branch list: same component/visuals as the Repository sidebar.
+         Floating dropdown: it must overlay the diff instead of growing the
+         parent Review header. -->
+    <div
+      v-if="expanded"
+      class="absolute left-2 top-full z-50 mt-1 w-[min(380px,calc(100vw-2rem))] border border-base-content/10 rounded-lg overflow-hidden bg-base-100 shadow-xl"
+    >
       <div class="join w-full border-b border-base-content/10">
         <button
           class="join-item btn btn-xs flex-1"

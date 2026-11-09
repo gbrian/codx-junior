@@ -94,6 +94,10 @@ export default {
       mergePreview: null,
       mergePreviewLoading: false,
       merging: false,
+      // Explicit Review comparison requested from the Repository view
+      // (worktree / branch "Compare with current branch"). A token makes every
+      // click a new request, even when the pair is the same.
+      reviewComparison: null,
       // Conflicts: pending merge/rebase state and the resolver modal
       conflictState: null,
       showConflicts: false,
@@ -651,6 +655,63 @@ export default {
       ) || null
     },
 
+    /**
+     * Open the Review tab comparing a branch with the current one.
+     *
+     * The request travels to ChangesPanel as a prop: the Review panel is
+     * mounted eagerly, and a prop avoids any ref/mount timing race when the
+     * action is clicked right after the git view opens.
+     */
+    compareBranchesWithCurrent(branch) {
+      const from = branch || ''
+      const to = this.currentBranch
+      if (!from || !to || this.sameBranch(from, to)) return
+      this.reviewComparison = {
+        from,
+        to,
+        token: (this.reviewComparison?.token || 0) + 1
+      }
+      this.activeTab = 'review'
+    },
+
+    /** Open the Review tab comparing a worktree branch with the current one */
+    compareWorktreeWithCurrent(worktree) {
+      this.compareBranchesWithCurrent(worktree?.branch)
+    },
+
+    /** Badge label for the worktree → current branch merge preview */
+    mergeStatusLabel(worktree) {
+      const status = worktree?.merge_status
+      if (!status?.applicable) return ''
+      if (!status.has_changes) return 'up to date'
+      if (status.file_count) return `${status.file_count} to merge`
+      if (status.commit_count) return `${status.commit_count} commit(s)`
+      return ''
+    },
+
+    mergeStatusClass(worktree) {
+      const status = worktree?.merge_status
+      if (!status?.applicable) return 'badge-ghost'
+      return status.has_changes ? 'badge-info badge-outline' : 'badge-success badge-outline'
+    },
+
+    mergeStatusTitle(worktree) {
+      const status = worktree?.merge_status
+      if (!status?.applicable) return ''
+      const lines = [
+        `${status.source_branch} → ${status.target_branch}${status.has_changes ? '' : ' (up to date)'}`
+      ]
+      if (status.commit_count) lines.push(`${status.commit_count} commit(s) ahead`)
+      if (status.file_count) {
+        lines.push(`${status.file_count} file(s) pending to merge`)
+        lines.push(...(status.files || []).slice(0, 15))
+        if (status.file_count > 15) lines.push(`... and ${status.file_count - 15} more`)
+      }
+      if (status.stat) lines.push(status.stat)
+      if (status.errors?.length) lines.push(...status.errors)
+      return lines.join('\n')
+    },
+
     // ── .gitignore editor ───────────────────────────────────────────────
     /** Open the editor and load the current `.gitignore` */
     async openGitignoreEditor() {
@@ -748,6 +809,10 @@ export default {
         }),
         this.contextMenuItem('merge', 'Merge into current…', 'fa-code-merge', () => this.openMerge(branch, current), { disabled: isCurrent || !current }),
         this.contextMenuItem('rebase', 'Rebase current onto this…', 'fa-arrows-rotate', () => this.onRebase(branch), { disabled: isCurrent || !current }),
+        this.contextMenuItem('compare-current', 'Compare with current branch', 'fa-code-compare', () => this.compareBranchesWithCurrent(branch), {
+          disabled: isCurrent || !current,
+          title: current ? `Review ${branch} → ${current}` : undefined
+        }),
         this.contextMenuItem('new-branch', 'New branch from…', 'fa-code-branch', () => this.openNewBranch(branch)),
         this.contextMenuDivider('branch-delete'),
         this.contextMenuItem('delete', 'Delete branch', 'fa-trash', () => this.deleteBranch(branch), {
@@ -864,6 +929,10 @@ export default {
         ? `Worktree ${branch}${changeCount ? ` · ${changeCount} change(s)` : ''}`
         : `Worktree ${worktree.path}`
       this.openContextMenu(event, title, [
+        this.contextMenuItem('compare-current', 'Compare with current branch', 'fa-code-compare', () => this.compareWorktreeWithCurrent(worktree), {
+          disabled: !branch || isCurrent || !current,
+          title: branch && current ? `Review ${branch} → ${current}` : undefined
+        }),
         this.contextMenuItem('merge', 'Merge into current…', 'fa-code-merge', () => this.openMerge(branch, current), { disabled: !branch || isCurrent || !current }),
         this.contextMenuItem('new-branch', 'New branch from…', 'fa-code-branch', () => this.openNewBranch(branch), { disabled: !branch }),
         this.contextMenuItem('refresh', 'Refresh changes', 'fa-rotate-right', () => this.loadRepo()),
@@ -2176,6 +2245,7 @@ export default {
         v-show="activeTab === 'review'"
         ref="changesPanel"
         :project="project"
+        :compare-request="reviewComparison"
         class="grow min-h-0 overflow-hidden"
         @refresh="onFileChanged"
         @context-menu-notice="notice = $event"
@@ -2687,8 +2757,25 @@ export default {
                       class="badge badge-xs shrink-0"
                       :class="worktree.changeCount ? 'badge-warning badge-outline' : 'badge-ghost'"
                     >{{ worktree.changeCount }}</span>
+                    <span
+                      v-if="mergeStatusLabel(worktree)"
+                      class="badge badge-xs shrink-0"
+                      :class="mergeStatusClass(worktree)"
+                      :title="mergeStatusTitle(worktree)"
+                    >{{ mergeStatusLabel(worktree) }}</span>
                   </button>
                   <span class="text-[9px] opacity-40 truncate max-w-[42%]" :title="worktree.path">{{ worktree.path }}</span>
+                  <button
+                    v-if="worktree.merge_status?.applicable && worktree.branch && !sameBranch(worktree.branch, currentBranch)"
+                    class="btn btn-xs btn-ghost btn-square shrink-0"
+                    :disabled="busy"
+                    title="Compare with current branch in Review"
+                    aria-label="Compare with current branch in Review"
+                    @click.stop="compareWorktreeWithCurrent(worktree)"
+                    @contextmenu.prevent.stop="openWorktreeContextMenu($event, worktree)"
+                  >
+                    <i class="fa-solid fa-code-compare text-info text-[10px]"></i>
+                  </button>
                   <button
                     class="btn btn-xs btn-ghost btn-square shrink-0"
                     :disabled="busy || samePath(worktree.path, projectRoot)"

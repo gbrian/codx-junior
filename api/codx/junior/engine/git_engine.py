@@ -2120,6 +2120,81 @@ class GitEngine:
         flush_worktree()
         return worktrees
 
+    def get_worktree_merge_status(
+        self, source_branch: str, target_branch: Optional[str] = None
+    ) -> dict:
+        """
+        Summarize what a worktree branch would bring into the target branch.
+
+        The Repository view shows, next to every worktree, whether its branch
+        has files pending to merge into the branch currently checked out. The
+        comparison is the same three-dot diff used by the Review tab
+        (``target...source``), so it lists only the changes introduced by the
+        worktree branch since it diverged from the target.
+
+        Args:
+            source_branch: Branch checked out in the worktree.
+            target_branch: Branch to merge into. Defaults to the checked out
+                branch of the repository.
+
+        Returns:
+            Dict with 'applicable', 'source_branch', 'target_branch',
+            'has_changes', 'file_count', 'files' (bounded), 'commit_count',
+            'stat' and 'errors'.
+        """
+        source = self._sanitize_branch_name(source_branch)
+        target = self._sanitize_branch_name(target_branch) or self._sanitize_branch_name(
+            self.get_project_current_branch()
+        )
+        result = {
+            "applicable": False,
+            "source_branch": source,
+            "target_branch": target,
+            "has_changes": False,
+            "file_count": 0,
+            "files": [],
+            "commit_count": 0,
+            "stat": "",
+            "errors": [],
+        }
+        if not source or not target or source == target:
+            return result
+        if not self._ref_exists(f"refs/heads/{source}"):
+            return result
+
+        result["applicable"] = True
+        repo_path = self._get_repo_root()
+        diff = self._run_git(
+            ["diff", "--name-only", f"{target}...{source}"], cwd=repo_path
+        )
+        if not diff["ok"]:
+            # A missing target (or no common ancestor) must not break the
+            # repository load: report it as an unavailable comparison.
+            result["errors"].append(diff["error"] or "Could not compare branches")
+            return result
+
+        files = [
+            line.strip()
+            for line in diff["output"].split("\n")
+            if line.strip()
+        ]
+        result["file_count"] = len(files)
+        result["files"] = files[:50]
+
+        commits = self._run_git(
+            ["rev-list", "--count", f"{target}..{source}"], cwd=repo_path
+        )
+        if commits["ok"] and commits["output"].strip().isdigit():
+            result["commit_count"] = int(commits["output"].strip())
+
+        stat = self._run_git(
+            ["diff", "--shortstat", f"{target}...{source}"], cwd=repo_path
+        )
+        if stat["ok"]:
+            result["stat"] = stat["output"]
+        result["has_changes"] = bool(result["file_count"] or result["commit_count"])
+        return result
+
     def get_worktree_path_for_branch(self, branch_name: str) -> str:
         """
         Return the worktree path already registered for a branch, if any.
@@ -3373,10 +3448,12 @@ class GitEngine:
             url, ahead/behind counters, working tree state (including the
             staged and unstaged file lists), lock state, worktrees, the git
             identity commits are signed with, the token state (never the token
-            itself) and the last commit. 'changed_files' lists one entry per
-            changed file: untracked directories are expanded and untracked
-            nested repositories (submodules) are ignored, so it never contains
-            folder paths nor files belonging to a submodule.
+            itself) and the last commit. Every worktree also carries
+            ``merge_status``: the files its branch would bring into the current
+            branch. 'changed_files' lists one entry per changed file: untracked
+            directories are expanded and untracked nested repositories
+            (submodules) are ignored, so it never contains folder paths nor
+            files belonging to a submodule.
 
         Example:
             >>> engine.get_repo_info()["active_branch"]
@@ -3411,6 +3488,11 @@ class GitEngine:
                 main_changes
                 if worktree.get("is_main")
                 else self._worktree_changes(worktree["path"])
+            )
+            # Repository view hint: does this worktree branch have files
+            # pending to merge into the branch currently checked out?
+            worktree["merge_status"] = self.get_worktree_merge_status(
+                worktree.get("branch", ""), current_branch
             )
 
         return {

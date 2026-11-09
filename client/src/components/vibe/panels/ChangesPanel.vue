@@ -241,7 +241,11 @@ export default {
     // Chat mode: projects are derived from the chat, its subtasks and chat.pr_view
     chat: { type: Object, default: null },
     // Standalone mode (e.g. embedded in GitView): project to compare branches for
-    project: { type: Object, default: null }
+    project: { type: Object, default: null },
+    // Explicit source/target comparison requested by the host (Repository view
+    // worktree "Compare with current branch"). `token` makes every click a new
+    // request, even when the branch pair is unchanged.
+    compareRequest: { type: Object, default: null }
   },
   emits: ['refresh', 'select-branch', 'comment', 'change-column', 'new-chat', 'chat-message', 'open-chat', 'jump-to-message', 'context-menu-notice', 'context-menu-error'],
   data() {
@@ -256,6 +260,10 @@ export default {
       //   from = source branch (from_branch, left selector) - the branch that will be merged
       //   to   = target branch (to_branch, right selector) - where the source is merged into
       branchSelectionByProject: {},
+      // A pair requested while the projects/branches are still loading. It is
+      // applied again after `initBranchSelection`, so an in-flight
+      // `loadAllProjects` cannot overwrite an explicit "Compare with current".
+      pendingBranchComparison: null,
       // Review the uncommitted working tree against the current branch instead
       // of comparing two branches.
       localReview: false,
@@ -390,6 +398,10 @@ export default {
     },
     localReview() {
       this.loadChangesForProject(this.selectedProjectId, true)
+    },
+    compareRequest(value) {
+      if (!value?.from || !value?.to) return
+      this.compareBranches(value.from, value.to)
     }
   },
   mounted() {
@@ -510,14 +522,24 @@ export default {
           await this.loadChangesForProject(id)
         }
 
-        // Select first project if none selected
+        // Select first project if none selected. An explicit comparison
+        // requested while loading wins over the default first project.
+        const pending = this.pendingBranchComparison
         const first = this.projectsWithBranches[0]
-        this.selectedProjectId = first ? this.projId(first) : null
-        if (first) await this.loadConflictStateForProject(first)
+        if (pending?.projectId) {
+          this.selectedProjectId = pending.projectId
+        } else {
+          this.selectedProjectId = first ? this.projId(first) : null
+        }
+        const selected = this.$storex.projects.allProjectsById?.[this.selectedProjectId]
+        if (selected) await this.loadConflictStateForProject(selected)
 
       } finally {
         this.loadingChanges = false
         this.loadingStep = ''
+        // The explicit comparison has been applied by now: a later branch
+        // reload must not keep reusing a stale pending pair.
+        this.pendingBranchComparison = null
       }
     },
 
@@ -604,6 +626,9 @@ export default {
 
     initBranchSelection(projectId, branches, activeBranch = '') {
       const prConfig = this.chat?.pr_view?.pull_requests?.[projectId]
+      const pending = this.pendingBranchComparison?.projectId === projectId
+        ? this.pendingBranchComparison
+        : null
       const current = activeBranch && branches.includes(activeBranch)
         ? activeBranch
         : (branches[0] || 'main')
@@ -611,8 +636,8 @@ export default {
         ...this.branchSelectionByProject,
         [projectId]: {
           // from = source (left selector), to = target (right selector)
-          from: prConfig?.fromBranch || current,
-          to: prConfig?.toBranch || 'local'
+          from: pending?.from || prConfig?.fromBranch || current,
+          to: pending?.to || prConfig?.toBranch || 'local'
         }
       }
     },
@@ -718,6 +743,63 @@ export default {
       this.onFromBranchChanged(fromBranch)
       this.onToBranchChanged(toBranch)
       this.$emit('select-branch', { fromBranch, toBranch })
+    },
+
+    /**
+     * Open a specific branch comparison in the Review panel.
+     *
+     * Used by the Repository view's worktree "Compare with current branch"
+     * action: it selects the project, leaves local-review mode and loads the
+     * requested source → target pair.
+     *
+     * @param {string} fromBranch - Source branch (worktree branch).
+     * @param {string} toBranch - Target branch (current branch).
+     */
+    async compareBranches(fromBranch, toBranch) {
+      const project = this.project
+        || this.$storex.projects.allProjectsById?.[this.selectedProjectId]
+        || null
+      const projectId = (this.project ? this.projId(this.project) : null)
+        || this.selectedProjectId
+        || (project ? this.projId(project) : null)
+      if (!projectId || !fromBranch || !toBranch) return
+
+      const pair = { projectId, from: fromBranch, to: toBranch }
+      this.pendingBranchComparison = pair
+      this.localReview = false
+      // Set the pair BEFORE changing the selected project: the
+      // `selectedProjectId` watcher then loads the right comparison.
+      this.branchSelectionByProject = {
+        ...this.branchSelectionByProject,
+        [projectId]: {
+          ...(this.branchSelectionByProject[projectId] || {}),
+          from: fromBranch,
+          to: toBranch
+        }
+      }
+      this.selectedProjectId = projectId
+
+      // `loadAllProjects` may still be loading the branch list (and
+      // `initBranchSelection` would reset the pair). Wait for it and apply the
+      // explicit pair again before loading the comparison.
+      if (project && !(this.branchesByProject[projectId] || []).length) {
+        await this.loadBranchesForProject(project)
+        this.branchSelectionByProject = {
+          ...this.branchSelectionByProject,
+          [projectId]: {
+            ...(this.branchSelectionByProject[projectId] || {}),
+            from: fromBranch,
+            to: toBranch
+          }
+        }
+      }
+
+      await this.loadChangesForProject(projectId, true)
+      // Keep the pending pair while `loadAllProjects` is still running: its
+      // own branch load could initialize the selectors again afterwards.
+      if (!this.loadingChanges && this.pendingBranchComparison === pair) {
+        this.pendingBranchComparison = null
+      }
     },
 
     onOpenFile(filePath) {
