@@ -732,6 +732,9 @@ Recent conversation:
         if "mission" in lowered or "review" in lowered or "blocked" in lowered or "running" in lowered:
             return self._missions(company, lowered)
 
+        if "company chat" in lowered or "channel" in lowered or "chats" in lowered:
+            return self._company_chats(company)
+
         if "project" in lowered:
             return self._projects(company)
 
@@ -835,7 +838,8 @@ Recent conversation:
             f"**{counts['done']} done**",
             "",
             f"- Teams: **{counts['teams']}** · People: **{people} human + {counts['ai']} AI**",
-            f"- Projects: **{counts['projects']}** · Org units: **{counts['org_units']}**",
+            f"- Projects: **{counts['projects']}** · Org units: **{counts['org_units']}** · "
+            f"Chats: **{counts.get('chats', 0)}**",
             f"- Autopilot: **{'on' if company.autonomy.enabled else 'off'}** "
             f"({company.autonomy.level})",
         ]
@@ -1398,6 +1402,34 @@ Recent conversation:
                 "Turn on autopilot" if not policy.enabled else "Turn off autopilot",
                 "What needs my attention?",
             ],
+        }
+
+    def _company_chats(self, company: Any) -> Dict[str, Any]:
+        """List the company channels and who owns them."""
+        if not company.chats:
+            return {
+                "reply": (
+                    "There are no company channels yet. Open **Chats** in the "
+                    "company header to create one for a team."
+                ),
+                "suggestions": ["Show teams", "What needs my attention?"],
+            }
+        lines = ["### Company chats"]
+        for ref in company.chats:
+            team = company.team(ref.team_id)
+            lines.append(
+                f"- **#{ref.name or ref.chat_id}** · "
+                f"{team.name if team else 'no team'} · "
+                f"{ref.project_id}"
+                + (" · pinned" if ref.pinned else "")
+            )
+        lines += [
+            "",
+            "Open **Chats** in the company header to read or write in a channel.",
+        ]
+        return {
+            "reply": "\n".join(lines),
+            "suggestions": ["Show teams", "What needs my attention?"],
         }
 
     def _projects(self, company: Any) -> Dict[str, Any]:

@@ -47,6 +47,7 @@ from .models import (
     MISSION_TRANSITIONS,
     AutonomyPolicy,
     Company,
+    CompanyChat,
     CompanyEvent,
     CompanyMember,
     CompanyProject,
@@ -282,6 +283,7 @@ class CompanyManager:
         project_settings_provider: Callable(project_id) returning settings.
         dispatcher: Callable(company, mission, brief) starting the mission.
         run_status_provider: Callable(project_id, run_id) returning run status.
+        chat_manager_provider: Callable(project_id) returning a ChatManager.
         clock: Callable returning ``datetime.now``.
     """
 
@@ -299,6 +301,7 @@ class CompanyManager:
         run_status_provider: Optional[
             Callable[[str, str], Dict[str, Any]]
         ] = None,
+        chat_manager_provider: Optional[Callable[[str], Any]] = None,
         clock: Optional[Callable[[], datetime]] = None,
     ):
         self.store = store or CompanyStore(root_path=root_path)
@@ -310,6 +313,9 @@ class CompanyManager:
         )
         self._dispatcher = dispatcher or self._default_dispatcher
         self._run_status_provider = run_status_provider or self._default_run_status
+        self._chat_manager_provider = (
+            chat_manager_provider or self._default_chat_manager
+        )
         self._clock = clock or datetime.now
 
     # ------------------------------------------------------------------
@@ -1383,6 +1389,299 @@ class CompanyManager:
                 f"Project '{project.name or project_id}' unlinked",
                 actor=actor,
                 project_id=project_id,
+            )
+            return saved
+
+    # ------------------------------------------------------------------
+    # Company chats
+    # ------------------------------------------------------------------
+
+    def _default_chat_manager(self, project_id: str) -> Any:
+        """Build the real ``ChatManager`` of a linked project (lazy import)."""
+        settings = self._project_settings_provider(project_id)
+        if settings is None:
+            raise CompanyDispatchError(
+                f"Project '{project_id}' is not available (not discovered)"
+            )
+        from codx.junior.chat_manager import ChatManager
+
+        return ChatManager(settings=settings)
+
+    def _chat_manager_for(self, project_id: str) -> Any:
+        """Return the chat manager used to read/write a company channel."""
+        try:
+            manager = self._chat_manager_provider(project_id)
+        except CompanyDispatchError:
+            raise
+        except Exception as ex:
+            raise CompanyDispatchError(
+                f"Chats are not available for project '{project_id}': {ex}"
+            ) from ex
+        if manager is None:
+            raise CompanyDispatchError(
+                f"Project '{project_id}' has no chat storage available"
+            )
+        return manager
+
+    @staticmethod
+    def _chat_summary(chat: Any) -> Dict[str, Any]:
+        """Serialize a hosted Chat for the company channel list."""
+        messages = list(getattr(chat, "messages", None) or [])
+        last = messages[-1] if messages else None
+        return {
+            "id": getattr(chat, "id", ""),
+            "name": getattr(chat, "name", "") or "",
+            "description": getattr(chat, "description", "") or "",
+            "mode": getattr(chat, "mode", "") or "",
+            "profiles": list(getattr(chat, "profiles", None) or []),
+            "users": list(getattr(chat, "users", None) or []),
+            "updated_at": getattr(chat, "updated_at", "") or "",
+            "message_count": len(messages),
+            "last_message": (
+                last.model_dump()
+                if hasattr(last, "model_dump")
+                else (last if isinstance(last, dict) else None)
+            ),
+        }
+
+    def _company_chat_ref(self, company: Company, chat_id: str) -> CompanyChat:
+        """Find a company channel reference or raise."""
+        chat_id = self._clean(chat_id)
+        ref = next((item for item in company.chats if item.chat_id == chat_id), None)
+        if ref is None:
+            raise CompanyNotFound(f"Company chat '{chat_id}' not found")
+        return ref
+
+    def list_company_chats(self, company_id: str) -> List[Dict[str, Any]]:
+        """
+        List the company channels with their hosted chat summary.
+
+        A channel whose project/chat disappeared is still listed with
+        ``available=false``; the company document keeps the reference until a
+        human removes it.
+        """
+        company = self.get_company(company_id)
+        result: List[Dict[str, Any]] = []
+        for ref in company.chats:
+            entry = {**ref.model_dump(), "available": False, "error": ""}
+            try:
+                manager = self._chat_manager_for(ref.project_id)
+                chat = manager.find_by_id(ref.chat_id)
+                if chat is not None:
+                    entry["available"] = True
+                    entry["chat"] = self._chat_summary(chat)
+                    # The hosted Chat is the source of truth for the name:
+                    # ChatView can rename it without going through this API.
+                    entry["name"] = chat.name or entry.get("name", "")
+                    entry["description"] = (
+                        getattr(chat, "description", "") or entry.get("description", "")
+                    )
+            except Exception as ex:
+                entry["error"] = str(ex)
+            result.append(entry)
+        def sort_key(item: Dict[str, Any]):
+            updated = parse_iso(item.get("updated_at"))
+            return (
+                not item.get("pinned", False),
+                -(updated.timestamp() if updated else 0),
+                (item.get("name") or "").lower(),
+            )
+
+        return sorted(result, key=sort_key)
+
+    def create_company_chat(
+        self,
+        company_id: str,
+        name: str,
+        description: str = "",
+        team_id: str = "",
+        project_id: str = "",
+        actor: str = "system",
+    ) -> Company:
+        """
+        Create a company channel as a normal ``mode='channel'`` Chat.
+
+        The chat is hosted by one of the company's linked projects, so messages,
+        mentions, attachments, unread counters and AI replies use the existing
+        Messenger machinery. The company document stores the reference.
+        """
+        name = self._clean(name)
+        if not name:
+            raise CompanyValidationError("channel name is required")
+        with self.store.lock(self._company_id(company_id)):
+            company = self.get_company(company_id)
+            project_id = self._clean(project_id) or (
+                company.projects[0].project_id if company.projects else ""
+            )
+            if not project_id:
+                raise CompanyConflict(
+                    "Link a project before creating a company channel: the "
+                    "messages need a project to live in."
+                )
+            if company.project(project_id) is None:
+                raise CompanyValidationError(
+                    f"Project '{project_id}' is not linked to this company"
+                )
+            team = company.team(team_id) if team_id else None
+            if team_id and team is None:
+                raise CompanyValidationError(f"Team '{team_id}' does not exist")
+            profiles = team.profile_names if team else []
+            users = team.user_names if team else []
+            try:
+                from codx.junior.db import Chat
+
+                chat = Chat(
+                    name=name,
+                    description=self._clean(description),
+                    mode="channel",
+                    board="messenger",
+                    column="channels",
+                    profiles=profiles,
+                    users=users,
+                    owner_project_id=project_id,
+                    project_id=project_id,
+                    tags=[
+                        "company",
+                        f"company:{company.id}",
+                        *([f"company-team:{team.id}"] if team else []),
+                    ],
+                    meta_data={
+                        "company_id": company.id,
+                        "company_team_id": team.id if team else "",
+                    },
+                )
+                saved = self._chat_manager_for(project_id).save_chat(chat=chat)
+            except CompanyDispatchError:
+                raise
+            except Exception as ex:
+                raise CompanyDispatchError(
+                    f"Could not create the company channel: {ex}"
+                ) from ex
+            ref = CompanyChat(
+                chat_id=saved.id,
+                project_id=project_id,
+                name=saved.name or name,
+                description=self._clean(description),
+                team_id=team.id if team else "",
+                created_by=actor,
+            )
+            company.chats.append(ref)
+            saved_company = self.store.save(company)
+            self._event(
+                saved_company,
+                "chat.created",
+                f"Channel '{ref.name}' created in project '{project_id}'",
+                actor=actor,
+                chat_id=ref.chat_id,
+                project_id=project_id,
+                team_id=ref.team_id,
+            )
+            return saved_company
+
+    def update_company_chat(
+        self,
+        company_id: str,
+        chat_id: str,
+        patch: Any,
+        actor: str = "system",
+    ) -> Company:
+        """Update a company channel (name, description, team, pinned)."""
+        values = self._patch_dict(patch)
+        with self.store.lock(self._company_id(company_id)):
+            company = self.get_company(company_id)
+            ref = self._company_chat_ref(company, chat_id)
+            if "name" in values:
+                name = self._clean(values["name"])
+                if not name:
+                    raise CompanyValidationError("channel name is required")
+                values["name"] = name
+            team_id = values.get("team_id", ref.team_id)
+            team = company.team(team_id) if team_id else None
+            if team_id and team is None:
+                raise CompanyValidationError(f"Team '{team_id}' does not exist")
+            changed = self._apply(
+                ref, values, ("name", "description", "team_id", "pinned")
+            )
+            if team_id != ref.team_id:
+                ref.team_id = team_id
+            ref.updated_at = now_iso()
+            # Best effort: keep the hosted chat in sync; a missing chat keeps
+            # the company reference editable.
+            try:
+                manager = self._chat_manager_for(ref.project_id)
+                chat = manager.find_by_id(ref.chat_id)
+                if chat is not None:
+                    chat.name = ref.name
+                    chat.description = ref.description
+                    chat.profiles = team.profile_names if team else []
+                    chat.users = team.user_names if team else []
+                    manager.save_chat(chat=chat, chat_only=True)
+            except Exception as ex:
+                logger.warning("Company chat '%s' could not be updated: %s", chat_id, ex)
+            saved = self.store.save(company)
+            if changed:
+                self._event(
+                    saved,
+                    "chat.updated",
+                    f"Channel '{ref.name}' updated: {', '.join(changed)}",
+                    actor=actor,
+                    chat_id=chat_id,
+                )
+            return saved
+
+    def sync_company_chat_members(
+        self, company_id: str, chat_id: str, actor: str = "system"
+    ) -> Company:
+        """Copy the owning team roster (humans + AI profiles) into the chat."""
+        with self.store.lock(self._company_id(company_id)):
+            company = self.get_company(company_id)
+            ref = self._company_chat_ref(company, chat_id)
+            team = company.team(ref.team_id) if ref.team_id else None
+            if team is None:
+                raise CompanyConflict(
+                    f"Channel '{ref.name}' has no owning team to sync from"
+                )
+            manager = self._chat_manager_for(ref.project_id)
+            chat = manager.find_by_id(ref.chat_id)
+            if chat is None:
+                raise CompanyNotFound(
+                    f"Hosted chat '{ref.chat_id}' no longer exists"
+                )
+            chat.profiles = team.profile_names
+            chat.users = team.user_names
+            manager.save_chat(chat=chat, chat_only=True)
+            ref.updated_at = now_iso()
+            saved = self.store.save(company)
+            self._event(
+                saved,
+                "chat.members.synced",
+                f"Channel '{ref.name}' synced with team '{team.name}'",
+                actor=actor,
+                chat_id=chat_id,
+                team_id=team.id,
+            )
+            return saved
+
+    def delete_company_chat(
+        self, company_id: str, chat_id: str, actor: str = "system"
+    ) -> Company:
+        """Delete a company channel reference and its hosted chat."""
+        with self.store.lock(self._company_id(company_id)):
+            company = self.get_company(company_id)
+            ref = self._company_chat_ref(company, chat_id)
+            try:
+                self._chat_manager_for(ref.project_id).delete_chat(chat_id=ref.chat_id)
+            except Exception as ex:
+                logger.warning("Company chat '%s' file not deleted: %s", chat_id, ex)
+            company.chats = [item for item in company.chats if item.chat_id != chat_id]
+            saved = self.store.save(company)
+            self._event(
+                saved,
+                "chat.deleted",
+                f"Channel '{ref.name}' deleted",
+                actor=actor,
+                chat_id=chat_id,
+                project_id=ref.project_id,
             )
             return saved
 

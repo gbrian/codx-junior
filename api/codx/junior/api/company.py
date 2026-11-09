@@ -256,6 +256,24 @@ class ApprovalRequest(BaseModel):
     note: str = ""
 
 
+class ChatCreateRequest(BaseModel):
+    """Create a company channel."""
+
+    name: str
+    description: str = ""
+    team_id: str = ""
+    project_id: str = ""
+
+
+class ChatUpdateRequest(BaseModel):
+    """Update a company channel."""
+
+    name: Optional[str] = None
+    description: Optional[str] = None
+    team_id: Optional[str] = None
+    pinned: Optional[bool] = None
+
+
 class AutonomyRequest(BaseModel):
     """Configure the autopilot policy."""
 
@@ -805,6 +823,87 @@ def api_company_assistant(
             user=user,
             language=payload.language,
         )
+    )
+
+
+# ---------------------------------------------------------------------------
+# Company chats
+# ---------------------------------------------------------------------------
+
+
+@router.get("/companies/{company_id}/chats")
+def api_list_company_chats(
+    company_id: str,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """List the company channels with their hosted chat summary."""
+    return _run(lambda: _manager().list_company_chats(company_id))
+
+
+@router.post("/companies/{company_id}/chats", status_code=201)
+def api_create_company_chat(
+    company_id: str,
+    payload: ChatCreateRequest,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Create a company channel (hosted by a linked project)."""
+    manager, _ = _run(lambda: _get_editable(company_id, user))
+    return _run(
+        lambda: manager.create_company_chat(
+            company_id,
+            name=payload.name,
+            description=payload.description,
+            team_id=payload.team_id,
+            project_id=payload.project_id,
+            actor=_actor(user),
+        )
+    )
+
+
+@router.put("/companies/{company_id}/chats/{chat_id}")
+def api_update_company_chat(
+    company_id: str,
+    chat_id: str,
+    payload: ChatUpdateRequest,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Update a company channel."""
+    manager, _ = _run(lambda: _get_editable(company_id, user))
+    return _run(
+        lambda: manager.update_company_chat(
+            company_id,
+            chat_id,
+            payload.model_dump(exclude_unset=True),
+            actor=_actor(user),
+        )
+    )
+
+
+@router.post("/companies/{company_id}/chats/{chat_id}/sync-members")
+def api_sync_company_chat_members(
+    company_id: str,
+    chat_id: str,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Copy the owning team roster into the hosted chat."""
+    manager, _ = _run(lambda: _get_editable(company_id, user))
+    return _run(
+        lambda: manager.sync_company_chat_members(
+            company_id, chat_id, actor=_actor(user)
+        )
+    )
+
+
+@router.delete("/companies/{company_id}/chats/{chat_id}")
+def api_delete_company_chat(
+    company_id: str,
+    chat_id: str,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Delete a company channel and its hosted chat."""
+    manager, _ = _run(lambda: _get_editable(company_id, user))
+    return _run(
+        lambda: manager.delete_company_chat(company_id, chat_id, actor=_actor(user))
     )
 
 

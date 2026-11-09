@@ -6,6 +6,7 @@ import { $storex } from '@/store'
 
 import CompanySimpleHome from '@/components/company/CompanySimpleHome.vue'
 import CompanyAssistant from '@/components/company/CompanyAssistant.vue'
+import CompanyChatPanel from '@/components/company/CompanyChatPanel.vue'
 import { COMPANY_TEMPLATES } from '@/components/company/companyMeta'
 
 /**
@@ -34,6 +35,7 @@ const snapshot = ref(null)
 const references = ref({ projects: [], users: [], profiles: [], templates: [] })
 const createOpen = ref(false)
 const createAdvanced = ref(false)
+const chatsOpen = ref(false)
 
 const isMobile = computed(() => $storex.ui.isMobile)
 
@@ -314,6 +316,12 @@ async function submitCreate() {
                     aria-label="Reload company" @click="selectCompany(activeId)">
               <i class="fa-solid fa-rotate" :class="busy ? 'animate-spin' : ''"></i>
             </button>
+            <button v-if="company" class="btn btn-sm btn-ghost gap-1"
+                    title="Company chats" @click="chatsOpen = true">
+              <i class="fa-regular fa-comments"></i>
+              <span class="hidden md:inline">Chats</span>
+              <span v-if="counts.chats" class="badge badge-xs badge-ghost">{{ counts.chats }}</span>
+            </button>
             <button v-if="company && canManage" class="btn btn-sm btn-ghost gap-1"
                     title="Change company details with the assistant" @click="openCompanySettings">
               <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -448,6 +456,15 @@ async function submitCreate() {
       </div>
       <div class="modal-backdrop" @click="createOpen = false"></div>
     </div>
+
+    <CompanyChatPanel
+      v-if="chatsOpen && company"
+      :company-id="activeId"
+      :snapshot="snapshot"
+      :can-manage="canManage"
+      @close="chatsOpen = false"
+      @changed="selectCompany(activeId)"
+    />
   </div>
 </template>
 

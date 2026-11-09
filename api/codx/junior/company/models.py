@@ -1156,6 +1156,52 @@ class CompanyEvent(BaseModel):
     data: Dict[str, Any] = Field(default_factory=dict, description="Extra event data")
 
 
+class CompanyChat(BaseModel):
+    """
+    A company channel, hosted by one of the company's linked projects.
+
+    The messages themselves live in a normal codx-junior ``Chat`` with
+    ``mode='channel'`` (so the Messenger UI, mentions, attachments, unread
+    counters and AI replies all keep working). The company document stores only
+    the reference plus the company-specific metadata: which project hosts the
+    chat and which hybrid team owns it.
+
+    Attributes:
+        chat_id: Id of the hosted ``Chat``.
+        project_id: Project that stores the chat and its messages.
+        name: Channel name (kept in sync with the Chat).
+        description: What the channel is for.
+        team_id: Team whose humans/AI profiles are the channel roster.
+        pinned: Pinned in the company channel list.
+        created_by / created_at / updated_at: Audit fields.
+    """
+
+    chat_id: str = Field(default="", description="Hosted chat id")
+    project_id: str = Field(default="", description="Project that stores the chat")
+    name: str = Field(default="", description="Channel name")
+    description: str = Field(default="", description="Channel purpose")
+    team_id: str = Field(default="", description="Owning company team id")
+    pinned: bool = Field(default=False, description="Pinned channel")
+    created_by: str = Field(default="", description="Username that created it")
+    created_at: str = Field(default_factory=now_iso, description="Creation timestamp")
+    updated_at: str = Field(default_factory=now_iso, description="Last update timestamp")
+
+    @field_validator("chat_id", "project_id", "name", mode="before")
+    @classmethod
+    def _required(cls, value: Any) -> str:
+        """Require the identity fields that make the reference resolvable."""
+        text = _clean(value)
+        if not text:
+            raise ValueError("company chat needs chat_id, project_id and name")
+        return text
+
+    @field_validator("description", "team_id", "created_by", mode="before")
+    @classmethod
+    def _strip(cls, value: Any) -> str:
+        """Trim free-form strings."""
+        return _clean(value)
+
+
 class SpendEntry(BaseModel):
     """
     One delta of AI spend attributed to a mission.
@@ -1234,6 +1280,10 @@ class Company(BaseModel):
     teams: List[CompanyTeam] = Field(default_factory=list)
     projects: List[CompanyProject] = Field(default_factory=list)
     missions: List[Mission] = Field(default_factory=list)
+    chats: List[CompanyChat] = Field(
+        default_factory=list,
+        description="Company channels hosted by linked projects",
+    )
     spend: List[SpendEntry] = Field(
         default_factory=list,
         description="Append-only AI spend ledger (bounded to the most recent entries)",
@@ -1391,6 +1441,7 @@ class Company(BaseModel):
             "ai": self.ai_count,
             "missions": len(self.missions),
             "open_missions": len(self.open_missions),
+            "chats": len(self.chats),
             "spent_cxjcoins": round(
                 max(
                     self.spent_cxjcoins,

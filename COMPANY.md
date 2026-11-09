@@ -49,6 +49,7 @@ missions — ready for a human to review before anything is dispatched.
 | REST API | `api/codx/junior/api/company.py` |
 | AI profile tool | `api/codx/junior/tools/company_tools.py` |
 | Company assistant | `api/codx/junior/company/assistant.py` + `client/src/components/company/CompanyAssistant.vue` |
+| Company chats | `client/src/components/company/CompanyChatPanel.vue` + company chat API |
 | Profile/team advisor | `api/codx/junior/company/profile_advisor.py` |
 | Language detection | `api/codx/junior/company/language.py` |
 | User roles / memberships | `api/codx/junior/model/user.py` (`CodxUser.companies`, `workspace_mode`) |
@@ -327,6 +328,13 @@ curl -X POST /api/companies/<id>/missions/<mission>/deny \
   -d '{"note":"Not now"}'
 curl -X POST /api/companies/<id>/missions/sync
 
+# Company chats (channel chats hosted by a linked project)
+curl /api/companies/<id>/chats
+curl -X POST /api/companies/<id>/chats \
+  -d '{"name":"platform","team_id":"<team>","project_id":"proj_123"}'
+curl -X POST /api/companies/<id>/chats/<chat>/sync-members
+curl -X DELETE /api/companies/<id>/chats/<chat>
+
 # Autonomy
 curl -X PUT /api/companies/<id>/autonomy \
   -d '{"enabled":true,"level":"supervised","interval_minutes":60,
@@ -476,6 +484,32 @@ curl -X POST /api/companies/<id>/missions/<mission>/deny -d '{"note":"Not now"}'
 * The approval is audited with `approved_by`, `approved_at` and
   `approval_note`.
 
+## Company chats
+
+The company has its own channel list, but it does **not** reimplement
+messaging: each channel is a normal `mode="channel"` `Chat` hosted by one of the
+company's linked projects. The Messenger stack (mentions, attachments, unread
+badges, AI replies, media) therefore works unchanged.
+
+* A channel belongs to a **team**; the team's humans and AI profiles become the
+  chat roster (`chat.users` / `chat.profiles`). Without a team the channel is a
+  plain human channel.
+* Messages live in the selected project. The company document stores only the
+  reference (`CompanyChat`: chat id, project id, name, team, pinned).
+* **Chats** in the company header opens the company channel list. Pick a
+  channel, talk to the team with the normal `ChatView`, create a channel with
+  **New channel**, **Sync members** to copy the team roster again, or delete the
+  channel.
+* The channel list is available from `GET /api/companies/<id>/chats`; creating
+  or deleting channels requires a company manager/admin.
+* If a linked project is removed or the hosted chat disappears, the channel is
+  still listed as `available: false` until a human removes it.
+
+Why host the chat in a project? A project is where codx-junior already stores
+conversations, resolves the AI profiles, meters cost and runs the agent. The
+company layer only adds the organization/team context and the cross-project
+channel list.
+
 ## Mission lifecycle
 
 ```mermaid
@@ -512,13 +546,13 @@ The tests cover persistence/journaling, the SaaS template, hybrid rosters,
 profile validation, project linking, dispatch, run sync, accept/reject,
 transition validation, the autonomy guard rails, the dashboard snapshot, the
 budget ledger and its dispatch/autopilot enforcement, mission approval gates,
-the role-driven company mode, company memberships and the company assistant
-forms.
+company channels hosted by linked projects, the role-driven company mode,
+company memberships and the company assistant forms.
 
 ## Next steps
 
-* **Company chat** — a channel per company/team where humans and profiles plan
-  together before creating missions.
+* **Rich channel automations** — for example, a channel where a new message can
+  create a mission or a task directly.
 * **Multi-company** — the storage and API already support it; the UI needs a
   workspace switcher.
 

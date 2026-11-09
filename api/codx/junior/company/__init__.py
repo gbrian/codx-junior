@@ -30,6 +30,7 @@ Made with ❤️ by codx-junior
 from .models import (
     AutonomyPolicy,
     Company,
+    CompanyChat,
     CompanyEvent,
     CompanyMember,
     CompanyProject,
@@ -42,6 +43,7 @@ from .models import (
 __all__ = [
     "AutonomyPolicy",
     "Company",
+    "CompanyChat",
     "CompanyEvent",
     "CompanyMember",
     "CompanyProject",

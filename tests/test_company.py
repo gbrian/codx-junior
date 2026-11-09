@@ -13,7 +13,9 @@ Run with either::
 
 import os
 import shutil
+import sys
 import tempfile
+import types
 import unittest
 
 from datetime import datetime
@@ -56,6 +58,56 @@ PROFILE_NAMES = (
 USERS = [{"username": "alice", "avatar": ""}, {"username": "bob", "avatar": ""}]
 
 
+class FakeChat:
+    """Minimal hosted-chat object used by the company channel tests."""
+
+    def __init__(self, **kwargs):
+        self.id = kwargs.pop("id", None)
+        self.messages = kwargs.pop("messages", [])
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def model_dump(self):
+        return {
+            "id": self.id,
+            "name": getattr(self, "name", ""),
+            "mode": getattr(self, "mode", ""),
+            "profiles": getattr(self, "profiles", []),
+            "users": getattr(self, "users", []),
+            "updated_at": getattr(self, "updated_at", ""),
+        }
+
+
+# The environment running the domain tests may not have the full chat stack
+# installed (db.py imports slugify). Inject a tiny db module when needed; the
+# manager only needs the Chat constructor.
+try:  # pragma: no cover - depends on the test environment
+    import codx.junior.db  # noqa: F401
+except Exception:
+    _fake_db = types.ModuleType("codx.junior.db")
+    _fake_db.Chat = FakeChat
+    sys.modules["codx.junior.db"] = _fake_db
+
+
+class FakeChatManager:
+    """In-memory ChatManager stand-in (no project filesystem)."""
+
+    def __init__(self):
+        self.chats = {}
+
+    def save_chat(self, chat, chat_only=False):
+        if not getattr(chat, "id", None):
+            chat.id = f"chat-{len(self.chats) + 1}"
+        self.chats[chat.id] = chat
+        return chat
+
+    def find_by_id(self, chat_id=None):
+        return self.chats.get(chat_id)
+
+    def delete_chat(self, chat_id=None, file_path=None):
+        self.chats.pop(chat_id, None)
+
+
 class FakeClock:
     """Deterministic clock used by the autonomy tests."""
 
@@ -89,6 +141,7 @@ class CompanyTestCase(unittest.TestCase):
         def run_status(project_id, run_id):
             return self.runs.get(run_id) or {"status": "running", "progress": 0}
 
+        self.chat_manager = FakeChatManager()
         self.manager = CompanyManager(
             root_path=self.root,
             projects_provider=lambda: PROJECTS,
@@ -104,6 +157,7 @@ class CompanyTestCase(unittest.TestCase):
             ],
             dispatcher=dispatcher,
             run_status_provider=run_status,
+            chat_manager_provider=lambda project_id: self.chat_manager,
             clock=self.clock,
         )
 
@@ -342,6 +396,69 @@ class CompanyTestCase(unittest.TestCase):
         budget = self.manager.budget_state(company)
         self.assertEqual(budget["spent_total_cxjcoins"], 20.0)
         self.assertEqual(budget["spent_today_cxjcoins"], 20.0)
+
+    def test_company_channels_use_a_hosted_project_chat(self):
+        company = self.create_company()
+        team = company.teams[2]
+        company = self.manager.create_company_chat(
+            company.id,
+            name="platform",
+            description="Platform team channel",
+            team_id=team.id,
+            actor="alice",
+        )
+        self.assertEqual(len(company.chats), 1)
+        ref = company.chats[0]
+        self.assertTrue(ref.chat_id)
+        self.assertEqual(ref.project_id, "proj_platform")
+
+        hosted = self.chat_manager.find_by_id(ref.chat_id)
+        self.assertEqual(hosted.mode, "channel")
+        self.assertEqual(hosted.name, "platform")
+        self.assertEqual(hosted.owner_project_id, "proj_platform")
+        self.assertEqual(set(hosted.profiles), set(team.profile_names))
+
+        listed = self.manager.list_company_chats(company.id)
+        self.assertEqual(len(listed), 1)
+        self.assertTrue(listed[0]["available"])
+        self.assertEqual(listed[0]["chat"]["name"], "platform")
+
+        company = self.manager.update_company_chat(
+            company.id, ref.chat_id, {"name": "platform-chat", "pinned": True},
+            actor="alice",
+        )
+        self.assertEqual(company.chats[0].name, "platform-chat")
+        self.assertEqual(self.chat_manager.find_by_id(ref.chat_id).name, "platform-chat")
+        listed = self.manager.list_company_chats(company.id)
+        self.assertTrue(listed[0]["pinned"])
+
+        company = self.manager.delete_company_chat(company.id, ref.chat_id, actor="alice")
+        self.assertEqual(company.chats, [])
+        self.assertIsNone(self.chat_manager.find_by_id(ref.chat_id))
+
+    def test_company_channel_requires_a_linked_project(self):
+        company = self.manager.create_company({"name": "No project"}, actor="alice")
+        with self.assertRaises(CompanyConflict):
+            self.manager.create_company_chat(
+                company.id, name="general", actor="alice"
+            )
+
+    def test_company_channel_syncs_team_members(self):
+        company = self.create_company()
+        team = company.teams[0]
+        company = self.manager.create_company_chat(
+            company.id, name="leadership", team_id=team.id, actor="alice"
+        )
+        ref = company.chats[0]
+        company = self.manager.add_team_members(
+            company.id, team.id, [{"kind": "user", "name": "bob", "role": "member"}],
+            actor="alice",
+        )
+        company = self.manager.sync_company_chat_members(
+            company.id, ref.chat_id, actor="alice"
+        )
+        hosted = self.chat_manager.find_by_id(ref.chat_id)
+        self.assertIn("bob", hosted.users)
 
     def test_project_budget_blocks_dispatch(self):
         company = self.create_company()

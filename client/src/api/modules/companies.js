@@ -90,6 +90,41 @@ export const companiesModule = (API) => ({
     )
   },
 
+  // ── Company chats ────────────────────────────────────────────────────────
+
+  /** List the company channels (with their hosted chat summary). */
+  listChats(companyId) {
+    return API.get(`${BASE}/${encodeURIComponent(companyId)}/chats`)
+  },
+
+  /** Create a company channel hosted by a linked project. */
+  createChat(companyId, payload) {
+    return API.post(`${BASE}/${encodeURIComponent(companyId)}/chats`, payload)
+  },
+
+  /** Update a company channel. */
+  updateChat(companyId, chatId, payload) {
+    return API.put(
+      `${BASE}/${encodeURIComponent(companyId)}/chats/${encodeURIComponent(chatId)}`,
+      payload
+    )
+  },
+
+  /** Copy the owning team roster into the hosted chat. */
+  syncChatMembers(companyId, chatId) {
+    return API.post(
+      `${BASE}/${encodeURIComponent(companyId)}/chats/${encodeURIComponent(chatId)}/sync-members`,
+      {}
+    )
+  },
+
+  /** Delete a company channel and its hosted chat. */
+  deleteChat(companyId, chatId) {
+    return API.delete(
+      `${BASE}/${encodeURIComponent(companyId)}/chats/${encodeURIComponent(chatId)}`
+    )
+  },
+
   // ── Organization ─────────────────────────────────────────────────────────
 
   addOrgUnit(companyId, payload) {
