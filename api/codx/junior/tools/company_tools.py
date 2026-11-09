@@ -475,6 +475,7 @@ def _action_add_team(company_id: str, action_args: Dict[str, Any], session: Any 
         "autonomy": action_args.get("team_autonomy") or action_args.get("autonomy") or "supervised",
         "tools": action_args.get("tools") or [],
         "tags": action_args.get("tags") or [],
+        "budget_cxjcoins": action_args.get("budget_cxjcoins") or 0.0,
         "color": action_args.get("color") or "#6366f1",
         "icon": action_args.get("icon") or "fa-solid fa-people-group",
     }
@@ -510,6 +511,7 @@ def _action_update_team(company_id: str, action_args: Dict[str, Any], session: A
             "project_ids",
             "tools",
             "tags",
+            "budget_cxjcoins",
             "color",
             "icon",
         )

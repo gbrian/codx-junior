@@ -306,6 +306,135 @@ class CompanyTestCase(unittest.TestCase):
         with self.assertRaises(CompanyValidationError):
             self.manager.transition_mission(company.id, mission.id, "done", actor="alice")
 
+    def test_sync_tracks_spend_without_double_counting(self):
+        company = self.create_company()
+        company, mission = self.add_ready_mission(company)
+        company = self.manager.dispatch_mission(company.id, mission.id, actor="alice")
+        self.runs["run-1"] = {
+            "status": "running",
+            "progress": 50,
+            "spent_cxjcoins": 12.5,
+        }
+        sync = self.manager.sync_missions(company.id)
+        self.assertTrue(sync["spend_changed"])
+        company = self.manager.get_company(company.id)
+        mission = company.get_mission(mission.id)
+        self.assertEqual(mission.spent_cxjcoins, 12.5)
+        self.assertEqual(company.spent_cxjcoins, 12.5)
+        self.assertEqual(len(company.spend), 1)
+
+        # Syncing the same value is idempotent: no second ledger entry.
+        sync = self.manager.sync_missions(company.id)
+        self.assertFalse(sync["spend_changed"])
+        company = self.manager.get_company(company.id)
+        self.assertEqual(len(company.spend), 1)
+
+        # A later delta adds only the difference.
+        self.runs["run-1"]["spent_cxjcoins"] = 20.0
+        self.manager.sync_missions(company.id)
+        company = self.manager.get_company(company.id)
+        self.assertEqual(company.get_mission(mission.id).spent_cxjcoins, 20.0)
+        self.assertEqual(company.spent_cxjcoins, 20.0)
+        self.assertEqual(len(company.spend), 2)
+        self.assertEqual(
+            round(sum(entry.amount for entry in company.spend), 4), 20.0
+        )
+        budget = self.manager.budget_state(company)
+        self.assertEqual(budget["spent_total_cxjcoins"], 20.0)
+        self.assertEqual(budget["spent_today_cxjcoins"], 20.0)
+
+    def test_project_budget_blocks_dispatch(self):
+        company = self.create_company()
+        company = self.manager.link_project(
+            company.id,
+            "proj_platform",
+            actor="alice",
+            budget_cxjcoins=10.0,
+        )
+        company, first = self.add_ready_mission(company)
+        company = self.manager.dispatch_mission(company.id, first.id, actor="alice")
+        self.runs["run-1"] = {
+            "status": "running",
+            "progress": 70,
+            "spent_cxjcoins": 10.0,
+        }
+        self.manager.sync_missions(company.id)
+
+        company = self.manager.get_company(company.id)
+        company, second = self.add_ready_mission(
+            company, title="Second mission", objective="Do the second thing"
+        )
+        with self.assertRaises(CompanyConflict):
+            self.manager.dispatch_mission(company.id, second.id, actor="alice")
+
+        # The admin escape hatch still works.
+        company = self.manager.dispatch_mission(
+            company.id, second.id, actor="alice", force=True
+        )
+        self.assertEqual(company.get_mission(second.id).status, "running")
+
+    def test_team_budget_blocks_dispatch(self):
+        company = self.create_company()
+        team = company.teams[0]
+        company = self.manager.update_team(
+            company.id, team.id, {"budget_cxjcoins": 10.0}, actor="alice"
+        )
+        company, first = self.add_ready_mission(company)
+        company = self.manager.dispatch_mission(company.id, first.id, actor="alice")
+        self.runs["run-1"] = {
+            "status": "running",
+            "progress": 60,
+            "spent_cxjcoins": 10.0,
+        }
+        self.manager.sync_missions(company.id)
+
+        company = self.manager.get_company(company.id)
+        company, second = self.add_ready_mission(
+            company, title="Second team mission", objective="Second"
+        )
+        with self.assertRaises(CompanyConflict):
+            self.manager.dispatch_mission(company.id, second.id, actor="alice")
+        budget = self.manager.budget_state(company)
+        team_budget = next(
+            item for item in budget["teams"] if item["team_id"] == team.id
+        )
+        self.assertTrue(team_budget["over_budget"])
+
+    def test_autopilot_stops_when_daily_budget_is_exhausted(self):
+        company = self.create_company()
+        company, first = self.add_ready_mission(company)
+        company = self.manager.update_autonomy(
+            company.id,
+            {
+                "enabled": True,
+                "level": "supervised",
+                "interval_minutes": 5,
+                "daily_budget_cxjcoins": 5.0,
+            },
+            actor="alice",
+        )
+        company = self.manager.dispatch_mission(company.id, first.id, actor="alice")
+        self.runs["run-1"] = {
+            "status": "running",
+            "progress": 20,
+            "spent_cxjcoins": 6.0,
+        }
+        self.manager.sync_missions(company.id)
+
+        company = self.manager.get_company(company.id)
+        company, second = self.add_ready_mission(
+            company, title="Second mission", objective="Second"
+        )
+        result = self.manager.cycle(company.id, actor="autopilot", force=False)
+        self.assertEqual(result["status"], "budget_exhausted")
+        self.assertEqual(result["dispatched"], [])
+        self.assertEqual(
+            self.manager.get_company(company.id).get_mission(second.id).status,
+            "ready",
+        )
+        events = [event["type"] for event in self.manager.journal(company.id)]
+        self.assertIn("autopilot.budget_exhausted", events)
+
     def test_new_mission_cannot_start_running(self):
         company = self.create_company()
         team = company.teams[0]

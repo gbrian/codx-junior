@@ -36,6 +36,7 @@ from .models import (
     CompanyTeam,
     Mission,
     OrgUnit,
+    SpendEntry,
 )
 
 __all__ = [
@@ -47,6 +48,7 @@ __all__ = [
     "CompanyTeam",
     "Mission",
     "OrgUnit",
+    "SpendEntry",
 ]
 
 # Made with ❤️ by codx-junior

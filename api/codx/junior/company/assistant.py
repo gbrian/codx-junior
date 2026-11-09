@@ -65,6 +65,7 @@ FORM_ADD_TEAM_MEMBER = "add_team_member"
 VIEW_SUGGESTIONS: Dict[str, List[str]] = {
     "overview": [
         "What needs my attention?",
+        "How is our budget?",
         "I need a team",
         "Add a person",
         "Open company settings",
@@ -101,6 +102,7 @@ VIEW_SUGGESTIONS: Dict[str, List[str]] = {
     ],
     "": [
         "What needs my attention?",
+        "How is our budget?",
         "Show teams",
         "Add a person",
         "Open company settings",
@@ -733,6 +735,12 @@ Recent conversation:
         if "autopilot" in lowered or "autonomy" in lowered:
             return self._autopilot(company, text, can_manage, actor)
 
+        if any(
+            word in lowered
+            for word in ("budget", "spend", "spent", "cost", "cxjcoins", "how much")
+        ):
+            return self._budget(company)
+
         if "attention" in lowered or "status" in lowered or "overview" in lowered or "summary" in lowered:
             return self._status(company)
 
@@ -841,6 +849,90 @@ Recent conversation:
         if not (running or review or blocked):
             lines += ["", "Nothing is running and nothing is waiting for review right now."]
         return {"reply": "\n".join(lines)}
+
+    def _budget(self, company: Any) -> Dict[str, Any]:
+        """
+        Answer "how is our budget?" from the live company ledger.
+
+        The numbers come from :meth:`CompanyManager.budget_state`, so the
+        assistant and the UI always show the same daily/total spend, project
+        limits and over-budget flags.
+        """
+        try:
+            budget = self.manager.budget_state(company)
+        except Exception:
+            return {
+                "reply": "I could not read the budget right now. Try again in a moment.",
+                "suggestions": ["What needs my attention?", "Show projects"],
+            }
+
+        daily_limit = budget.get("daily_limit_cxjcoins") or 0
+        spent_today = budget.get("spent_today_cxjcoins") or 0
+        spent_total = budget.get("spent_total_cxjcoins") or 0
+        lines = ["### Budget"]
+        if daily_limit > 0:
+            remaining = budget.get("remaining_today_cxjcoins")
+            lines.append(
+                f"Today: **{spent_today} / {daily_limit} cxjcoins**"
+                + (f" · **{remaining}** left" if remaining is not None else "")
+            )
+            if budget.get("over_daily_budget"):
+                lines.append(
+                    "**The daily budget is exhausted.** The autopilot will not "
+                    "start new missions until tomorrow or until you raise the limit."
+                )
+        else:
+            lines.append(f"Spent today: **{spent_today} cxjcoins** (no daily limit set)")
+        lines.append(f"Spent in total: **{spent_total} cxjcoins**")
+
+        over_projects = [
+            project for project in budget.get("projects", [])
+            if project.get("over_budget")
+        ]
+        if over_projects:
+            lines += ["", "**Projects over budget**"] + [
+                f"- {project.get('name')} · "
+                f"{project.get('spent_cxjcoins')} / {project.get('budget_cxjcoins')} cxjcoins"
+                for project in over_projects
+            ]
+
+        over_teams = [
+            team for team in budget.get("teams", [])
+            if team.get("over_budget")
+        ]
+        if over_teams:
+            lines += ["", "**Teams over budget**"] + [
+                f"- {team.get('name')} · "
+                f"{team.get('spent_cxjcoins')} / {team.get('budget_cxjcoins')} cxjcoins"
+                for team in over_teams
+            ]
+
+        spent_missions = [
+            mission for mission in company.missions
+            if mission.spent_cxjcoins > 0
+        ]
+        if spent_missions:
+            spent_missions.sort(key=lambda mission: mission.spent_cxjcoins, reverse=True)
+            lines += ["", "**Where the spend went**"] + [
+                f"- {mission.title} · {mission.spent_cxjcoins} cxjcoins"
+                for mission in spent_missions[:5]
+            ]
+
+        if spent_total <= 0:
+            lines += [
+                "",
+                "No AI spend has been recorded yet. When a mission runs, its "
+                "orchestration run reports the cost here automatically.",
+            ]
+
+        return {
+            "reply": "\n".join(lines),
+            "suggestions": [
+                "What needs my attention?",
+                "Show projects",
+                "Turn on autopilot" if not company.autonomy.enabled else "Turn off autopilot",
+            ],
+        }
 
     def _teams(self, company: Any, text: str = "") -> Dict[str, Any]:
         """List the hybrid teams and their rosters (or one named team)."""

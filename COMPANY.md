@@ -370,7 +370,7 @@ Board titles are sanitized before they are used as folders under
 | `interval_minutes` | `60` | Minimum time between automatic cycles (5–1440) |
 | `max_concurrent_missions` | `2` | Running missions allowed at once |
 | `max_missions_per_cycle` | `1` | Missions dispatched by one cycle |
-| `daily_budget_cxjcoins` | `0` | Soft daily budget (0 = no limit) |
+| `daily_budget_cxjcoins` | `0` | Daily AI budget; the autopilot stops when reached (0 = no limit) |
 | `require_human_acceptance` | `true` | Completed runs stop at `review` |
 
 A cycle:
@@ -382,6 +382,11 @@ A cycle:
    `max_concurrent_missions`,
 4. records the cycle in the autonomy policy and the journal.
 
+When the daily budget is exhausted the cycle returns
+`status="budget_exhausted"`, records an `autopilot.budget_exhausted` journal
+event and does not dispatch anything. A human can still force a manual cycle
+(`force=true`) or raise the limit.
+
 The background loop is started by `codx.junior.background` when background
 services are enabled. It can be disabled independently:
 
@@ -389,6 +394,58 @@ services are enabled. It can be disabled independently:
 export CODX_JUNIOR_COMPANY_AUTOPILOT=false
 export CODX_JUNIOR_COMPANY_AUTOPILOT_TICK_SECONDS=60
 ```
+
+## Budget ledger
+
+Every orchestration run reports its cumulative cost (`RunState.spent_cxjcoins`).
+`sync_missions` reads it and:
+
+* updates `Mission.spent_cxjcoins` (the cumulative cost of that mission),
+* appends **only the positive delta** to `Company.spend` (`SpendEntry` rows with
+  time, mission, project, run and amount), so syncing the same run twice never
+  double counts,
+* updates `Company.spent_cxjcoins`, a cumulative counter that survives mission
+  deletion/archival.
+
+The company document keeps at most `SPEND_LEDGER_LIMIT` (2000) ledger rows; the
+cumulative total is separate, so trimming old deltas never loses the overall
+number.
+
+The snapshot exposes a `budget` block:
+
+```json
+{
+  "currency": "cxjcoins",
+  "daily_limit_cxjcoins": 100,
+  "spent_today_cxjcoins": 42.5,
+  "remaining_today_cxjcoins": 57.5,
+  "over_daily_budget": false,
+  "spent_total_cxjcoins": 412.5,
+  "total_project_budget_cxjcoins": 300,
+  "remaining_project_budget_cxjcoins": 120,
+  "projects": [
+    {"project_id": "proj_123", "budget_cxjcoins": 300,
+     "spent_cxjcoins": 180, "remaining_cxjcoins": 120, "over_budget": false}
+  ],
+  "teams": [
+    {"team_id": "team-...", "budget_cxjcoins": 100,
+     "spent_cxjcoins": 80, "remaining_cxjcoins": 20, "over_budget": false}
+  ],
+  "by_mission": {"msn-...": 42.5}
+}
+```
+
+Enforcement:
+
+| Limit | Enforced by | Behaviour when reached |
+| --- | --- | --- |
+| **Project budget** (`CompanyProject.budget_cxjcoins`) | `dispatch_mission` | Dispatch is refused with a clear error; `force=true` bypasses it |
+| **Team budget** (`CompanyTeam.budget_cxjcoins`) | `dispatch_mission` | Dispatch is refused with a clear error; `force=true` bypasses it |
+| **Mission budget** (`Mission.budget_cxjcoins`) | Orchestration run + dispatch check | The run stops with `budget_exhausted`; re-dispatch is refused |
+| **Daily company budget** (`AutonomyPolicy.daily_budget_cxjcoins`) | Autopilot cycle | The cycle returns `budget_exhausted` and dispatches nothing |
+
+The company assistant answers “How is our budget?” from the same block, and the
+company home shows a budget card with today’s spend and the remaining amount.
 
 ## Mission lifecycle
 
@@ -425,12 +482,11 @@ PYTHONPATH=api python -m unittest discover -s tests -p 'test_company*.py' -v
 The tests cover persistence/journaling, the SaaS template, hybrid rosters,
 profile validation, project linking, dispatch, run sync, accept/reject,
 transition validation, the autonomy guard rails, the dashboard snapshot, the
-role-driven company mode, company memberships and the company assistant forms.
+budget ledger and its dispatch/autopilot enforcement, the role-driven company
+mode, company memberships and the company assistant forms.
 
 ## Next steps
 
-* **Budget ledger** — aggregate `cxjcoins` across the company's runs and pause
-  teams that exceed their budget.
 * **Approvals** — per-team policies for risky actions (deploy, spend, delete).
 * **Company chat** — a channel per company/team where humans and profiles plan
   together before creating missions.

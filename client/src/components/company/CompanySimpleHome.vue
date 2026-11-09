@@ -26,6 +26,16 @@ const teams = computed(() => props.snapshot?.teams || [])
 const projects = computed(() => props.snapshot?.projects || [])
 const missions = computed(() => props.snapshot?.missions || [])
 const journal = computed(() => (props.snapshot?.journal || []).slice(-4).reverse())
+const budget = computed(() => props.snapshot?.budget || {})
+const budgetProgress = computed(() => {
+  const limit = Number(budget.value.daily_limit_cxjcoins || 0)
+  if (limit <= 0) return 0
+  return Math.min(100, Math.round((Number(budget.value.spent_today_cxjcoins || 0) / limit) * 100))
+})
+const showBudget = computed(() =>
+  Number(budget.value.daily_limit_cxjcoins || 0) > 0
+  || Number(budget.value.spent_total_cxjcoins || 0) > 0
+)
 
 const reviewMissions = computed(() =>
   missions.value.filter(mission => mission.status === 'review')
@@ -170,6 +180,38 @@ function projectName(project) {
         </div>
         <div class="text-[11px] uppercase tracking-wide text-base-content/45">Open missions</div>
       </button>
+    </section>
+
+    <!-- Budget (only when a limit exists or money has been spent) -->
+    <section v-if="showBudget" class="rounded-2xl border border-base-content/10 bg-base-100 p-3.5">
+      <div class="flex items-center gap-2">
+        <span class="w-8 h-8 rounded-lg grid place-items-center bg-warning/15 text-warning">
+          <i class="fa-solid fa-coins"></i>
+        </span>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs font-bold">AI budget</div>
+          <div class="text-[10px] text-base-content/50">
+            {{ budget.spent_total_cxjcoins || 0 }} cxj spent in total
+            <template v-if="Number(budget.daily_limit_cxjcoins || 0) > 0">
+              · {{ budget.spent_today_cxjcoins || 0 }} / {{ budget.daily_limit_cxjcoins }} today
+            </template>
+          </div>
+        </div>
+        <span v-if="budget.over_daily_budget" class="badge badge-xs badge-error">over budget</span>
+        <span v-else-if="Number(budget.daily_limit_cxjcoins || 0) > 0" class="badge badge-xs badge-ghost">
+          {{ budget.remaining_today_cxjcoins }} left
+        </span>
+        <button type="button" class="btn btn-ghost btn-xs" @click="ask('How is our budget?')">
+          Details
+        </button>
+      </div>
+      <progress
+        v-if="Number(budget.daily_limit_cxjcoins || 0) > 0"
+        class="progress w-full h-1.5 mt-2"
+        :class="budget.over_daily_budget ? 'progress-error' : 'progress-warning'"
+        :value="budgetProgress"
+        max="100"
+      ></progress>
     </section>
 
     <!-- What needs a human -->

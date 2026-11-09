@@ -177,6 +177,7 @@ class TeamRequest(BaseModel):
     autonomy: str = "supervised"
     tools: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
+    budget_cxjcoins: float = 0.0
     color: str = "#6366f1"
     icon: str = "fa-solid fa-people-group"
 

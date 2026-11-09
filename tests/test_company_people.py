@@ -18,6 +18,7 @@ import unittest
 
 from codx.junior.company.assistant import CompanyAssistant
 from codx.junior.company.manager import CompanyManager
+from codx.junior.company.models import SpendEntry, now_iso
 from codx.junior.model.user import (
     COMPANY_ROLE_ADMIN,
     COMPANY_ROLE_MANAGER,
@@ -195,6 +196,39 @@ class CompanyRosterAndAssistantTestCase(unittest.TestCase):
         status = self.ask("what needs my attention?")
         self.assertIn("Acme cloud", status["reply"])
         self.assertIn("open mission", status["reply"])
+
+    def test_assistant_answers_budget(self):
+        company = self.manager.add_mission(
+            self.company.id,
+            {
+                "title": "Ship the thing",
+                "objective": "Ship it",
+                "status": "draft",
+                "spent_cxjcoins": 12.5,
+                "budget_cxjcoins": 20.0,
+            },
+            actor="alice",
+        )
+        mission = company.missions[-1]
+        company.spend.append(
+            SpendEntry(
+                at=now_iso(),
+                mission_id=mission.id,
+                amount=12.5,
+                note="test ledger",
+            )
+        )
+        company.spent_cxjcoins = 12.5
+        self.manager.store.save(company)
+        self.manager.update_autonomy(
+            self.company.id, {"daily_budget_cxjcoins": 10.0}, actor="alice"
+        )
+
+        answer = self.ask("how is our budget?")
+        self.assertIn("Budget", answer["reply"])
+        self.assertIn("12.5", answer["reply"])
+        self.assertIn("exhausted", answer["reply"].lower())
+        self.assertIn("Ship the thing", answer["reply"])
 
     def test_assistant_lists_teams_and_people(self):
         self.manager.add_team(
