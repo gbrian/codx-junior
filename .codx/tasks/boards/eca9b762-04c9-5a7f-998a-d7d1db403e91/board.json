@@ -11,7 +11,9 @@
       "title": "Claude Code",
       "color": "#000000",
       "folder": "Claude Code",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxcSBrF4tRCyyDN_5zdaa8u7uBtDvkh-sE8Q&s",

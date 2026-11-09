@@ -11,35 +11,45 @@
       "title": "Document",
       "color": "#000000",
       "folder": "Document",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "a908d62d-bf34-4522-96a0-fe143366eb92",
       "title": "Mardown",
       "color": "#000000",
       "folder": "Mardown",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "f05a9ab7-5f18-49d7-83ba-201b28b6df19",
       "title": "Chat",
       "color": "#000000",
       "folder": "Chat",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "575e6d21-1e25-4fd7-82fc-aecf465be0ca",
       "title": "Service / Store",
       "color": "#000000",
       "folder": "Service - Store",
-      "order": 3
+      "order": 3,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "c2d415c6-b4bb-4ed0-b3cd-46f1191114d5",
       "title": "ChatEntry",
       "color": "#000000",
       "folder": "ChatEntry",
-      "order": 4
+      "order": 4,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

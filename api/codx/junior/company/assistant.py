@@ -31,7 +31,10 @@ Made with ❤️ by codx-junior
 
 from __future__ import annotations
 
+import asyncio
+import concurrent.futures
 import logging
+import os
 import re
 import secrets
 
@@ -41,6 +44,7 @@ from codx.junior.model.user import (
     COMPANY_ROLE_MEMBER,
     COMPANY_ROLES,
 )
+from .language import detect_language, language_name, resolve_language
 from .profile_advisor import (
     ROLES,
     TEAM_PRESETS,
@@ -144,10 +148,14 @@ class CompanyAssistant:
         manager: Any,
         security: Any = None,
         profile_manager_factory: Any = None,
+        ai_reasoner: Any = None,
     ):
         self.manager = manager
         # Injectable for tests: project_id -> ProfileManager (or None).
         self.profile_manager_factory = profile_manager_factory
+        # Injectable for tests: (company, message, user, language, history, view)
+        # -> answer dict. Production uses SmolAgent.
+        self.ai_reasoner = ai_reasoner
         if security is None:
             # Imported lazily so this module (and its tests) never pulls the
             # whole auth stack when the caller already injected the security
@@ -173,6 +181,8 @@ class CompanyAssistant:
         state: Optional[Dict[str, Any]] = None,
         form_id: str = "",
         values: Optional[Dict[str, Any]] = None,
+        user: Any = None,
+        language: str = "",
     ) -> Dict[str, Any]:
         """
         Answer one assistant turn.
@@ -189,15 +199,20 @@ class CompanyAssistant:
                 message is the ANSWER to the assistant's last question.
             form_id: Form submitted from the assistant window.
             values: Values submitted with ``form_id``.
+            user: Authenticated ``CodxUser`` (personalisation + AI fallback).
+            language: Browser/request language fallback (``es-ES``, …).
 
         Returns:
             ``reply``, ``suggestions``, ``options``, optional ``form``,
             ``state`` and ``changed``.
         """
         company = self.manager.get_company(company.id)
+        user_language = getattr(user, "language", "") if user is not None else ""
+        effective_language = resolve_language(user_language, str(message or ""), language)
         base = {
             "company_id": company.id,
             "view": view or "",
+            "language": effective_language,
             "suggestions": list(VIEW_SUGGESTIONS.get(view or "", VIEW_SUGGESTIONS[""])),
             "options": [],
             "form": None,
@@ -235,6 +250,9 @@ class CompanyAssistant:
                     actor=actor,
                     can_manage=can_manage,
                     can_admin=can_admin,
+                    view=view,
+                    user=user,
+                    language=effective_language,
                 )
             except Exception as ex:  # pragma: no cover - defensive
                 logger.exception("Company assistant flow failed: %s", ex)
@@ -263,6 +281,8 @@ class CompanyAssistant:
                 can_manage=can_manage,
                 can_admin=can_admin,
                 history=history or [],
+                user=user,
+                language=effective_language,
             )
         except Exception as ex:  # pragma: no cover - defensive, but must answer
             logger.exception("Company assistant failed: %s", ex)
@@ -288,6 +308,254 @@ class CompanyAssistant:
     # Intent routing
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # AI reasoning fallback (SmolAgent)
+    # ------------------------------------------------------------------
+
+    def _display_name(self, user: Any) -> str:
+        """Human-friendly name for personalisation."""
+        if user is None:
+            return ""
+        username = str(getattr(user, "username", "") or "")
+        full_name = str(getattr(user, "name", "") or "").strip()
+        if full_name:
+            return full_name
+        if username:
+            return username.replace(".", " ").split("@")[0].title()
+        return ""
+
+    def _company_context_for_ai(self, company: Any, user: Any, language: str, view: str) -> str:
+        """Compact, factual company + user context for the LLM."""
+        counts = company.counts()
+        user_role = ""
+        if user is not None:
+            try:
+                user_role = (user.company_role(company.id) if hasattr(user, "company_role") else "") or ""
+            except Exception:
+                user_role = ""
+        lines = [
+            f"Company: {company.name}",
+            f"Company status: {company.status}",
+            f"Mission: {company.mission or '(not set)'}",
+            f"Vision: {company.vision or '(not set)'}",
+            f"Counts: {counts}",
+            f"Assistant language: {language_name(language)} ({language})",
+            f"Current view: {view or 'home'}",
+        ]
+        if company.teams:
+            lines.append("Teams:")
+            for team in company.teams[:12]:
+                lines.append(
+                    f"- {team.name}: lead {team.lead_name or 'none'}, "
+                    f"{team.human_count} people + {team.ai_count} AI, "
+                    f"autonomy {team.autonomy}"
+                )
+        members = self.manager.company_members(company)
+        if members:
+            lines.append("People:")
+            for member in members[:15]:
+                lines.append(
+                    f"- {member['username']} ({member.get('company_role', 'member')})"
+                    + (f", {member.get('title')}" if member.get("title") else "")
+                )
+        if company.projects:
+            lines.append("Projects:")
+            try:
+                children = self.manager.child_projects(company)
+            except Exception:
+                children = []
+            for project in company.projects:
+                lines.append(
+                    f"- {project.name or project.project_id}: role "
+                    f"{project.role or 'none'}, team {project.team_id or 'none'}"
+                )
+                for child in children:
+                    if child.get("parent_project_id") == project.project_id:
+                        lines.append(f"  - child: {child['project_name']}")
+        open_missions = company.open_missions
+        if open_missions:
+            lines.append("Open missions:")
+            for mission in open_missions[:12]:
+                team = company.team(mission.team_id)
+                lines.append(
+                    f"- {mission.title}: {mission.status}, team "
+                    f"{team.name if team else 'none'}, {mission.progress}%"
+                )
+        if user is not None:
+            lines.append("Manager:")
+            lines.append(
+                f"- username: {getattr(user, 'username', '')}; "
+                f"email: {getattr(user, 'email', '') or 'not set'}; "
+                f"global role: {getattr(user, 'role', '') or 'user'}; "
+                f"company role: {user_role or 'member'}; "
+                f"preferred language: {getattr(user, 'language', 'auto') or 'auto'}"
+            )
+        return "\n".join(lines)
+
+    def _ai_system_prompt(
+        self,
+        company: Any,
+        user: Any,
+        language: str,
+        view: str,
+        history: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
+        """Build the system prompt for the fallback reasoner."""
+        display_name = self._display_name(user) or "the manager"
+        language_label = language_name(language)
+        context = self._company_context_for_ai(company, user, language, view)
+        history_lines = []
+        for item in (history or [])[-8:]:
+            role = item.get("role") or item.get("type") or "user"
+            content = str(item.get("content") or item.get("text") or "").strip()
+            if not content:
+                continue
+            history_lines.append(f"{role}: {content[:400]}")
+        return f"""You are codx-junior, the always-present assistant of the company **{company.name}**.
+
+You are talking to **{display_name}** ({getattr(user, 'username', '') if user else 'the manager'}),
+who has no technical background. Use warm, plain language and be concise.
+
+IMPORTANT:
+- Answer in **{language_label}** ({language}). Do not switch language unless the manager does.
+- Personalise naturally: you may address them as {display_name}; do not overuse the name.
+- This turn was not understood by the rule-based assistant. Answer the manager's
+  question with the company context below. If they asked for an action, explain
+  what you can help with and ask one short clarifying question.
+- Never claim that you performed an action in this turn. Actions are confirmed
+  and executed by the company assistant; do not invent results.
+- Never invent company data, people, projects, missions or numbers.
+- If the request is unrelated to the company, answer helpfully in the same language.
+
+Known company-assistant actions (for guidance only):
+add/remove people, build teams and profiles, choose leads, create/link/unlink
+projects, create and review missions, change company details, autopilot on/off.
+
+Company and user context:
+{context}
+
+Recent conversation:
+{chr(10).join(history_lines) if history_lines else '(none)'}
+"""
+
+    def _run_async_with_timeout(self, coro_factory, timeout: float) -> Any:
+        """Run an async factory in a worker thread with a hard timeout."""
+        def runner():
+            return asyncio.run(coro_factory())
+
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(runner)
+        try:
+            return future.result(timeout=timeout)
+        finally:
+            executor.shutdown(wait=False)
+
+    def _reason_with_smol(
+        self,
+        company: Any,
+        text: str,
+        user: Any,
+        language: str,
+        view: str,
+        history: Optional[List[Dict[str, Any]]],
+    ) -> Optional[str]:
+        """Ask the project's LLM through SmolAgent for a reasoned answer."""
+        if str(os.getenv("CODX_JUNIOR_COMPANY_AI_FALLBACK", "true")).lower() in (
+            "0", "false", "no", "off", "disabled"
+        ):
+            return None
+        settings = None
+        for project in company.projects:
+            settings = self.manager.project_settings(project.project_id)
+            if settings is not None:
+                break
+        if settings is None:
+            return None
+        try:
+            from codx.junior.ai.smol.smol_agent import SmolAgent
+            from langchain.messages import HumanMessage
+
+            agent = SmolAgent(
+                settings=settings,
+                user=user,
+                system=self._ai_system_prompt(company, user, language, view, history),
+            )
+
+            async def run():
+                return await agent.chat(
+                    [HumanMessage(content=text)],
+                    config={"tools": []},
+                )
+
+            timeout = float(os.getenv("CODX_JUNIOR_COMPANY_AI_TIMEOUT_SECONDS", "25"))
+            result = self._run_async_with_timeout(run, max(5.0, timeout))
+            content = str(getattr(result, "content", "") or "").strip()
+            return content or None
+        except Exception as ex:
+            logger.exception("Company assistant AI fallback failed: %s", ex)
+            return None
+
+    def _ai_fallback(
+        self,
+        company: Any,
+        text: str,
+        actor: str = "system",
+        user: Any = None,
+        language: str = "",
+        view: str = "",
+        history: Optional[List[Dict[str, Any]]] = None,
+        fallback_reply: str = "",
+    ) -> Dict[str, Any]:
+        """Answer an unrecognised message with AI reasoning, personalised."""
+        effective_language = resolve_language(
+            getattr(user, "language", "") if user is not None else "",
+            text,
+            language,
+        )
+        answer: Optional[str] = None
+        if self.ai_reasoner is not None:
+            try:
+                result = self.ai_reasoner(
+                    company=company,
+                    text=text,
+                    user=user,
+                    language=effective_language,
+                    view=view,
+                    history=history or [],
+                )
+                if isinstance(result, dict):
+                    answer = str(result.get("reply") or "").strip()
+                elif result:
+                    answer = str(result).strip()
+            except Exception as ex:
+                logger.exception("Company assistant injected AI reasoner failed: %s", ex)
+        else:
+            # The API normally passes the authenticated user. When it does not,
+            # resolve it from the actor for personalisation.
+            if user is None and actor and self.security is not None:
+                try:
+                    user = self.security.find_user(username=actor)
+                except Exception:
+                    user = None
+            answer = self._reason_with_smol(
+                company, text, user, effective_language, view, history
+            )
+        if not answer:
+            return {
+                "reply": fallback_reply or self._welcome(company, False, False, unknown=True),
+                "state": None,
+                "language": effective_language,
+                "ai_fallback": False,
+                "suggestions": list(VIEW_SUGGESTIONS.get(view or "", VIEW_SUGGESTIONS[""])),
+            }
+        return {
+            "reply": answer,
+            "state": None,
+            "language": effective_language,
+            "ai_fallback": True,
+            "suggestions": list(VIEW_SUGGESTIONS.get(view or "", VIEW_SUGGESTIONS[""])),
+        }
+
     def _dispatch_intent(
         self,
         company: Any,
@@ -297,6 +565,8 @@ class CompanyAssistant:
         can_manage: bool,
         can_admin: bool,
         history: List[Dict[str, Any]],
+        user: Any = None,
+        language: str = "",
     ) -> Dict[str, Any]:
         """Route one message to the right handler."""
         text = self._strip_chatter(text)
@@ -481,10 +751,18 @@ class CompanyAssistant:
         if named_mission is not None:
             return self._mission_detail(company, named_mission)
 
-        # Unknown message: stay useful instead of failing.
-        return {
-            "reply": self._welcome(company, can_manage, can_admin, unknown=True),
-        }
+        # Unknown message: AI reasoning fallback (personalised and in the
+        # manager's language), with the capability summary as a safe fallback.
+        return self._ai_fallback(
+            company=company,
+            text=text,
+            actor=actor,
+            user=user,
+            language=language,
+            view=view,
+            history=history,
+            fallback_reply=self._welcome(company, can_manage, can_admin, unknown=True),
+        )
 
     # ------------------------------------------------------------------
     # Read-only answers
@@ -2777,6 +3055,8 @@ class CompanyAssistant:
         can_manage: bool,
         can_admin: bool,
         view: str = "",
+        user: Any = None,
+        language: str = "",
     ) -> Dict[str, Any]:
         """Execute a confirmed action when the user says ok/fine/yes/confirm."""
         draft = state.get("draft") or {}
@@ -2801,6 +3081,8 @@ class CompanyAssistant:
                 can_manage=can_manage,
                 can_admin=can_admin,
                 history=[],
+                user=user,
+                language=language,
             )
         return {
             "reply": f"Just to confirm: {summary} Is that okay?",
@@ -2820,13 +3102,17 @@ class CompanyAssistant:
         can_manage: bool,
         can_admin: bool,
         view: str = "",
+        user: Any = None,
+        language: str = "",
     ) -> Dict[str, Any]:
         """Route the answer to the question the assistant asked last turn."""
         if self._is_cancel(text):
             return self._cancelled()
         intent = state.get("intent")
         if intent == "pending_action":
-            return self._continue_pending_action(company, state, text, actor, can_manage, can_admin, view)
+            return self._continue_pending_action(
+                company, state, text, actor, can_manage, can_admin, view, user, language
+            )
         if intent == "create_team":
             return self._continue_create_team(company, state, text, actor, can_manage)
         if intent == "add_user":
@@ -2851,11 +3137,16 @@ class CompanyAssistant:
             return self._continue_build_team(company, state, text, actor, can_manage)
         if intent == "delete_team":
             return self._continue_delete_team(company, state, text, can_manage)
-        return {
-            "reply": "Let's start again. What would you like to do?",
-            "state": None,
-            "suggestions": list(VIEW_SUGGESTIONS[""]),
-        }
+        return self._ai_fallback(
+            company=company,
+            text=text,
+            actor=actor,
+            user=user,
+            language=language,
+            view=view,
+            history=[],
+            fallback_reply="Let's start again. What would you like to do?",
+        )
 
     def _submit_form(
         self,

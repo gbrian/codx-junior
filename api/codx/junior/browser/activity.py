@@ -143,7 +143,7 @@ class BrowserActivityLog:
 
 
 #: Actions whose ``value`` is user input and may contain a password/token.
-_SENSITIVE_VALUE_ACTIONS = {"fill", "type", "select", "press", "insert_text"}
+_SENSITIVE_VALUE_ACTIONS = {"fill", "type", "select", "press", "insert_text", "clipboard_set"}
 
 
 def _safe_params(params: Optional[Dict[str, Any]], action: str = "") -> Dict[str, Any]:

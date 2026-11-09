@@ -11,14 +11,18 @@
       "title": "Setup",
       "color": "#000000",
       "folder": "Setup",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "af4bc55a-6ca2-4d86-bdf7-81cca02e6de8",
       "title": "Traefik",
       "color": "#000000",
       "folder": "Traefik",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

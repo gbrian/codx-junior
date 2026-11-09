@@ -97,6 +97,17 @@ function stripHeaderFromContent(content) {
 }
 
 /**
+ * Chapter body without the heading line, preserving every other line verbatim.
+ *
+ * Unlike stripHeaderFromContent this does NOT trim, so block line offsets stay
+ * aligned with the chapter source (required to save a block in place).
+ */
+function getChapterBody(content) {
+  const lines = String(content ?? '').split('\n')
+  return lines.length > 0 && isHeading(lines[0]) ? lines.slice(1).join('\n') : String(content ?? '')
+}
+
+/**
  * Select renderer based on block type and file path
  */
 function getRenderer(blockType, fileName) {
@@ -110,7 +121,9 @@ function getRenderer(blockType, fileName) {
  * Detect fence markers (``` or ~~~) with optional info string
  */
 function getFence(line) {
-  const match = line.match(/^( {0,3})(`{3,}|~{3,})(.*)$/)
+  // CRLF sources keep the '\r' after splitting on '\n'; it must not stop the
+  // anchored match (and must never leak into the info string).
+  const match = String(line ?? '').replace(/\r$/, '').match(/^( {0,3})(`{3,}|~{3,})(.*)$/)
   if (!match) return null
   return {
     char: match[2][0],
@@ -493,6 +506,11 @@ function parseFileChangeBlock(lines, startIndex, getRendererFn = getRenderer) {
   const block = {
     type: language,
     content,
+    // Source span of the body (line indices, end exclusive) so an editor can
+    // replace exactly this block in the original markdown without touching a
+    // duplicate elsewhere in the message.
+    bodyStartLine: startIndex + 1,
+    bodyEndLine: endIndex,
     // Finished blocks hash by content (stable once closed); open blocks hash
     // by structural identity so the Vue :key does not change while streaming.
     hash: finished ? generateHash(content) : generateHash(`${language}:${fileName}`),
@@ -630,13 +648,21 @@ function parseBlocks(content, getRendererFn = getRenderer) {
   let currentFileName = ''
   let isAnonymousFence = false
   let blockIndex = 0
+  // Source span of the markdown block being collected (line indices, end
+  // exclusive). Every block keeps its own span so an editor can rewrite the
+  // exact lines it owns instead of guessing by content (duplicate blocks are
+  // common: two identical fenced snippets in one message).
+  let currentStartLine = 0
+  let currentEndLine = 0
+  // First body line of the fenced block currently being collected.
+  let fenceBodyStartLine = 0
   // Counter of the fenced block currently open (null when not inside a fence).
   let fenceTracker = null
   // Tracks whether the block being built originates from a fence (```...```).
   // Used so fenced markdown/md/text blocks also become code blocks.
   let currentIsFence = false
 
-  function addBlock(isFinished = false) {
+  function addBlock(isFinished = false, startLine = currentStartLine, endLine = currentEndLine) {
     const blockContent = currentContent.join('\n')
     const trimmedContent = blockContent.trim()
 
@@ -662,6 +688,8 @@ function parseBlocks(content, getRendererFn = getRenderer) {
     blocks.push({
       type: finalType,
       content: blockContent,
+      bodyStartLine: startLine,
+      bodyEndLine: endLine,
       hash: contentHash,
       fileName: finalFileName,
       renderer: getRendererFn(finalType, finalFileName),
@@ -678,6 +706,14 @@ function parseBlocks(content, getRendererFn = getRenderer) {
     currentFileName = ''
     isAnonymousFence = false
     currentIsFence = false
+    currentStartLine = 0
+    currentEndLine = 0
+  }
+
+  function pushContent(line, lineIndex) {
+    if (!currentContent.length) currentStartLine = lineIndex
+    currentContent.push(line)
+    currentEndLine = lineIndex + 1
   }
 
   for (let i = 0; i < lines.length; i++) {
@@ -688,7 +724,7 @@ function parseBlocks(content, getRendererFn = getRenderer) {
       if (blocks.length > 0) {
         blocks[blocks.length - 1].finished = true
       }
-      if (currentContent.length) addBlock(true)
+      if (currentContent.length) addBlock(true, currentStartLine, i)
       const fileChange = parseFileChangeBlock(lines, i, getRendererFn)
       blocks.push(fileChange.block)
       blockIndex++
@@ -702,10 +738,10 @@ function parseBlocks(content, getRendererFn = getRenderer) {
     // delimiter. Everything else (other delimiter, tags, text) is content.
     if (fenceTracker) {
       if (fence && trackFence(fenceTracker, fence) === 'close') {
-        addBlock(true)
+        addBlock(true, fenceBodyStartLine, i)
         fenceTracker = null
       } else {
-        currentContent.push(line)
+        pushContent(line, i)
       }
       continue
     }
@@ -718,9 +754,10 @@ function parseBlocks(content, getRendererFn = getRenderer) {
         blocks[blocks.length - 1].finished = true
       }
 
-      if (currentContent.length) addBlock(true)
+      if (currentContent.length) addBlock(true, currentStartLine, i)
 
       fenceTracker = createFenceTracker(fence)
+      fenceBodyStartLine = i + 1
       const parts = fence.info.split(/\s+/).filter(Boolean)
       currentType = fenceTracker.type || parts[0] || 'text'
       currentFileName = parts[1] || ''
@@ -729,11 +766,13 @@ function parseBlocks(content, getRendererFn = getRenderer) {
       continue
     }
 
-    currentContent.push(line)
+    pushContent(line, i)
   }
 
   if (currentContent.length) {
-    addBlock(false)
+    // A fenced block that never closes (still streaming) owns every line up to
+    // EOF; a plain markdown block does as well.
+    addBlock(false, fenceTracker ? fenceBodyStartLine : currentStartLine, lines.length)
   }
 
   // All blocks except the last are finished. File change blocks keep the
@@ -746,6 +785,76 @@ function parseBlocks(content, getRendererFn = getRenderer) {
   }
 
   return blocks
+}
+
+/**
+ * Replace the body of the block at `blockIndex` with `newContent`.
+ *
+ * The replacement targets the line span recorded by parseBlocks, so an
+ * identical block elsewhere in the document is never touched. Returns the
+ * original content when the index is out of range.
+ */
+function replaceBlockContent(content, blockIndex, newContent) {
+  const source = String(content ?? '')
+  const normalized = normalizeFileChangeTags(source)
+  const blocks = parseBlocks(normalized)
+  const block = blocks[blockIndex]
+  if (!block || block.bodyStartLine == null || block.bodyEndLine == null) {
+    return source
+  }
+
+  const lines = normalized.split('\n')
+  const replacement = String(newContent ?? '').split('\n')
+  lines.splice(block.bodyStartLine, block.bodyEndLine - block.bodyStartLine, ...replacement)
+  return lines.join('\n')
+}
+
+/**
+ * Replace a block inside a chapter's content (heading preserved, body only).
+ */
+function replaceBlockInChapterContent(chapterContent, blockIndex, newContent) {
+  const source = String(chapterContent ?? '')
+  const lines = source.split('\n')
+  const hasHeader = lines.length > 0 && isHeading(lines[0])
+  const header = hasHeader ? lines[0] : null
+  const body = hasHeader ? lines.slice(1).join('\n') : source
+  const nextBody = replaceBlockContent(body, blockIndex, newContent)
+  if (!hasHeader) return nextBody
+  return `${header}\n${nextBody}`
+}
+
+/**
+ * Serialize a parsed chapter tree back to markdown.
+ *
+ * `override` lets a caller replace one chapter (and optionally its children)
+ * without touching the rest of the document:
+ *   { path: [0, 2], content: '...', replaceChildren: true }
+ *
+ * The parse tree keeps a chapter's own lines separately from its children, so
+ * joining them with newlines reproduces the original source (blank lines that
+ * separated a section from its first child are part of the parent content).
+ */
+function serializeChapters(chapters, override = null) {
+  const list = chapters || []
+  return list
+    .map((chapter, index) => serializeChapter(chapter, [index], override))
+    .join('\n')
+}
+
+function serializeChapter(chapter, path, override) {
+  const isTarget = !!override?.path &&
+    override.path.length === path.length &&
+    override.path.every((part, index) => part === path[index])
+
+  const ownContent = isTarget ? override.content : chapter.content
+  if (isTarget && override.replaceChildren) return ownContent
+
+  const parts = [ownContent]
+  const children = chapter.children || []
+  children.forEach((child, index) => {
+    parts.push(serializeChapter(child, [...path, index], override))
+  })
+  return parts.join('\n')
 }
 
 /**
@@ -902,6 +1011,7 @@ export default {
   getHeadingLevel,
   getHeadingText,
   stripHeaderFromContent,
+  getChapterBody,
   getRenderer,
   getFence,
   getFenceType,
@@ -920,6 +1030,9 @@ export default {
   fileChangeBlocksToFences,
   isInsideCodeFence,
   parseBlocks,
+  replaceBlockContent,
+  replaceBlockInChapterContent,
+  serializeChapters,
   collectAllChildContent,
   parseChapters,
   parseChapter,

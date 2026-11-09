@@ -16,14 +16,18 @@
       "title": "Task Dashboard & Progress visualization",
       "color": "#000000",
       "folder": "Task Dashboard & Progress visualization",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "76f56f41-d9c8-4305-8bf5-26b616d008d6",
       "title": "Design",
       "color": "#000000",
       "folder": "Design",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ]
 }

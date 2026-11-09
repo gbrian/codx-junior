@@ -15,14 +15,18 @@
       "title": "Definition",
       "color": "#6366f1",
       "folder": "Definition",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "92009e90-b0ee-4327-a04b-f4520d596527",
       "title": "Messenger",
       "color": "#6366f1",
       "folder": "Messenger",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "last_update": "2026-10-31T12:23:44.643Z"

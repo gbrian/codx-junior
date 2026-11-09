@@ -123,7 +123,7 @@ async def list_sessions(request: Request):
         browser_manager = _browser_manager(session)
 
         sessions = await asyncio.to_thread(browser_manager.list_sessions)
-        responses = [BrowserSessionResponse(**s.to_dict()) for s in sessions]
+        responses = [BrowserSessionResponse(**s.to_public_dict()) for s in sessions]
         logger.info("list_sessions: returned %d browser sessions", len(sessions))
         return BrowserSessionListResponse(count=len(responses), sessions=responses)
     except HTTPException:
@@ -184,6 +184,29 @@ async def create_session(request: Request, req: BrowserSessionCreateRequest):
             readonly=req.readonly,
             downloads_folder=req.downloads_folder,
             downloads_mount=req.downloads_mount,
+            kind=req.kind,
+            os_version=req.os_version,
+            image=req.image,
+            image_provider=req.image_provider,
+            library_item_id=req.library_item_id,
+            control=req.control,
+            vnc_host=req.vnc_host,
+            vnc_port=req.vnc_port,
+            vnc_password=req.vnc_password,
+            vnc_public_url=req.vnc_public_url,
+            ssh_host=req.ssh_host,
+            ssh_port=req.ssh_port,
+            ssh_user=req.ssh_user,
+            ssh_key_path=req.ssh_key_path,
+            ssh_password=req.ssh_password,
+            guest_share_path=req.guest_share_path,
+            cpu_cores=req.cpu_cores,
+            ram_size=req.ram_size,
+            disk_size=req.disk_size,
+            shm_size=req.shm_size,
+            extra_env=req.extra_env,
+            desktop_width=req.desktop_width,
+            desktop_height=req.desktop_height,
         )
 
         if chat and chat_manager:
@@ -204,7 +227,7 @@ async def create_session(request: Request, req: BrowserSessionCreateRequest):
             req.chat_id,
             len(browser_session.shared_folders),
         )
-        return BrowserSessionResponse(**browser_session.to_dict())
+        return BrowserSessionResponse(**browser_session.to_public_dict())
 
     except HTTPException:
         raise
@@ -239,7 +262,7 @@ async def get_session(request: Request, session_id: str):
             raise HTTPException(status_code=404, detail="Session not found")
 
         logger.info("get_session: retrieved session %s", session_id[:8])
-        return BrowserSessionResponse(**browser_session.to_dict())
+        return BrowserSessionResponse(**browser_session.to_public_dict())
 
     except HTTPException:
         raise
@@ -251,7 +274,7 @@ async def get_session(request: Request, session_id: str):
 @router.put(
     "/{session_id}",
     response_model=BrowserSessionResponse,
-    summary="Update a browser session",
+    summary="Update a browser/computer session",
     responses={
         200: {"description": "Session updated"},
         401: {"description": "Unauthorized"},
@@ -260,16 +283,44 @@ async def get_session(request: Request, session_id: str):
     },
 )
 async def update_session(request: Request, session_id: str, req: BrowserSessionUpdateRequest):
-    """Update the human-readable name of a browser session."""
+    """Update name, connection or advanced image/resource settings.
+
+    Resource changes (image, CPUs, RAM, disk, shared memory, environment) are
+    stored on the session and applied when it is restarted: Docker cannot
+    change them on a running container, and the restart recreates it while
+    keeping the profile and the VM disk.
+    """
     try:
         session = await get_session_context(request)
         browser_manager = _browser_manager(session)
-        browser_session = browser_manager.update_session(session_id, name=req.name)
+        advanced_keys = {
+            "image", "cpu_cores", "ram_size", "disk_size", "shm_size",
+            "extra_env", "desktop_width", "desktop_height",
+        }
+        browser_session = browser_manager.update_session(
+            session_id,
+            name=req.name,
+            description=req.description,
+            control=req.control,
+            vnc_host=req.vnc_host,
+            vnc_port=req.vnc_port,
+            vnc_password=req.vnc_password,
+            vnc_public_url=req.vnc_public_url,
+            ssh_host=req.ssh_host,
+            ssh_port=req.ssh_port,
+            ssh_user=req.ssh_user,
+            ssh_key_path=req.ssh_key_path,
+            ssh_password=req.ssh_password,
+            advanced=req.model_dump(include=advanced_keys, exclude_unset=True),
+        )
         if not browser_session:
             raise HTTPException(status_code=404, detail="Session not found")
-        return BrowserSessionResponse(**browser_session.to_dict())
+        return BrowserSessionResponse(**browser_session.to_public_dict())
     except HTTPException:
         raise
+    except ValueError as e:
+        logger.warning("update_session: invalid advanced settings: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("update_session: unexpected error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -320,31 +371,34 @@ async def open_session_chat(
         elif not create_new and browser_session.chat_ids:
             chat = chat_manager.find_by_id(browser_session.chat_ids[0])
 
-        browser_profile_available = False
+        # Browser sessions use the browser co-pilot profile; desktops/VMs use
+        # the computer profile (same manager, desktop action tools).
+        profile_name = "browser" if browser_session.kind == "browser" else "computer"
+        profile_available = False
         try:
-            browser_profile_available = bool(
-                session.get_profile_manager().get_profiles_by_name(["browser"])
+            profile_available = bool(
+                session.get_profile_manager().get_profiles_by_name([profile_name])
             )
         except Exception as ex:
-            logger.debug("Could not check the browser profile: %s", ex)
+            logger.debug("Could not check the %s profile: %s", profile_name, ex)
 
         if not chat:
-            base_name = f"Browser: {browser_session.name or browser_session.id[:8]}"
+            base_name = f"{browser_session.kind_label}: {browser_session.name or browser_session.id[:8]}"
             suffix = f" ({len(browser_session.chat_ids) + 1})" if browser_session.chat_ids else ""
             chat = Chat(
                 name=f"{base_name}{suffix}",
                 mode="chat",
                 project_id=session.settings.project_id,
                 owner_project_id=session.settings.project_id,
-                profiles=["browser"] if browser_profile_available else [],
+                profiles=[profile_name] if profile_available else [],
                 meta_data={},
             )
             chat_manager.save_chat(chat)
 
-        # The chat explicitly asks to operate this browser: make sure the
-        # browser profile (and therefore the browser tools) is active.
-        if browser_profile_available and "browser" not in (chat.profiles or []):
-            chat.profiles = [*(chat.profiles or []), "browser"]
+        # The chat explicitly asks to operate this computer: make sure the
+        # matching profile (and therefore its tools) is active.
+        if profile_available and profile_name not in (chat.profiles or []):
+            chat.profiles = [*(chat.profiles or []), profile_name]
 
         browser_manager.save_session_to_chat(browser_session, chat)
         chat_manager.save_chat(chat)
@@ -353,7 +407,7 @@ async def open_session_chat(
             session_id[:8], chat.id,
         )
         return BrowserSessionChatResponse(
-            session=BrowserSessionResponse(**browser_session.to_dict()),
+            session=BrowserSessionResponse(**browser_session.to_public_dict()),
             chat=chat.model_dump(),
         )
 
@@ -421,6 +475,7 @@ async def control_session(request: Request, session_id: str, req: BrowserControl
             raise HTTPException(status_code=404, detail="Session not found")
 
         runtime = await browser_manager.get_runtime(browser_session)
+        target = "page" if browser_session.kind == "browser" else "computer"
         action = (req.action or "").strip().lower()
         if action in ("status", "info"):
             state = await runtime.state()
@@ -436,7 +491,7 @@ async def control_session(request: Request, session_id: str, req: BrowserControl
             message = f"Control handed to the user: {req.reason}"
         elif action in ("take_control", "take", "pause"):
             runtime.take_control(chat_id=req.chat_id, reason=req.reason or "user took control")
-            message = "The user now controls the page"
+            message = f"The user now controls the {target}"
         elif action in ("give_back", "release", "resume"):
             runtime.release(chat_id=req.chat_id)
             message = "Control returned to the AI"
@@ -448,7 +503,7 @@ async def control_session(request: Request, session_id: str, req: BrowserControl
         return BrowserControlResponse(
             success=True,
             message=message,
-            session=BrowserSessionResponse(**browser_session.to_dict()),
+            session=BrowserSessionResponse(**browser_session.to_public_dict()),
         )
     except HTTPException:
         raise
@@ -480,7 +535,7 @@ async def restart_session(request: Request, session_id: str):
             raise HTTPException(status_code=404, detail="Session not found")
 
         logger.info("restart_session: restarted session %s", session_id[:8])
-        return BrowserSessionResponse(**browser_session.to_dict())
+        return BrowserSessionResponse(**browser_session.to_public_dict())
 
     except HTTPException:
         raise
@@ -516,7 +571,7 @@ async def stop_session(request: Request, session_id: str):
             raise HTTPException(status_code=404, detail="Session not found")
 
         logger.info("stop_session: stopped session %s", session_id[:8])
-        return BrowserSessionResponse(**browser_session.to_dict())
+        return BrowserSessionResponse(**browser_session.to_public_dict())
 
     except HTTPException:
         raise
@@ -981,6 +1036,28 @@ async def sio_browser_create(sid: str, data: dict, codxjunior_session: CODXJunio
     readonly = data.get("readonly")
     downloads_folder = data.get("downloads_folder")
     downloads_mount = data.get("downloads_mount")
+    kind = data.get("kind") or "browser"
+    os_version = data.get("os_version")
+    image = data.get("image")
+    image_provider = data.get("image_provider")
+    library_item_id = data.get("library_item_id")
+    control = data.get("control")
+    vnc_host = data.get("vnc_host")
+    vnc_port = data.get("vnc_port")
+    vnc_password = data.get("vnc_password")
+    ssh_host = data.get("ssh_host")
+    ssh_port = data.get("ssh_port")
+    ssh_user = data.get("ssh_user")
+    ssh_key_path = data.get("ssh_key_path")
+    ssh_password = data.get("ssh_password")
+    guest_share_path = data.get("guest_share_path")
+    cpu_cores = data.get("cpu_cores")
+    ram_size = data.get("ram_size")
+    disk_size = data.get("disk_size")
+    shm_size = data.get("shm_size")
+    extra_env = data.get("extra_env")
+    desktop_width = data.get("desktop_width")
+    desktop_height = data.get("desktop_height")
 
     if not codxjunior_session:
         _emit(channel, {"status": "error", "message": "Missing codx_path", "error": "Missing codx_path"})
@@ -1011,6 +1088,28 @@ async def sio_browser_create(sid: str, data: dict, codxjunior_session: CODXJunio
             readonly=readonly,
             downloads_folder=downloads_folder,
             downloads_mount=downloads_mount,
+            kind=kind,
+            os_version=os_version,
+            image=image,
+            image_provider=image_provider,
+            library_item_id=library_item_id,
+            control=control,
+            vnc_host=vnc_host,
+            vnc_port=vnc_port,
+            vnc_password=vnc_password,
+            ssh_host=ssh_host,
+            ssh_port=ssh_port,
+            ssh_user=ssh_user,
+            ssh_key_path=ssh_key_path,
+            ssh_password=ssh_password,
+            guest_share_path=guest_share_path,
+            cpu_cores=cpu_cores,
+            ram_size=ram_size,
+            disk_size=disk_size,
+            shm_size=shm_size,
+            extra_env=extra_env,
+            desktop_width=desktop_width,
+            desktop_height=desktop_height,
         )
 
         _emit(channel, {
@@ -1018,7 +1117,7 @@ async def sio_browser_create(sid: str, data: dict, codxjunior_session: CODXJunio
             "session_id": browser_session.id,
             "name": browser_session.name,
             "message": f"Browser session '{browser_session.name}' ({browser_session.id[:8]}) created",
-            "session": browser_session.to_dict(),
+            "session": browser_session.to_public_dict(),
         })
 
         if chat:
@@ -1030,7 +1129,7 @@ async def sio_browser_create(sid: str, data: dict, codxjunior_session: CODXJunio
             "session_id": browser_session.id,
             "name": browser_session.name,
             "message": "Browser session ready",
-            "session": browser_session.to_dict(),
+            "session": browser_session.to_public_dict(),
         })
         logger.info("sio_browser_create: created session %s for chat %s", browser_session.id[:8], chat_id)
 
@@ -1110,7 +1209,7 @@ async def sio_browser_restart(sid: str, data: dict, codxjunior_session: CODXJuni
             "session_id": session_id,
             "name": browser_session.name,
             "message": f"Browser session {session_id[:8]} restarted",
-            "session": browser_session.to_dict(),
+            "session": browser_session.to_public_dict(),
         })
         logger.info("sio_browser_restart: restarted session %s", session_id[:8])
 

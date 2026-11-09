@@ -11,7 +11,9 @@
       "title": "Design",
       "color": "#000000",
       "folder": "Design",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://web-assets.dd-static.net/42588/1776305344-vllm-integration-vllm-hero.png",

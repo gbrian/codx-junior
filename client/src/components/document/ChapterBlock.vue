@@ -2,6 +2,7 @@
 import MarkdownViewer from '../MarkdownViewer.vue'
 import Code from '../Code.vue'
 import ChapterBlock from './ChapterBlock.vue'
+import EditableBlock from './EditableBlock.vue'
 import BlockEditor from '../BlockEditor.vue'
 import ChapterMenu from './ChapterMenu.vue'
 import parser from '@/utils/markdownParser'
@@ -25,9 +26,11 @@ import parser from '@/utils/markdownParser'
           <h6 v-else class="font-bold text-sm">{{ chapter.title }}</h6>
         </div>
         
-        <!-- Menu appears on hover -->
+        <!-- Menu: CSS reveals it on hover/focus and keeps it reachable on
+             touch devices (where there is no hover). -->
         <ChapterMenu
-          v-if="isHovered && !isEditing"
+          v-if="!isEditing"
+          :editable="editable"
           @edit="startEditing"
           @copy="copyChapterMarkdown"
           @create-task="createTaskFromChapter"
@@ -58,7 +61,11 @@ import parser from '@/utils/markdownParser'
 
     <!-- View mode: Render blocks within chapter -->
     <div v-else class="space-y-4">
-      <div v-for="block in blocks" :key="block.hash">
+      <div
+        v-for="(block, blockIndex) in blocks"
+        :key="block.hash + '-' + blockIndex"
+        class="group/editable-block relative"
+      >
         <!-- Code block: has fileName or comes from CODX file syntax -->
         <Code
           v-if="isCodeBlock(block)"
@@ -72,33 +79,44 @@ import parser from '@/utils/markdownParser'
           :chat="chat"
           :message="message"
           :block-hash="block.hash"
+          :block-index="blockIndex"
+          :editable="editable"
           @generate-code="$emit('generate-code', $event)"
           @reload-file="$emit('reload-file', $event)"
           @open-file="$emit('open-file', $event)"
           @save-file="$emit('save-file', $event)"
           @add-file="$emit('add-file', $event)"
           @edit-message="$emit('edit-message', $event)"
+          @block-edited="onBlockEdited"
           @sub-task="onCodeSubTask"
         />
-        <!-- Markdown block: no fileName and markdown/md type -->
-        <MarkdownViewer
+        <!-- Markdown block: rendered as prose, editable as source in place -->
+        <EditableBlock
           v-else
-          :files="files"
-          :documentId="documentId"
-          :text="block.content"
-          @add-file="$emit('add-file', $event)"
-          @copy-chapter="$emit('copy-chapter', $event)"
-          @create-task="onCreateTask"
-        />        
+          :content="block.content"
+          :block-index="blockIndex"
+          :editable="editable"
+          @save="onBlockEdited"
+        >
+          <MarkdownViewer
+            :files="files"
+            :documentId="documentId"
+            :text="block.content"
+            @add-file="$emit('add-file', $event)"
+            @copy-chapter="$emit('copy-chapter', $event)"
+            @create-task="onCreateTask"
+          />
+        </EditableBlock>
       </div>
     </div>
 
     <!-- Render child chapters -->
     <div v-if="chapter.children && chapter.children.length && !isEditing">
       <ChapterBlock
-        v-for="childChapter in chapter.children"
+        v-for="(childChapter, childIndex) in chapter.children"
         :key="childChapter.hash"
         :chapter="childChapter"
+        :chapter-path="[...chapterPath, childIndex]"
         :blocks="getChildChapterBlocks(childChapter)"
         :files="files"
         :documentId="documentId"
@@ -106,6 +124,7 @@ import parser from '@/utils/markdownParser'
         :loading="loading"
         :chat="chat"
         :message="message"
+        :editable="editable"
         @add-file="$emit('add-file', $event)"
         @copy-chapter="handleChildCopy"
         @create-task="onCreateTask"
@@ -134,6 +153,10 @@ export default {
   props: {
     chapter: { type: Object, required: true },
     blocks: { type: Array, required: true },
+    // Position of this chapter in the parsed tree: lets the owner rewrite the
+    // exact section after a block edit, even when two sections look the same.
+    chapterPath: { type: Array, default: () => [] },
+    editable: { type: Boolean, default: false },
     files: { type: Array, default: null },
     documentId: { type: String, default: '' },
     docProject: { type: Object, default: null },
@@ -166,8 +189,7 @@ export default {
   },
   methods: {
     getChildChapterBlocks(childChapter) {
-      const contentWithoutHeader = parser.stripHeaderFromContent(childChapter.content || '')
-      return parser.parseChildBlocks(contentWithoutHeader, parser.getRenderer)
+      return parser.parseChildBlocks(parser.getChapterBody(childChapter.content || ''), parser.getRenderer)
     },
     isCodeBlock(block) {
       // Legacy fenced blocks expose a fileName, CODX sentinel blocks are
@@ -191,11 +213,41 @@ export default {
     onEditSave(editData) {
       const { originalContent, newContent } = editData
       this.isEditing = false
-      
-      // Emit block-edited event with the full updated content
+
+      // The chapter editor works on the section INCLUDING its child sections,
+      // so the owner must replace the whole subtree (children are re-parsed
+      // from the saved text on the next render).
       this.$emit('block-edited', {
         originalContent,
         newContent,
+        chapterPath: this.chapterPath,
+        replaceChildren: true,
+        chapterTitle: this.chapter.title,
+        chapterLevel: this.chapter.level
+      })
+    },
+    // A single block (code, mermaid, markdown) saved its new body. Rewrite only
+    // that block's line span inside this chapter, then let the owner stitch the
+    // chapter back into the message.
+    onBlockEdited(editData) {
+      const blockIndex = editData.blockIndex
+      const nextChapterContent = blockIndex == null
+        ? null
+        : parser.replaceBlockInChapterContent(
+            this.chapter.content,
+            blockIndex,
+            editData.newContent
+          )
+
+      if (nextChapterContent == null || nextChapterContent === this.chapter.content) {
+        return
+      }
+
+      this.$emit('block-edited', {
+        originalContent: this.chapter.content,
+        newContent: nextChapterContent,
+        chapterPath: this.chapterPath,
+        blockIndex,
         chapterTitle: this.chapter.title,
         chapterLevel: this.chapter.level
       })

@@ -50,6 +50,7 @@ missions — ready for a human to review before anything is dispatched.
 | AI profile tool | `api/codx/junior/tools/company_tools.py` |
 | Company assistant | `api/codx/junior/company/assistant.py` + `client/src/components/company/CompanyAssistant.vue` |
 | Profile/team advisor | `api/codx/junior/company/profile_advisor.py` |
+| Language detection | `api/codx/junior/company/language.py` |
 | User roles / memberships | `api/codx/junior/model/user.py` (`CodxUser.companies`, `workspace_mode`) |
 | UI | `client/src/views/CompanyView.vue` (one screen) + `CompanySimpleHome.vue` + `CompanyAssistant.vue` |
 | Tests | `tests/test_company.py`, `tests/test_company_people.py` |
@@ -171,6 +172,32 @@ The assistant is backed by `POST /api/companies/{id}/assistant`. It returns
 `state` for the next question, `options` for big quick-reply buttons and
 `suggestions` for what to do next. It enforces the company role server-side: a
 read-only member never gets an action that could change data.
+
+### When it does not understand
+
+If no intent matches, the assistant switches to **AI reasoning** through the
+project's `SmolAgent`/LLM. The fallback receives:
+
+* the company context (teams, people, mapped and child projects, missions),
+* the authenticated user (username, email, global/company role and preferred
+  language),
+* the recent conversation and the browser/request language.
+
+The LLM is instructed to answer in the manager's language (explicit preference,
+detected message language and browser language, in that order), use plain
+non-technical language and personalize the reply with the manager's name. It is
+also told not to claim actions it did not perform; actions remain confirmed and
+executed by the deterministic assistant.
+
+The fallback is controlled by:
+
+```bash
+CODX_JUNIOR_COMPANY_AI_FALLBACK=true          # set false to disable
+CODX_JUNIOR_COMPANY_AI_TIMEOUT_SECONDS=25
+```
+
+The manager can set an explicit language in **Account → Assistant language**
+(the default is *Automatic*, which follows the message/browser language).
 
 ### Profiles and teams
 

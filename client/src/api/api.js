@@ -11,6 +11,7 @@ import { teamsModule } from './modules/teams'
 import { companiesModule } from './modules/companies'
 import { workspacesModule } from './modules/workspaces'
 import { browsersModule } from './modules/browsers'
+import { computersModule } from './modules/computers'
 import { meetsModule } from './modules/meets'
 import { infraModule } from './modules/infra'
 import { repoModule } from './modules/repo'
@@ -943,6 +944,13 @@ const initializeAPI = ({ project, user } = {}) => {
         API._browsersModule = browsersModule(API)
       }
       return API._browsersModule
+    },
+
+    get computers() {
+      if (!API._computersModule) {
+        API._computersModule = computersModule(API)
+      }
+      return API._computersModule
     },
     tools: {
       async imageToText(file) {

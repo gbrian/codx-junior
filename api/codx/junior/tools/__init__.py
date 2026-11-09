@@ -183,6 +183,25 @@ from .browser_script_tools import (
     BROWSER_SCRIPT_TOOLS,
     BROWSER_SCRIPT_TOOL_NAMES,
 )
+from .computer_tools import (
+    start_computer,
+    computer_action,
+    computer_screenshot,
+    computer_status,
+    computer_control,
+    computer_activity,
+    finish_computer,
+    save_computer,
+    START_COMPUTER_TOOL_JSON,
+    COMPUTER_ACTION_TOOL_JSON,
+    COMPUTER_SCREENSHOT_TOOL_JSON,
+    COMPUTER_STATUS_TOOL_JSON,
+    COMPUTER_CONTROL_TOOL_JSON,
+    COMPUTER_ACTIVITY_TOOL_JSON,
+    FINISH_COMPUTER_TOOL_JSON,
+    SAVE_COMPUTER_TOOL_JSON,
+    COMPUTER_TOOL_SETTINGS,
+)
 from .model import ToolResponse, ToolSettings
 
 # Configure logging
@@ -273,6 +292,13 @@ __all__ = [
     "save_browser_script",
     "run_browser_script",
     "delete_browser_script",
+    "start_computer",
+    "computer_action",
+    "computer_screenshot",
+    "computer_status",
+    "computer_control",
+    "computer_activity",
+    "finish_computer",
     "BROWSER_SCRIPT_TOOLS",
     "BROWSER_SCRIPT_TOOL_NAMES",
     "test_tool",
@@ -1670,6 +1696,55 @@ TOOLS = [
         },
         "tags": ["orchestration", "delegation", "subagents", "parallel", "kanban"],
         "tool_call": delegate
+    },
+    # -- Computer sessions: whole desktops/VMs/remote machines ---------------
+    {
+        "tool_json": START_COMPUTER_TOOL_JSON,
+        "settings": COMPUTER_TOOL_SETTINGS,
+        "tags": ["computer", "desktop", "linux", "windows", "macos", "vm", "session"],
+        "tool_call": start_computer,
+    },
+    {
+        "tool_json": COMPUTER_ACTION_TOOL_JSON,
+        "settings": COMPUTER_TOOL_SETTINGS,
+        "tags": ["computer", "desktop", "mouse", "keyboard", "ocr", "automation"],
+        "tool_call": computer_action,
+    },
+    {
+        "tool_json": COMPUTER_SCREENSHOT_TOOL_JSON,
+        "settings": COMPUTER_TOOL_SETTINGS,
+        "tags": ["computer", "desktop", "screenshot", "ocr", "vision"],
+        "tool_call": computer_screenshot,
+    },
+    {
+        "tool_json": COMPUTER_STATUS_TOOL_JSON,
+        "settings": COMPUTER_TOOL_SETTINGS,
+        "tags": ["computer", "desktop", "status"],
+        "tool_call": computer_status,
+    },
+    {
+        "tool_json": COMPUTER_CONTROL_TOOL_JSON,
+        "settings": COMPUTER_TOOL_SETTINGS,
+        "tags": ["computer", "desktop", "control", "handoff"],
+        "tool_call": computer_control,
+    },
+    {
+        "tool_json": COMPUTER_ACTIVITY_TOOL_JSON,
+        "settings": COMPUTER_TOOL_SETTINGS,
+        "tags": ["computer", "desktop", "activity", "co-driving"],
+        "tool_call": computer_activity,
+    },
+    {
+        "tool_json": SAVE_COMPUTER_TOOL_JSON,
+        "settings": COMPUTER_TOOL_SETTINGS,
+        "tags": ["computer", "desktop", "library", "snapshot", "reuse"],
+        "tool_call": save_computer,
+    },
+    {
+        "tool_json": FINISH_COMPUTER_TOOL_JSON,
+        "settings": COMPUTER_TOOL_SETTINGS,
+        "tags": ["computer", "desktop", "cleanup"],
+        "tool_call": finish_computer,
     },
     # -- Browser scripts: reusable per-site navigation recipes ---------------
     # Source of truth: codx/junior/tools/browser_script_tools.py

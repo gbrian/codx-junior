@@ -11,7 +11,9 @@
       "title": "Chat Manager Agent Features",
       "color": "#000000",
       "folder": "Chat Manager Agent Features",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

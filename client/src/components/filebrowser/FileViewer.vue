@@ -4,8 +4,8 @@ import hljs from 'highlight.js'
 import { VueCodeHighlighter } from 'vue-code-highlighter'
 import 'vue-code-highlighter/dist/style.css'
 import Editor from '../monaco/Editor.vue'
-import MarkdownViewer from '../MarkdownViewer.vue'
 import CanvaEditor from '../canva/CanvaEditor.vue'
+import Document from '../document/Document.vue'
 import { EXTENSION_LANGUAGE_MAP } from '@/store'
 </script>
 
@@ -211,13 +211,12 @@ import { EXTENSION_LANGUAGE_MAP } from '@/store'
           :title="displayFileName"
         ></audio>
       </div>
-      <MarkdownViewer
+      <Document
         v-else-if="isMarkdown"
         class="p-2"
-        :text="fileContent"
-        :document-id="displayFilePath"
+        :content="fileContent"
+        :documentId="displayFilePath"
         @add-file="handleAddFile"
-        @table-updated="handleTableUpdated"
       />
       <template v-else-if="isCanva">
         <!-- Visual editor -->
@@ -791,9 +790,6 @@ export default {
     },
     handleAddFile(filePath) {
       this.$emit('add-file', filePath)
-    },
-    handleTableUpdated(payload) {
-      this.$emit('table-updated', payload)
     }
   }
 }

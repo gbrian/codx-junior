@@ -1,0 +1,47 @@
+{
+  "title": "Run: Board column sort methods",
+  "type": "sprint",
+  "columns": [
+    {
+      "id": "cb5d90f6-8adf-4b73-8c56-1041a59d4fcb",
+      "title": "To do",
+      "color": "",
+      "folder": "To do",
+      "order": 0,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "9e171bff-22aa-4949-8ba1-199ef2a5e2e7",
+      "title": "Doing",
+      "color": "",
+      "folder": "Doing",
+      "order": 1,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "f385c956-e2d9-45a9-a397-8193a5567483",
+      "title": "On hold",
+      "color": "",
+      "folder": "On hold",
+      "order": 2,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "9d06bea1-8c5f-4cff-bb28-184ed37b4968",
+      "title": "Done",
+      "color": "",
+      "folder": "Done",
+      "order": 3,
+      "project_id": null,
+      "profiles": []
+    }
+  ],
+  "id": "b2a00aa5-8008-44a0-bf7c-cf7eb57356f2",
+  "description": "",
+  "parent_id": null,
+  "folder": "Run: Board column sort methods",
+  "order": 126
+}

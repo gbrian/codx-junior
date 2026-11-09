@@ -37,7 +37,7 @@ def broadcast_activity(session_id: str, entry: Dict[str, Any]) -> None:
 def broadcast_control(session: Any) -> None:
     """Publish the new control lease of a session."""
     try:
-        data = session.to_dict() if hasattr(session, "to_dict") else dict(session or {})
+        data = session.to_public_dict() if hasattr(session, "to_public_dict") else (session.to_dict() if hasattr(session, "to_dict") else dict(session or {}))
     except Exception:
         data = {}
     broadcast(BROWSER_CONTROL_EVENT, {

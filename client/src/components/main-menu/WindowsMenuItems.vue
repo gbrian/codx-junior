@@ -87,7 +87,7 @@ export default {
         { label: 'Team', icon: 'fa-solid fa-people-group', action: 'team' },
         { label: 'Meet', icon: 'fa-solid fa-video', action: 'meet' },
         { label: 'File explorer', icon: 'fa-regular fa-folder-open', action: 'file-explorer' },
-        { label: 'Browser sessions', icon: 'fa-regular fa-compass', action: 'browser-sessions' },
+        { label: 'Computer sessions', icon: 'fa-solid fa-desktop', action: 'browser-sessions' },
         { label: 'Profiles', icon: 'fa-solid fa-id-badge', action: 'profiles', admin: true },
         { label: 'Knowledge', icon: 'fa-solid fa-magnifying-glass', action: 'knowledge', admin: true },
         { label: 'Analytics', icon: 'fa-solid fa-chart-area', action: 'analytics' },

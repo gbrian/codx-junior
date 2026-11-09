@@ -15,56 +15,72 @@
       "title": "To Do",
       "color": "#6366f1",
       "folder": "To Do",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "e7378157-cc45-4c6e-9ed7-0f5562a93296",
       "title": "Teams",
       "color": "#8b5cf6",
       "folder": "Teams",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "0a6d502a-0679-4d69-9d5c-50e6a2129301",
       "title": "Agents",
       "color": "#ec4899",
       "folder": "Agents",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "doing",
       "title": "Project manager",
       "color": "#6366f1",
       "folder": "Project manager",
-      "order": 3
+      "order": 3,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "2b635654-5fa5-4ab9-94d8-41fd892e4123",
       "title": "Models",
       "color": "#f59e0b",
       "folder": "Models",
-      "order": 4
+      "order": 4,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "onhold",
       "title": "On Hold",
       "color": "",
       "folder": "On Hold",
-      "order": 5
+      "order": 5,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "done",
       "title": "Done",
       "color": "",
       "folder": "Done",
-      "order": 6
+      "order": 6,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "rejected",
       "title": "Rejected",
       "color": "",
       "folder": "Rejected",
-      "order": 7
+      "order": 7,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "last_update": "2026-11-05T08:35:14.371Z",

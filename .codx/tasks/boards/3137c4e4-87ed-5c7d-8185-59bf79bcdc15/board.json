@@ -11,14 +11,18 @@
       "title": "Backlog",
       "color": "#3D556E",
       "folder": "Backlog",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "ab8c71db-c7f8-498a-8970-f4929c6e7b13",
       "title": "Vue Developer",
       "color": "#27AF60",
       "folder": "Vue Developer",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

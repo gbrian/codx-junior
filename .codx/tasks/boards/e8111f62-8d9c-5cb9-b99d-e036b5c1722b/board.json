@@ -11,14 +11,18 @@
       "title": "General",
       "color": "#000000",
       "folder": "General",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "4e6c6eef-723f-44eb-b083-9ce33a7abae6",
       "title": "Project Tools",
       "color": "#000000",
       "folder": "Project Tools",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

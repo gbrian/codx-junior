@@ -11,14 +11,18 @@
       "title": "analysis",
       "color": "",
       "folder": "analysis",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "f6249fab-a7d5-4b30-b062-c3096abcc7e2",
       "title": "changes",
       "color": "",
       "folder": "changes",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

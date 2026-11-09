@@ -198,7 +198,7 @@ import { isOpenInNewTabEvent, openProjectInNewTab } from '@/utils/projectLinks'
            "/:projectName/browsers" route in single / mobile mode. -->
       <NavItem
         icon="fa-regular fa-compass"
-        label="Browser sessions"
+        label="Computer sessions"
         :is-collapsed="isCollapsed"
         @click="handleNavigateToBrowserSessions"
       />

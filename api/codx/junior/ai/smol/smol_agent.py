@@ -1969,7 +1969,7 @@ class SmolAgent:
         """
         raw = (tool_settings or {}).get("timeout_seconds")
         if raw is None:
-            return self.tool_timeout_seconds
+            return getattr(self, "tool_timeout_seconds", 0.0)
         try:
             timeout = float(raw)
         except (TypeError, ValueError):
@@ -1979,7 +1979,7 @@ class SmolAgent:
                 raw,
                 self.tool_timeout_seconds,
             )
-            return self.tool_timeout_seconds
+            return getattr(self, "tool_timeout_seconds", 0.0)
         return timeout if timeout > 0 else 0.0
 
     @staticmethod

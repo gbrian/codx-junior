@@ -11,14 +11,18 @@
       "title": "Client",
       "color": "#000000",
       "folder": "Client",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "e24c0132-6da8-4b6f-980b-f20a346542e5",
       "title": "Backend",
       "color": "#000000",
       "folder": "Backend",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

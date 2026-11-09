@@ -15,21 +15,27 @@
       "title": "Analysis",
       "color": "#000000",
       "folder": "Analysis",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "7915f7ee-2c92-4145-978d-e27028e6f0ac",
       "title": "Chat",
       "color": "#000000",
       "folder": "Chat",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "513928bb-280a-4a79-a378-1e76687cd526",
       "title": "vibe_engine",
       "color": "#000000",
       "folder": "vibe_engine",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     }
   ]
 }

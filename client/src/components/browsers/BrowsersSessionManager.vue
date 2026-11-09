@@ -16,7 +16,7 @@ import BrowserSessionPanel from './BrowserSessionPanel.vue'
       >
         <i class="fa-solid fa-arrow-left"></i>
       </button>
-      <h1 class="text-lg font-bold flex-1">Browser Sessions</h1>
+      <h1 class="text-lg font-bold flex-1">Computer sessions</h1>
     </div>
 
     <!-- Desktop: fixed-width sidebar (collapsed rail or expanded list) + panel -->

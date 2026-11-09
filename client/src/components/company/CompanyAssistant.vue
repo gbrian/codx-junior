@@ -67,6 +67,14 @@ const placeholder = computed(() => (
 
 const showLauncher = computed(() => !props.docked && !mobileOpen.value)
 
+function browserLanguage() {
+  try {
+    return navigator.languages?.[0] || navigator.language || ''
+  } catch {
+    return ''
+  }
+}
+
 function optionLabel(option) {
   if (typeof option === 'string') return option
   return option?.label || option?.value || ''
@@ -152,7 +160,8 @@ async function ask(text, { silent = false, display = '' } = {}) {
       message,
       view: props.view,
       history: history(),
-      state: conversation.value || {}
+      state: conversation.value || {},
+      language: browserLanguage()
     })
     if (props.companyId !== companyId) return
     pushMessage('assistant', response?.reply || 'I have no answer for that yet.')
@@ -202,7 +211,8 @@ function submitForm() {
     values,
     view: props.view,
     history: history(),
-    state: conversation.value || {}
+    state: conversation.value || {},
+    language: browserLanguage()
   }).then(response => {
     if (props.companyId !== companyId) return
     pushMessage('assistant', response?.reply || 'Done.')

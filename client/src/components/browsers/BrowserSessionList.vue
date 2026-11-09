@@ -1,6 +1,7 @@
 <script setup>
 import ConfirmDialog from '../ConfirmDialog.vue'
 import BrowserSessionCreateModal from './BrowserSessionCreateModal.vue'
+import ComputerImageLibrary from './ComputerImageLibrary.vue'
 </script>
 
 <template>
@@ -9,7 +10,7 @@ import BrowserSessionCreateModal from './BrowserSessionCreateModal.vue'
     <!-- Brand mark -->
     <div
       class="w-10 h-10 flex-shrink-0 rounded-xl bg-primary/15 text-primary flex items-center justify-center"
-      title="Browser Sessions"
+      title="Computer sessions"
       aria-hidden="true"
     >
       <i class="fa-solid fa-window-restore"></i>
@@ -54,7 +55,7 @@ import BrowserSessionCreateModal from './BrowserSessionCreateModal.vue'
           ></span>
         </button>
 
-        <div v-if="sessions.length === 0" class="py-3 text-base-content/40" title="No browser sessions yet">
+        <div v-if="sessions.length === 0" class="py-3 text-base-content/40" title="No computer sessions yet">
           <i class="fa-solid fa-inbox"></i>
         </div>
       </template>
@@ -67,16 +68,24 @@ import BrowserSessionCreateModal from './BrowserSessionCreateModal.vue'
       <button
         @click="handleRailNewSession"
         class="btn btn-sm btn-primary btn-circle"
-        title="New Session"
-        aria-label="New browser session"
+        title="New session"
+        aria-label="New computer session"
       >
         <i class="fa-solid fa-plus"></i>
+      </button>
+      <button
+        @click="browseImageLibrary"
+        class="btn btn-sm btn-ghost btn-circle text-base-content/50 hover:text-base-content"
+        title="Browse the computer image library"
+        aria-label="Browse the computer image library"
+      >
+        <i class="fa-solid fa-images"></i>
       </button>
       <button
         @click="reloadSessions"
         class="btn btn-sm btn-ghost btn-circle text-base-content/50 hover:text-base-content"
         title="Reload sessions"
-        aria-label="Reload browser sessions"
+        aria-label="Reload computer sessions"
       >
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
@@ -90,7 +99,7 @@ import BrowserSessionCreateModal from './BrowserSessionCreateModal.vue'
       <div class="w-10 h-10 flex-shrink-0 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
         <i class="fa-solid fa-window-restore"></i>
       </div>
-      <h2 class="text-base font-bold truncate flex-1">Browser Sessions</h2>
+      <h2 class="text-base font-bold truncate flex-1">Computer sessions</h2>
       <button
         @click="$emit('toggle-collapse')"
         class="btn btn-xs btn-ghost btn-circle flex-shrink-0 text-base-content/50 hover:text-base-content"
@@ -113,7 +122,7 @@ import BrowserSessionCreateModal from './BrowserSessionCreateModal.vue'
 
       <div v-else-if="sessions.length === 0" class="text-center py-8 text-base-content/50">
         <i class="fa-solid fa-inbox text-2xl mb-2 block"></i>
-        <p class="text-sm">No browser sessions yet</p>
+        <p class="text-sm">No computer sessions yet</p>
       </div>
 
       <template v-else>
@@ -142,16 +151,13 @@ import BrowserSessionCreateModal from './BrowserSessionCreateModal.vue'
               >
                 {{ session.name }}
               </span>
-              <!-- Project mapping of the session (falls back to its URL) -->
+              <!-- Kind + project mapping of the session (falls back to its URL) -->
               <span
                 class="flex items-center gap-1 text-[11px] text-base-content/50"
                 :title="sessionTooltip(session)"
               >
-                <i
-                  :class="session.folders?.length ? 'fa-solid fa-folder-tree' : 'fa-regular fa-folder'"
-                  class="text-[9px] flex-shrink-0"
-                  aria-hidden="true"
-                ></i>
+                <i :class="kindIcon(session)" class="text-[9px] flex-shrink-0" aria-hidden="true"></i>
+                <span class="badge badge-xs badge-ghost px-1">{{ kindLabel(session) }}</span>
                 <span class="truncate">{{ sessionSubtitle(session) }}</span>
               </span>
             </span>
@@ -195,11 +201,15 @@ import BrowserSessionCreateModal from './BrowserSessionCreateModal.vue'
       </template>
     </div>
 
-    <!-- Footer action -->
-    <div class="flex-shrink-0 pt-3 mt-2 border-t border-base-content/10">
-      <button @click="toggleNewForm" class="btn btn-sm btn-primary w-full gap-1">
+    <!-- Footer actions -->
+    <div class="grid grid-cols-2 gap-2 flex-shrink-0 pt-3 mt-2 border-t border-base-content/10">
+      <button @click="browseImageLibrary" class="btn btn-sm btn-outline gap-1">
+        <i class="fa-solid fa-images"></i>
+        Library
+      </button>
+      <button @click="toggleNewForm" class="btn btn-sm btn-primary gap-1">
         <i class="fa-solid fa-plus"></i>
-        New Session
+        New session
       </button>
     </div>
   </div>
@@ -207,12 +217,22 @@ import BrowserSessionCreateModal from './BrowserSessionCreateModal.vue'
   <!-- New session settings (folder mapping + downloads) -->
   <BrowserSessionCreateModal v-if="showCreateModal" />
 
+  <!-- Standalone image library: browse without starting from the form -->
+  <Teleport to="body">
+    <ComputerImageLibrary
+      v-if="showImageLibrary"
+      kind="linux"
+      @select="onLibraryImageSelected"
+      @close="showImageLibrary = false"
+    />
+  </Teleport>
+
   <!-- Delete confirmation modal -->
   <ConfirmDialog
     v-if="deleteTarget"
     title="Delete session"
-    :message="`Delete browser session '${deleteTarget.name}'?`"
-    hint="The session and its browser state will be removed. This cannot be undone."
+    :message="`Delete computer session '${deleteTarget.name}'?`"
+    hint="The session, its profile and its desktop state will be removed. This cannot be undone."
     icon="fa-trash"
     icon-class="text-error"
     confirm-label="Delete"
@@ -241,7 +261,8 @@ export default {
   data() {
     return {
       deleteTarget: null,
-      deleting: false
+      deleting: false,
+      showImageLibrary: false
     }
   },
   computed: {
@@ -265,12 +286,30 @@ export default {
       const label = (session.name || session.current_url || '?').trim()
       return label.charAt(0)
     },
+    kindLabel(session) {
+      return session.kind_label || {
+        browser: 'Browser',
+        linux: 'Linux',
+        windows: 'Windows',
+        macos: 'macOS',
+        remote: 'Remote'
+      }[session.kind || 'browser'] || 'Computer'
+    },
+    kindIcon(session) {
+      return {
+        browser: 'fa-solid fa-compass',
+        linux: 'fa-brands fa-linux',
+        windows: 'fa-brands fa-windows',
+        macos: 'fa-brands fa-apple',
+        remote: 'fa-solid fa-network-wired'
+      }[session.kind || 'browser'] || 'fa-solid fa-desktop'
+    },
     /**
      * One-line description of what the session can see: the configured folder
      * mapping wins, the page URL is only a fallback.
      */
     sessionSubtitle(session) {
-      const folders = session.folders || []
+      const folders = session.folders || session.shared_folders || []
       if (folders.length === 1) {
         return folders[0].mount_path || folders[0].host_path || '1 folder'
       }
@@ -278,20 +317,29 @@ export default {
         return `${folders.length} folders · ${session.home_path || ''}`.trim()
       }
       if (session.downloads_path) {
-        return `Downloads only · ${session.downloads_mount || session.downloads_path}`
+        return `Shared · ${session.guest_share_path || session.downloads_mount || session.downloads_path}`
+      }
+      if (session.kind === 'remote') {
+        return `${session.vnc_host || 'remote'}:${session.vnc_port || 5900}`
       }
       return session.current_url || 'No project files'
     },
     /** Full mapping, shown as the row tooltip. */
     sessionTooltip(session) {
-      const lines = [session.name || 'Browser session']
-      const folders = (session.folders || [])
+      const lines = [session.name || 'Computer session']
+      const folders = (session.folders || session.shared_folders || [])
         .map(folder => folder.mount_path || folder.host_path)
         .filter(Boolean)
       lines.push(folders.length ? `Folders: ${folders.join(', ')}` : 'Folders: none')
       if (session.downloads_mount || session.downloads_path) {
         lines.push(`Downloads: ${session.downloads_mount || session.downloads_path}`)
       }
+      const resources = []
+      if (session.cpu_cores) resources.push(`${session.cpu_cores} vCPU`)
+      if (session.ram_size) resources.push(`${session.ram_size} RAM`)
+      if (session.disk_size) resources.push(`${session.disk_size} disk`)
+      if (resources.length) lines.push(`Resources: ${resources.join(' · ')}`)
+      if (session.image) lines.push(`Image: ${session.image}`)
       return lines.join('\n')
     },
     sessionItemClass(session) {
@@ -353,6 +401,13 @@ export default {
     },
     toggleNewForm() {
       this.$storex.browsers.toggleNewSessionForm(true)
+    },
+    browseImageLibrary() {
+      this.showImageLibrary = true
+    },
+    onLibraryImageSelected(image) {
+      this.showImageLibrary = false
+      this.$storex.browsers.openNewSessionFromLibrary(image)
     }
   },
   inject: ['$storex'],

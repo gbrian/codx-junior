@@ -11,14 +11,18 @@
       "title": "2025-05-11",
       "color": "",
       "folder": "2025-05-11",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "fb6f9bb5-493c-4b07-9d4f-bd34a6a8f511",
       "title": "2025-05-16",
       "color": "",
       "folder": "2025-05-16",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

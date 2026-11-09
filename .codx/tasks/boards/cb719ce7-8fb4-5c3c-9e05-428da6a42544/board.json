@@ -11,14 +11,18 @@
       "title": "Proposals",
       "color": "#F39C19",
       "folder": "Proposals",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "bab95b72-4e3a-4932-a413-bed38064fc89",
       "title": "Ideas",
       "color": "",
       "folder": "Ideas",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

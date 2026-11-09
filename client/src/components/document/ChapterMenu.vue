@@ -3,10 +3,11 @@
 
 <template>
   <div 
-    class="absolute -top-1 right-0 z-20 flex gap-1 items-center bg-base-100/95 backdrop-blur-sm rounded-lg px-1 py-1 shadow-md border border-base-100 transition-all opacity-0 group-hover/header:opacity-100"
+    class="absolute -top-1 right-0 z-20 flex gap-1 items-center bg-base-100/95 backdrop-blur-sm rounded-lg px-1 py-1 shadow-md border border-base-100 transition-all opacity-0 group-hover/header:opacity-100 focus-within:opacity-100 max-md:opacity-100"
     @click.stop
   >
     <button
+      v-if="editable"
       class="btn btn-xs btn-ghost gap-1 tooltip tooltip-bottom"
       data-tip="Edit chapter"
       @click="$emit('edit')"
@@ -33,6 +34,9 @@
 
 <script>
 export default {
+  props: {
+    editable: { type: Boolean, default: true }
+  },
   emits: ['edit', 'copy', 'create-task']
 }
 </script>

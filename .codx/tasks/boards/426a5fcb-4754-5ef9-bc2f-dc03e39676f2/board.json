@@ -11,14 +11,18 @@
       "title": "Docs",
       "color": "#000000",
       "folder": "Docs",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "5ce7d033-bb2e-4ea5-814a-dcb2a506e7a8",
       "title": "ProjectFileWatcher",
       "color": "#000000",
       "folder": "ProjectFileWatcher",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://gaming-cdn.com/images/products/18995/616x353/rain-world-the-watcher-pc-juego-steam-cover.jpg?v=1743502389",

@@ -11,7 +11,9 @@
       "title": "Vibe",
       "color": "#000000",
       "folder": "Vibe",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

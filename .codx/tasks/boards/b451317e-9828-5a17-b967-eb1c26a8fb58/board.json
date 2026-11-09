@@ -11,21 +11,27 @@
       "title": "Metrics",
       "color": "#000000",
       "folder": "Metrics",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "b977dbfc-3b38-4293-8352-de64524a8253",
       "title": "Dashboard",
       "color": "#000000",
       "folder": "Dashboard",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "aeced39f-af81-4583-bf9a-033500b31100",
       "title": "Settings",
       "color": "#000000",
       "folder": "Settings",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://miro.medium.com/1*fH5RV6jPrr0JvCbYMoNbJA.png",

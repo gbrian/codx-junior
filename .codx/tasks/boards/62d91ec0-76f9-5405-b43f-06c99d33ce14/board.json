@@ -11,7 +11,9 @@
       "title": "Providers",
       "color": "#000000",
       "folder": "Providers",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

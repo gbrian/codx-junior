@@ -16,7 +16,9 @@
       "title": "How To Guide",
       "color": "#000000",
       "folder": "How To Guide",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ]
 }

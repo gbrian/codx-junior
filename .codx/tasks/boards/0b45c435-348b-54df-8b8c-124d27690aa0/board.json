@@ -16,7 +16,9 @@
       "title": "Team chat",
       "color": "#000000",
       "folder": "Team chat",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ]
 }

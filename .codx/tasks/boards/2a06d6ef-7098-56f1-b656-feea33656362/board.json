@@ -13,21 +13,27 @@
       "title": "Backlog",
       "color": "#FFC300",
       "folder": "Backlog",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "a9908d66-023d-4ba8-bd4b-34b8741cdff3",
       "title": "In Development",
       "color": "#DAF7A6",
       "folder": "In Development",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "7e6d245f-7b78-4096-acda-a86386669167",
       "title": "AI Keys",
       "color": "#C70039",
       "folder": "AI Keys",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "last_update": "2025-12-26T07:21:24.306Z",

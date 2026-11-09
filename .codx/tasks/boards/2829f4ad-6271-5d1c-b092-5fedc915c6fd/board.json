@@ -16,7 +16,9 @@
       "title": "Analysis",
       "color": "#000000",
       "folder": "Analysis",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ]
 }

@@ -11,7 +11,9 @@
       "title": "Hot spots",
       "color": "#000000",
       "folder": "Hot spots",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "description": "",

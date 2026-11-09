@@ -11,42 +11,90 @@
       "title": "Docs",
       "color": "",
       "folder": "Docs",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "93949475-1d8b-47cb-b004-d3e33694b8db",
       "title": "Todo",
       "color": "#2980B9",
       "folder": "Todo",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "88e42fe1-4478-4717-97bb-2f23562512fe",
       "title": "Kanban funcitonality",
       "color": "#000000",
       "folder": "Kanban funcitonality",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "tasks",
       "title": "tasks",
       "color": "",
       "folder": "tasks",
-      "order": 3
+      "order": 3,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "20260308",
       "title": "20260308",
       "color": "",
       "folder": "20260308",
-      "order": 4
+      "order": 4,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "slides",
       "title": "slides",
       "color": "",
       "folder": "slides",
-      "order": 5
+      "order": 5,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "1b50cdc7-d0d5-4aa4-b60b-316c8840c06d",
+      "title": "Backlog",
+      "color": "",
+      "folder": "Backlog",
+      "order": 6,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "9d52a5f0-8c20-4808-9c19-47d70f04d642",
+      "title": "In progress",
+      "color": "",
+      "folder": "In progress",
+      "order": 7,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "97115457-49a7-467a-8aa2-a64d0d1fe599",
+      "title": "Done",
+      "color": "",
+      "folder": "Done",
+      "order": 8,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "4f4e0921-387f-4cde-ae81-c9dad76da86d",
+      "title": "Blocked",
+      "color": "",
+      "folder": "Blocked",
+      "order": 9,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

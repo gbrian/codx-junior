@@ -16,7 +16,9 @@
       "title": "API Provider",
       "color": "#000000",
       "folder": "API Provider",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ]
 }

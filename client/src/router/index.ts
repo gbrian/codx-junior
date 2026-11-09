@@ -182,7 +182,20 @@ const router = createRouter({
       path: '/:projectName/browsers/:sessionId/:sessionName',
       name: 'browser-session',
       component: BrowsersSessionManager,
-      meta: { ...mobile('Browser', 'more', { hideTabs: true }) }
+      meta: { ...mobile('Computer', 'desktop', { hideTabs: true }) }
+    },
+    {
+      // Canonical alias: computer sessions include desktop/VM kinds, while
+      // the /browsers routes stay for existing bookmarks.
+      path: '/:projectName/computers',
+      name: 'computers',
+      component: BrowsersSessionManager
+    },
+    {
+      path: '/:projectName/computers/:sessionId/:sessionName',
+      name: 'computer-session',
+      component: BrowsersSessionManager,
+      meta: { ...mobile('Computer', 'desktop', { hideTabs: true }) }
     },
     {
       // The optional board id + name segments let the URL carry the open board,

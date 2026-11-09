@@ -1629,9 +1629,35 @@ export default {
     async onAddFileToChat(file) {
       await this.onAddFile(file)
     },
-    onMessageEdited({ doc_id, content, profiles, llm_model }) {
-      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content, profiles, llm_model } })
-      this.editMessage = null
+    async onMessageEdited({ doc_id, content, profiles, llm_model, previousContent, previousUpdatedAt }) {
+      try {
+        // Block edits only carry the new markdown; never send `undefined`
+        // profile/model fields, which would clear the stored values.
+        const update = { content }
+        if (profiles !== undefined) update.profiles = profiles
+        if (llm_model !== undefined) update.llm_model = llm_model
+        await this.chatSvc.updateExistingMessage({
+          chat: this.chat,
+          doc_id,
+          update
+        })
+        this.editMessage = null
+      } catch (error) {
+        console.error('[chat] Failed to persist edited message', error)
+        // Roll back the optimistic block edit so the UI never claims a change
+        // was saved when the backend rejected it.
+        if (previousContent !== undefined) {
+          const target = this.chat?.messages?.find(m => m.doc_id === doc_id)
+          if (target) {
+            target.content = previousContent
+            target.updated_at = previousUpdatedAt
+          }
+        }
+        this.$ui?.addNotification?.({
+          text: 'Could not save the message change. Please retry.',
+          type: 'error'
+        })
+      }
     },
     onMessageChanged({ doc_id, content }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })

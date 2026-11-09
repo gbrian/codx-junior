@@ -11,7 +11,9 @@
       "title": "Notebooks",
       "color": "#000000",
       "folder": "Notebooks",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://www.revistainteligenciaartificial.com/wp-content/uploads/2026/02/airllm.webp",

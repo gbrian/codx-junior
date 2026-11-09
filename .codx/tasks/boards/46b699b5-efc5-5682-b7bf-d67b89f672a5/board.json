@@ -15,14 +15,18 @@
       "title": "WhatsApp",
       "color": "#10b981",
       "folder": "WhatsApp",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "e16c2ef2-641b-4c3c-87c8-7182a4cac97e",
       "title": "GMAIL",
       "color": "#ef4444",
       "folder": "GMAIL",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "last_update": "2026-11-02T07:27:27.201Z"

@@ -50,6 +50,29 @@ import ThemeSelector from '../ThemeSelector.vue'
           Working workspace is the full project-oriented codx-junior.
         </span>
       </div>
+
+      <div class="form-control">
+        <span class="font-semibold">Assistant language</span>
+        <select class="select select-bordered select-sm" v-model="user.language">
+          <option value="auto">Automatic (match my message)</option>
+          <option value="en">English</option>
+          <option value="es">Español</option>
+          <option value="pt">Português</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="it">Italiano</option>
+          <option value="ca">Català</option>
+          <option value="nl">Nederlands</option>
+          <option value="ru">Русский</option>
+          <option value="ar">العربية</option>
+          <option value="zh">中文</option>
+          <option value="ja">日本語</option>
+        </select>
+        <span class="text-[10px] text-base-content/50 mt-1">
+          The assistant answers in this language. “Automatic” follows the language
+          you write in.
+        </span>
+      </div>
       
       <div class="flex justify-between items-center">
         <button type="button" class="btn btn-outline" @click="showResetPasswordModal = true">Reset Password</button>

@@ -11,7 +11,9 @@
       "title": "PRView component",
       "color": "#000000",
       "folder": "PRView component",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://framerusercontent.com/images/4XOf98OxfgY2HrcW4ymZPQr8II.png",

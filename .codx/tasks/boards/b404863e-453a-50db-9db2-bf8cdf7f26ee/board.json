@@ -16,7 +16,9 @@
       "title": "ToDo",
       "color": "#000000",
       "folder": "ToDo",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ]
 }

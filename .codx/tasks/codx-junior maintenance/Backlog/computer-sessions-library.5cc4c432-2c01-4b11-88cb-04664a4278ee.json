@@ -1,0 +1,491 @@
+{
+  "id": "5cc4c432-2c01-4b11-88cb-04664a4278ee",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "root_id": "5cc4c432-2c01-4b11-88cb-04664a4278ee",
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "done",
+  "status_history": [
+    {
+      "doc_id": "0507c1d7-656b-4db7-b058-069f3df84b8f",
+      "from_status": null,
+      "to_status": "UI",
+      "user": null,
+      "at": "2026-11-09T08:26:50.522048",
+      "meta_data": null
+    },
+    {
+      "doc_id": "756c1ace-5f35-4c4c-a408-ff37b69cd8fd",
+      "from_status": "UI",
+      "to_status": "done",
+      "user": null,
+      "at": "2026-11-09T08:53:38.247287",
+      "meta_data": null
+    }
+  ],
+  "tags": [],
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "software_developer"
+  ],
+  "users": [],
+  "name": "Computer sessions library",
+  "pinned": false,
+  "is_template": false,
+  "description": "1. Request: the computer session library must be used when creating a new computer session.\n2. I explored the existing stack: `BrowserSessionCreateModal.vue`, `ComputerImageLibrary.vue`, `SaveComputerModal.vue`, `BrowserSessionList.vue`, `api/modules/computers.js` (`/api/computers/library`).\n3. Finding: the saved-computer library is already wired into session creation, but only as a Linux \"Desktop image \u2192 Saved\" source, nested two levels deep.\n4. I proposed four interpretations (surface library in create dialog, extend it to all session kinds, full session templates requiring a new API contract, or library access from the session list).\n5. Status: awaiting your choice of option number (plus endpoint shape if option 3) before writing any changes.",
+  "meta_data": null,
+  "messages": [
+    {
+      "doc_id": "e9f79d28-84e3-483b-9c42-73cc2d3de4b2",
+      "role": "user",
+      "task_item": "",
+      "content": "Computer sessions library\nuse computer sessison library when crearing new computer session",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-09 08:26:51.913575",
+      "updated_at": "2026-11-09T08:26:51.913658",
+      "attachments": [],
+      "files": [],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "156a4c4e-8095-420f-94c4-82136894b54e",
+      "role": "assistant",
+      "task_item": "",
+      "content": "I explored the computer/browser session stack before touching anything. Here is what exists today and where the ambiguity is.\n\n## What already exists\n\n| Piece | File | Behaviour |\n|---|---|---|\n| Create dialog | `src/components/browsers/BrowserSessionCreateModal.vue` | Creates `linux` / `windows` / `macos` / `remote` / `browser` sessions. Saved computers are reachable **only** via the \"Desktop image\" \u2192 `ComputerImageLibrary` \"Saved\" tab, and only when `kind === 'linux'`. The payload sends `library_item_id`, `image_provider`, `image`. |\n| Saved-computer library UI | `src/components/browsers/ComputerImageLibrary.vue` | Provider tabs `linuxserver` / `kasmweb` / `saved`; `saved` calls `api.computers.savedComputers()`, can delete entries. |\n| Library API | `src/api/modules/computers.js` | `saveComputer()`, `savedComputers()` \u2192 `GET /api/computers/library`, `deleteSavedComputer()`, `savedComputerPreview()`. |\n| Save into library | `src/components/browsers/SaveComputerModal.vue` | Commits a running container + optional profile archive. |\n| Session list | `src/components/browsers/BrowserSessionList.vue` | Lists live sessions only \u2014 no library/snapshot entries. |\n\nSo \"the computer session library\" today is the **saved-computer** library (`/api/computers/library`), and it *is* wired into session creation \u2014 but only as an image source, for Linux, nested two clicks deep. Anything beyond that (a library of full session presets: name, mounts, downloads, resources, env) has no endpoint I can see from the client, so I do not want to invent one.\n\n## What I need you to confirm\n\nWhich of these is the intended change?\n\n1. **Surface the saved library in the create dialog** \u2014 a \"Start from library\" row (name, preview, transport, author) at the top of the dialog for Linux sessions, so picking a saved computer fills image/provider/`library_item_id` and the form's name, instead of digging into *Desktop image \u2192 Saved*. Files: `BrowserSessionCreateModal.vue` (and optionally a small `ComputerSessionLibrary.vue` extracted from `ComputerImageLibrary.vue`).\n2. **Extend library usage to the other kinds** \u2014 allow a saved entry to seed `browser` / VM sessions as well (it currently resets the selection on `form.kind` change). Files: `BrowserSessionCreateModal.vue`.\n3. **Full session templates** \u2014 the library stores the whole session configuration (kind, folders, downloads, CPU/RAM, env) and \"new session\" becomes \"new from library\". This needs backend support (`/api/computers/library` currently stores an image commit + preview, not a config), so I would need the API contract first.\n4. **Something else** \u2014 e.g. the library should be browsable from the session list sidebar rather than only from the create dialog.\n\nTell me the number (and, for 3, the endpoint shape), and I will implement it with minimal, reviewable diffs.",
+      "think": "I",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-09 08:26:52.351024",
+      "updated_at": "2026-11-09T08:29:32.772190",
+      "attachments": [],
+      "files": [],
+      "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+      "meta_data": {
+        "start_time": 1794212812.3508787,
+        "turn_id": "97bc3a0b-2f43-4d0f-8ee2-8f4c1fa1b2c6",
+        "turn_attempt": 0,
+        "cancellation_token_id": "38d5dfb0-0036-4c43-ae62-d328c6b28fdb",
+        "model": "deepseek-flash",
+        "analytics": {
+          "prompt_tokens": 409514,
+          "completion_tokens": 4724,
+          "total_tokens": 414238,
+          "tools": {
+            "project_search": {
+              "count": 6,
+              "errors": 0,
+              "total_ms": 59949.7333439067
+            },
+            "project_structure": {
+              "count": 2,
+              "errors": 0,
+              "total_ms": 6110.7845781371
+            },
+            "project_read_file": {
+              "count": 8,
+              "errors": 0,
+              "total_ms": 909.6185816451907
+            },
+            "read_folder": {
+              "count": 2,
+              "errors": 1,
+              "total_ms": 5937.636762857437
+            }
+          }
+        },
+        "time_taken": 121.12540817260742,
+        "first_chunk_time_taken": 0.2344059944152832
+      },
+      "tool_events": [
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_00_Kryfx5X6eTxOkaMrIwdG8885",
+          "status": "done",
+          "request": {
+            "search": [
+              "computer session",
+              "computer_session",
+              "ComputerSession",
+              "sessions"
+            ],
+            "validation": "computer session creation library"
+          },
+          "response": "> No results found for: 'computer session, computer_session, ComputerSession, sessions' in project: 'codx-junior-ui'",
+          "output": "Search completed: 4 queries executed, 0 documents found, 0 files matched",
+          "duration_ms": 13334.776639007032,
+          "error": null
+        },
+        {
+          "tool": "project_structure",
+          "tool_call_id": "call_01_cdV1Xb8hIMZ8X4kXCGTx3778",
+          "status": "done",
+          "request": {
+            "path": "/home/codx-junior-projects/codx-junior/client",
+            "max_depth": 2
+          },
+          "response": "# Project Structure\n\n**Root**: `/home/codx-junior-projects/codx-junior/client`\n\n\u251c\u2500\u2500 \ud83d\udcc1 **.codx**/\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **logs**/ (1 file, 0 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **profiles**/ (15 files, 3 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udce6 project.json\n\u2502   \u251c\u2500\u2500 \ud83d\udcdd project_summary.md\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **tasks**/ (513 files, 64 folders)\n\u2502   \u2514\u2500\u2500 \ud83d\udce6 usrlocalcodxjuniorclientcodx.db.json\n\u251c\u2500\u2500 \ud83d\udcc4 .eslintrc.cjs\n\u251c\u2500\u2500 \ud83d\udce6 .mcp.json\n\u251c\u2500\u2500 \ud83d\udcc1 **.mobile-preview**/\n\u2502   \u2514\u2500\u2500 \ud83d\udcc1 **screenshots**/ (10 files, 0 folders)\n\u251c\u2500\u2500 \ud83d\udce6 .prettierrc.json\n\u251c\u2500\u2500 \ud83d\udcc1 **.repowise**/\n\u2502   \u2514\u2500\u2500 \ud83d\udce6 mcp.json\n\u251c\u2500\u2500 \ud83d\udcc1 **.vscode**/\n\u2502   \u2514\u2500\u2500 \ud83d\udce6 extensions.json\n\u251c\u2500\u2500 \ud83d\udcc1 **.worktrees**/\n\u2502   \u2514\u2500\u2500 \ud83d\udcc1 **mobile_redesign**/ (7273 files, 1128 folders)\n\u251c\u2500\u2500 \ud83d\udcdd README.md\n\u251c\u2500\u2500 \ud83d\udcdd api-examples.md\n\u251c\u2500\u2500 \ud83d\udcc1 **client**/\n\u2502   \u2514\u2500\u2500 \ud83d\udcc1 **src**/ (3 files, 3 folders)\n\u251c\u2500\u2500 \ud83d\udcc1 **codx**/\n\u2502   \u2514\u2500\u2500 \ud83d\udcc1 **junior**/ (1 file, 1 folder)\n\u251c\u2500\u2500 \ud83d\udcc1 **docs**/\n\u2502   \u2514\u2500\u2500 \ud83d\udcc1 **mobile**/ (7 files, 1 folder)\n\u251c\u2500\u2500 \ud83d\udcd8 env.d.ts\n\u251c\u2500\u2500 \ud83d\udcc1 **file**/\n\u2502   \u2514\u2500\u2500 \ud83d\udcc1 **path**/ (3 files, 1 folder)\n\u251c\u2500\u2500 \ud83c\udf10 github_issues.html\n\u251c\u2500\u2500 \ud83c\udf10 index.html\n\u251c\u2500\u2500 \ud83d\udcdd index.md\n\u251c\u2500\u2500 \ud83d\udce6 lighthouse_report.json\n\u251c\u2500\u2500 \ud83d\udcdd markdown-examples.md\n\u251c\u2500\u2500 \ud83d\udce6 package-lock.json\n\u251c\u2500\u2500 \ud83d\udce6 package.json\n\u251c\u2500\u2500 \ud83d\udcc1 **path**/\n\u2502   \u2514\u2500\u2500 \ud83d\udcc1 **to**/ (1 file, 1 folder)\n\u251c\u2500\u2500 \ud83d\udcdc postcss.config.js\n\u251c\u2500\u2500 \ud83d\udcc1 **public**/\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **audio**/ (1 file, 0 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc4 demo_icon.png\n\u2502   \u251c\u2500\u2500 \ud83d\udcc4 favicon.ico\n\u2502   \u251c\u2500\u2500 \ud83d\udcc4 only_icon.png\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **public**/ (13 files, 2 folders)\n\u2502   \u2514\u2500\u2500 \ud83c\udfa8 tui-editor-style.css\n\u251c\u2500\u2500 \ud83d\udcc1 **src**/\n\u2502   \u251c\u2500\u2500 \ud83d\udcc4 App.vue\n\u2502   \u251c\u2500\u2500 \ud83d\udcc4 ChatEntrySlack.vue\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **api**/ (37 files, 3 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **assets**/ (2133 files, 13 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **components**/ (485 files, 66 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **composables**/ (1 file, 0 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **config**/ (3 files, 0 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcd8 main.ts\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **mixins**/ (2 files, 0 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **model**/ (1 file, 0 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **models**/ (1 file, 0 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **router**/ (2 files, 0 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **service**/ (6 files, 0 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **store**/ (18 files, 0 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **utils**/ (12 files, 0 folders)\n\u2502   \u251c\u2500\u2500 \ud83d\udcc1 **views**/ (57 files, 3 folders)\n\u2502   \u2514\u2500\u2500 \ud83d\udcc1 **wizards**/ (1 file, 0 folders)\n\u251c\u2500\u2500 \ud83d\udcdc tailwind.config.js\n\u251c\u2500\u2500 \ud83d\udcc1 **tests**/\n\u2502   \u251c\u2500\u2500 \ud83d\udcc4 browserAnnotations.test.mjs\n\u2502   \u251c\u2500\u2500 \ud83d\udcc4 browserCollab.test.mjs\n\u2502   \u2514\u2500\u2500 \ud83d\udcc4 fileChangeParser.test.mjs\n\u251c\u2500\u2500 \ud83d\udce6 tsconfig.app.json\n\u251c\u2500\u2500 \ud83d\udce6 tsconfig.json\n\u251c\u2500\u2500 \ud83d\udce6 tsconfig.node.json\n\u251c\u2500\u2500 \ud83d\udcd8 vite.config.ts\n\u2514\u2500\u2500 \ud83d\udcc1 **wiki**/\n    \u2514\u2500\u2500 \ud83d\udcdd codx-junior-ui.features.md",
+          "output": null,
+          "duration_ms": 3027.945396490395,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_00_SuQMRI2ZK5RIWf0T1SyL6267",
+          "status": "done",
+          "request": {
+            "search": [
+              "**/*ession*",
+              "**/*omputer*"
+            ]
+          },
+          "response": "> codx-junior-ui results for: '**/*ession*, **/*omputer*'\n\n### Matching files (8)\n- `src/api/modules/computers.js`\n- `src/components/browsers/BrowserSessionCreateModal.vue`\n- `src/components/browsers/BrowserSessionList.vue`\n- `src/components/browsers/BrowserSessionPanel.vue`\n- `src/components/browsers/BrowsersSessionManager.vue`\n- `src/components/browsers/ComputerImageLibrary.vue`\n- `src/components/browsers/SaveComputerModal.vue`\n- `src/store/session.js`",
+          "output": "Search completed: 2 queries executed, 0 documents found, 8 files matched",
+          "duration_ms": 8073.432566598058,
+          "error": null
+        },
+        {
+          "tool": "project_structure",
+          "tool_call_id": "call_01_ibkr1cuQzlxKXhqhX25O4923",
+          "status": "done",
+          "request": {
+            "path": "/home/codx-junior-projects/codx-junior/client/src/api",
+            "max_depth": 2
+          },
+          "response": "# Project Structure\n\n**Root**: `/home/codx-junior-projects/codx-junior/client`\n\n\u2514\u2500\u2500 \ud83d\udcc1 **src**/\n    \u2514\u2500\u2500 \ud83d\udcc1 **api**/ (37 files, 3 folders)",
+          "output": null,
+          "duration_ms": 3082.8391816467047,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_0xcWTmsfS4zox0mOv05Z1308",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "src/components/browsers/ComputerImageLibrary.vue",
+              "src/components/browsers/BrowserSessionCreateModal.vue",
+              "src/components/browsers/SaveComputerModal.vue"
+            ]
+          },
+          "response": "# src/components/browsers/ComputerImageLibrary.vue (lines 1-540 of 540)\n```vue src/components/browsers/ComputerImageLibrary.vue\n<script>\n/**\n * Desktop image library.\n *\n * Lets the user pick a LinuxServer.io webtop flavour or a Kasmweb desktop/app\n * without remembering Docker tags.  The catalog comes from\n * `GET /api/computers/images`; tags for the selected repository come from\n * `GET /api/computers/images/tags` (Docker Hub / LinuxServer API, cached).\n *\n * A custom image reference is still possible for advanced users; the backend\n * then falls back to screenshot-only viewing.\n */\nexport default {\n  name: 'ComputerImageLibrary',\n  props: {\n    kind: { type: String, default: 'linux' },\n    modelValue: { type: String, default: '' }\n  },\n  emits: ['close', 'select'],\n  data() {\n    return {\n      provider: String(this.modelValue || '').trim().toLowerCase().startsWith('codx-saved/')\n        ? 'saved'\n        : (String(this.modelValue || '').trim().toLowerCase().startsWith('kasmweb/')\n          ? 'kasmweb'\n          : 'linuxserver'),\n      query: '',\n      category: '',\n      images: [],\n      loading: false,\n      error: null,\n      selected: null,\n      tags: [],\n      tagsLoading: false,\n      selectedTag: '',\n      customImage: '',\n      refresh: false,\n      searchTimer: null,\n      savedPreviewUrls: {},\n      providerCounts: { linuxserver: 0, kasmweb: 0, saved: 0 }\n    }\n  },\n  computed: {\n    categories() {\n      return [...new Set(this.images.map(image => image.category).filter(Boolean))].sort()\n    },\n    visibleImages() {\n      const term = this.query.trim().toLowerCase()\n      const category = this.category\n      return this.images.filter(image => {\n        if (category && image.category !== category) return false\n        if (!term) return true\n        return [image.name, image.repository, image.description, image.category, ...(image.tags || [])]\n          .some(value => String(value || '').toLowerCase().includes(term))\n      })\n    },\n    selectedImage() {\n      if (!this.selected) return ''\n      if (this.selected.provider === 'saved') return this.selected.image\n      return this.selectedTag\n        ? `${this.selected.repository}:${this.selectedTag}`\n        : this.selected.image\n    },\n    providerOptions() {\n      return [\n        {\n          value: 'linuxserver',\n          label: 'LinuxServer.io',\n          icon: 'fa-server',\n          description: 'webtop \u00b7 Selkies \u00b7 port 3000'\n        },\n        {\n          value: 'kasmweb',\n          label: 'Kasmweb',\n          icon: 'fa-cubes',\n          description: 'KasmVNC \u00b7 port 6901 \u00b7 desktops & apps'\n        },\n        {\n          value: 'saved',\n          label: 'Saved',\n          icon: 'fa-bookmark',\n          description: 'Project snapshots \u00b7 committed containers'\n        }\n      ]\n    }\n  },\n  watch: {\n    provider: {\n      immediate: true,\n      handler() {\n        this.selected = null\n        this.selectedTag = ''\n        this.tags = []\n        this.category = ''\n        this.loadImages()\n      }\n    },\n    query() {\n      // The API supports search, but filtering locally keeps typing instant\n      // and avoids a request per keystroke.\n      this.category = ''\n    }\n  },\n  beforeUnmount() {\n    if (this.searchTimer) window.clearTimeout(this.searchTimer)\n    this.revokeSavedPreviews()\n  },\n  methods: {\n    async loadImages() {\n      this.loading = true\n      this.error = null\n      try {\n        if (this.provider === 'saved') {\n          await this.loadSavedComputers()\n        } else {\n          this.revokeSavedPreviews()\n          const response = await this.$storex.api.computers.images({\n            provider: this.provider,\n            kind: this.kind,\n            refresh: this.refresh\n          })\n          this.images = response?.images || []\n        }\n        this.providerCounts = {\n          linuxserver: this.provider === 'linuxserver'\n            ? this.images.length\n            : this.providerCounts.linuxserver,\n          kasmweb: this.provider === 'kasmw",
+          "output": "Read 3 file(s) | Successfully read: src/components/browsers/ComputerImageLibrary.vue, src/components/browsers/BrowserSessionCreateModal.vue, src/components/browsers/SaveComputerModal.vue",
+          "duration_ms": 119.8726398870349,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_8wk1LJLpuiLWNi5ysQqP0928",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "src/api/modules/computers.js"
+            ]
+          },
+          "response": "# src/api/modules/computers.js (lines 1-211 of 211)\n```js src/api/modules/computers.js\n/**\n * Computers API module.\n *\n * Computer sessions generalize browser sessions: a session is a shared machine\n * (Chromium page, Linux desktop, Windows/macOS VM or a remote host).  The\n * backend exposes the canonical routes under `/api/computers`; the legacy\n * `/api/browsers` routes remain available.\n */\n\nexport const computersModule = (API) => ({\n  // \u2500\u2500 List & Retrieval \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n  async list(filters) {\n    let qs = ''\n    if (filters) {\n      const params = Object.entries(filters)\n        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)\n        .join('&')\n      qs = `?${params}`\n    }\n    return API.get(`/api/computers${qs}`)\n  },\n\n  async get(sessionId) {\n    return API.get(`/api/computers/${sessionId}`)\n  },\n\n  // \u2500\u2500 Image library \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n  /**\n   * Browse the desktop image catalog.\n   *\n   * @param {Object} [filters] - provider, q, category, kind, refresh.\n   */\n  async images(filters = {}) {\n    const params = new URLSearchParams()\n    Object.entries(filters).forEach(([key, value]) => {\n      if (value !== undefined && value !== null && value !== '') {\n        params.set(key, String(value))\n      }\n    })\n    const qs = params.toString()\n    return API.get(`/api/computers/images${qs ? `?${qs}` : ''}`)\n  },\n\n  /** List selectable tags for a repository. */\n  async imageTags(provider, repository, refresh = false) {\n    const params = new URLSearchParams({ provider, repository })\n    if (refresh) params.set('refresh', 'true')\n    return API.get(`/api/computers/images/tags?${params.toString()}`)\n  },\n\n  /** Credentials for the embedded KasmVNC live view. */\n  async viewerCredentials(sessionId) {\n    return API.post(`/api/computers/${sessionId}/viewer-credentials`, {})\n  },\n\n  // \u2500\u2500 Saved computers \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n  /** Commit a running Linux/Kasmweb desktop into the project library. */\n  async saveComputer(sessionId, payload) {\n    return API.post(`/api/computers/${sessionId}/save`, payload)\n  },\n\n  /** List the project's reusable computers. */\n  async savedComputers() {\n    return API.get('/api/computers/library')\n  },\n\n  /** Delete a saved computer and its local Docker image. */\n  async deleteSavedComputer(itemId) {\n    return API.delete(`/api/computers/library/${itemId}`)\n  },\n\n  /** Authenticated preview blob for a saved computer. */\n  async savedComputerPreview(itemId) {\n    return API.connection.getBlob(`/api/computers/library/${itemId}/preview`)\n  },\n\n  // \u2500\u2500 CRUD & lifecycle \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n  async create(payload) {\n    return API.post('/api/computers', payload)\n  },\n\n  async update(sessionId, payload) {\n    return API.put(`/api/computers/${sessionId}`, payload)\n  },\n\n  async delete(sessionId) {\n    return API.delete(`/api/computers/${sessionId}`)\n  },\n\n  async restart(sessionId) {\n    return API.post(`/api/computers/${sessionId}/restart`, {})\n  },\n\n  async createChat(sessionId, chatId = null, createNew = false) {\n    const payload = {}\n    if (chatId) payload.chat_id = chatId\n    if (createNew) payload.create_new = true\n    return API.post(`/api/computers/${sessionId}/chat`, payload)\n  },\n\n  async stop(sessionId) {\n    return API.post(`/api/computers/${sessionId}/stop`, {})\n  },\n\n  async control(sessionId, action, { chatId = null, reason = null } = {}) {\n    const payload = { action }\n    if (chatId) payload.chat_id = chatId\n    if (reason) payload.reason = reason\n    return API.post(`/api/computers/${sessionId}/control`, payload)\n  },\n\n  // \u2500\u2500 Actions (browser page or desktop) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n  async action(sessionId, payload) {\n    return API.post(`/api/computers/${sessionId}/action`, payload)\n  },\n\n  navigate(sessionId, url) {\n    return this.action(sessionId, { action: 'navigate', url })\n  },\n\n  back(sessio",
+          "output": "Read 1 file(s) | Successfully read: src/api/modules/computers.js",
+          "duration_ms": 123.90079256147146,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_01_frOVeZ3qYJ1l1SWE3ddx6256",
+          "status": "done",
+          "request": {
+            "search": [
+              "**/store/browsers*",
+              "**/browsers/**"
+            ]
+          },
+          "response": "> codx-junior-ui results for: '**/store/browsers*, **/browsers/**'\n\n### Matching files (11)\n- `src/components/browsers/BrowserAnnotationBoard.vue`\n- `src/components/browsers/BrowserFolderPicker.vue`\n- `src/components/browsers/BrowserSessionCreateModal.vue`\n- `src/components/browsers/BrowserSessionList.vue`\n- `src/components/browsers/BrowserSessionPanel.vue`\n- `src/components/browsers/BrowserViewer.vue`\n- `src/components/browsers/BrowsersSessionManager.vue`\n- `src/components/browsers/ComputerImageLibrary.vue`\n- `src/components/browsers/DesktopViewer.vue`\n- `src/components/browsers/SaveComputerModal.vue`\n- `src/store/browsers.js`",
+          "output": "Search completed: 2 queries executed, 0 documents found, 11 files matched",
+          "duration_ms": 7282.85120986402,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_00_l4pXPMRzNAqbUaFDYJ981836",
+          "status": "done",
+          "request": {
+            "search": [
+              "saved computer library",
+              "library item",
+              "computer library",
+              "desktop image library",
+              "create session from library"
+            ]
+          },
+          "response": "> codx-junior-ui results for: 'saved computer library, library item, computer library, desktop image library, create session from library'\n\n### Matching files (1)\n- `src/components/browsers/ComputerImageLibrary.vue`",
+          "output": "Search completed: 5 queries executed, 0 documents found, 1 files matched",
+          "duration_ms": 8494.138430804014,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_01_Sc3mnKGnm0IJSxf3hTaZ6678",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "src/store/browsers.js"
+            ],
+            "start_line": 1,
+            "end_line": 120
+          },
+          "response": "# src/store/browsers.js (lines 1-120 of 508)\n```js src/store/browsers.js\nimport { getterTree, mutationTree, actionTree } from 'typed-vuex'\nimport { $storex } from '.'\nimport { API } from '../api/api'\n\nexport const namespaced = true\n\nexport const state = () => ({\n  sessions: [],\n  selectedSessionId: null,\n  loading: false,\n  error: null,\n  editingSessionId: null,\n  showNewSessionForm: false,\n  activityBySession: {},\n  costBySession: {},\n  loadingActivity: false,\n  controlLoading: false,\n  realtimeReady: false\n})\n\nexport const getters = getterTree(state, {\n  allSessions: state => state.sessions,\n\n  selectedSession: state => {\n    if (!state.selectedSessionId) return null\n    return state.sessions.find(s => s.id === state.selectedSessionId)\n  },\n\n  sessionById: (state) => (id) => {\n    return state.sessions.find(s => s.id === id)\n  },\n\n  activityFor: (state) => (sessionId) => {\n    return state.activityBySession[sessionId] || []\n  },\n\n  costFor: (state) => (sessionId) => {\n    return state.costBySession[sessionId] || null\n  },\n\n  isLoading: state => state.loading,\n  isLoadingActivity: state => state.loadingActivity,\n  isControlling: state => state.controlLoading,\n  hasError: state => !!state.error,\n  errorMessage: state => state.error\n})\n\nexport const mutations = mutationTree(state, {\n  setSessions(state, sessions) {\n    state.sessions = sessions\n  },\n\n  addSession(state, session) {\n    state.sessions.push(session)\n  },\n\n  updateSession(state, session) {\n    const index = state.sessions.findIndex(s => s.id === session.id)\n    if (index !== -1) {\n      state.sessions[index] = session\n    }\n  },\n\n  deleteSession(state, sessionId) {\n    state.sessions = state.sessions.filter(s => s.id !== sessionId)\n    if (state.selectedSessionId === sessionId) {\n      state.selectedSessionId = null\n    }\n    delete state.activityBySession[sessionId]\n    delete state.costBySession[sessionId]\n  },\n\n  selectSession(state, sessionId) {\n    state.selectedSessionId = sessionId\n  },\n\n  clearSelection(state) {\n    state.selectedSessionId = null\n  },\n\n  setLoading(state, loading) {\n    state.loading = loading\n  },\n\n  setLoadingActivity(state, loading) {\n    state.loadingActivity = loading\n  },\n\n  setError(state, error) {\n    state.error = error\n  },\n\n  clearError(state) {\n    state.error = null\n  },\n\n  setEditingSession(state, sessionId) {\n    state.editingSessionId = sessionId\n  },\n\n  clearEditingSession(state) {\n    state.editingSessionId = null\n  },\n\n  toggleNewSessionForm(state, show) {\n    state.showNewSessionForm = show !== undefined ? show : !state.showNewSessionForm\n  },\n\n  setActivity(state, { sessionId, activity }) {\n    state.activityBySession = {\n      ...state.activityBySession,\n      [sessionId]: activity || []\n    }\n  },\n\n  appendActivity(state, { sessionId, entry }) {\n    if (!sessionId || !entry) return\n    const current = state.activityBySession[sessionId] || []\n    // Socket.IO can deliver the same entry the REST refresh already returned.\n    const key = `${entry.ts || ''}|${entry.actor || ''}|${entry.action || ''}|${entry.url || ''}`\n```\n\n> Showing requested range lines 1-120 of 508; 388 more line(s) are available. Call project_read_file with `start_line=121` to continue.",
+          "output": "Read 1 file(s) | Successfully read: src/store/browsers.js",
+          "duration_ms": 97.55341056734324,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_lwOP31CXYbb2ka1ZmezN3145",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "src/components/browsers/BrowsersSessionManager.vue"
+            ]
+          },
+          "response": "# src/components/browsers/BrowsersSessionManager.vue (lines 1-122 of 122)\n```vue src/components/browsers/BrowsersSessionManager.vue\n<script setup>\nimport BrowserSessionList from './BrowserSessionList.vue'\nimport BrowserSessionPanel from './BrowserSessionPanel.vue'\n</script>\n\n<template>\n  <div class=\"w-full h-full flex flex-col bg-base-100\">\n    <!-- Mobile: Toggle Header -->\n    <div v-if=\"isMobile\" class=\"flex items-center gap-2 p-3 border-b border-base-content/10 bg-base-200\">\n      <button\n        v-if=\"selectedSessionId\"\n        @click=\"clearSelection\"\n        class=\"btn btn-sm btn-ghost btn-circle\"\n        title=\"Back to list\"\n        aria-label=\"Back to session list\"\n      >\n        <i class=\"fa-solid fa-arrow-left\"></i>\n      </button>\n      <h1 class=\"text-lg font-bold flex-1\">Computer sessions</h1>\n    </div>\n\n    <!-- Desktop: fixed-width sidebar (collapsed rail or expanded list) + panel -->\n    <div v-if=\"!isMobile\" class=\"flex flex-1 min-h-0 gap-3 p-3 overflow-hidden\">\n      <aside\n        class=\"flex-shrink-0 flex flex-col rounded-2xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden transition-[width] duration-200 ease-out\"\n        :class=\"sidebarCollapsed ? 'w-[68px]' : 'w-80'\"\n      >\n        <BrowserSessionList :collapsed=\"sidebarCollapsed\" @toggle-collapse=\"toggleSidebar\" />\n      </aside>\n      <section class=\"flex-1 min-w-0 rounded-2xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden flex flex-col\">\n        <BrowserSessionPanel />\n      </section>\n    </div>\n\n    <!-- Mobile: Single column -->\n    <div v-else class=\"flex-1 overflow-hidden flex flex-col\">\n      <Transition\n        mode=\"out-in\"\n        enter-active-class=\"transition-all duration-300 ease-out\"\n        enter-from-class=\"opacity-0 translate-x-6\"\n        enter-to-class=\"opacity-100 translate-x-0\"\n        leave-active-class=\"transition-all duration-300 ease-out\"\n        leave-from-class=\"opacity-100 translate-x-0\"\n        leave-to-class=\"opacity-0 -translate-x-6\"\n      >\n        <div v-if=\"showList\" key=\"list\" class=\"flex-1 overflow-hidden\">\n          <BrowserSessionList :collapsed=\"false\" />\n        </div>\n        <div v-else key=\"panel\" class=\"flex-1 overflow-hidden\">\n          <BrowserSessionPanel />\n        </div>\n      </Transition>\n    </div>\n  </div>\n</template>\n<script>\nconst SIDEBAR_STATE_KEY = 'codx.browsers.sidebarCollapsed'\n\nexport default {\n  name: 'BrowsersSessionManager',\n  components: {\n    BrowserSessionList,\n    BrowserSessionPanel\n  },\n  data() {\n    return {\n      sidebarCollapsed: false\n    }\n  },\n  computed: {\n    isMobile() {\n      return this.$storex.ui.isMobile\n    },\n    selectedSessionId() {\n      return this.$storex.browsers.selectedSessionId\n    },\n    showList() {\n      if (this.isMobile) {\n        return !this.selectedSessionId\n      }\n      return true\n    },\n    showPanel() {\n      if (this.isMobile) {\n        return !!this.selectedSessionId\n      }\n      return true\n    }\n  },\n  watch: {\n    sidebarCollapsed(value) {\n      this.saveSidebarState(value)\n    }\n  },\n  methods: {\n    toggleSidebar() {\n      this.sidebarCollapsed = !this.sidebarCollapsed\n    },\n    clearSelection() {\n      this.$storex.browsers.clearSelection()\n    },\n    loadSidebarState() {\n      try {\n        return window.localStorage.getItem(SIDEBAR_STATE_KEY) === 'true'\n      } catch (error) {\n        return false\n      }\n    },\n    saveSidebarState(value) {\n      try {\n        window.localStorage.setItem(SIDEBAR_STATE_KEY, value ? 'true' : 'false')\n      } catch (error) {\n        // localStorage not available\n      }\n    }\n  },\n  mounted() {\n    this.sidebarCollapsed = this.loadSidebarState()\n  },\n  inject: ['$storex']\n}\n</script>\n```",
+          "output": "Read 1 file(s) | Successfully read: src/components/browsers/BrowsersSessionManager.vue",
+          "duration_ms": 129.14049718528986,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_9uqRar1bBOU05IDroQEd6126",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "src/components/browsers/BrowserSessionList.vue"
+            ]
+          },
+          "response": "# src/components/browsers/BrowserSessionList.vue (lines 1-387 of 387)\n```vue src/components/browsers/BrowserSessionList.vue\n<script setup>\nimport ConfirmDialog from '../ConfirmDialog.vue'\nimport BrowserSessionCreateModal from './BrowserSessionCreateModal.vue'\n</script>\n\n<template>\n  <!-- Collapsed: icon rail -->\n  <div v-if=\"collapsed\" class=\"flex flex-col items-center h-full w-full py-3 bg-base-100\">\n    <!-- Brand mark -->\n    <div\n      class=\"w-10 h-10 flex-shrink-0 rounded-xl bg-primary/15 text-primary flex items-center justify-center\"\n      title=\"Computer sessions\"\n      aria-hidden=\"true\"\n    >\n      <i class=\"fa-solid fa-window-restore\"></i>\n    </div>\n\n    <!-- Expand toggle -->\n    <button\n      @click=\"$emit('toggle-collapse')\"\n      class=\"btn btn-xs btn-ghost btn-circle mt-2 text-base-content/50 hover:text-base-content\"\n      title=\"Expand sidebar\"\n      aria-label=\"Expand sidebar\"\n      aria-expanded=\"false\"\n    >\n      <i class=\"fa-solid fa-chevron-right text-[10px]\"></i>\n    </button>\n\n    <div class=\"w-6 border-t border-base-content/10 mt-2 mb-2 flex-shrink-0\"></div>\n\n    <!-- Session rail -->\n    <div class=\"flex-1 w-full min-h-0 overflow-y-auto flex flex-col items-center gap-1.5 px-2 pb-2\">\n      <div v-if=\"isLoading\" class=\"flex items-center justify-center py-4\">\n        <div class=\"loading loading-spinner loading-xs\"></div>\n      </div>\n\n      <template v-else>\n        <button\n          v-for=\"session in sessions\"\n          :key=\"session.id\"\n          @click=\"handleSelectSession(session.id)\"\n          class=\"relative w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center text-sm font-semibold uppercase transition-colors duration-150 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary\"\n          :class=\"sessionItemClass(session)\"\n          :title=\"sessionTooltip(session)\"\n          :aria-label=\"`Select session ${session.name}`\"\n          :aria-current=\"selectedSessionId === session.id ? 'true' : 'false'\"\n        >\n          {{ sessionInitial(session) }}\n          <span\n            v-if=\"session.status\"\n            class=\"absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-base-100\"\n            :class=\"statusDotClass(session.status)\"\n            aria-hidden=\"true\"\n          ></span>\n        </button>\n\n        <div v-if=\"sessions.length === 0\" class=\"py-3 text-base-content/40\" title=\"No computer sessions yet\">\n          <i class=\"fa-solid fa-inbox\"></i>\n        </div>\n      </template>\n    </div>\n\n    <div class=\"w-6 border-t border-base-content/10 mb-2 flex-shrink-0\"></div>\n\n    <!-- Bottom actions -->\n    <div class=\"flex flex-col items-center gap-2 flex-shrink-0\">\n      <button\n        @click=\"handleRailNewSession\"\n        class=\"btn btn-sm btn-primary btn-circle\"\n        title=\"New session\"\n        aria-label=\"New computer session\"\n      >\n        <i class=\"fa-solid fa-plus\"></i>\n      </button>\n      <button\n        @click=\"reloadSessions\"\n        class=\"btn btn-sm btn-ghost btn-circle text-base-content/50 hover:text-base-content\"\n        title=\"Reload sessions\"\n        aria-label=\"Reload computer sessions\"\n      >\n        <i class=\"fa-solid fa-arrows-rotate\"></i>\n      </button>\n    </div>\n  </div>\n\n  <!-- Expanded -->\n  <div v-else class=\"flex flex-col h-full bg-base-100 p-3 pb-4\">\n    <!-- Header (brand row with collapse toggle) -->\n    <div class=\"flex items-center gap-2.5 px-1 flex-shrink-0\">\n      <div class=\"w-10 h-10 flex-shrink-0 rounded-xl bg-primary/15 text-primary flex items-center justify-center\">\n        <i class=\"fa-solid fa-window-restore\"></i>\n      </div>\n      <h2 class=\"text-base font-bold truncate flex-1\">Computer sessions</h2>\n      <button\n        @click=\"$emit('toggle-collapse')\"\n        class=\"btn btn-xs btn-ghost btn-circle flex-shrink-0 text-base-content/50 hover:text-base-content\"\n        title=\"Collapse sidebar\"\n        aria-label=\"Collapse sidebar\"\n        aria-expanded=\"true\"\n      >\n       ",
+          "output": "Read 1 file(s) | Successfully read: src/components/browsers/BrowserSessionList.vue",
+          "duration_ms": 123.2325853779912,
+          "error": null
+        },
+        {
+          "tool": "read_folder",
+          "tool_call_id": "call_01_rhhgx0s02q7WSPc8dFRV6496",
+          "status": "error",
+          "request": {
+            "path": "/home/codx-junior-projects/codx-junior"
+          },
+          "response": null,
+          "output": null,
+          "duration_ms": 2832.3192726820707,
+          "error": "Invalid path parameter: Path '/home/codx-junior-projects/codx-junior' is not within project root '/home/codx-junior-projects/codx-junior/client' or codx root 'not provided'"
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_00_aMOlX9KLx0pKEZslOZ4P6032",
+          "status": "done",
+          "request": {
+            "search": [
+              "**/*Library*.vue",
+              "**/*library*.js",
+              "**/*Library*"
+            ]
+          },
+          "response": "> codx-junior-ui results for: '**/*Library*.vue, **/*library*.js, **/*Library*'\n\n### Matching files (3)\n- `src/components/browsers/ComputerImageLibrary.vue`\n- `src/components/media/MediaLibrary.vue`\n- `src/components/teams/TeamMediaLibrary.vue`",
+          "output": "Search completed: 3 queries executed, 0 documents found, 3 files matched",
+          "duration_ms": 11729.598458856344,
+          "error": null
+        },
+        {
+          "tool": "project_search",
+          "tool_call_id": "call_00_6OS75EEkpAwFS28j2Ctb3800",
+          "status": "done",
+          "request": {
+            "search": [
+              "**/.codx/tasks/**/*library*",
+              "**/.codx/tasks/**/*computer*",
+              "**/.codx/tasks/**/*library*.md"
+            ]
+          },
+          "response": "> No results found for: '**/.codx/tasks/**/*library*, **/.codx/tasks/**/*computer*, **/.codx/tasks/**/*library*.md' in project: 'codx-junior-ui'",
+          "output": "Search completed: 3 queries executed, 0 documents found, 0 files matched",
+          "duration_ms": 11034.936038777232,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_uYgsk5Y4DT71H0bCdoxF9632",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "wiki/codx-junior-ui.features.md"
+            ],
+            "max_chars": 8000
+          },
+          "response": "# wiki/codx-junior-ui.features.md (lines 1-201 of 609)\n```md wiki/codx-junior-ui.features.md\n# codx-junior UI \u2014 Features & Functionality Guide\n\n**codx-junior** is an AI-powered development workspace. It brings your projects,\nchats with AI assistants, task boards, documentation, knowledge search, code\nreview, team collaboration and analytics together in a single application.\n\nThis guide is written **for end users**. It explains *what you can do* and *why\nit matters*, grouped by topic. No technical or installation details are covered\nhere \u2014 only the features you will see and use.\n\n---\n\n## Table of contents\n\n1. [Getting around the app](#getting-around-the-app)\n2. [Projects](#projects)\n3. [AI Chat & Assistants](#ai-chat--assistants)\n4. [Tasks, Boards & Planning](#tasks-boards--planning)\n5. [Vibe Coding](#vibe-coding)\n6. [Knowledge Base & Search](#knowledge-base--search)\n7. [Wiki & Documentation](#wiki--documentation)\n8. [Files, Code & Git](#files-code--git)\n9. [Teams & Collaboration](#teams--collaboration)\n10. [Messenger & Activity Wall](#messenger--activity-wall)\n11. [Meet \u2014 Video Calls](#meet--video-calls)\n12. [Browser Sessions](#browser-sessions)\n13. [Workspaces](#workspaces)\n14. [Analytics, Metrics & Logs](#analytics-metrics--logs)\n15. [AI Settings & Models](#ai-settings--models)\n16. [Global & Project Settings](#global--project-settings)\n17. [Users, Security & Accounts](#users-security--accounts)\n18. [Media Library](#media-library)\n19. [Import, Export & Templates](#import-export--templates)\n20. [Personalization & Notifications](#personalization--notifications)\n21. [Mobile & Desktop Experience](#mobile--desktop-experience)\n\n---\n\n## Getting around the app\n\ncodx-junior adapts to the device you are using and gives you two ways to work:\n\n- **Desktop mode** \u2014 a flexible workspace where several apps stay open at the\n  same time as side-by-side **panels** (like windows).\n- **Single mode** \u2014 a focused, one-app-at-a-time experience used on smaller\n  screens and mobile.\n\n### The sidebar\n\nThe left sidebar is your main launcher. It gives quick access to your projects,\nrecent chats, tasks and the most used apps.\n\n- **Collapse / expand** the sidebar to gain screen space.\n- On **mobile** the sidebar slides in as an overlay and closes automatically when\n  you navigate away.\n\n### Main menu & command palette\n\n- The **Menu** button opens the full application menu (projects, views,\n  workspaces, settings and every app).\n- **Top bar search / command palette** (shortcut **\u2318K**) lets you jump straight\n  to a project, chat or command without hunting through menus.\n\n> **Tip:** In desktop mode you can open the same app several times (for example,\n> one Task Manager per board) and arrange them however you like. In single mode,\n> opening an app replaces the current one.\n\n---\n\n## Projects\n\nA **project** is the unit everything else revolves around \u2014 chats, tasks,\nknowledge, wiki and analytics all belong to a project.\n\n### Working with multiple projects\n\n- **Switch projects** at any time from the project selector, sidebar or menu.\n- The address bar always reflects which project you are working in, so you can\n  bookmark or refresh a page and stay in the same project.\n- **Recent projects** are remembered, and you can **pin** your favourite projects\n  for one-click switching.\n\n### Project structure\n\n- Projects can be **nested**: a project can have **sub-projects** and a\n  **parent project**.\n- **Linked / dependency projects** can be associated so the AI can search and\n  reference related work across projects.\n- The **Project Overview** screen shows your projects as cards with their status\n  and metrics.\n\n### Creating projects\n\n- **New Project** \u2014 clone from a Git URL or point to a project folder. Pasting a\n  GitHub issue URL will resolve to the repository automatically.\n- **Delete a project** from the project settings *Danger Zone*.\n\n### Per-project settings\n\nEach project has its own configuration (see\n[Global & Project Settings](#global--project-settings)) cov",
+          "output": "Read 1 file(s) | Successfully read: wiki/codx-junior-ui.features.md",
+          "duration_ms": 116.48337822407484,
+          "error": null
+        },
+        {
+          "tool": "read_folder",
+          "tool_call_id": "call_01_35tpAK3VBtPTcuyMopSo0117",
+          "status": "done",
+          "request": {
+            "path": "/home/codx-junior-projects/codx-junior/client/docs",
+            "include_details": true
+          },
+          "response": "# Project Structure\n\n**Root**: `/home/codx-junior-projects/codx-junior/client`\n\n\u2514\u2500\u2500 \ud83d\udcc1 **docs**/\n    \u2514\u2500\u2500 \ud83d\udcc1 **mobile**/\n        \u251c\u2500\u2500 \ud83d\udcdd README.md\n        \u251c\u2500\u2500 \ud83d\udcc1 **approaches**/\n        \u2502   \u251c\u2500\u2500 \ud83d\udcdd 01-shell-first.md\n        \u2502   \u251c\u2500\u2500 \ud83d\udcdd 02-adaptive-pages.md\n        \u2502   \u2514\u2500\u2500 \ud83d\udcdd 03-launcher-stack.md\n        \u251c\u2500\u2500 \ud83d\udcdd mobile-current-status.md\n        \u251c\u2500\u2500 \ud83d\udcdd mockups-brief.md\n        \u2514\u2500\u2500 \ud83d\udcdd status-verification-delta.md",
+          "output": null,
+          "duration_ms": 3105.3174901753664,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_5CIQkoqtjjjIeWQdkTLn1550",
+          "status": "done",
+          "request": {
+            "file_path": [
+              "wiki/codx-junior-ui.features.md"
+            ],
+            "start_line": 240,
+            "end_line": 400
+          },
+          "response": "# wiki/codx-junior-ui.features.md (lines 240-400 of 609)\n```md wiki/codx-junior-ui.features.md\n- Work on **subtasks** and navigate between parent and child chats.\n- Choose which **project app** to preview, including full-screen preview.\n- Jump to the relevant **task board** or **parent task** directly from the header.\n\n---\n\n## Knowledge Base & Search\n\nThe knowledge base lets you **ask questions about your code and documents** and\nget AI answers grounded in your project's content.\n\n### Knowledge search\n\n- Ask a natural-language question and receive:\n  - an **AI answer**,\n  - the **supporting documents** used, ranked by relevance, with previews.\n- Results show the source file, score, language and document metadata.\n- The AI can search across **related projects** (parent, children and linked\n  projects), so answers can draw on a wider context.\n\n### Agent Plan\n\nThe **Agent Plan** tool turns a request into a structured plan showing:\n\n- Which files to **read**,\n- Which files to **modify**, and\n- Which files to **create**,\n\nalong with the reasoning for each and any supporting documents found.\n\n### Indexing\n\n- Project files are **indexed** so the AI can search them. You can watch indexing\n  progress live (stages such as loading, enriching and writing to the database).\n- Manage what gets indexed: search settings, file-ignore patterns, external\n  folders, document enrichment and more (see Project Settings).\n- A **Data** explorer lets you inspect the underlying knowledge data.\n\n---\n\n## Wiki & Documentation\n\ncodx-junior can **generate and host a wiki** for your project automatically.\n\n### Browsing the wiki\n\n- The wiki is organised into **domains** and **modules** with a browsable tree.\n- **AI wiki search** finds answers and jumps to the relevant domain or module.\n- Domain pages describe a slice of your project; module pages describe individual\n  files, generated on demand.\n- A **Home** page (README) is shown on entry.\n\n### Building & editing\n\n- The wiki is produced by a **pipeline**: build the dependency graph, detect\n  domains, then build the index.\n- A **Wiki Settings** panel lets you edit the wiki tree (add/rename/delete\n  categories and pages), attach files, and rebuild individual pages.\n- **Wiki modes** \u2014 a default mode and a **MkDocs** mode \u2014 control how the wiki is\n  presented.\n- An **external documentation** view is also available for hosted docs.\n\n---\n\n## Files, Code & Git\n\n### File explorer & viewer\n\n- Browse the project's files with a **file explorer** and open files in a\n  **viewer** with tabs, so several files can be open at once.\n- **Search by file name** and **search inside file contents** (with case and\n  regex options).\n- **Create, rename, delete** files and folders.\n- **Upload** one or many files; uploads can optionally be processed/indexed.\n- **Preview** many file types inline: code, HTML, images, video, PDFs and more.\n- Open files in an external **code editor** (code-server) when available.\n\n### Code editing & diffs\n\n- A built-in **Monaco code editor** with syntax highlighting for many languages.\n- **Diff viewers** show changes side-by-side, including Git-style diffs.\n- **Git Diff Viewer** displays the changes between branches.\n\n### Repository & Git\n\n- **Git view** with **branches**, **commit history** and **changed files**.\n- **Branch selector** to switch the branch you are looking at.\n- **Pull Request** (PR) tools: PR viewer, PR report, PR file views, commit\n  selection, branch selection and code comments.\n- Review a task's files and proposed changes directly from a chat.\n\n### GitHub integration\n\n- Browse **help-wanted** issues and read individual issues.\n- **Process an issue with AI** to turn it into work.\n- A Git-issue **wizard** helps you go from issue to task.\n\n---\n\n## Teams & Collaboration\n\nTeams let people (and AI profiles) collaborate inside a project.\n\n### Teams, channels & DMs\n\n- Create **teams** with a name, icon, colour, description and tags.\n- Organise conversations into **categories** and **channels**.\n-",
+          "output": "Read 1 file(s) | Successfully read: wiki/codx-junior-ui.features.md",
+          "duration_ms": 112.97295335680246,
+          "error": null
+        },
+        {
+          "tool": "project_read_file",
+          "tool_call_id": "call_00_QdOUjmvNKwynYhmDLRYc6918",
+          "status": "done",
+          "request": {
+            "end_line": 500,
+            "file_path": [
+              "wiki/codx-junior-ui.features.md"
+            ],
+            "start_line": 400
+          },
+          "response": "# wiki/codx-junior-ui.features.md (lines 400-500 of 609)\n```md wiki/codx-junior-ui.features.md\n  code.\n- **Discover active meetings** you can join.\n- **Camera and microphone controls**, mute, and a **device picker** for choosing\n  camera/microphone/speaker.\n- **Audio test** to check your speakers before joining.\n- **Knock-to-join**: if a meeting already has participants, you request to join\n  and a host **admits or declines** you.\n- **Invitations** for incoming calls, with accept/reject.\n- A **meeting chat** is associated with each call.\n- Works with multiple devices per account (for example, a desktop and a phone can\n  both join).\n\n---\n\n## Browser Sessions\n\nManage **browser sessions** from within codx-junior.\n\n- **Create, edit, delete** and **run** browser sessions.\n- Sessions open in their own viewer/panel so you can use a browser alongside your\n  work.\n- A session list and a session panel appear side-by-side on desktop, and as\n  switchable screens on mobile.\n\n---\n\n## Workspaces\n\n**Workspaces** are complete development environments that bundle one or more\nprojects and applications.\n\n- **Create workspaces** from templates, choose which projects they include, and\n  add applications to them.\n- **Start and stop** workspaces and follow their **status**.\n- **Edit, clone and delete** workspaces.\n- **Workspace settings** also let you tune Docker-related options globally.\n- A **Workspace App Builder** helps assemble the apps a workspace provides.\n\n---\n\n## Analytics, Metrics & Logs\n\n### Analytics dashboard\n\nUnderstand how AI is being used:\n\n- **Token usage** over time (per minute, hour or day) with charts.\n- KPIs such as total tokens, total calls, input vs. output tokens, average\n  duration, generation speed and total **cost** (in coins).\n- **Usage by model**, with input/output breakdowns and cost.\n- **Model performance** table (calls, tokens, average duration, tokens/second,\n  cost and a speed indicator).\n- **Period breakdown** table with per-period totals.\n- **Admin view** (for administrators) adds **usage by user** and **usage by\n  project**, plus a **Price Editor** to manage model pricing and recalculate\n  historical costs.\n- Filter by **date presets**, **date range**, **model**, **user** and **project**;\n  supports **auto-refresh**.\n\n### Metrics & logs\n\n- A **Log Viewer** for application logs with log selection, **auto-refresh** and\n  filtering.\n- An **LLM Requests viewer** to inspect AI request/response logs.\n- A **Chat Logs** analyzer dashboard with live metrics and analytics per chat.\n- Admin log tools to review, filter and purge logs.\n\n---\n\n## AI Settings & Models\n\n### AI providers & models\n\n- Configure **AI providers** and the **models** they offer.\n- A **Model Selector** lets you pick the model used for a given purpose\n  (reasoning, embeddings, wiki, knowledge search, image generation, image\n  vision, etc.).\n- Reload/refresh the available models at any time.\n\n### Agents\n\n- Define and configure **AI agents** that can act on your project.\n- **Agent Studio** provides a dedicated environment for building and running\n  agents.\n\n### MCP servers\n\n- Configure **Model Context Protocol (MCP) servers** to extend what the AI can\n  do, per project or globally.\n\n### Chat prompts & AI profiles\n\n- Set **global chat prompts** that shape all conversations.\n- Manage **AI profiles** \u2014 named collections of instructions and tools (with\n  descriptions and avatars) you can attach to chats and teams.\n\n---\n\n## Global & Project Settings\n\n### Global Settings\n```\n\n> Showing requested range lines 400-500 of 609; 109 more line(s) are available. Call project_read_file with `start_line=501` to continue.",
+          "output": "Read 1 file(s) | Successfully read: wiki/codx-junior-ui.features.md",
+          "duration_ms": 86.46232448518276,
+          "error": null
+        }
+      ],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "2b1a76a6a421",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "cost": 0.06426149999999999,
+      "cost_info": {
+        "iteration_cost_cxjcoins": 0.06426149999999999,
+        "chat_cost_cxjcoins": 0.06426149999999999,
+        "estimation_cost_cxjcoins": null,
+        "budget_reached": false,
+        "input_tokens": 409514,
+        "output_tokens": 4724,
+        "total_tokens": 414238,
+        "input_cost_cxjcoins": 0.06142709999999999,
+        "output_cost_cxjcoins": 0.0028343999999999995,
+        "tool_cost_cxjcoins": 0.0
+      },
+      "profiles": [
+        "biblio",
+        "file_editor",
+        "git",
+        "project",
+        "software_developer"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [
+        "admin"
+      ],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-11-09 08:26:50.343222",
+  "updated_at": "2026-11-09T08:53:38.179229",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "Backlog",
+  "sprints": [
+    "codx-junior maintenance"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/Backlog/computer-sessions-library.5cc4c432-2c01-4b11-88cb-04664a4278ee.json",
+  "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.06426149999999999,
+  "run_id": null,
+  "run_status": null,
+  "run_step_id": null,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-11-09T08:28:56.398877+00:00",
+      "summary": "1. Request: the computer session library must be used when creating a new computer session.\n2. I explored the existing stack: `BrowserSessionCreateModal.vue`, `ComputerImageLibrary.vue`, `SaveComputerModal.vue`, `BrowserSessionList.vue`, `api/modules/computers.js` (`/api/computers/library`).\n3. Finding: the saved-computer library is already wired into session creation, but only as a Linux \"Desktop image \u2192 Saved\" source, nested two levels deep.\n4. I proposed four interpretations (surface library in create dialog, extend it to all session kinds, full session templates requiring a new API contract, or library access from the session list).\n5. Status: awaiting your choice of option number (plus endpoint shape if option 3) before writing any changes.",
+      "message_ids": [
+        "e9f79d28-84e3-483b-9c42-73cc2d3de4b2",
+        "156a4c4e-8095-420f-94c4-82136894b54e"
+      ]
+    }
+  ],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false,
+  "external_source": null,
+  "external_id": null,
+  "external_parent_id": null,
+  "external_instance_id": null,
+  "external_status": null,
+  "external_url": null,
+  "external_updated_at": null
+}

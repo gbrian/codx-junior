@@ -1,4 +1,4 @@
-import parser from './markdownParser'
+import parser from './markdownParser.js'
 
 const {
   getFence,
@@ -78,7 +78,26 @@ export function extractCodeBlocks(content) {
       continue
     }
 
-    const match = line.match(LEGACY_FENCE_REGEX)
+    // Strip the CR of CRLF sources for the anchored fence match; content lines
+    // below keep their original bytes.
+    const match = line.replace(/\r$/, '').match(LEGACY_FENCE_REGEX)
+
+    // A fenced block WITHOUT a path is still a fence: skip its body so a
+    // <file_change> example inside it is never extracted as a real file.
+    if (!match) {
+      const fence = getFence(line)
+      if (fence && fence.info) {
+        const tracker = createFenceTracker(fence)
+        i++
+        while (i < lines.length) {
+          const innerFence = getFence(lines[i])
+          if (innerFence && trackFence(tracker, innerFence) === 'close') break
+          i++
+        }
+      }
+      i++
+      continue
+    }
 
     if (match) {
       const language = match[1]

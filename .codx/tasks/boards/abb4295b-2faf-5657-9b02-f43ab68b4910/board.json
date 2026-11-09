@@ -11,7 +11,9 @@
       "title": "Favourites",
       "color": "#000000",
       "folder": "Favourites",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://chromeunboxed.com/wp-content/uploads/2026/01/ChromeAndroidDesktopBookmarksBar-750x420.webp",

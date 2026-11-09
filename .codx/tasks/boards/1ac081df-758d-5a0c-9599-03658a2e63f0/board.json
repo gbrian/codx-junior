@@ -11,14 +11,18 @@
       "title": "tasks",
       "color": "",
       "folder": "tasks",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "2cccf072-8830-4f01-91b0-8d5c41e62b0e",
       "title": "Ideas",
       "color": "",
       "folder": "Ideas",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

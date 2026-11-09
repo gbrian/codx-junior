@@ -11,7 +11,9 @@
       "title": "Server",
       "color": "#000000",
       "folder": "Server",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://llama-cpp.com/wp-content/uploads/2025/10/Llama-cpp-1024x369.jpg",

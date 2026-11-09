@@ -1,5 +1,6 @@
 <script>
 import BrowserViewer from './BrowserViewer.vue'
+import DesktopViewer from './DesktopViewer.vue'
 import Chat from '@/components/chat/Chat.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import VerticalSplitter from '../layout/VerticalSplitter.vue'
@@ -7,7 +8,7 @@ import { broadcastBrowserCollab } from '@/utils/browserCollab'
 
 export default {
   name: 'BrowserSessionPanel',
-  components: { BrowserViewer, Chat, ConfirmDialog, VerticalSplitter },
+  components: { BrowserViewer, DesktopViewer, Chat, ConfirmDialog, VerticalSplitter },
   props: {
     // Present when the panel is rendered inside a meeting call. It enables
     // collaborative annotations and the "share with call" action.
@@ -50,6 +51,15 @@ export default {
     isMobile() {
       return this.$storex.ui.isMobile
     },
+    isBrowserSession() {
+      return (this.selectedSession?.kind || 'browser') === 'browser'
+    },
+    isVmSession() {
+      return ['windows', 'macos'].includes(this.selectedSession?.kind)
+    },
+    isRemoteSession() {
+      return this.selectedSession?.kind === 'remote'
+    },
     chatLabel() {
       const chats = this.selectedSession?.chat_ids || []
       return chats.length ? `${chats.length} chat(s)` : 'No chat linked'
@@ -58,7 +68,7 @@ export default {
       return this.browserChatId ? this.$storex.chats.chats[this.browserChatId] : null
     },
     browserChatHasTools() {
-      return (this.browserChat?.profiles || []).includes('browser')
+      return (this.browserChat?.profiles || []).some(p => p === 'browser' || p === 'computer')
     },
     linkedChatIds() {
       return this.selectedSession?.chat_ids || []
@@ -96,7 +106,7 @@ export default {
     activeChatLabel() {
       const chat = this.browserChat
       if (chat) return chat.name || 'Untitled chat'
-      return this.chatLoading ? 'Opening chat…' : 'Chat with this browser'
+      return this.chatLoading ? 'Opening chat…' : 'Chat with this computer'
     },
     filteredPickerChats() {
       const term = (this.pickerSearch || '').trim().toLowerCase()
@@ -117,7 +127,18 @@ export default {
         if (newId) {
           const session = this.$storex.browsers.sessionById(newId)
           if (session) {
-            this.editFormData = { id: session.id, name: session.name }
+            this.editFormData = {
+              id: session.id,
+              name: session.name,
+              image: session.image || '',
+              cpu_cores: session.cpu_cores || '',
+              ram_size: session.ram_size || '',
+              disk_size: session.disk_size || '',
+              shm_size: session.shm_size || '',
+              env: this.formatEnv(session.extra_env),
+              desktop_width: session.desktop_width || '',
+              desktop_height: session.desktop_height || ''
+            }
           }
         } else {
           this.editFormData = {}
@@ -136,7 +157,98 @@ export default {
     }
   },
   methods: {
-    async handleSaveSession() {
+    /** Render the extra image env object as KEY=VALUE lines. */
+    formatEnv(env) {
+      if (!env || typeof env !== 'object') return ''
+      return Object.keys(env)
+        .sort()
+        .map(key => `${key}=${env[key]}`)
+        .join('\n')
+    },
+    /** Parse the KEY=VALUE textarea (comments/blank lines ignored). */
+    parseEnvText(text) {
+      const env = {}
+      String(text || '').split('\n').forEach((raw, index) => {
+        const line = raw.trim()
+        if (!line || line.startsWith('#')) return
+        const separator = line.indexOf('=')
+        if (separator <= 0) {
+          throw new Error(`Environment variable on line ${index + 1} must use KEY=VALUE`)
+        }
+        const key = line.slice(0, separator).trim()
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+          throw new Error(`Invalid environment variable name '${key}' (line ${index + 1})`)
+        }
+        env[key] = line.slice(separator + 1).trim()
+      })
+      return env
+    },
+    /** Validate the advanced fields; returns a message or null. */
+    validateAdvancedSettings() {
+      if (this.isRemoteSession) return null
+      const sizePattern = /^\d+(?:\.\d+)?\s*[KMGT](?:i?b)?$/i
+      const sizeError = (label, value, example) => {
+        const text = String(value || '').trim()
+        if (!text) return null
+        return sizePattern.test(text)
+          ? null
+          : `${label} must be a number with a unit, for example ${example}.`
+      }
+      const errors = [
+        sizeError('RAM', this.editFormData.ram_size, '8G'),
+        sizeError('Disk size', this.isVmSession ? this.editFormData.disk_size : '', '128G'),
+        sizeError('Shared memory', this.isVmSession ? '' : this.editFormData.shm_size, '2G')
+      ].filter(Boolean)
+      if (errors.length) return errors[0]
+
+      if (this.editFormData.cpu_cores) {
+        const cpus = Number(this.editFormData.cpu_cores)
+        if (!Number.isInteger(cpus) || cpus < 1 || cpus > 128) {
+          return 'vCPUs must be a whole number between 1 and 128.'
+        }
+      }
+      if (!this.isVmSession) {
+        const width = Number(this.editFormData.desktop_width)
+        const height = Number(this.editFormData.desktop_height)
+        if (this.editFormData.desktop_width && (!Number.isInteger(width) || width < 640 || width > 7680)) {
+          return 'Desktop width must be a whole number between 640 and 7680.'
+        }
+        if (this.editFormData.desktop_height && (!Number.isInteger(height) || height < 480 || height > 4320)) {
+          return 'Desktop height must be a whole number between 480 and 4320.'
+        }
+      }
+      let env = {}
+      try {
+        env = this.parseEnvText(this.editFormData.env)
+      } catch (error) {
+        return error.message
+      }
+      if (Object.keys(env).length > 50) return 'Use at most 50 environment variables.'
+      return null
+    },
+    /** Advanced fields sent to the update endpoint. */
+    advancedPayload() {
+      if (this.isRemoteSession) return {}
+      return {
+        image: (this.editFormData.image || '').trim() || null,
+        cpu_cores: Number(this.editFormData.cpu_cores) || null,
+        ram_size: (this.editFormData.ram_size || '').trim() || null,
+        disk_size: this.isVmSession
+          ? ((this.editFormData.disk_size || '').trim() || null)
+          : null,
+        shm_size: this.isVmSession
+          ? null
+          : ((this.editFormData.shm_size || '').trim() || null),
+        extra_env: this.parseEnvText(this.editFormData.env),
+        desktop_width: this.isVmSession
+          ? null
+          : (Number(this.editFormData.desktop_width) || null),
+        desktop_height: this.isVmSession
+          ? null
+          : (Number(this.editFormData.desktop_height) || null)
+      }
+    },
+    async handleSaveSession(restart = false) {
       if (!this.editFormData.name?.trim()) {
         this.$storex.ui.addNotification({
           text: 'Session name is required',
@@ -144,10 +256,30 @@ export default {
         })
         return
       }
+      const validationError = this.validateAdvancedSettings()
+      if (validationError) {
+        this.$storex.ui.addNotification({ text: validationError, type: 'warning' })
+        return
+      }
 
+      const sessionId = this.editFormData.id
+      const isContainerSession = !this.isRemoteSession
       this.saving = true
       try {
-        await this.$storex.browsers.updateSession(this.editFormData)
+        const payload = {
+          id: sessionId,
+          name: this.editFormData.name,
+          ...this.advancedPayload()
+        }
+        await this.$storex.browsers.updateSession(payload)
+        if (restart && isContainerSession) {
+          await this.$storex.browsers.restartSession(sessionId)
+        } else if (isContainerSession) {
+          this.$storex.ui.addNotification({
+            text: 'Settings saved. Restart the session to apply resource changes.',
+            type: 'info'
+          })
+        }
       } catch (error) {
         console.error('Failed to save session:', error)
       } finally {
@@ -395,10 +527,20 @@ export default {
           })
           return
         }
-        const lines = ['I am looking at this page in the shared browser:']
+        const lines = [
+          this.isBrowserSession
+            ? 'I am looking at this page in the shared browser:'
+            : 'I am looking at this shared computer screen:'
+        ]
         if (context.url) lines.push(`URL: ${context.url}`)
         if (context.title) lines.push(`Title: ${context.title}`)
-        if (context.selection) lines.push(`Selected text: "${String(context.selection).slice(0, 600)}"`)
+        if (context.selection) {
+          lines.push(
+            this.isBrowserSession
+              ? `Selected text: "${String(context.selection).slice(0, 600)}"`
+              : `Visible text (OCR):\n${String(context.selection).slice(0, 2000)}`
+          )
+        }
         if (context.active?.name || context.active?.text) {
           lines.push(`I was editing: ${context.active.name || context.active.text}`)
         }
@@ -657,18 +799,19 @@ export default {
     <!-- Empty State -->
     <div v-if="!selectedSession && !isEditing" class="flex items-center justify-center h-full text-base-content/50">
       <div class="text-center">
-        <i class="fa-regular fa-compass text-4xl mb-3 block opacity-25"></i>
-        <p class="text-sm">Select a session to co-browse</p>
-        <p class="text-xs opacity-60 mt-1">The AI and you control the same browser.</p>
+        <i class="fa-solid fa-desktop text-4xl mb-3 block opacity-25"></i>
+        <p class="text-sm">Select a computer session</p>
+        <p class="text-xs opacity-60 mt-1">The AI and you control the same computer.</p>
       </div>
     </div>
 
     <!-- Edit Mode -->
     <div v-else-if="isEditing" class="flex flex-col h-full">
       <div class="sticky top-0 bg-base-100 border-b border-base-content/10 p-4">
-        <h3 class="text-lg font-bold">Rename Session</h3>
+        <h3 class="text-lg font-bold">Session settings</h3>
+        <p class="text-xs opacity-60 mt-0.5">{{ selectedSession?.name }}</p>
       </div>
-      <div class="p-4 space-y-4 flex-1">
+      <div class="p-4 space-y-4 flex-1 overflow-y-auto">
         <div class="form-control">
           <label class="label">
             <span class="label-text font-semibold">Session Name *</span>
@@ -677,27 +820,183 @@ export default {
             v-model="editFormData.name"
             type="text"
             placeholder="Session name"
-            class="input input-bordered"
-            @keyup.enter="handleSaveSession"
+            class="input input-bordered input-sm"
+            @keyup.enter="handleSaveSession(false)"
           />
         </div>
-        <p class="text-xs opacity-60">
-          The session id and browser state do not change when renaming.
+
+        <template v-if="!isRemoteSession">
+          <div class="divider text-[10px] font-semibold uppercase tracking-wide opacity-50 my-1">
+            Image and resources
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="form-control">
+              <label class="label py-1">
+                <span class="label-text text-xs font-semibold">vCPUs</span>
+              </label>
+              <input
+                v-model.number="editFormData.cpu_cores"
+                type="number"
+                min="1"
+                max="128"
+                step="1"
+                class="input input-bordered input-sm w-full"
+                :placeholder="isVmSession ? 'default (4)' : 'host default'"
+              />
+            </div>
+            <div class="form-control">
+              <label class="label py-1">
+                <span class="label-text text-xs font-semibold">RAM</span>
+              </label>
+              <input
+                v-model="editFormData.ram_size"
+                type="text"
+                class="input input-bordered input-sm w-full font-mono"
+                :placeholder="isVmSession ? 'default (8G)' : 'e.g. 2G'"
+                spellcheck="false"
+              />
+            </div>
+            <div v-if="isVmSession" class="form-control">
+              <label class="label py-1">
+                <span class="label-text text-xs font-semibold">Disk size</span>
+              </label>
+              <input
+                v-model="editFormData.disk_size"
+                type="text"
+                class="input input-bordered input-sm w-full font-mono"
+                :placeholder="selectedSession?.kind === 'macos' ? 'default (128G)' : 'default (64G)'"
+                spellcheck="false"
+              />
+            </div>
+            <div v-else class="form-control">
+              <label class="label py-1">
+                <span class="label-text text-xs font-semibold">Shared memory</span>
+              </label>
+              <input
+                v-model="editFormData.shm_size"
+                type="text"
+                class="input input-bordered input-sm w-full font-mono"
+                placeholder="default (2G)"
+                spellcheck="false"
+              />
+            </div>
+          </div>
+
+          <div v-if="isVmSession" class="flex flex-wrap items-center gap-1">
+            <span class="text-[11px] opacity-60">Disk presets:</span>
+            <button
+              v-for="preset in ['64G', '128G', '256G']"
+              :key="preset"
+              type="button"
+              class="btn btn-xs"
+              :class="editFormData.disk_size === preset ? 'btn-primary' : 'btn-ghost'"
+              @click="editFormData.disk_size = preset"
+            >{{ preset }}</button>
+          </div>
+
+          <div v-if="!isVmSession" class="grid grid-cols-2 gap-3">
+            <div class="form-control">
+              <label class="label py-1">
+                <span class="label-text text-xs font-semibold">Desktop width</span>
+              </label>
+              <input
+                v-model.number="editFormData.desktop_width"
+                type="number"
+                min="640"
+                max="7680"
+                step="1"
+                class="input input-bordered input-sm w-full"
+                placeholder="1920"
+              />
+            </div>
+            <div class="form-control">
+              <label class="label py-1">
+                <span class="label-text text-xs font-semibold">Desktop height</span>
+              </label>
+              <input
+                v-model.number="editFormData.desktop_height"
+                type="number"
+                min="480"
+                max="4320"
+                step="1"
+                class="input input-bordered input-sm w-full"
+                placeholder="1080"
+              />
+            </div>
+          </div>
+
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text text-xs font-semibold">Docker image</span>
+            </label>
+            <input
+              v-model="editFormData.image"
+              type="text"
+              class="input input-bordered input-sm w-full font-mono"
+              :placeholder="selectedSession?.image || 'default image'"
+              spellcheck="false"
+            />
+            <span class="text-[10px] opacity-60 mt-1">
+              Leave empty to use the default image for this machine kind.
+            </span>
+          </div>
+
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text text-xs font-semibold">Environment variables</span>
+            </label>
+            <textarea
+              v-model="editFormData.env"
+              rows="3"
+              class="textarea textarea-bordered textarea-sm w-full font-mono text-[11px]"
+              placeholder="KEY=VALUE (one per line)"
+              spellcheck="false"
+            ></textarea>
+            <span class="text-[10px] opacity-60 mt-1">
+              Variables managed by codx-junior (SUBFOLDER, VERSION, RAM_SIZE…) cannot be overridden.
+            </span>
+          </div>
+
+          <p v-if="isVmSession" class="text-[11px] rounded-lg bg-info/10 text-info p-2">
+            Increasing the disk size and using <strong>Save &amp; restart</strong> expands the VM disk
+            without losing data. macOS may still need <code>diskutil repairDisk disk2</code> and
+            <code>diskutil apfs resizeContainer disk3 0</code> inside the guest to use the extra space.
+          </p>
+          <p class="text-[11px] opacity-60">
+            Resource changes are saved on the session and take effect when it restarts
+            (the container is recreated; the browser profile and VM disk are preserved).
+          </p>
+        </template>
+        <p v-else class="text-xs opacity-60">
+          Remote sessions keep their own hardware. Only the name and connection settings can change.
         </p>
       </div>
-      <div class="border-t border-base-content/10 p-4 flex gap-2">
+      <div class="border-t border-base-content/10 p-4 flex flex-col gap-2">
         <button
-          @click="handleSaveSession"
-          class="btn btn-success flex-1"
+          v-if="!isRemoteSession"
+          @click="handleSaveSession(true)"
+          class="btn btn-success w-full"
           :disabled="saving"
         >
           <span v-if="saving" class="loading loading-spinner loading-sm"></span>
-          <i v-else class="fa-solid fa-save"></i>
-          Save
+          <i v-else class="fa-solid fa-rotate"></i>
+          Save &amp; restart
         </button>
-        <button @click="handleCancelEdit" class="btn btn-ghost flex-1" :disabled="saving">
-          Cancel
-        </button>
+        <div class="flex gap-2">
+          <button
+            @click="handleSaveSession(false)"
+            class="btn btn-primary flex-1"
+            :disabled="saving"
+          >
+            <span v-if="saving" class="loading loading-spinner loading-sm"></span>
+            <i v-else class="fa-solid fa-save"></i>
+            Save
+          </button>
+          <button @click="handleCancelEdit" class="btn btn-ghost flex-1" :disabled="saving">
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
 
@@ -722,11 +1021,17 @@ export default {
         <template #left>
           <div class="h-full min-w-0 min-h-0">
             <BrowserViewer
+              v-if="isBrowserSession"
               :session="selectedSession"
               :meet-id="meetId"
               @ask-ai="onAskAiAboutPage"
               @send-annotations="onSendAnnotations"
               @share-session="onShareSession"
+            />
+            <DesktopViewer
+              v-else
+              :session="selectedSession"
+              @ask-ai="onAskAiAboutPage"
             />
           </div>
         </template>
@@ -904,7 +1209,7 @@ export default {
           <span>{{ showChat ? 'Focus chat' : 'Chat' }}</span>
         </button>
         <button class="btn btn-xs btn-ghost" @click="startEditingSession">
-          <i class="fa-solid fa-pen"></i> Rename
+          <i class="fa-solid fa-gear"></i> Settings
         </button>
         <button class="btn btn-xs btn-ghost" @click="handleRestartSession">
           <i class="fa-solid fa-rotate"></i> Restart
@@ -924,7 +1229,7 @@ export default {
     <modal
       v-if="showChatPicker"
       close
-      title="Chat with this browser"
+      title="Chat with this computer"
       @close="closeChatPicker"
     >
       <div class="flex flex-col gap-3 md:w-[34rem]">
@@ -1014,7 +1319,7 @@ export default {
     <ConfirmDialog
       v-if="showDeleteConfirm && selectedSession"
       title="Delete session"
-      :message="`Delete browser session '${selectedSession.name}'?`"
+      :message="`Delete computer session '${selectedSession.name}'?`"
       :details="selectedSession.url ? [selectedSession.url] : []"
       hint="The session, its container and the live browser state will be removed. This cannot be undone."
       icon="fa-trash"

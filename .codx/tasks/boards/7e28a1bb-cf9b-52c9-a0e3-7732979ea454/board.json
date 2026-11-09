@@ -12,21 +12,27 @@
       "title": "To Do",
       "color": "#FF5733",
       "folder": "To Do",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "ebe8ae21-89b3-42e7-ad80-0a0bae0c50de",
       "title": "In Progress",
       "color": "#33FF57",
       "folder": "In Progress",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "e9d1e776-3ada-4727-b86b-d12be156789a",
       "title": "Done",
       "color": "#3357FF",
       "folder": "Done",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "last_update": "2025-07-16T13:47:51.757Z",

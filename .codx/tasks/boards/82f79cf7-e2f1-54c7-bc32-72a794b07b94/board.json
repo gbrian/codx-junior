@@ -13,21 +13,27 @@
       "title": "Backlog",
       "color": "#FFC300",
       "folder": "Backlog",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "44e4909f-5544-4c47-a058-c5db8ae88e86",
       "title": "In Development",
       "color": "#DAF7A6",
       "folder": "In Development",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "63a81b6e-1b11-4f66-bc76-8f8952040e51",
       "title": "Completed",
       "color": "#C70039",
       "folder": "Completed",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "last_update": "2026-02-05T16:30:23.014Z",

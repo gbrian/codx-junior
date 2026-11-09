@@ -11,6 +11,9 @@ export const state = () => ({
   error: null,
   editingSessionId: null,
   showNewSessionForm: false,
+  // Image chosen from the standalone library browser, handed to the
+  // new-session dialog that opens right after it.
+  pendingLibraryImage: null,
   activityBySession: {},
   costBySession: {},
   loadingActivity: false,
@@ -38,6 +41,7 @@ export const getters = getterTree(state, {
     return state.costBySession[sessionId] || null
   },
 
+  pendingLibraryImage: state => state.pendingLibraryImage,
   isLoading: state => state.loading,
   isLoadingActivity: state => state.loadingActivity,
   isControlling: state => state.controlLoading,
@@ -106,6 +110,10 @@ export const mutations = mutationTree(state, {
     state.showNewSessionForm = show !== undefined ? show : !state.showNewSessionForm
   },
 
+  setPendingLibraryImage(state, image) {
+    state.pendingLibraryImage = image || null
+  },
+
   setActivity(state, { sessionId, activity }) {
     state.activityBySession = {
       ...state.activityBySession,
@@ -159,7 +167,7 @@ export const actions = actionTree(
       commit('setLoading', true)
       commit('clearError')
       try {
-        const response = await API.browsers.list()
+        const response = await API.computers.list()
         commit('setSessions', response?.sessions || [])
       } catch (error) {
         commit('setError', error.message || 'Failed to load sessions')
@@ -192,13 +200,37 @@ export const actions = actionTree(
           share_project: sessionData.share_project ?? null,
           share_folders: sessionData.share_folders || null,
           readonly: sessionData.readonly ?? null,
-          downloads_folder: sessionData.downloads_folder || null
+          downloads_folder: sessionData.downloads_folder || null,
+          kind: sessionData.kind || 'browser',
+          os_version: sessionData.os_version || null,
+          image: sessionData.image || null,
+          // The image library sends the provider and, for saved computers, the
+          // library item id. Without them the backend cannot apply the KasmVNC
+          // live-view profile or restore the saved computer/profile.
+          image_provider: sessionData.image_provider || null,
+          library_item_id: sessionData.library_item_id || null,
+          cpu_cores: sessionData.cpu_cores || null,
+          ram_size: sessionData.ram_size || null,
+          disk_size: sessionData.disk_size || null,
+          shm_size: sessionData.shm_size || null,
+          extra_env: sessionData.extra_env || null,
+          desktop_width: sessionData.desktop_width || null,
+          desktop_height: sessionData.desktop_height || null,
+          vnc_host: sessionData.vnc_host || null,
+          vnc_port: sessionData.vnc_port || null,
+          vnc_password: sessionData.vnc_password || null,
+          vnc_public_url: sessionData.vnc_public_url || null,
+          ssh_host: sessionData.ssh_host || null,
+          ssh_port: sessionData.ssh_port || null,
+          ssh_user: sessionData.ssh_user || null,
+          ssh_key_path: sessionData.ssh_key_path || null,
+          ssh_password: sessionData.ssh_password || null
         }
-        const session = await API.browsers.create(payload)
+        const session = await API.computers.create(payload)
         commit('addSession', session)
         commit('selectSession', session.id)
         commit('toggleNewSessionForm', false)
-        notify('success', `Browser session "${session.name}" created`)
+        notify('success', `${session.kind_label || "Computer"} session "${session.name}" created`)
         return session
       } catch (error) {
         commit('setError', error.message || 'Failed to create session')
@@ -210,12 +242,25 @@ export const actions = actionTree(
     async updateSession({ commit }, sessionData) {
       commit('clearError')
       try {
-        const session = await API.browsers.update(sessionData.id, {
-          name: sessionData.name
+        const payload = { name: sessionData.name }
+        if (sessionData.description !== undefined) {
+          payload.description = sessionData.description || null
+        }
+        // Advanced settings: only send fields the caller actually edited. An
+        // empty size/"" image clears the override; extra_env must be an object.
+        const advancedKeys = [
+          'image', 'cpu_cores', 'ram_size', 'disk_size', 'shm_size',
+          'extra_env', 'desktop_width', 'desktop_height'
+        ]
+        advancedKeys.forEach((key) => {
+          if (Object.prototype.hasOwnProperty.call(sessionData, key)) {
+            payload[key] = sessionData[key]
+          }
         })
+        const session = await API.computers.update(sessionData.id, payload)
         commit('updateSession', session)
         commit('clearEditingSession')
-        notify('success', `Browser session "${session.name}" updated`)
+        notify('success', `${session.kind_label || "Computer"} session "${session.name}" updated`)
         return session
       } catch (error) {
         commit('setError', error.message || 'Failed to update session')
@@ -225,25 +270,25 @@ export const actions = actionTree(
     },
 
     async stopSession({ commit }, sessionId) {
-      const session = await API.browsers.stop(sessionId)
+      const session = await API.computers.stop(sessionId)
       commit('updateSession', session)
-      notify('success', 'Browser session stopped')
+      notify('success', 'Computer session stopped')
       return session
     },
 
     async restartSession({ commit }, sessionId) {
-      const session = await API.browsers.restart(sessionId)
+      const session = await API.computers.restart(sessionId)
       commit('updateSession', session)
-      notify('success', 'Browser session restarted')
+      notify('success', 'Computer session restarted')
       return session
     },
 
     async deleteSession({ commit }, sessionId) {
       commit('clearError')
       try {
-        await API.browsers.delete(sessionId)
+        await API.computers.delete(sessionId)
         commit('deleteSession', sessionId)
-        notify('success', 'Browser session deleted')
+        notify('success', 'Computer session deleted')
       } catch (error) {
         commit('setError', error.message || 'Failed to delete session')
         notify('error', error.message || 'Failed to delete session')
@@ -266,6 +311,18 @@ export const actions = actionTree(
       }
     },
 
+    /** Open the new-session dialog with an image already chosen. */
+    openNewSessionFromLibrary({ commit }, image) {
+      commit('setPendingLibraryImage', image || null)
+      commit('toggleNewSessionForm', true)
+      commit('clearEditingSession')
+    },
+
+    /** The create dialog consumed the pending library image. */
+    clearPendingLibraryImage({ commit }) {
+      commit('setPendingLibraryImage', null)
+    },
+
     startEditingSession({ commit }, sessionId) {
       commit('setEditingSession', sessionId)
     },
@@ -276,7 +333,7 @@ export const actions = actionTree(
 
     async runSession({ commit }, sessionId) {
       try {
-        const session = await API.browsers.get(sessionId)
+        const session = await API.computers.get(sessionId)
         if (!session) throw new Error('Session not found')
         if (!session.vnc_path && session.vnc_url) {
           // Best-effort same-origin path for older persisted sessions.
@@ -302,7 +359,7 @@ export const actions = actionTree(
       if (!sessionId) return []
       commit('setLoadingActivity', true)
       try {
-        const response = await API.browsers.activity(sessionId, limit, { since, actor })
+        const response = await API.computers.activity(sessionId, limit, { since, actor })
         commit('setActivity', { sessionId, activity: response?.activity || [] })
         return response?.activity || []
       } catch (error) {
@@ -316,7 +373,7 @@ export const actions = actionTree(
     async loadCost({ commit }, sessionId) {
       if (!sessionId) return null
       try {
-        const cost = await API.browsers.cost(sessionId)
+        const cost = await API.computers.cost(sessionId)
         commit('setCost', { sessionId, cost })
         return cost
       } catch (error) {
@@ -366,7 +423,7 @@ export const actions = actionTree(
       if (!sessionId) return null
       commit('setControlLoading', true)
       try {
-        const response = await API.browsers.control(sessionId, 'take_control', {
+        const response = await API.computers.control(sessionId, 'take_control', {
           reason: 'User took control from the live view'
         })
         if (response?.session) commit('updateSession', response.session)
@@ -384,7 +441,7 @@ export const actions = actionTree(
       if (!sessionId) return null
       commit('setControlLoading', true)
       try {
-        const response = await API.browsers.control(sessionId, 'give_back')
+        const response = await API.computers.control(sessionId, 'give_back')
         if (response?.session) commit('updateSession', response.session)
         notify('success', 'Control returned to the AI')
         return response
@@ -398,7 +455,7 @@ export const actions = actionTree(
 
     async requestHandoff({ commit }, { sessionId, reason }) {
       if (!sessionId) return null
-      const response = await API.browsers.control(sessionId, 'handoff', { reason })
+      const response = await API.computers.control(sessionId, 'handoff', { reason })
       if (response?.session) commit('updateSession', response.session)
       return response
     },
@@ -412,7 +469,7 @@ export const actions = actionTree(
      */
     async ensureChat({ commit }, { sessionId, chatId = null, createNew = false } = {}) {
       if (!sessionId) return null
-      const response = await API.browsers.createChat(sessionId, chatId, createNew)
+      const response = await API.computers.createChat(sessionId, chatId, createNew)
       if (response?.session) {
         commit('updateSession', response.session)
       }
@@ -424,13 +481,13 @@ export const actions = actionTree(
     },
 
     async navigate({ dispatch }, { sessionId, url }) {
-      const result = await API.browsers.navigate(sessionId, url)
+      const result = await API.computers.navigate(sessionId, url)
       await dispatch('loadActivity', { sessionId, limit: 50 })
       return result
     },
 
     async pageAction({ dispatch }, { sessionId, action, payload = {} }) {
-      const result = await API.browsers.action(sessionId, { action, ...payload })
+      const result = await API.computers.action(sessionId, { action, ...payload })
       await dispatch('loadActivity', { sessionId, limit: 50 })
       return result
     },
@@ -441,20 +498,34 @@ export const actions = actionTree(
      * The selection is what the human highlighted in the live view; the active
      * element tells the AI which field the human was editing.
      */
-    async pageContext({}, sessionId) {
+    async pageContext({ state }, sessionId) {
       if (!sessionId) return null
-      const response = await API.browsers.action(sessionId, { action: 'snapshot' })
+      const session = state.sessions.find(item => item.id === sessionId)
+      if (session && session.kind && session.kind !== 'browser') {
+        // Desktops have no DOM/snapshot: send the OCR text plus the focused
+        // window title so "Ask AI" has the same context a page would give.
+        const response = await API.computers.screenshot(sessionId, { include_text: true, max_width: 1280 })
+        return {
+          url: null,
+          title: session.current_title || session.name,
+          selection: (response?.data?.text || '').slice(0, 4000),
+          active: null,
+          kind: session.kind
+        }
+      }
+      const response = await API.computers.action(sessionId, { action: 'snapshot' })
       const snapshot = response?.data?.snapshot || {}
       return {
         url: snapshot.url,
         title: snapshot.title,
         selection: snapshot.selection || '',
-        active: snapshot.active || null
+        active: snapshot.active || null,
+        kind: session?.kind || 'browser'
       }
     },
 
     async screenshot({ dispatch }, { sessionId, fullPage = true } = {}) {
-      const result = await API.browsers.screenshot(sessionId, fullPage)
+      const result = await API.computers.screenshot(sessionId, { full_page: fullPage })
       await dispatch('loadActivity', { sessionId, limit: 50 })
       return result
     }

@@ -11,7 +11,9 @@
       "title": "Project Map",
       "color": "#000000",
       "folder": "Project Map",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://i0.wp.com/klwightman.com/wp-content/uploads/2015/10/kfe6d.jpg?ssl=1",

@@ -11,28 +11,36 @@
       "title": "Todo",
       "color": "#94a3b8",
       "folder": "Todo",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "967cee43-1c3a-4d77-97fd-9e7efb1de43a",
       "title": "Doing",
       "color": "#3b82f6",
       "folder": "Doing",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "eadcaa0a-9070-4d32-bf10-5bd8a46ac734",
       "title": "On hold",
       "color": "#f59e0b",
       "folder": "On hold",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "8e2c0076-6e7e-4248-90a5-0967e506b398",
       "title": "Done",
       "color": "#22c55e",
       "folder": "Done",
-      "order": 3
+      "order": 3,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "description": ""

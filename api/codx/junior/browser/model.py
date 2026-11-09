@@ -1,26 +1,185 @@
 """
-BrowserSession — data model for browser session state.
+ComputerSession — data model for shared computer sessions.
 
-Stores session configuration and connection info, persisted in Chat.meta_data["browser"]
-and in session folder as <session_id>.session JSON file.
+A session is a **computer the user and the AI share**, not necessarily a
+browser: the same record describes a Chromium page (``kind="browser"``), a Linux
+desktop container, a Windows VM, a macOS VM or a remote machine reachable over
+VNC/SSH.  Every kind has one live view for the human and one control channel for
+the AI, so both actors operate on the same screen and the same state.
 
-A session is shared between chats: ``chat_ids`` holds every chat currently connected
-to the session while ``name`` is the human-readable label provided at creation.
+Persisted in Chat.meta_data["browser"] (legacy key, kept so existing chats keep
+working) and in the session folder as ``<session_id>.session`` JSON.
 
-The session also stores the **project folder mapping**: any number of project folders
-are bind mounted inside the browser container under ``/home/<project_name>/<folder>``
-and the browser's downloads are written into a project folder, so the user (live VNC
-view) and the AI exchange files with the project instead of being isolated in the
-container.
+A session is shared between chats: ``chat_ids`` holds every chat currently
+connected to the session while ``name`` is the human-readable label provided at
+creation.
+
+The session also stores the **project folder mapping**: any number of project
+folders are bind mounted inside the container under ``/home/<project_name>/<folder>``
+(and ``/shared`` for the Windows/macOS VMs) and downloads are written into a
+project folder, so the user (live view) and the AI exchange files with the
+project instead of being isolated in the container.
 """
 
 import json
 import os
+import re
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+#: Session kinds supported by the computer manager.
+#: ``browser`` keeps the original Chromium/CDP behaviour; the rest share a
+#: desktop with the AI through a screenshot/input backend.
+COMPUTER_KINDS = ("browser", "linux", "macos", "windows", "remote")
+#: Kinds backed by a Docker container owned by codx-junior.
+CONTAINER_KINDS = ("browser", "linux", "macos", "windows")
+#: Kinds that expose a graphical desktop (not a browser page).
+DESKTOP_KINDS = ("linux", "macos", "windows", "remote")
+#: Ways the AI can drive a session.
+CONTROL_MODES = ("cdp", "docker", "vnc", "ssh")
+
+KIND_ALIASES = {
+    "mac": "macos",
+    "macosx": "macos",
+    "osx": "macos",
+    "darwin": "macos",
+    "mac-os": "macos",
+    "win": "windows",
+    "win10": "windows",
+    "win11": "windows",
+    "ubuntu": "linux",
+    "debian": "linux",
+    "desktop": "linux",
+    "x11": "linux",
+    "vnc": "remote",
+    "ssh": "remote",
+    "server": "remote",
+}
+
+#: Capabilities advertised to the model per session kind.
+DEFAULT_CAPABILITIES = {
+    "browser": ["screenshot", "mouse", "keyboard", "shell", "files", "browser"],
+    "linux": ["screenshot", "ocr", "mouse", "keyboard", "shell", "files", "apps", "windows"],
+    "windows": ["screenshot", "ocr", "mouse", "keyboard", "files"],
+    "macos": ["screenshot", "ocr", "mouse", "keyboard", "files"],
+    "remote": ["screenshot", "ocr", "mouse", "keyboard"],
+}
+
+#: Resource sizes accepted for RAM, disk and shared memory (``8G``, ``1.5G``,
+#: ``64GiB``...).  A unit is required: Docker treats a bare number as bytes.
+SIZE_PATTERN = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*([KMGT])(?:I?B)?\s*$", re.IGNORECASE)
+#: Accepted names for extra image environment variables.
+ENV_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+#: Upper bounds for the advanced settings (they reach ``docker run``).
+MAX_EXTRA_ENV = 50
+MAX_ENV_VALUE_LENGTH = 4096
+
+
+def normalize_size(value: Any, field: str = "size") -> Optional[str]:
+    """
+    Normalize a resource size (``"8g"`` -> ``"8G"``, ``"64GiB"`` -> ``"64G"``).
+
+    Args:
+        value: User supplied size; ``None``/empty clears it.
+        field: Field name used in the error message.
+
+    Returns:
+        Optional[str]: Normalized size or None.
+
+    Raises:
+        ValueError: When the value is not a positive number with a unit.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    match = SIZE_PATTERN.match(text)
+    if not match:
+        raise ValueError(
+            f"Invalid {field} '{value}'. Use a positive number with a unit, "
+            "for example 4G, 512M or 1.5G."
+        )
+    number, unit = match.group(1), match.group(2).upper()
+    if float(number) <= 0:
+        raise ValueError(f"Invalid {field} '{value}': it must be greater than zero")
+    return f"{number}{unit}"
+
+
+def normalize_extra_env(value: Any) -> Dict[str, str]:
+    """
+    Normalize the advanced image environment variables.
+
+    Accepts a mapping, a list of ``KEY=VALUE`` strings or a multi-line string
+    (as typed in the UI).  Blank lines and ``#`` comments are ignored.
+
+    Raises:
+        ValueError: When a name/value is invalid or the list is too long.
+    """
+    if value is None or value == "":
+        return {}
+    entries: List[Any]
+    if isinstance(value, dict):
+        entries = list(value.items())
+    elif isinstance(value, str):
+        entries = [line for line in value.splitlines() if line.strip() and not line.strip().startswith("#")]
+    elif isinstance(value, (list, tuple)):
+        entries = list(value)
+    else:
+        raise ValueError("extra_env must be an object, a list of KEY=VALUE pairs or a string")
+
+    result: Dict[str, str] = {}
+    for entry in entries:
+        if isinstance(entry, dict):
+            name = entry.get("name") or entry.get("key")
+            raw_value = entry.get("value")
+        elif isinstance(entry, str):
+            name, separator, raw_value = entry.partition("=")
+            if not separator:
+                raise ValueError(f"Invalid environment variable '{entry}': use KEY=VALUE")
+        elif isinstance(entry, (list, tuple)) and len(entry) == 2:
+            name, raw_value = entry
+        else:
+            raise ValueError(f"Invalid environment variable entry: {entry!r}")
+
+        name = str(name or "").strip()
+        if not ENV_NAME_PATTERN.match(name):
+            raise ValueError(f"Invalid environment variable name '{name}'")
+        text_value = "" if raw_value is None else str(raw_value)
+        if len(text_value) > MAX_ENV_VALUE_LENGTH:
+            raise ValueError(
+                f"Environment variable '{name}' is too long "
+                f"(max {MAX_ENV_VALUE_LENGTH} characters)"
+            )
+        result[name] = text_value
+
+    if len(result) > MAX_EXTRA_ENV:
+        raise ValueError(f"Too many environment variables (max {MAX_EXTRA_ENV})")
+    return result
+
+
+def normalize_kind(value: Optional[str], default: str = "browser") -> str:
+    """Normalize a user supplied session kind (``mac`` -> ``macos``)."""
+    kind = str(value or default or "browser").strip().lower().replace("_", "-")
+    kind = KIND_ALIASES.get(kind, kind)
+    if kind not in COMPUTER_KINDS:
+        raise ValueError(
+            f"Unknown computer kind '{value}'. Use one of: {', '.join(COMPUTER_KINDS)}"
+        )
+    return kind
+
+
+def default_control(kind: str) -> str:
+    """Return the control channel used by a session kind by default."""
+    if kind == "browser":
+        return "cdp"
+    if kind == "linux":
+        return "docker"
+    return "vnc"
 
 
 class SharedFolder(BaseModel):
@@ -119,22 +278,27 @@ class SharedFolder(BaseModel):
 
 class BrowserSession(BaseModel):
     """
-    Represents the state of a Chromium co-browsing session running in Docker.
+    Represents the state of a shared **computer** session.
 
-    Stores connection details, ports, and session metadata.
-    Persisted as JSON in Chat.meta_data["browser"] and as file in session folder.
+    - ``kind="browser"``: a Chromium container driven through CDP;
+    - ``kind="linux"``: a Linux desktop container driven through ``docker exec``
+      (xdotool + X11 screenshots);
+    - ``kind="windows"`` / ``macos``: a VM container driven through its VNC
+      framebuffer (QEMU/dockurr), with an optional direct VNC endpoint;
+    - ``kind="remote"``: an existing machine reachable over VNC (and optionally
+      SSH), e.g. a physical Mac used for iOS development.
 
-    A single session may be connected to **several chats** (``chat_ids``); the
-    ``name`` is supplied by the caller when the session is created.  The same
-    browser is displayed to users (live VNC view) and automated by the AI
-    (Chrome DevTools Protocol), so both operate on the exact same page.
+    The user sees the same machine through the live view (Selkies iframe or the
+    built-in noVNC viewer); the AI drives it through the control channel, so
+    both operate on exactly the same screen and state.
 
     Files are shared with the project through bind mounts:
 
     - ``shared_folders``: every project folder mounted in the container, laid out
-      under ``home_path`` (``/home/<project_name>``);
+      under ``home_path`` (``/home/<project_name>``), or ``/shared`` for the
+      Windows/macOS VMs (``guest_share_path`` tells the model where it appears);
     - ``downloads_path`` (host) mounted/known as ``downloads_mount``, where
-      everything the browser downloads is saved.
+      everything saved by the AI/user is written.
     """
 
     id: Optional[str] = Field(
@@ -148,6 +312,95 @@ class BrowserSession(BaseModel):
     description: Optional[str] = Field(
         default=None,
         description="Optional free-form description of the session"
+    )
+    kind: str = Field(
+        default="browser",
+        description="Session kind: browser, linux, macos, windows or remote"
+    )
+    control: Optional[str] = Field(
+        default=None,
+        description="AI control channel: cdp, docker, vnc or ssh"
+    )
+    os_version: Optional[str] = Field(
+        default=None,
+        description="OS release/version label (e.g. '11' for Windows 11, '15' for macOS)"
+    )
+    image: Optional[str] = Field(
+        default=None,
+        description="Docker image used to start the session (container kinds)"
+    )
+    image_provider: Optional[str] = Field(
+        default=None,
+        description="Image provider: linuxserver, kasmweb, dockurr or custom"
+    )
+    library_item_id: Optional[str] = Field(
+        default=None,
+        description="Saved computer library item this session was started from"
+    )
+    library_item_name: Optional[str] = Field(
+        default=None,
+        description="Human-readable name of the saved computer used at creation"
+    )
+    live_view: Optional[str] = Field(
+        default=None,
+        description="Human live view transport: selkies, kasmvnc, vnc or screenshot"
+    )
+    live_scheme: Optional[str] = Field(
+        default=None,
+        description="Scheme of the live view service (http/https)"
+    )
+    live_port: Optional[int] = Field(
+        default=None,
+        description="Container port of the live view service"
+    )
+    strip_prefix: bool = Field(
+        default=False,
+        description="Strip the public path prefix when proxying the live view"
+    )
+    viewer_user: Optional[str] = Field(
+        default=None,
+        description="Login user shown to the human for the live view (KasmVNC)"
+    )
+    viewer_password: Optional[str] = Field(
+        default=None,
+        description="Login password for the live view (never serialized to clients)"
+    )
+    cpu_cores: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=128,
+        description=(
+            "Virtual CPUs for the machine. VM images receive it as CPU_CORES; "
+            "browser/Linux containers get a Docker --cpus limit."
+        ),
+    )
+    ram_size: Optional[str] = Field(
+        default=None,
+        description=(
+            "RAM for the machine (e.g. '8G'). VM images receive it as RAM_SIZE; "
+            "browser/Linux containers get a Docker --memory limit."
+        ),
+    )
+    disk_size: Optional[str] = Field(
+        default=None,
+        description=(
+            "Disk size for Windows/macOS VM images (e.g. '64G'). It is only "
+            "used when the VM disk is created, so it cannot shrink later."
+        ),
+    )
+    shm_size: Optional[str] = Field(
+        default=None,
+        description=(
+            "Docker shared-memory size for browser/Linux containers "
+            "(e.g. '2G'; default 2G)."
+        ),
+    )
+    extra_env: Dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Extra environment variables passed to the image (advanced). "
+            "Variables owned by codx-junior (SUBFOLDER, VERSION, ...) win."
+        ),
     )
     container_id: Optional[str] = Field(
         default=None,
@@ -179,11 +432,75 @@ class BrowserSession(BaseModel):
     )
     engine: str = Field(
         default="chromium",
-        description="Browser engine powering the session (chromium)"
+        description="Engine powering the session: chromium, desktop or remote"
     )
     browser_profile_path: Optional[str] = Field(
         default=None,
-        description="Path to the persistent Chromium profile (cookies, logins, etc.)"
+        description="Path to the persistent browser/desktop profile (cookies, logins, home)"
+    )
+    profile_path: Optional[str] = Field(
+        default=None,
+        description="Generic alias of browser_profile_path (desktop containers too)"
+    )
+    display: Optional[str] = Field(
+        default=None,
+        description="X11 display inside the container (linux desktop, e.g. ':1')"
+    )
+    desktop_width: int = Field(
+        default=1920,
+        description="Desktop width in pixels (used to scale screenshot coordinates)"
+    )
+    desktop_height: int = Field(
+        default=1080,
+        description="Desktop height in pixels (used to scale screenshot coordinates)"
+    )
+    vnc_host: Optional[str] = Field(
+        default=None,
+        description="Host the AI's VNC control connection reaches (container DNS or remote host)"
+    )
+    vnc_port: int = Field(
+        default=5900,
+        description="VNC/RFB port of the desktop"
+    )
+    vnc_password: Optional[str] = Field(
+        default=None,
+        description="VNC password (never serialized to clients/logs)"
+    )
+    vnc_public_url: Optional[str] = Field(
+        default=None,
+        description="Optional viewer URL for the human (noVNC/Selkies)"
+    )
+    vnc_public_port: Optional[int] = Field(
+        default=None,
+        description="Host port published for a user-provided VNC client"
+    )
+    ssh_host: Optional[str] = Field(
+        default=None,
+        description="SSH host for shell access (remote sessions)"
+    )
+    ssh_port: int = Field(
+        default=22,
+        description="SSH port (remote sessions)"
+    )
+    ssh_user: Optional[str] = Field(
+        default=None,
+        description="SSH username (remote sessions)"
+    )
+    ssh_key_path: Optional[str] = Field(
+        default=None,
+        description="Host path of the SSH private key used for shell access"
+    )
+    ssh_password: Optional[str] = Field(
+        default=None,
+        description="SSH password (never serialized to clients/logs)"
+    )
+    guest_share_path: Optional[str] = Field(
+        default=None,
+        description="Where the shared folder appears inside the guest (e.g. 'Z:\\\\' for Windows)"
+    )
+    capabilities: List[str] = Field(
+        default_factory=list,
+        description="Actions this session supports (screenshot, mouse, keyboard, shell, files...)"
     )
     project_name: Optional[str] = Field(
         default=None,
@@ -282,11 +599,13 @@ class BrowserSession(BaseModel):
     @classmethod
     def _migrate_legacy_fields(cls, data: Any) -> Any:
         """
-        Backwards compatibility for persisted sessions.
+        Backwards compatibility and defaults for persisted sessions.
 
         Older session records stored a single ``chat_id`` and a single project
         share (``shared_project_path``/``shared_project_mount``); both are mapped
         to ``chat_ids`` and ``shared_folders`` so existing sessions keep working.
+        Records created before computer sessions have no ``kind`` and are
+        therefore browsers.
         """
         if not isinstance(data, dict):
             return data
@@ -301,7 +620,57 @@ class BrowserSession(BaseModel):
                 "mount_path": data.get("shared_project_mount") or "/project",
                 "readonly": bool(data.get("shared_project_readonly")),
             }]
+
+        kind = normalize_kind(data.get("kind"))
+        data["kind"] = kind
+        control = str(data.get("control") or "").strip().lower()
+        if control not in CONTROL_MODES:
+            control = default_control(kind)
+        # The control channel is dictated by the kind: browsers only speak CDP,
+        # Windows/macOS/remote desktops only speak VNC, Linux may use its
+        # in-container agent (default) or VNC for a custom image.
+        if kind == "browser":
+            control = "cdp"
+        elif kind == "linux":
+            control = "vnc" if control == "vnc" else "docker"
+        else:
+            control = "vnc"
+        data["control"] = control
+        if not data.get("capabilities"):
+            data["capabilities"] = list(DEFAULT_CAPABILITIES.get(kind, []))
+        # Nullable persisted values must not break reloads: ports and sizes have
+        # concrete defaults.
+        for key, default in (("vnc_port", 5900), ("ssh_port", 22),
+                             ("desktop_width", 1920), ("desktop_height", 1080)):
+            if data.get(key) is None:
+                data[key] = default
+        if not data.get("engine"):
+            data["engine"] = "chromium" if kind == "browser" else (
+                "remote" if kind == "remote" else "desktop"
+            )
+        # Generic profile path mirrors the legacy browser field both ways.
+        if data.get("profile_path") and not data.get("browser_profile_path"):
+            data["browser_profile_path"] = data["profile_path"]
+        if data.get("browser_profile_path") and not data.get("profile_path"):
+            data["profile_path"] = data["browser_profile_path"]
+        # Advanced resource settings are optional: an empty form field or 0
+        # means "use the image/manager default" instead of failing validation.
+        for key in ("cpu_cores", "ram_size", "disk_size", "shm_size"):
+            if data.get(key) in ("", 0, "0"):
+                data[key] = None
         return data
+
+    @field_validator("ram_size", "disk_size", "shm_size", mode="before")
+    @classmethod
+    def _normalize_resource_sizes(cls, value: Any, info) -> Optional[str]:
+        """Normalize/validate the advanced size fields (``8g`` -> ``8G``)."""
+        return normalize_size(value, info.field_name)
+
+    @field_validator("extra_env", mode="before")
+    @classmethod
+    def _normalize_extra_env(cls, value: Any) -> Dict[str, str]:
+        """Accept a mapping, KEY=VALUE lines or a list from the UI/API."""
+        return normalize_extra_env(value)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -309,8 +678,58 @@ class BrowserSession(BaseModel):
             self.id = str(uuid4())
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert session to dictionary for JSON serialization."""
+        """Convert session to dictionary for JSON serialization/persistence."""
         return self.model_dump(exclude_none=False)
+
+    def to_public_dict(self) -> Dict[str, Any]:
+        """
+        Return the session as safe to send to a browser client.
+
+        Secrets (VNC/SSH passwords and the SSH key path) stay on disk: the
+        public record is what the UI, Socket.IO events and API responses use.
+        """
+        data = self.to_dict()
+        for secret in ("vnc_password", "ssh_password", "ssh_key_path", "viewer_password"):
+            data.pop(secret, None)
+        return data
+
+    # -------------------------------------------------------------------------
+    # Computer kind helpers
+    # -------------------------------------------------------------------------
+    @property
+    def is_browser(self) -> bool:
+        """True for the original Chromium/CDP session."""
+        return self.kind == "browser"
+
+    @property
+    def is_desktop(self) -> bool:
+        """True for any session exposing a graphical desktop."""
+        return self.kind in DESKTOP_KINDS
+
+    @property
+    def is_remote(self) -> bool:
+        """True when the session points at an existing machine (no container)."""
+        return self.kind == "remote"
+
+    @property
+    def kind_label(self) -> str:
+        """Human label used by the UI (``macOS``, ``Windows``, ``Linux``...)."""
+        return {
+            "browser": "Browser",
+            "linux": "Linux",
+            "macos": "macOS",
+            "windows": "Windows",
+            "remote": "Remote",
+        }.get(self.kind, self.kind.title())
+
+    @property
+    def has_shell(self) -> bool:
+        """True when ``run_command`` can execute commands on the machine."""
+        return "shell" in (self.capabilities or [])
+
+    def supports(self, capability: str) -> bool:
+        """Return True when the session advertises *capability*."""
+        return (capability or "").lower() in (self.capabilities or [])
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "BrowserSession":
@@ -335,6 +754,72 @@ class BrowserSession(BaseModel):
         self.last_action = action
         self.last_action_at = datetime.utcnow().isoformat()
         self.mark_active()
+
+    # -------------------------------------------------------------------------
+    # Advanced settings (image/resources) on an existing session
+    # -------------------------------------------------------------------------
+    def apply_advanced_settings(self, updates: Dict[str, Any]) -> None:
+        """
+        Validate and apply advanced settings to an existing session.
+
+        Only the keys present in *updates* change, which lets the API update a
+        single setting without resending the rest.  The values are validated
+        exactly like at creation (sizes normalized, env names checked); an
+        invalid update raises ``ValueError`` and leaves the session untouched.
+
+        Resource changes are stored on the record and take effect the next time
+        the container is recreated (``restart``), because Docker cannot change
+        the memory/CPU/disk of a running container.
+        """
+        allowed = {
+            "image",
+            "cpu_cores",
+            "ram_size",
+            "disk_size",
+            "shm_size",
+            "extra_env",
+            "desktop_width",
+            "desktop_height",
+        }
+        pending: Dict[str, Any] = {}
+        for key, value in (updates or {}).items():
+            if key not in allowed:
+                continue
+            if key in ("ram_size", "disk_size", "shm_size"):
+                pending[key] = normalize_size(value, key)
+            elif key == "extra_env":
+                pending[key] = normalize_extra_env(value)
+            elif key == "image":
+                pending[key] = (str(value).strip() or None) if value is not None else None
+            elif key == "cpu_cores":
+                if value in (None, "", 0, "0"):
+                    pending[key] = None
+                else:
+                    cpus = int(value)
+                    if cpus < 1 or cpus > 128:
+                        raise ValueError("cpu_cores must be between 1 and 128")
+                    pending[key] = cpus
+            elif key == "desktop_width":
+                if value in (None, "", 0, "0"):
+                    pending[key] = 1920
+                else:
+                    width = int(value)
+                    if width < 640 or width > 7680:
+                        raise ValueError("desktop_width must be between 640 and 7680")
+                    pending[key] = width
+            elif key == "desktop_height":
+                if value in (None, "", 0, "0"):
+                    pending[key] = 1080
+                else:
+                    height = int(value)
+                    if height < 480 or height > 4320:
+                        raise ValueError("desktop_height must be between 480 and 4320")
+                    pending[key] = height
+
+        for key, value in pending.items():
+            setattr(self, key, value)
+        if pending:
+            self.mark_active()
 
     # -------------------------------------------------------------------------
     # Co-browsing control
@@ -499,7 +984,13 @@ class BrowserSession(BaseModel):
     def __repr__(self) -> str:
         return (
             f"BrowserSession(id={self.id[:8]}, "
+            f"kind={self.kind}, "
             f"name={self.name!r}, "
             f"status={self.status}, container={self.container_name}, "
             f"shares={len(self.shared_folders)})"
         )
+
+#: The generic name used by the computer-session code and the new API.  The
+#: original class name is kept as an alias so every existing import, persisted
+#: record and test keeps working.
+ComputerSession = BrowserSession

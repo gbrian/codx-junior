@@ -11,7 +11,9 @@
       "title": "To Do",
       "color": "#000000",
       "folder": "To Do",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://jermsmit.com/wp-content/uploads/2023/11/2023-11-20_23-09-46.png",

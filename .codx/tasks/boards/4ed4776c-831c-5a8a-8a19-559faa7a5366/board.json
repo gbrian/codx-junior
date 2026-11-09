@@ -11,7 +11,9 @@
       "title": "Installer",
       "color": "#000000",
       "folder": "Installer",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://static-blog.onlyoffice.com/wp-content/uploads/2025/01/27135827/desktop-installer-1024x517.jpg",

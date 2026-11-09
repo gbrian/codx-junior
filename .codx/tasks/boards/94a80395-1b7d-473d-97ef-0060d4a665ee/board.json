@@ -1,39 +1,47 @@
 {
+  "id": "94a80395-1b7d-473d-97ef-0060d4a665ee",
   "title": "Run: Fix chat intellisense latency on multi sub-project repos",
   "type": "sprint",
+  "parent_id": null,
+  "folder": "Run: Fix chat intellisense latency on multi sub-project repos",
+  "order": 125,
   "columns": [
     {
       "id": "5b2cb489-ef74-44fe-a96d-0c3d07739e34",
       "title": "To do",
       "color": "",
       "folder": "To do",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "36417d3f-3669-4fcd-9c7c-fe170c4e6c48",
       "title": "Doing",
       "color": "",
       "folder": "Doing",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "4866315b-dfb4-4f15-9993-34bf72d5adc9",
       "title": "On hold",
       "color": "",
       "folder": "On hold",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "bc7fc24d-e5a4-4e52-8d20-336151f57484",
       "title": "Done",
       "color": "",
       "folder": "Done",
-      "order": 3
+      "order": 3,
+      "project_id": null,
+      "profiles": []
     }
   ],
-  "id": "94a80395-1b7d-473d-97ef-0060d4a665ee",
-  "description": "",
-  "parent_id": null,
-  "folder": "Run: Fix chat intellisense latency on multi sub-project repos",
-  "order": 125
+  "description": ""
 }

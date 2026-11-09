@@ -13,7 +13,9 @@
       "title": "TO DO",
       "color": "#3D556E",
       "folder": "TO DO",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "last_update": "2025-03-10T06:45:41.695Z",

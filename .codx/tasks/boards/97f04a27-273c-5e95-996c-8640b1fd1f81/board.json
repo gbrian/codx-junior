@@ -12,21 +12,27 @@
       "title": "To do",
       "color": "#000000",
       "folder": "To do",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "f7f96d29-a3ec-474a-8bc2-f70ece32caab",
       "title": "Doing",
       "color": "#F39C19",
       "folder": "Doing",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "dd765be4-7806-4d1b-a911-ecd281346ade",
       "title": "ChatDB",
       "color": "#27AF60",
       "folder": "ChatDB",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "last_update": "2026-06-29T18:40:50.146Z",

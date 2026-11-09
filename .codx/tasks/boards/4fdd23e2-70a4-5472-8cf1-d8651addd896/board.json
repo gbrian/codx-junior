@@ -15,14 +15,18 @@
       "title": "Website",
       "color": "#000000",
       "folder": "Website",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "955d697d-14fc-425e-98ee-e8a90d293cff",
       "title": "A column!",
       "color": "#8b5cf6",
       "folder": "A column!",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ]
 }

@@ -15,21 +15,27 @@
       "title": "Design",
       "color": "#000000",
       "folder": "Design",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "a44d720e-c626-4aae-b19d-79493d89dd75",
       "title": "Task manager",
       "color": "#000000",
       "folder": "Task manager",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "fc979062-c86b-4aa0-a25f-037d841b7297",
       "title": "Voice management",
       "color": "#000000",
       "folder": "Voice management",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     }
   ]
 }

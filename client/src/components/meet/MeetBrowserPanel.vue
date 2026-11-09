@@ -77,7 +77,7 @@
         <i class="fa-regular fa-compass text-4xl text-white/20" aria-hidden="true"></i>
         <div>
           <p class="text-sm text-white/60">No browser sessions yet</p>
-          <p class="mt-1 text-xs text-white/30">Create one in Browser sessions, then share it here.</p>
+          <p class="mt-1 text-xs text-white/30">Create one in Computer sessions, then share it here.</p>
         </div>
       </div>
       <div v-else class="space-y-1.5">

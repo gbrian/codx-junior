@@ -11,7 +11,9 @@
       "title": "Front",
       "color": "#000000",
       "folder": "Front",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://arcnet.in/wp-content/uploads/2025/04/AI-driven-productivity-banner-image.jpg",

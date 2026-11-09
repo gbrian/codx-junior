@@ -479,6 +479,9 @@ class UserSecurityManager():
             existing_user.workspace_mode = getattr(
                 user, "workspace_mode", existing_user.workspace_mode
             ) or WORKSPACE_MODE_AUTO
+            existing_user.language = getattr(
+                user, "language", existing_user.language
+            ) or "auto"
 
             if password:
                 # Prevent password update for GitHub-only users

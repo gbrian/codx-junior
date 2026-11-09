@@ -168,7 +168,7 @@ export const APPS = {
   },
 
   'browser-sessions': {
-    id: 'browser-sessions', title: 'Browser Sessions', component: 'browser-sessions', icon: 'fa-regular fa-compass',
+    id: 'browser-sessions', title: 'Computer Sessions', component: 'browser-sessions', icon: 'fa-solid fa-desktop',
     route: () => ({ name: 'browsers' })
   },
 

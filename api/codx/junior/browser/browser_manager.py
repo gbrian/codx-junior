@@ -1,8 +1,12 @@
 """
-BrowserManager — CRUD operations for browser sessions.
+BrowserManager / ComputerManager — CRUD and lifecycle for computer sessions.
 
-Manages session lifecycle: create, read, update, delete.
-Handles persistence in Chat.meta_data and Docker container management.
+A session is a machine shared by the user and the AI.  ``kind="browser"`` keeps
+the original Chromium/CDP behaviour; ``linux`` runs a desktop container driven
+through ``docker exec``; ``windows``/``macos`` run QEMU VMs driven through VNC;
+``remote`` points at an existing VNC/SSH machine.  This class owns session
+persistence, chat linking, activity audit, folder sharing and the per-session
+runtime (BrowserRuntime for browsers, DesktopRuntime for desktops).
 
 Follows the workspace pattern:
     .codx/browser_sessions/<session_id>/<session_id>.session
@@ -56,6 +60,7 @@ import logging
 import os
 import json
 import asyncio
+import secrets
 import shutil
 import threading
 import time
@@ -278,6 +283,29 @@ class BrowserManager:
         readonly: Optional[bool] = None,
         downloads_folder: Optional[str] = None,
         downloads_mount: Optional[str] = None,
+        kind: str = "browser",
+        os_version: Optional[str] = None,
+        image: Optional[str] = None,
+        image_provider: Optional[str] = None,
+        library_item_id: Optional[str] = None,
+        vnc_host: Optional[str] = None,
+        vnc_port: Optional[int] = None,
+        vnc_password: Optional[str] = None,
+        vnc_public_url: Optional[str] = None,
+        ssh_host: Optional[str] = None,
+        ssh_port: Optional[int] = None,
+        ssh_user: Optional[str] = None,
+        ssh_key_path: Optional[str] = None,
+        ssh_password: Optional[str] = None,
+        guest_share_path: Optional[str] = None,
+        control: Optional[str] = None,
+        cpu_cores: Optional[int] = None,
+        ram_size: Optional[str] = None,
+        disk_size: Optional[str] = None,
+        shm_size: Optional[str] = None,
+        extra_env: Optional[Dict[str, str]] = None,
+        desktop_width: Optional[int] = None,
+        desktop_height: Optional[int] = None,
     ) -> BrowserSession:
         """
         Create and start a new browser session.
@@ -296,6 +324,29 @@ class BrowserManager:
             downloads_folder: Project-relative folder receiving the downloads
                 (default ``.codx/browser_downloads/<session_id>``).
             downloads_mount: Container path forcing a dedicated downloads mount.
+            kind: ``browser`` (default), ``linux``, ``windows``, ``macos`` or
+                ``remote``.  See :class:`BrowserSession`.
+            os_version: OS release for VM images (Windows 11, macOS 15...).
+            image: Docker image override (container kinds).
+            image_provider: linuxserver, kasmweb or custom. Inferred from
+                ``image`` when omitted.
+            library_item_id: Start from a saved computer in the project library.
+                The saved image/live-view/defaults take precedence over
+                ``image``/``image_provider``.
+            vnc_host: Remote VNC host (``remote`` kind; also inferred for VMs).
+            vnc_port: Remote VNC port (default 5900).
+            vnc_password: Remote VNC password.
+            vnc_public_url: Optional viewer URL supplied by the user.
+            ssh_host/ssh_port/ssh_user/ssh_key_path/ssh_password: Optional SSH
+                endpoint used by ``run_command`` on remote sessions.
+            guest_share_path: Where the shared folder appears in a VM guest.
+            control: Force a control channel (normally inferred from ``kind``).
+            cpu_cores: vCPUs for the machine (advanced settings).
+            ram_size: RAM size for the machine, e.g. ``"8G"`` (advanced).
+            disk_size: Disk size for a Windows/macOS VM image, e.g. ``"64G"``.
+            shm_size: Docker shared memory for browser/Linux containers.
+            extra_env: Extra environment variables passed to the image.
+            desktop_width/desktop_height: Desktop/browser window size in pixels.
 
         Returns:
             Created BrowserSession
@@ -311,17 +362,132 @@ class BrowserManager:
                 f"({self.docker_manager.MAX_SESSIONS}); delete an old session first."
             )
 
+        from codx.junior.browser.model import normalize_kind
+        from codx.junior.computer.images import resolve_image
+        from codx.junior.computer.library import (
+            restore_profile,
+            saved_library_for,
+        )
+
+        session_kind = normalize_kind(kind)
+        image = (image or "").strip() or None
+        image_provider = (image_provider or "").strip().lower() or None
+        image_spec = None
+        library_item = None
+        library = None
+        if library_item_id:
+            library = saved_library_for(self)
+            library_item = library.get(library_item_id)
+            if not library_item:
+                raise ValueError("Saved computer not found")
+            if library_item.kind != "linux":
+                raise ValueError(
+                    f"Saved computer kind '{library_item.kind}' is not supported for new sessions"
+                )
+            session_kind = normalize_kind(library_item.kind)
+            image = library_item.image
+            image_provider = library_item.provider
+            # Apply the saved resource/env shape only where the caller did not
+            # provide an explicit value.
+            defaults = library_item.defaults or {}
+            cpu_cores = cpu_cores if cpu_cores is not None else defaults.get("cpu_cores")
+            ram_size = ram_size if ram_size is not None else defaults.get("ram_size")
+            disk_size = disk_size if disk_size is not None else defaults.get("disk_size")
+            shm_size = shm_size if shm_size is not None else defaults.get("shm_size")
+            desktop_width = desktop_width or defaults.get("desktop_width")
+            desktop_height = desktop_height or defaults.get("desktop_height")
+            extra_env = {
+                **(defaults.get("extra_env") or {}),
+                **(extra_env or {}),
+            }
+        elif session_kind == "linux":
+            # Resolve before creating the record: the image decides the live
+            # view (Selkies/KasmVNC), its port/scheme and the Docker profile.
+            image_spec = resolve_image(
+                image or os.environ.get("CODX_COMPUTER_LINUX_IMAGE"),
+                provider=image_provider,
+                kind=session_kind,
+            )
+            image = image_spec.image
         session = BrowserSession(
             name=name,
             description=(description or "").strip() or None,
             chat_ids=[chat_id] if chat_id else [],
             current_url=(initial_url or "").strip() or None,
+            kind=session_kind,
+            os_version=(os_version or "").strip() or None,
+            image=(image or "").strip() or None,
+            control=(control or "").strip().lower() or None,
+            vnc_host=(vnc_host or "").strip() or None,
+            vnc_port=int(vnc_port or 5900),
+            vnc_password=vnc_password or None,
+            vnc_public_url=(vnc_public_url or "").strip() or None,
+            ssh_host=(ssh_host or "").strip() or None,
+            ssh_port=int(ssh_port or 22),
+            ssh_user=(ssh_user or "").strip() or None,
+            ssh_key_path=(ssh_key_path or "").strip() or None,
+            ssh_password=ssh_password or None,
+            guest_share_path=(guest_share_path or "").strip() or None,
+            cpu_cores=cpu_cores,
+            ram_size=(ram_size or "").strip() or None,
+            disk_size=(disk_size or "").strip() or None,
+            shm_size=(shm_size or "").strip() or None,
+            extra_env=extra_env or {},
+            desktop_width=desktop_width or 1920,
+            desktop_height=desktop_height or 1080,
         )
+        if image_spec is not None:
+            session.image = image_spec.image
+            session.image_provider = image_spec.provider
+            session.live_view = image_spec.live_view
+            session.live_port = image_spec.live_port
+            session.live_scheme = image_spec.live_scheme
+            session.strip_prefix = image_spec.strip_prefix
+            session.viewer_user = image_spec.viewer_user
+            if image_spec.provider == "kasmweb" and not session.viewer_password:
+                session.viewer_password = secrets.token_urlsafe(9)
+        if library_item is not None:
+            session.library_item_id = library_item.id
+            session.library_item_name = library_item.name
+            session.image = library_item.image
+            session.image_provider = library_item.provider
+            session.live_view = library_item.live_view
+            session.live_port = library_item.live_port
+            session.live_scheme = library_item.live_scheme
+            session.strip_prefix = bool(library_item.strip_prefix)
+            session.control = library_item.control or session.control
+            session.viewer_user = library_item.viewer_user
+            if (library_item.provider or "").lower() == "kasmweb" and not session.viewer_password:
+                session.viewer_password = secrets.token_urlsafe(9)
+        if session.ssh_host and "shell" not in (session.capabilities or []):
+            session.capabilities = [*(session.capabilities or []), "shell"]
         if not session.name:
-            session.name = f"Browser {session.id[:8]}"
+            session.name = f"{session.kind_label} {session.id[:8]}"
 
         session_folder = self._session_folder_path(session.id)
         os.makedirs(session_folder, exist_ok=True)
+
+        if session.kind == "remote":
+            if not session.vnc_host:
+                raise ValueError("Remote computer sessions require vnc_host")
+            session.status = "running"
+            session.vnc_url = session.vnc_public_url
+            session.engine = "remote"
+            session.control = "vnc"
+            session.mark_active()
+            self._save_session_file(session)
+            self.log_activity(
+                session,
+                actor="system",
+                action="create",
+                chat_id=chat_id,
+                params={
+                    "kind": "remote",
+                    "vnc": f"{session.vnc_host}:{session.vnc_port}",
+                    "ssh": session.ssh_host or None,
+                },
+            )
+            return session
 
         # The project folders (and the downloads folder) must be mapped before
         # the container is created: docker run mounts them.
@@ -334,18 +500,26 @@ class BrowserManager:
             downloads_mount=downloads_mount,
         )
 
-        # Chromium reads its download directory at launch, so the mapped folder
-        # must reach the profile *before* the container is created. Without this
-        # the downloads only followed the (transient, per-connection) CDP
-        # override and ended up in the profile folder instead of the project.
-        self._prepare_downloads(session)
+        if session.kind == "browser":
+            # Chromium reads its download directory at launch, so the mapped
+            # folder must reach the profile *before* the container is created.
+            self._prepare_downloads(session)
+
+        if library_item is not None and library_item.has_profile and library is not None:
+            profile_path = self.docker_manager._desktop_profile_path(session.id)
+            try:
+                restore_profile(library_item, library, profile_path)
+            except Exception:
+                # Never leave a half-created session behind.
+                self.delete_session(session.id)
+                raise
 
         logger.info(
-            "Creating browser session %s ('%s') for chat %s",
-            session.id[:8], session.name, chat_id,
+            "Creating %s session %s ('%s') for chat %s",
+            session.kind, session.id[:8], session.name, chat_id,
         )
 
-        # Start Docker container
+        # Start Docker container (browser or desktop/VM)
         session = self.docker_manager.start_container(session)
 
         # The keep-alive tab and the page recorder are ensured by the runtime
@@ -370,13 +544,36 @@ class BrowserManager:
         )
         return session
 
-    def update_session(self, session_id: str, name: Optional[str] = None) -> Optional[BrowserSession]:
+    def update_session(
+        self,
+        session_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        control: Optional[str] = None,
+        vnc_host: Optional[str] = None,
+        vnc_port: Optional[int] = None,
+        vnc_password: Optional[str] = None,
+        vnc_public_url: Optional[str] = None,
+        ssh_host: Optional[str] = None,
+        ssh_port: Optional[int] = None,
+        ssh_user: Optional[str] = None,
+        ssh_key_path: Optional[str] = None,
+        ssh_password: Optional[str] = None,
+        advanced: Optional[Dict[str, Any]] = None,
+    ) -> Optional[BrowserSession]:
         """
-        Rename a session and persist it.
+        Update a session (name, connection and advanced settings) and persist it.
 
-        Args:
-            session_id: Session to update.
-            name: New human-readable name (None keeps the current one).
+        ``vnc_password``/``ssh_password`` are changed when the field is not
+        ``None``; pass ``""`` to clear them.  This lets a session be created
+        first (e.g. a VM that needs to boot) and get its SSH endpoint later
+        without recreating it.
+
+        ``advanced`` holds the image/resource fields (``image``, ``cpu_cores``,
+        ``ram_size``, ``disk_size``, ``shm_size``, ``extra_env``,
+        ``desktop_width``/``desktop_height``).  Docker cannot change those on a
+        running container: they take effect when the session is restarted
+        (the container is recreated and the VM disk/profile is preserved).
 
         Returns:
             The updated BrowserSession, or None when not found.
@@ -386,9 +583,74 @@ class BrowserManager:
             return None
         if name is not None and str(name).strip():
             session.name = str(name).strip()
+        if description is not None:
+            session.description = str(description).strip() or None
+        if control is not None and str(control).strip():
+            from codx.junior.browser.model import CONTROL_MODES
+            value = str(control).strip().lower()
+            if value not in CONTROL_MODES:
+                raise ValueError(f"control must be one of: {', '.join(CONTROL_MODES)}")
+            session.control = value
+        if vnc_host is not None:
+            session.vnc_host = str(vnc_host).strip() or None
+        if vnc_port is not None:
+            session.vnc_port = int(vnc_port)
+        if vnc_password is not None:
+            session.vnc_password = str(vnc_password) or None
+        if vnc_public_url is not None:
+            session.vnc_public_url = str(vnc_public_url).strip() or None
+        if ssh_host is not None:
+            session.ssh_host = str(ssh_host).strip() or None
+        if ssh_port is not None:
+            session.ssh_port = int(ssh_port)
+        if ssh_user is not None:
+            session.ssh_user = str(ssh_user).strip() or None
+        if ssh_key_path is not None:
+            session.ssh_key_path = str(ssh_key_path).strip() or None
+        if ssh_password is not None:
+            session.ssh_password = str(ssh_password) or None
+        if session.ssh_host and "shell" not in (session.capabilities or []):
+            session.capabilities = [*(session.capabilities or []), "shell"]
+        if advanced:
+            session.apply_advanced_settings(advanced)
+            if "image" in advanced:
+                # Editing the image detaches the session from a saved-library
+                # item; it should no longer be treated as a saved snapshot.
+                session.library_item_id = None
+                session.library_item_name = None
+            if session.kind == "linux" and "image" in advanced:
+                # The image decides the live-view transport (Selkies vs
+                # KasmVNC): re-resolve it so a changed/cleared override does
+                # not keep the previous provider's ports and scheme.
+                from codx.junior.computer.images import resolve_image
+                spec = resolve_image(
+                    session.image or os.environ.get("CODX_COMPUTER_LINUX_IMAGE"),
+                    kind="linux",
+                )
+                session.image = spec.image
+                session.image_provider = spec.provider
+                session.live_view = spec.live_view
+                session.live_port = spec.live_port
+                session.live_scheme = spec.live_scheme
+                session.strip_prefix = spec.strip_prefix
+                session.viewer_user = spec.viewer_user
+                if spec.provider == "kasmweb":
+                    session.viewer_password = session.viewer_password or secrets.token_urlsafe(9)
+                else:
+                    session.viewer_password = None
         session.mark_active()
         self._save_session_file(session)
-        self.log_activity(session, actor="system", action="rename", params={"name": session.name})
+        # Extra image env values can contain credentials: audit the names only.
+        safe_advanced = {
+            key: (sorted(value) if key == "extra_env" and isinstance(value, dict) else value)
+            for key, value in (advanced or {}).items()
+        }
+        self.log_activity(
+            session,
+            actor="system",
+            action="update",
+            params={"name": session.name, **safe_advanced},
+        )
         return session
 
     def save_session(self, session: BrowserSession) -> BrowserSession:
@@ -445,7 +707,15 @@ class BrowserManager:
             return None
 
         self.forget_runtime(session_id)
-        self.docker_manager.stop_container(session, remove=False)
+        if session.kind != "remote":
+            # VMs need a graceful shutdown so the guest disk is consistent;
+            # browser/Linux containers keep the historic fast stop call.
+            if session.kind in ("windows", "macos"):
+                self.docker_manager.stop_container(session, remove=False, fast=False)
+            else:
+                self.docker_manager.stop_container(session, remove=False)
+        else:
+            session.status = "stopped"
         self._save_session_file(session)
         self.log_activity(session, actor="system", action="stop")
         logger.info("Stopped session %s", session_id[:8])
@@ -462,8 +732,9 @@ class BrowserManager:
         if session:
             # Stop & remove Docker container (fast kill: no 10 s grace period)
             self.log_activity(session, actor="system", action="delete")
-            self.docker_manager.stop_container(session, remove=True)
-            logger.info("Stopped container for session %s", session_id[:8])
+            if session.kind != "remote":
+                self.docker_manager.stop_container(session, remove=True)
+                logger.info("Stopped container for session %s", session_id[:8])
 
         self.forget_runtime(session_id)
 
@@ -615,7 +886,7 @@ class BrowserManager:
             session.add_chat(chat.id)
             self._save_session_file(session)
 
-        chat.meta_data["browser"] = session.to_dict()
+        chat.meta_data["browser"] = session.to_public_dict()
         logger.debug("Saved session %s to chat %s", session.id[:8], chat.id)
 
     # -------------------------------------------------------------------------
@@ -623,9 +894,13 @@ class BrowserManager:
     # -------------------------------------------------------------------------
 
     async def get_runtime(self, session: BrowserSession):
-        """Return (creating once) the persistent runtime of *session*."""
-        from codx.junior.browser.runtime import BrowserRuntime
+        """Return (creating once) the persistent runtime of *session*.
 
+        Browser sessions get a Playwright/``BrowserRuntime``; desktop sessions
+        get a ``DesktopRuntime`` backed by ``docker exec`` (Linux) or RFB
+        (Windows/macOS/remote).  Both are cached per session and expose the same
+        ``run``/``close``/``loop`` surface used by the API and tools.
+        """
         if getattr(self, "_runtimes_guard", None) is None:
             self._runtimes = {}
             self._runtimes_guard = threading.Lock()
@@ -637,12 +912,17 @@ class BrowserManager:
             runtime = self._runtimes.get(session.id)
             stale_loop = (
                 runtime is not None
-                and runtime.loop is not None
+                and getattr(runtime, "loop", None) is not None
                 and current_loop is not None
                 and runtime.loop is not current_loop
             )
-            if runtime is None or runtime._closed or stale_loop:
-                runtime = BrowserRuntime(self, session)
+            if runtime is None or getattr(runtime, "_closed", False) or stale_loop:
+                if session.kind == "browser":
+                    from codx.junior.browser.runtime import BrowserRuntime
+                    runtime = BrowserRuntime(self, session)
+                else:
+                    from codx.junior.computer.runtime import DesktopRuntime
+                    runtime = DesktopRuntime(self, session)
                 runtime.loop = current_loop
                 self._runtimes[session.id] = runtime
             return runtime
@@ -654,6 +934,10 @@ class BrowserManager:
         says anything.  Connecting once here starts the page recorder and the
         1 s watcher, so those clicks appear in the activity trail immediately.
         """
+        if session.kind != "browser":
+            # Desktop backends connect lazily on the first action; there is no
+            # page recorder that must be started in advance.
+            return
         try:
             runtime = await self.get_runtime(session)
             await runtime.drain()
@@ -904,11 +1188,15 @@ class BrowserManager:
         Returns:
             The updated BrowserSession (new ``debug_url``).
         """
-        logger.warning("Restarting the browser of session %s (%s)", str(session.id)[:8], reason)
-        # Chromium rewrites Preferences when it exits: re-assert the mapped
-        # downloads folder so the relaunched browser keeps it.
-        self._prepare_downloads(session)
-        self.docker_manager.stop_container(session, remove=False)
+        logger.warning("Restarting session %s (%s)", str(session.id)[:8], reason)
+        if session.kind == "browser":
+            # Chromium rewrites Preferences when it exits: re-assert the mapped
+            # downloads folder so the relaunched browser keeps it.
+            self._prepare_downloads(session)
+        if session.kind in ("windows", "macos"):
+            self.docker_manager.stop_container(session, remove=False, fast=False)
+        else:
+            self.docker_manager.stop_container(session, remove=False)
         session = self.docker_manager.restart_container(session)
         self._save_session_file(session)
         self.log_activity(session, actor="system", action=reason)
@@ -935,6 +1223,15 @@ class BrowserManager:
         session = self.get_session(session_id)
         if not session:
             return None
+        if session.kind == "remote":
+            runtime = self.peek_runtime(session_id)
+            if runtime is not None:
+                await runtime.close()
+                getattr(self, "_runtimes", {}).pop(session_id, None)
+            session.status = "running"
+            session.mark_active()
+            self._save_session_file(session)
+            return session
 
         logger.info("Restarting session %s", session_id[:8])
         runtime = self.peek_runtime(session_id)
@@ -1133,6 +1430,11 @@ class BrowserManager:
             with open(tmp_path, "w", encoding="utf-8") as f:
                 f.write(session.to_json())
             os.replace(tmp_path, file_path)
+            # The record may hold VNC/SSH passwords: keep it private.
+            try:
+                os.chmod(file_path, 0o600)
+            except OSError:
+                pass
             logger.debug("Saved session metadata: %s", session.id[:8])
         except Exception as e:
             logger.exception("Error saving session file: %s", e)
@@ -1146,3 +1448,9 @@ class BrowserManager:
         except Exception as e:
             logger.exception("Error loading session from '%s': %s", file_path, e)
             return None
+
+#: The generic names used by the computer-session API and tools.  The original
+#: ``BrowserManager``/``get_browser_manager`` names stay as aliases so every
+#: existing import, chat record and test keeps working.
+ComputerManager = BrowserManager
+get_computer_manager = get_browser_manager

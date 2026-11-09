@@ -9,7 +9,10 @@ import RFB from '@novnc/novnc'
 <script>
 export default {
   name: 'NoVNCViewer',
-  props: ['path'],
+  props: {
+    path: { type: String, default: '' },
+    password: { type: String, default: 'password' }
+  },
   data() {
     return {
       rfb: null,
@@ -25,7 +28,7 @@ export default {
       return this.$el.querySelector('canvas')
     },
     resizeType () {
-      return this.$ui.noVNCSettings.resize
+      return this.$ui?.noVNCSettings?.resize || 'scale'
     }
   },
   watch: {
@@ -34,11 +37,20 @@ export default {
     }
   },
   beforeDestroy() {
-    if (this.rfb) {
-      this.rfb.disconnect();
-    }
+    this.disconnect()
+  },
+  beforeUnmount() {
+    this.disconnect()
   },
   methods: {
+    disconnect () {
+      try {
+        this.rfb?.disconnect()
+      } catch (error) {
+        // already disconnected
+      }
+      this.rfb = null
+    },
     connect () {
       this.rfb?.disconnect()
 
@@ -46,7 +58,7 @@ export default {
       const url = `${protocol}://${window.location.host}${this.path}`
       const options = {
         credentials: {
-          password: "password"
+          password: this.password || "password"
         },
       };
 
@@ -73,7 +85,9 @@ export default {
         this.syncNoVNCToHostClipboard()
       });
 
-      this.canvas.onfocus = this.syncHostClipboardToNoVNC.bind(this)
+      if (this.canvas) {
+        this.canvas.onfocus = this.syncHostClipboardToNoVNC.bind(this)
+      }
     },
     syncHostClipboardToNoVNC () {
       navigator.clipboard.readText().then(text => {

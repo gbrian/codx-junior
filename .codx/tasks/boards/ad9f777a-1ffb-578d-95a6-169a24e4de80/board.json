@@ -11,14 +11,18 @@
       "title": "Chat engine",
       "color": "#000000",
       "folder": "Chat engine",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "6b3e740a-d6a1-4dff-8283-0ccedbcc3eff",
       "title": "Test",
       "color": "#000000",
       "folder": "Test",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://sm.ign.com/t/ign_ap/articlepage/a/avengers-2-paul-bettanys-vision-of-the-future/avengers-2-paul-bettanys-vision-of-the-future_95dz.1280.jpg",

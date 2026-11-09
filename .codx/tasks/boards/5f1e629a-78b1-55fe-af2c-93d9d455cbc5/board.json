@@ -11,7 +11,9 @@
       "title": "Documentation",
       "color": "#000000",
       "folder": "Documentation",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://www.dondominio.com/assets/images/products/domains/wiki.png",

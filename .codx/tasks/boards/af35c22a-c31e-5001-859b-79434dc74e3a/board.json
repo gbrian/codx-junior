@@ -11,7 +11,9 @@
       "title": "Gemini",
       "color": "#000000",
       "folder": "Gemini",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://pixelplex.io/wp-content/uploads/2024/01/llm-applications-meta.jpg",

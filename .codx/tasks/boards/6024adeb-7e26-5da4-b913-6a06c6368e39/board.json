@@ -15,7 +15,9 @@
       "title": "Chat Events",
       "color": "#000000",
       "folder": "Chat Events",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ]
 }

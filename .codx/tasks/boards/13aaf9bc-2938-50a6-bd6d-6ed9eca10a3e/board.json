@@ -11,14 +11,18 @@
       "title": "profile_manager",
       "color": "#000000",
       "folder": "profile_manager",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "4ac4b0fe-bad2-4175-abfb-8495a2df243f",
       "title": "Global Profiles",
       "color": "#000000",
       "folder": "Global Profiles",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://media.istockphoto.com/id/1830042746/photo/document-management-system-dms-with-arrange-folder-and-files-icons-man-setup-storage-backup.jpg?s=612x612&w=0&k=20&c=t8oAAO16j6fMhleAYJEXm5pSXFIDZrEG6sYJkv_Sdos=",

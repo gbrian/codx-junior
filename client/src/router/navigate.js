@@ -63,7 +63,10 @@ export default function Navigate({ $router, $storex }) {
       })
     },
     browser: {
-      list: () => ({ name: 'browsers' })
+      list: () => ({ name: 'computers' })
+    },
+    computer: {
+      list: () => ({ name: 'computers' })
     },
     // Team view. The optional team id makes an individual team addressable at
     // "/:projectName/team/:teamId" (see router/index.ts + views/TeamView.vue).
@@ -206,7 +209,7 @@ export default function Navigate({ $router, $storex }) {
 
     get isBrowserView() {
       const name = $router.currentRoute.value.name
-      return name === 'browsers' || name === 'browser-session'
+      return ['browsers', 'browser-session', 'computers', 'computer-session'].includes(name)
     },
 
     get isKanbanView() {
@@ -353,7 +356,7 @@ export default function Navigate({ $router, $storex }) {
       // which shows the session panel (live browser + docked chat) only for the
       // SELECTED session. The selection lives in the store, so a deep link or a
       // refresh on that URL must restore it from the route param.
-      if (to.name === 'browser-session' && to.params.sessionId) {
+      if ((to.name === 'browser-session' || to.name === 'computer-session') && to.params.sessionId) {
         const sessionId = String(to.params.sessionId)
         if ($storex.browsers.selectedSessionId !== sessionId) {
           $storex.browsers.selectSession(sessionId)

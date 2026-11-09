@@ -15,21 +15,27 @@
       "title": "Dock-View",
       "color": "#000000",
       "folder": "Dock-View",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "3232c99a-238d-461d-89c0-2a0ec4c00588",
       "title": "Maintenance",
       "color": "#000000",
       "folder": "Maintenance",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "c3c1049e-2bc9-4b71-a417-001a27d649e1",
       "title": "Components",
       "color": "#000000",
       "folder": "Components",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     }
   ]
 }

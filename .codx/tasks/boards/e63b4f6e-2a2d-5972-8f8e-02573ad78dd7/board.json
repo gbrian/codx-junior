@@ -11,7 +11,9 @@
       "title": "Docs",
       "color": "#A463BF",
       "folder": "Docs",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://miro.medium.com/v2/resize:fit:1200/1*ZZWD6HrEyQJwLSdGRgt6Bw.png",

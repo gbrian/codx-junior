@@ -14,7 +14,9 @@
       "title": "Plan",
       "color": "#6366f1",
       "folder": "Plan",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "last_update": "2026-10-02T07:23:59.375Z",

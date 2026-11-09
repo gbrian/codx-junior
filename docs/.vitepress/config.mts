@@ -44,6 +44,7 @@ export default defineConfig({
             { text: 'DSH task sync', link: '/features/dsh-sync' },
             { text: 'Vibe coding', link: '/features/vibe-coding' },
             { text: 'Workspaces', link: '/features/workspaces' },
+            { text: 'Computer use (desktops, VMs, remote)', link: '/features/computer-use' },
             { text: 'Browser use and co-browsing', link: '/features/browser-use' },
             { text: 'Teams and messenger', link: '/features/teams' },
             { text: 'Knowledge (RAG)', link: '/features/knowledge' },

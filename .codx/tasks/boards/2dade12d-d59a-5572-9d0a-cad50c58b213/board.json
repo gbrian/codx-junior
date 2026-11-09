@@ -11,21 +11,27 @@
       "title": "Doc",
       "color": "#000000",
       "folder": "Doc",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "fbba71ce-1bef-4e53-ab5b-37f33f67118e",
       "title": "Chat",
       "color": "#000000",
       "folder": "Chat",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "3addaf96-34f3-4bdf-8b2f-88ffa8a846ca",
       "title": "Api",
       "color": "#000000",
       "folder": "Api",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://miro.medium.com/1*hhb4eQSrCeksxDGYIMZT4A.png",

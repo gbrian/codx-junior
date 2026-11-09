@@ -1,0 +1,413 @@
+{
+  "version": 1,
+  "run_id": "8f027963-64ff-4c8d-8acd-a79dd0a50457",
+  "name": "Board column sort methods + server-driven board queries",
+  "objective": "Feature: per-column sort method settings for task boards, plus removal of client-side chat listing/sorting/search/metrics for boards.\n\nRequirements (from the user):\n1. Each board column gets a `sort` setting with at least these values:\n   - `last_changed`: most recently changed task on top (Chat.updated_at desc).\n   - `unread`: most recently changed task that has unread messages on top (DEFAULT).\n   - `manual`: user drag & drop ordering (Chat.sort_index).\n2. Extra useful sort modes to include (analyst/implementer should validate and document them): `priority` (high>medium>low, then last_changed), `due_date` (earliest first, empty last), `created` (newest first), `cost` (highest first), `name` (A-Z) and `status`.\n3. The setting must be persisted per column in the board catalogue (`.codx/tasks/boards/<board_id>/board.json`) and survive reload/rename, with a safe default for existing boards (`unread`).\n4. Server side endpoints must return boards already sorted/paginated/filtered so the client never downloads every chat of a project (projects can hold thousands of chats). No client-side chat listing, sorting, searching or metric computation for boards.\n5. Backwards compatible: existing boards/columns without the setting keep working; no data migration required beyond defaulting.\n\nKnown code anchors (verified in the working tree):\n- `api/codx/junior/kanban/store.py::_normalize_columns` (~line 517) currently persists only `{id, title, color, folder, order, project_id, profiles}`; `_normalize_board` (~line 596) writes one `board.json` per board under a project-wide fcntl lock.\n- `client/src/store/kanban.js`: `boardChats` (~441) and `buildViewColumns` (~470) build columns from `Object.values($storex.chats.chats)` and sort cards client-side (~497); `sprintColumns` (~566) does the same with `sortColumnTasks`; `moveTask` (~967), `moveSprintStatus` (~1031), `updateColumn` (~837), `syncColumnOrder` (~875).\n- `api/codx/junior/db.py`: `Chat` has `updated_at`, `sort_index`, `priority`, `due_date`, `cost`, `created_at`; `Message.read_by` (list of usernames that have seen an assistant message) plus `POST /api/chats/markMessageAsSeen` are the current unread primitive (unread is computed in the browser today, e.g. ChatSidebar unread badge).\n- `ChatManager.list_chats` (`api/codx/junior/chat_manager.py:481`) walks `.codx/tasks`, skips catalogue files via `is_store_file`, and loads chats with `chat_only=True` (last message only). `get_chat_file` (~245) resolves folders from the catalogue.\n- Reference documentation of the model: `TASKS_BOARDS_SPRINTS.md` (\u00a75 columns, \u00a79.2 planning, \u00a712.2 sprint column status is NOT persisted).\n\nObjective achieved when: the sort setting round-trips through the kanban store, a server endpoint serves per-column paginated cards with server-side sorting/search and dataset-wide counters (including unread), the board UI persists/consumes the setting and no longer builds columns from the full client chat map, and the docs describe the contract.",
+  "main_chat_id": "a9906517-5603-44a1-bf64-7bb4b78ccb48",
+  "status": "completed",
+  "config": {
+    "budget_cxjcoins": 0.0,
+    "per_step_budget": 0.0,
+    "supervisor_reserve": 0.0,
+    "max_steps": 8,
+    "max_rounds": 4,
+    "max_parallel": 2,
+    "max_attempts": 2,
+    "stagnation_limit": 3,
+    "step_timeout_seconds": 1800,
+    "supervisor_timeout_seconds": 900,
+    "step_mode": "chat",
+    "supervisor_profiles": [
+      "reviewer"
+    ],
+    "default_profiles": [],
+    "board": "kanban",
+    "sprint": "Run: Board column sort methods",
+    "columns": {
+      "backlog": "Backlog",
+      "running": "In progress",
+      "done": "Done",
+      "blocked": "Blocked"
+    },
+    "verification": "supervisor",
+    "created_by": "admin"
+  },
+  "steps": [
+    {
+      "id": "column-sort-storage",
+      "title": "Persist per-column sort setting in the kanban store",
+      "objective": "Each board column must persist a `sort` method in `.codx/tasks/boards/<board_id>/board.json`.\n\nFile: `api/codx/junior/kanban/store.py` (`_normalize_columns` ~line 517 currently persists only `{id, title, color, folder, order, project_id, profiles}`; `_normalize_board` ~596 writes one board.json per board under a project-wide fcntl lock).\n\n1) Add module constants `COLUMN_SORT_METHODS = (\"unread\", \"last_changed\", \"manual\", \"priority\", \"due_date\", \"created\", \"cost\", \"name\", \"status\")`, `DEFAULT_COLUMN_SORT = \"unread\"`, and a helper `normalize_column_sort(value)` that returns a valid method (invalid/None -> `DEFAULT_COLUMN_SORT`).\n2) Extend `_normalize_columns` so every column dict keeps its existing keys and gains `sort`. Resolution order: the incoming raw `sort`, else the value already stored on disk for that same column id in board.json, else `unread`. Never drop a column because of an invalid value.\n3) Make sure the whole build/save path emits `sort` so it round-trips through `save_board`, board rename/resolution and `update_column` (find how columns are updated today; if columns are only written from the board document, no extra endpoint work is required here \u2014 the API step covers that).\n4) Backwards compatibility: a board.json written by an older version (no `sort`) loads fine and exposes `unread`; nothing else in the document is rewritten except the added key. Keep JSON indent/format identical to today.\n5) If `api/codx/junior/db.py` has a column model/dataclass used by the API layer, add an optional `sort: Optional[str] = None` field (old payloads stay valid).\n\nDo not refactor unrelated board logic.\n\nAcceptance: add `api/codx/junior/kanban/test_store_sort.py` (pytest, plain asserts) proving: (a) save a board with a column sort='manual' and reload it -> 'manual' on disk and through the store API; (b) a board.json without the key loads as 'unread'; (c) 'foo' loads as 'unread'; (d) a valid value survives board resolution by title. Report the exact command used to run the tests.",
+      "acceptance": "Tests pass; the board.json fixture contains \"sort\": \"manual\" after save; missing and invalid values normalize to 'unread'; JSON formatting unchanged.",
+      "profile": "software_developer",
+      "depends_on": [],
+      "files": [
+        "api/codx/junior/kanban/store.py",
+        "api/codx/junior/db.py"
+      ],
+      "context": "",
+      "priority": "high",
+      "mode": "",
+      "status": "failed",
+      "attempts": 0,
+      "chat_id": "",
+      "board": "",
+      "column": "",
+      "chat_status": "",
+      "result": null,
+      "error": "Could not create the worker card: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'",
+      "created_at": "2026-11-09T09:25:59.876007+00:00",
+      "updated_at": "2026-11-09T09:28:51.447420+00:00",
+      "started_at": "",
+      "finished_at": "2026-11-09T09:29:21.393611+00:00"
+    },
+    {
+      "id": "server-board-query",
+      "title": "Server-side board cards endpoint: sort, search, pagination, unread, counters",
+      "objective": "Implement `GET /api/kanban/boards/{board_id}/columns/{column_id}/cards` exactly as specified in `docs/board-card-query-contract.md` (read that spec, `api/codx/junior/kanban/store.py` and the unread helper added in `api/codx/junior/chat_manager.py` first).\n\nRules:\n- Resolve `board_id`/`column_id` through the existing catalogue helpers in `kanban/store.py` (boards are keyed by title; reuse the existing resolution and its error style). Unknown board/column -> same 404/HTTPException style as the neighbouring kanban endpoints.\n- Effective sort: the `sort` query param when it is in `COLUMN_SORT_METHODS`, else the column's persisted `sort`, else `unread`.\n- Selection limited to chats of that board+column using the catalogue + `ChatManager.list_chats(chat_only=True)` path; never read full message bodies for the whole dataset. Apply server-side `q` filter, then sort, then `offset`/`limit` (cap limit at 200).\n- Response exactly per spec: `board_id`, `column_id`, `sort`, `total`, `unread_total`, `cards[]` (minimal projection incl. `unread`, `unread_count`), dataset-wide `counters` per column (`total`, `unread`) and `columns[].sort`, so the client can render headers without listing chats.\n- Register the route next to the other `/api/kanban` routes (`grep -rn \"api/kanban\" api/codx/junior`), reusing their auth/permission decorators and error style.\n- Performance guard: counting must come from a cheap metadata scan (no message bodies) and only the requested page's chats are hydrated; explain the approach in the docstring. Reuse the `chat_unread` helper for the unread flag/count and for `unread_total`/counters.\n\nAcceptance: pytest `api/codx/junior/kanban/test_cards_endpoint.py` proving: (a) offset/limit paginate deterministically under `last_changed`; (b) `sort=manual` honours `sort_index`; (c) omitting `sort` uses the persisted column setting; (d) `q` filters case-insensitively; (e) `unread_total` and counters are consistent with the hydrated page; (f) a `limit=1` request hydrates a bounded number of chat files (assert with a monkeypatched loader counter). Report the commands run.",
+      "acceptance": "",
+      "profile": "software_developer",
+      "depends_on": [
+        "column-sort-storage",
+        "s2-contract",
+        "s3-unread"
+      ],
+      "files": [
+        "api/codx/junior/kanban/store.py",
+        "api/codx/junior/chat_manager.py"
+      ],
+      "context": "",
+      "priority": "high",
+      "mode": "",
+      "status": "pending",
+      "attempts": 0,
+      "chat_id": "",
+      "board": "",
+      "column": "",
+      "chat_status": "",
+      "result": null,
+      "error": "",
+      "created_at": "2026-11-09T09:25:59.876050+00:00",
+      "updated_at": "2026-11-09T09:25:59.876053+00:00",
+      "started_at": "",
+      "finished_at": ""
+    },
+    {
+      "id": "client-server-board",
+      "title": "Board UI: column sort selector, server totals and manual-only drag & drop",
+      "objective": "Add the board UI for the column sort setting on top of the reworked `client/src/store/kanban.js`.\n\n- Locate the board column/card components (`grep -rln \"buildViewColumns\\|boardChats\\|column.title\" client/src/components client/src/views`) and add a compact sort selector in the column header (menu or select) with readable labels: Unread (default), Last changed, Manual, Priority, Due date, Created, Cost, Name, Status. The current value comes from the server column metadata (`columns[].sort`).\n- Changing it calls the `updateColumn` action with `{sort}` and refetches that column page; show the optimistic state.\n- Card drag & drop reordering is enabled only when the column sort is `manual`; for automatic sorts render cards read-only (no drag handle / disabled drag) with a tooltip: 'Column is sorted automatically \u2014 switch to Manual to reorder'.\n- Column header shows the server `total` / `unread_total` (never client-computed) and a 'load more' affordance wired to the paginated action while `cards.length < total`.\n- Any board-scoped search box must call the server `q` param instead of filtering a local array.\n\nReuse the existing UI library/classes and keep styling consistent with neighbouring components; no unrelated refactors.\n\nAcceptance: `npm run build` (or the repo lint script) succeeds. In the step report describe: which request fires when switching a column to 'Last changed' (only the column page, no full chat map fetch), and that drag & drop is disabled for automatic sorts and enabled for Manual.",
+      "acceptance": "",
+      "profile": "software_developer",
+      "depends_on": [
+        "client-server-store"
+      ],
+      "files": [
+        "client/src/components",
+        "client/src/views"
+      ],
+      "context": "",
+      "priority": "high",
+      "mode": "",
+      "status": "pending",
+      "attempts": 0,
+      "chat_id": "",
+      "board": "",
+      "column": "",
+      "chat_status": "",
+      "result": null,
+      "error": "",
+      "created_at": "2026-11-09T09:25:59.876072+00:00",
+      "updated_at": "2026-11-09T09:25:59.876075+00:00",
+      "started_at": "",
+      "finished_at": ""
+    },
+    {
+      "id": "docs-verification",
+      "title": "Document the column sort contract and the server-driven board queries",
+      "objective": "Document the shipped behaviour.\n\n1) In `TASKS_BOARDS_SPRINTS.md` \u00a75 (columns) and the sprint-column note (\u00a712.2 states sprint column status is NOT persisted): document the new persisted `sort` column setting \u2014 allowed values, default `unread`, its place in `board.json` beside `id/title/color/folder/order/project_id/profiles`, backwards compatibility for boards without it (no migration), and that ordering is done server-side. Include the ordering semantics table for all nine methods (order + tie-breakers + null handling) matching the implementation.\n2) Add a subsection for `GET /api/kanban/boards/{board_id}/columns/{column_id}/cards` (params `sort`, `q`, `offset`, `limit`; response `total`, `unread_total`, `cards[].unread/unread_count`, `counters`, `columns[].sort`) and the rule that the client must never download the whole chat map of a project.\n3) Where the doc describes browser-side unread computation, point to the server-side helper in `api/codx/junior/chat_manager.py` and state both must stay in sync.\n4) Keep `docs/board-card-query-contract.md` normative: if the implementation deviated from the spec, update the spec to the shipped behaviour and say what changed.\n\nAcceptance: both files are valid markdown with well-formed tables, every allowed sort value appears, and the endpoint path/params match the code (verify with `grep -rn \"api/kanban\" api/codx/junior` and by reading the route definition).",
+      "acceptance": "",
+      "profile": "technical_writer",
+      "depends_on": [
+        "server-board-query",
+        "client-server-board"
+      ],
+      "files": [
+        "TASKS_BOARDS_SPRINTS.md",
+        "docs/board-card-query-contract.md"
+      ],
+      "context": "",
+      "priority": "medium",
+      "mode": "",
+      "status": "pending",
+      "attempts": 0,
+      "chat_id": "",
+      "board": "",
+      "column": "",
+      "chat_status": "",
+      "result": null,
+      "error": "",
+      "created_at": "2026-11-09T09:25:59.876090+00:00",
+      "updated_at": "2026-11-09T09:25:59.876092+00:00",
+      "started_at": "",
+      "finished_at": ""
+    },
+    {
+      "id": "s2-contract",
+      "title": "Specify the sort/query contract and audit the client-side chat pipeline",
+      "objective": "Produce the normative spec `docs/board-card-query-contract.md` (new file) that the following steps implement verbatim. Read the code first; do NOT modify application code.\n\nAnchors to verify in the working tree: `client/src/store/kanban.js` (`boardChats` ~441 and `buildViewColumns` ~470 build columns from `Object.values($storex.chats.chats)`, client-side card sort ~497, `sprintColumns` ~566 with `sortColumnTasks`, `updateColumn` ~837, `syncColumnOrder` ~875, `moveTask` ~967, `moveSprintStatus` ~1031); `api/codx/junior/chat_manager.py` (`list_chats` ~481 walks `.codx/tasks`, skips store files via `is_store_file`, loads with `chat_only=True`; `get_chat_file` ~245 resolves folders from the catalogue); unread primitive `Message.read_by` in `api/codx/junior/db.py` + `POST /api/chats/markMessageAsSeen`, plus the client code computing unread today (`grep -rn \"read_by\" client/src`). Also find where `/api/kanban` routes are registered (`grep -rn \"api/kanban\" api/codx/junior`) and name that file.\n\nSpec must contain:\n1) The nine sort methods with deterministic ordering AND tie-breakers: `unread` (default: chats with unread messages first ordered by updated_at desc, then the remaining chats by updated_at desc); `last_changed` (updated_at desc); `manual` (sort_index asc, missing sort_index last, stable tie-break by id); `priority` (high>medium>low>none, then updated_at desc); `due_date` (earliest first, null/empty last, then updated_at desc); `created` (created_at desc); `cost` (highest first, nulls last); `name` (title A-Z, case-insensitive); `status` (status asc, then updated_at desc). State exactly how null/missing values are treated and that ties always fall back to a stable id comparison.\n2) The HTTP contract for `GET /api/kanban/boards/{board_id}/columns/{column_id}/cards` with query params `sort` (optional; defaults to the persisted column setting), `q` (case-insensitive over title/goal/labels), `offset` (default 0), `limit` (default 50, capped at 200), and the response JSON `{board_id, column_id, sort, total, unread_total, cards:[{id,title,status,priority,due_date,updated_at,created_at,cost,sort_index,unread,unread_count}], counters:{<column_id>:{total,unread}}, columns:[{id,title,sort}]}` with one concrete request and response example.\n3) An inventory table of what the client must STOP doing (iterating `$storex.chats.chats`, sorting cards, computing unread badges, counting column totals) and which replacement function/response field covers each, naming the concrete functions and line numbers.\n4) The backwards-compatibility rule: a column without the setting behaves as `unread`, no data migration.\n\nAcceptance: the file exists at `docs/board-card-query-contract.md`, every sort method has an unambiguous rule with tie-breakers and null handling, the endpoint section lists all params with a valid JSON example, and the client inventory names concrete functions. State in your report which anchors were confirmed or corrected.",
+      "acceptance": "",
+      "profile": "analyst",
+      "depends_on": [],
+      "files": [
+        "client/src/store/kanban.js",
+        "api/codx/junior/chat_manager.py",
+        "api/codx/junior/db.py"
+      ],
+      "context": "",
+      "priority": "high",
+      "mode": "",
+      "status": "failed",
+      "attempts": 0,
+      "chat_id": "",
+      "board": "",
+      "column": "",
+      "chat_status": "",
+      "result": null,
+      "error": "Could not create the worker card: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'",
+      "created_at": "2026-11-09T09:27:29.588702+00:00",
+      "updated_at": "2026-11-09T09:29:00.135656+00:00",
+      "started_at": "",
+      "finished_at": "2026-11-09T09:29:22.646158+00:00"
+    },
+    {
+      "id": "s3-unread",
+      "title": "Server-side unread helper for chats (no browser computation)",
+      "objective": "Unread is computed in the browser today; the board query endpoint will need it server-side.\n\n1) Read `docs/board-card-query-contract.md` (produced by the previous step) and reproduce its unread definition 1:1. Cross-check with the current client implementation (`grep -rn \"read_by\" client/src`): a chat is unread for the current user when at least one message authored by someone else does not list the current username in `message.read_by`; the user's own messages are ignored.\n2) Implement in `api/codx/junior/chat_manager.py` a clearly named helper, e.g. `chat_unread(chat: dict, username: Optional[str]) -> tuple[bool, int]` (read/unread flag + unread count), operating on dicts returned by `list_chats(..., chat_only=True)`. It must not scan whole conversations: if the `chat_only` projection lacks `read_by`/author, extend `ChatManager` minimally (include those fields for the last message, or provide a batched lookup keyed by chat ids) so the cost is at most one extra read per chat; document the cost in the docstring.\n3) Do not change the on-disk chat format and do not alter the semantics of `POST /api/chats/markMessageAsSeen`.\n\nAcceptance: add `api/codx/junior/test_chat_unread.py` (pytest) covering: (a) last assistant message includes the current user in read_by -> (False, 0); (b) read_by empty/None -> (True, n) with the right n; (c) chat with only the user's own messages -> (False, 0); (d) username None does not raise and follows the spec. Existing tests must not regress; report the command used.",
+      "acceptance": "",
+      "profile": "software_developer",
+      "depends_on": [
+        "s2-contract"
+      ],
+      "files": [
+        "api/codx/junior/chat_manager.py",
+        "api/codx/junior/db.py"
+      ],
+      "context": "",
+      "priority": "high",
+      "mode": "",
+      "status": "pending",
+      "attempts": 0,
+      "chat_id": "",
+      "board": "",
+      "column": "",
+      "chat_status": "",
+      "result": null,
+      "error": "",
+      "created_at": "2026-11-09T09:27:29.588719+00:00",
+      "updated_at": "2026-11-09T09:27:29.588722+00:00",
+      "started_at": "",
+      "finished_at": ""
+    },
+    {
+      "id": "client-server-store",
+      "title": "Kanban store: fetch column pages from the server, drop client chat map usage",
+      "objective": "Rework `client/src/store/kanban.js` so board columns are no longer built from the full client chat map (projects can hold thousands of chats).\n\n1) Add an action/getter that fetches one column page from `GET /api/kanban/boards/{boardId}/columns/{columnId}/cards` through the project's existing HTTP helper (grep how other kanban/chats calls are made in the store), caching per `(boardId, columnId, sort, q, offset)` and exposing `{cards, total, unread_total, counters, columns}`.\n2) Rewrite `boardChats` (~441) and `buildViewColumns` (~470) to consume that cache while KEEPING their public output shape (cards list + column metadata) so components keep working; remove the `Object.values($storex.chats.chats)` iteration and the client-side `.sort(...)` near ~497. Do the same for `sprintColumns` (~566) / `sortColumnTasks`: request a server page instead of sorting a local array.\n3) `updateColumn` (~837) accepts and persists `sort` (e.g. `{sort: 'manual'}`) and invalidates the affected column caches. `syncColumnOrder` (~875) must not reorder by client-computed card arrays.\n4) `moveTask` (~967) / `moveSprintStatus` (~1031): when the destination column's sort is `manual`, send the new `sort_index`/position; for automatic sorts send no index and refetch the page. Preserve the existing optimistic-update behaviour.\n5) A missing or cyclic board/column must yield empty pages, never throw.\n\nDo not touch UI components or views in this step. Keep the diff minimal and preserve existing exported getter/action names.\n\nAcceptance: `grep -n \"Object.values(.*chats.chats\" client/src/store/kanban.js` shows no board-column usage; the repo lint/build script passes for the touched files; the report lists each getter whose output shape is unchanged and the cache key used.",
+      "acceptance": "",
+      "profile": "software_developer",
+      "depends_on": [
+        "server-board-query"
+      ],
+      "files": [
+        "client/src/store/kanban.js",
+        "client/src/store/chats.js"
+      ],
+      "context": "",
+      "priority": "high",
+      "mode": "",
+      "status": "pending",
+      "attempts": 0,
+      "chat_id": "",
+      "board": "",
+      "column": "",
+      "chat_status": "",
+      "result": null,
+      "error": "",
+      "created_at": "2026-11-09T09:28:13.175702+00:00",
+      "updated_at": "2026-11-09T09:28:13.175723+00:00",
+      "started_at": "",
+      "finished_at": ""
+    },
+    {
+      "id": "final-verify",
+      "title": "End-to-end verification of the board sort feature",
+      "objective": "Independent verification of the whole feature. Do not implement new features; only fix trivial breakages and report honestly.\n\nCheck and report evidence for each point:\n1) `board.json` round-trip: a column sort value persists and defaults to `unread` when absent (run the kanban store tests).\n2) The endpoint `GET /api/kanban/boards/{board_id}/columns/{column_id}/cards` exists with the documented params, returns `total`, `unread_total`, `cards[].unread`, `counters` and `columns[].sort`, and does not hydrate all chats (run its pytest, and read the implementation for the counting strategy).\n3) Server-side unread matches the client definition (`grep -rn \"read_by\" client/src` vs the helper in `api/codx/junior/chat_manager.py`).\n4) `client/src/store/kanban.js` no longer builds board columns from `Object.values($storex.chats.chats)` and has no client-side card sorting/counting for boards (`grep -n \"Object.values\" client/src/store/kanban.js`).\n5) The UI exposes the nine sort options, sends `{sort}` on change, and gates drag & drop on `manual`.\n6) Run the backend test suite subset touched by this change and the client lint/build; record exact commands and results.\n\nAcceptance: a concise verification report with PASS/FAIL per point, the exact commands run, any remaining gaps, and a clear statement of what a human should click through to confirm the feature.",
+      "acceptance": "",
+      "profile": "reviewer",
+      "depends_on": [
+        "docs-verification"
+      ],
+      "files": [
+        "api/codx/junior/kanban/store.py",
+        "api/codx/junior/chat_manager.py",
+        "client/src/store/kanban.js",
+        "docs/board-card-query-contract.md"
+      ],
+      "context": "",
+      "priority": "high",
+      "mode": "",
+      "status": "pending",
+      "attempts": 0,
+      "chat_id": "",
+      "board": "",
+      "column": "",
+      "chat_status": "",
+      "result": null,
+      "error": "",
+      "created_at": "2026-11-09T09:28:13.175808+00:00",
+      "updated_at": "2026-11-09T09:28:13.175815+00:00",
+      "started_at": "",
+      "finished_at": ""
+    }
+  ],
+  "created_at": "2026-11-09T09:25:36.830658+00:00",
+  "updated_at": "2026-11-09T09:29:44.235067+00:00",
+  "started_at": "2026-11-09T09:25:36.939888+00:00",
+  "finished_at": "2026-11-09T09:29:39.755407+00:00",
+  "rounds": 3,
+  "supervisor_rounds": 3,
+  "step_runs": 0,
+  "stagnant_rounds": 0,
+  "pending_supervisor": false,
+  "wake_requested": false,
+  "spent_cxjcoins": 0.10404015000000001,
+  "last_error": "",
+  "stop_reason": "# \u26d4 BLOCKED \u2014 no code was changed (orchestrator infrastructure bug)\n\n## What happened\nZero worker steps ever executed. Both dispatch attempts (round 1 and the round-2 retry)\nfailed during **card creation**, before any worker started:\n\n```\nTaskManager.create_task() got an unexpected keyword argument 'estimation_cost'\n```\n\n- identical error for two different profiles (`software_developer` and `analyst`)\n- reproduces deterministically on retry (`step_prepare_failed` in both rounds)\n- nothing was read, written or committed by a worker; the repository is untouched\n\n### Root cause & one-line fix\nCall-site/signature skew in the card-creation path: either\n`api/codx/junior/tasks/manager.py::create_task` must accept `estimation_cost`, or the\norchestrator's call site must stop passing it. Fix one of the two, then re-run this\nobjective verbatim (the plan below is unchanged in substance).\n\n## What the feature needs (verified against the working tree, ready to implement)\n\n### 1. Persistence \u2014 per-column `sort` setting\n`api/codx/junior/kanban/store.py::KanbanStore._normalize_columns` (~517) currently keeps only\n`{id, title, color, folder, order, project_id, profiles}` and **silently drops everything else**.\nAdd, with the same \"explicit wins, omitted inherits\" rule already used for `project_id`/`profiles`\n(so an agent `create_column` or an old client cannot wipe it):\n\n- `sort`: one of `COLUMN_SORT_METHODS`, default `\"unread\"`\n- `sort_dir`: optional `\"asc\"|\"desc\"` (reserved, not required by the UI)\n- unknown/missing value \u2192 normalise to `\"unread\"` (no migration; existing `board.json` default on read)\n\nConstants belong in `api/codx/junior/kanban/model.py`. Must survive reload and column rename.\n\n### 2. Sort modes (server-side comparators)\n| value | order |\n|---|---|\n| `unread` **(default)** | unread first, newest `updated_at` first; then rest by `updated_at` desc |\n| `last_changed` | `updated_at` desc |\n| `manual` | `sort_index` asc (drag & drop), then `updated_at` desc |\n| `priority` | high \u2192 medium \u2192 low, then `last_changed` |\n| `due_date` | earliest first, tasks without `due_date` last |\n| `created` | `created_at` desc |\n| `cost` | `cost` desc |\n| `name` | title A\u2192Z |\n| `status` | canonical `todo \u2192 doing \u2192 onhold \u2192 done \u2192 rejected`, then `last_changed` |\n\nCards must always end with a stable tie-breaker (chat id) so pagination is deterministic.\n\n### 3. Unread without browser computation\nToday unread lives only in the browser (`Message.read_by` + `POST /api/chats/markMessageAsSeen`).\nOpening every message per board request is not viable at thousands of chats, so:\n- denormalise `unread_counts` onto `Chat`, maintained by `ChatManager` and the mark-as-seen path\n- fall back to computing from `read_by` for legacy chats lacking the field\n- one server helper `is_unread(chat, user)` shared by the endpoint and the counters\n\n### 4. Server board query (replaces the client chat map)\n`GET /api/kanban/boards/{board_id}/cards` (or `POST .../columns/{column_id}/cards`) returning per column:\n- `items[]` \u2014 lightweight `ChatSummary` (id, title, column, priority, due_date, cost, updated_at, created_at, sort_index, unread, assignee/profiles) \u2014 **no message bodies**\n- `page` / `page_size` / `next_cursor` (per-column pagination, default ~50)\n- `total`, `unread_total`, `cost_total` computed over the **whole dataset**, not the page\n- query params: `q` (search on title/user), `priority`, `assignee`, `profile`, `due` filters\n- `sort` read from the column setting (per-request override allowed), applied server-side\n- reuse `ChatManager.list_chats` (walks `.codx/tasks`, `is_store_file`, `chat_only=True`) and avoid N+1 hydration\n\n### 5. Client (`client/src/store/kanban.js`)\n- `buildViewColumns` (~470) / `boardChats` (~441) / `sprintColumns` (~566) stop mapping\n  `Object.values($storex.chats.chats)` and stop sorting inline (~497 via `sortColumnTasks`)\n- state holds per-column `{items, total, unread_total, cost_total, loaded}`; \"load more\" appends a page\n- column settings UI gets a **Sort** select persisted through `updateColumn` (~837) \u2192 `saveBoard`\n- `sort_index` writes happen **only** for `manual` columns on drop (`moveTask` ~967, `moveSprintStatus` ~1031), batched\n- search/filter move to request params; no client-side metric aggregation for boards\n\n### 6. Docs\n`TASKS_BOARDS_SPRINTS.md` \u00a75 (column schema + `sort`), \u00a79.2 (planning), new \"Column sort & board queries\"\nsection, \u00a79 read-models/counters, \u00a713 (endpoints); plus a page under `docs/features/`.\n\n## Acceptance (unchanged, for the re-run)\n1. `board.json` round-trips `sort`; existing boards read as `unread`; pytest covers round-trip, default, unknown value, rename.\n2. Endpoint returns sorted/paginated/filtered cards + dataset-wide `total`/`unread_total`/`cost_total`; a test with >1 page asserts page 2 and totals are not page-scoped.\n3. Client builds columns only from the endpoint response; grep shows no `Object.values($storex.chats.chats)` in board column building.\n4. Docs describe the nine modes and the endpoint contract.\n\n**Recommendation:** fix the `estimation_cost` call-site bug and restart this run \u2014 the plan\n(8 steps, store \u2192 contract \u2192 unread \u2192 endpoint \u2192 client store \u2192 client UI \u2192 docs \u2192 verify)\nis sound and needs no redesign.",
+  "report_written": true,
+  "last_report": "## Run delivery report\n**Run:** Board column sort methods + server-driven board queries (`8f027963-64ff-4c8d-8acd-a79dd0a50457`)  \n**Status:** `completed`  \n**Spent:** 0.0977 cxjcoins  \n**Rounds:** 3 \u00b7 **Steps:** 0% complete\n\n### Summary\n# \u26d4 BLOCKED \u2014 no code was changed (orchestrator infrastructure bug)\n\n## What happened\nZero worker steps ever executed. Both dispatch attempts (round 1 and the round-2 retry)\nfailed during **card creation**, before any worker started:\n\n```\nTaskManager.create_task() got an unexpected keyword argument 'estimation_cost'\n```\n\n- identical error for two different profiles (`software_developer` and `analyst`)\n- reproduces deterministically on retry (`step_prepare_failed` in both rounds)\n- nothing was read, written or committed by a worker; the repository is untouched\n\n### Root cause & one-line fix\nCall-site/signature skew in the card-creation path: either\n`api/codx/junior/tasks/manager.py::create_task` must accept `estimation_cost`, or the\norchestrator's call site must stop passing it. Fix one of the two, then re-run this\nobjective verbatim (the plan below is unchanged in substance).\n\n## What the feature needs (verified against the working tree, ready to implement)\n\n### 1. Persistence \u2014 per-column `sort` setting\n`api/codx/junior/kanban/store.py::KanbanStore._normalize_columns` (~517) currently keeps only\n`{id, title, color, folder, order, project_id, profiles}` and **silently drops everything else**.\nAdd, with the same \"explicit wins, omitted inherits\" rule already used for `project_id`/`profiles`\n(so an agent `create_column` or an old client cannot wipe it):\n\n- `sort`: one of `COLUMN_SORT_METHODS`, default `\"unread\"`\n- `sort_dir`: optional `\"asc\"|\"desc\"` (reserved, not required by the UI)\n- unknown/missing value \u2192 normalise to `\"unread\"` (no migration; existing `board.json` default on read)\n\nConstants belong in `api/codx/junior/kanban/model.py`. Must survive reload and column rename.\n\n### 2. Sort modes (server-side comparators)\n| value | order |\n|---|---|\n| `unread` **(default)** | unread first, newest `updated_at` first; then rest by `updated_at` desc |\n| `last_changed` | `updated_at` desc |\n| `manual` | `sort_index` asc (drag & drop), then `updated_at` desc |\n| `priority` | high \u2192 medium \u2192 low, then `last_changed` |\n| `due_date` | earliest first, tasks without `due_date` last |\n| `created` | `created_at` desc |\n| `cost` | `cost` desc |\n| `name` | title A\u2192Z |\n| `status` | canonical `todo \u2192 doing \u2192 onhold \u2192 done \u2192 rejected`, then `last_changed` |\n\nCards must always end with a stable tie-breaker (chat id) so pagination is deterministic.\n\n### 3. Unread without browser computation\nToday unread lives only in the browser (`Message.read_by` + `POST /api/chats/markMessageAsSeen`).\nOpening every message per board request is not viable at thousands of chats, so:\n- denormalise `unread_counts` onto `Chat`, maintained by `ChatManager` and the mark-as-seen path\n- fall back to computing from `read_by` for legacy chats lacking the field\n- one server helper `is_unread(chat, user)` shared by the endpoint and the counters\n\n### 4. Server board query (replaces the client chat map)\n`GET /api/kanban/boards/{board_id}/cards` (or `POST .../columns/{column_id}/cards`) returning per column:\n- `items[]` \u2014 lightweight `ChatSummary` (id, title, column, priority, due_date, cost, updated_at, created_at, sort_index, unread, assignee/profiles) \u2014 **no message bodies**\n- `page` / `page_size` / `next_cursor` (per-column pagination, default ~50)\n- `total`, `unread_total`, `cost_total` computed over the **whole dataset**, not the page\n- query params: `q` (search on title/user), `priority`, `assignee`, `profile`, `due` filters\n- `sort` read from the column setting (per-request override allowed), applied server-side\n- reuse `ChatManager.list_chats` (walks `.codx/tasks`, `is_store_file`, `chat_only=True`) and avoid N+1 hydration\n\n### 5. Client (`client/src/store/kanban.js`)\n- `buildViewColumns` (~470) / `boardChats` (~441) / `sprintColumns` (~566) stop mapping\n  `Object.values($storex.chats.chats)` and stop sorting inline (~497 via `sortColumnTasks`)\n- state holds per-column `{items, total, unread_total, cost_total, loaded}`; \"load more\" appends a page\n- column settings UI gets a **Sort** select persisted through `updateColumn` (~837) \u2192 `saveBoard`\n- `sort_index` writes happen **only** for `manual` columns on drop (`moveTask` ~967, `moveSprintStatus` ~1031), batched\n- search/filter move to request params; no client-side metric aggregation for boards\n\n### 6. Docs\n`TASKS_BOARDS_SPRINTS.md` \u00a75 (column schema + `sort`), \u00a79.2 (planning), new \"Column sort & board queries\"\nsection, \u00a79 read-models/counters, \u00a713 (endpoints); plus a page under `docs/features/`.\n\n## Acceptance (unchanged, for the re-run)\n1. `board.json` round-trips `sort`; existing boards read as `unread`; pytest covers round-trip, default, unknown value, rename.\n2. Endpoint returns sorted/paginated/filtered cards + dataset-wide `total`/`unread_total`/`cost_total`; a test with >1 page asserts page 2 and totals are not page-scoped.\n3. Client builds columns only from the endpoint response; grep shows no `Object.values($storex.chats.chats)` in board column building.\n4. Docs describe the nine modes and the endpoint contract.\n\n**Recommendation:** fix the `estimation_cost` call-site bug and restart this run \u2014 the plan\n(8 steps, store \u2192 contract \u2192 unread \u2192 endpoint \u2192 client store \u2192 client UI \u2192 docs \u2192 verify)\nis sound and needs no redesign.\n\n### Steps\n\n- **[column-sort-storage] Persist per-column sort setting in the kanban store** \u2014 `failed` \u00b7 (no result)\n  - error: Could not create the worker card: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'\n- **[server-board-query] Server-side board cards endpoint: sort, search, pagination, unread, counters** \u2014 `pending` \u00b7 (no result)\n- **[client-server-board] Board UI: column sort selector, server totals and manual-only drag & drop** \u2014 `pending` \u00b7 (no result)\n- **[docs-verification] Document the column sort contract and the server-driven board queries** \u2014 `pending` \u00b7 (no result)\n- **[s2-contract] Specify the sort/query contract and audit the client-side chat pipeline** \u2014 `failed` \u00b7 (no result)\n  - error: Could not create the worker card: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'\n- **[s3-unread] Server-side unread helper for chats (no browser computation)** \u2014 `pending` \u00b7 (no result)\n- **[client-server-store] Kanban store: fetch column pages from the server, drop client chat map usage** \u2014 `pending` \u00b7 (no result)\n- **[final-verify] End-to-end verification of the board sort feature** \u2014 `pending` \u00b7 (no result)",
+  "report_generation": 0,
+  "events": [
+    {
+      "at": "2026-11-09T09:25:59.876194+00:00",
+      "type": "plan_updated",
+      "message": "Plan updated: 4 step(s)",
+      "data": {
+        "steps": [
+          "column-sort-storage",
+          "server-board-query",
+          "client-server-board",
+          "docs-verification"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-09T09:27:29.588822+00:00",
+      "type": "plan_updated",
+      "message": "Plan updated: 8 step(s)",
+      "data": {
+        "steps": [
+          "column-sort-storage",
+          "server-board-query",
+          "client-server-board",
+          "docs-verification",
+          "s1-store-sort",
+          "s2-contract",
+          "s3-unread",
+          "s4-endpoint"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-09T09:27:42.438055+00:00",
+      "type": "plan_updated",
+      "message": "Plan updated: 6 step(s)",
+      "data": {
+        "steps": [
+          "column-sort-storage",
+          "server-board-query",
+          "client-server-board",
+          "docs-verification",
+          "s2-contract",
+          "s3-unread"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-09T09:28:13.175994+00:00",
+      "type": "plan_updated",
+      "message": "Plan updated: 8 step(s)",
+      "data": {
+        "steps": [
+          "column-sort-storage",
+          "server-board-query",
+          "client-server-board",
+          "docs-verification",
+          "s2-contract",
+          "s3-unread",
+          "client-server-store",
+          "final-verify"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-09T09:28:30.205216+00:00",
+      "type": "step_prepare_failed",
+      "message": "Step 'Persist per-column sort setting in the kanban store' could not be prepared: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'",
+      "data": {
+        "step_id": "column-sort-storage"
+      }
+    },
+    {
+      "at": "2026-11-09T09:28:31.704438+00:00",
+      "type": "step_prepare_failed",
+      "message": "Step 'Specify the sort/query contract and audit the client-side chat pipeline' could not be prepared: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'",
+      "data": {
+        "step_id": "s2-contract"
+      }
+    },
+    {
+      "at": "2026-11-09T09:28:51.447470+00:00",
+      "type": "step_retried",
+      "message": "Step 'Persist per-column sort setting in the kanban store' queued for retry",
+      "data": {
+        "step_id": "column-sort-storage"
+      }
+    },
+    {
+      "at": "2026-11-09T09:29:00.135697+00:00",
+      "type": "step_retried",
+      "message": "Step 'Specify the sort/query contract and audit the client-side chat pipeline' queued for retry",
+      "data": {
+        "step_id": "s2-contract"
+      }
+    },
+    {
+      "at": "2026-11-09T09:29:21.393649+00:00",
+      "type": "step_prepare_failed",
+      "message": "Step 'Persist per-column sort setting in the kanban store' could not be prepared: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'",
+      "data": {
+        "step_id": "column-sort-storage"
+      }
+    },
+    {
+      "at": "2026-11-09T09:29:22.646193+00:00",
+      "type": "step_prepare_failed",
+      "message": "Step 'Specify the sort/query contract and audit the client-side chat pipeline' could not be prepared: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'",
+      "data": {
+        "step_id": "s2-contract"
+      }
+    },
+    {
+      "at": "2026-11-09T09:29:40.382556+00:00",
+      "type": "report",
+      "message": "Delivery report published on the main task",
+      "data": {}
+    },
+    {
+      "at": "2026-11-09T09:29:40.382597+00:00",
+      "type": "run_completed",
+      "message": "Run completed",
+      "data": {
+        "summary": "# \u26d4 BLOCKED \u2014 no code was changed (orchestrator infrastructure bug)\n\n## What happened\nZero worker steps ever executed. Both dispatch attempts (round 1 and the round-2 retry)\nfailed during **card creation**, before any worker started:\n\n```\nTaskManager.create_task() got an unexpected keyword argument 'estimation_cost'\n```\n\n- identical error for two different profiles (`software_developer` and `analyst`)\n- reproduces deterministically on retry (`step_prepare_failed` in both rounds)\n- nothing was read, written or committed by a worker; the repository is untouched\n\n### Root cause & one-line fix\nCall-site/signature skew in the card-creation path: either\n`api/codx/junior/tasks/manager.py::create_task` must accept `estimation_cost`, or the\norchestrator's call site must stop passing it. Fix one of the two, then re-run this\nobjective verbatim (the plan below is unchanged in substance).\n\n## What the feature needs (verified against the working tree, ready to implement)\n\n### 1. Persistence \u2014 per-column `sort` setting\n`api/codx/junior/kanban/store.py::KanbanStore._normalize_columns` (~517) currently keeps only\n`{id, title, color, folder, order, project_id, profiles}` and **silently drops everything else**.\nAdd, with the same \"explicit wins, omitted inherits\" rule already used for `project_id`/`profiles`\n(so an agent `create_column` or an old client cannot wipe it):\n\n- `sort`: one of `COLUMN_SORT_METHODS`, default `\"unread\"`\n- `sort_dir`: optional `\"asc\"|\"desc\"` (reserved, not required by the UI)\n- unknown/missing value \u2192 normalise to `\"unread\"` (no migration; existing `board.json` default on read)\n\nConstants belong in `api/codx/junior/kanban/model.py`. Must survive reload and column rename.\n\n### 2. Sort modes (server-side comparators)\n| value | order |\n|---|---|\n| `unread` **(default)** | unread first, newest `updated_at` first; then rest by `updated_at` desc |\n| `last_changed` | `updated_at` desc |\n| `manual` | `sort_index` asc (drag & drop), then `updated_at` desc |\n| `priority"
+      }
+    }
+  ]
+}

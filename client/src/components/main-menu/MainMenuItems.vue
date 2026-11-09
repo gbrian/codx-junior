@@ -90,7 +90,7 @@ function openCompanySettings() {
     File explorer
   </MenubarItem>
   <MenubarItem @click="$ui.setActiveTab('browser-sessions')">
-    <i class="fa-regular fa-compass"></i> Browser sessions
+    <i class="fa-solid fa-desktop"></i> Computer sessions
   </MenubarItem>
   <MenubarItem @click="$ui.openGitView()">
     <i class="fa-solid fa-code-branch"></i> Git

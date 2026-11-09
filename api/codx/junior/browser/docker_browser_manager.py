@@ -50,35 +50,49 @@ Configuration (environment variables)
                                   (default ``9223``).
 """
 
+import base64
 import json
 import logging
 import os
 import re
+import secrets
 import shutil
+import socket
 import subprocess
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Tuple
 from urllib.parse import urlparse
 
-from codx.junior.browser.model import BrowserSession, SharedFolder
+from codx.junior.browser.model import BrowserSession, SharedFolder, normalize_size
 
 logger = logging.getLogger(__name__)
 
 #: Default browser image.  Chromium (not Firefox) is required because
 #: Playwright drives the shared browser through the Chrome DevTools Protocol.
 DEFAULT_BROWSER_IMAGE = "lscr.io/linuxserver/chromium:latest"
+#: Default Linux desktop image (Selkies web desktop + Xvfb + xdotool).
+DEFAULT_LINUX_IMAGE = "lscr.io/linuxserver/webtop:debian-kde"
+#: Default Windows VM image (QEMU, VNC on 5900, noVNC on 8006).
+DEFAULT_WINDOWS_IMAGE = "dockurr/windows"
+#: Default macOS VM image (QEMU, VNC on 5900, noVNC on 8006).
+DEFAULT_MACOS_IMAGE = "dockurr/macos"
 DEFAULT_DOCKER_NETWORK = "codx-junior_default"
 DEFAULT_CDP_PROXY_PORT = 9223
 DEFAULT_VNC_PORT = 3000
+DEFAULT_VM_VNC_PORT = 5900
+DEFAULT_VM_WEB_PORT = 8006
 CONTAINER_PREFIX = "browser_"
+CONTAINER_DESKTOP_PREFIX = "computer_"
 CONTAINER_LABEL = "codx-junior.browser"
+CONTAINER_DESKTOP_LABEL = "codx-junior.computer"
 CONTAINER_PROJECT_LABEL = "codx-junior.browser.project"
 CONTAINER_SESSION_LABEL = "codx-junior.browser.session"
 MAX_SESSIONS = 10
 DOCKER_READY_TIMEOUT = 60
+DOCKER_VM_READY_TIMEOUT = 300
 
 #: Container root holding the project folders (``/home/<project_name>/...``).
 DEFAULT_HOME_ROOT = "/home"
@@ -86,8 +100,27 @@ DEFAULT_HOME_ROOT = "/home"
 DEFAULT_DOWNLOADS_MOUNT = "/downloads"
 #: Project folder (relative to the project root) receiving the downloads.
 DEFAULT_DOWNLOADS_FOLDER = ".codx/browser_downloads"
+#: Project folder receiving files saved by a desktop VM (Windows/macOS).
+DEFAULT_COMPUTER_DOWNLOADS_FOLDER = ".codx/computer_downloads"
 #: Hard cap on the number of folders mounted in one session.
 MAX_SHARED_FOLDERS = 20
+#: Environment variables owned by codx-junior.  Extra image variables from the
+#: advanced settings cannot override them: they carry the live-view routing and
+#: the AI control channel.
+RESERVED_BROWSER_ENV = {
+    "PUID", "PGID", "TZ", "SUBFOLDER", "TITLE", "CHROME_CLI",
+}
+RESERVED_LINUX_ENV = {
+    "PUID", "PGID", "TZ", "SUBFOLDER", "TITLE", "DISPLAY", "START_DOCKER",
+    "SELKIES_MANUAL_WIDTH", "SELKIES_MANUAL_HEIGHT",
+    "SELKIES_IS_MANUAL_RESOLUTION_MODE",
+}
+RESERVED_VM_ENV = {
+    "VERSION", "RAM_SIZE", "CPU_CORES", "DISK_SIZE", "USERNAME", "PASSWORD",
+}
+RESERVED_KASM_ENV = {
+    "TZ", "DISPLAY", "VNC_PW", "VNC_VIEW_ONLY_PW", "VNC_RESOLUTION",
+}
 
 
 def _env_flag(name: str, default: bool = True) -> bool:
@@ -213,22 +246,49 @@ class DockerBrowserManager:
         )
         self.share_project_enabled = _env_flag("CODX_BROWSER_SHARE_PROJECT", True)
         self.image = (os.environ.get("CODX_BROWSER_IMAGE") or DEFAULT_BROWSER_IMAGE).strip()
+        self.linux_image = (os.environ.get("CODX_COMPUTER_LINUX_IMAGE") or DEFAULT_LINUX_IMAGE).strip()
+        self.windows_image = (os.environ.get("CODX_COMPUTER_WINDOWS_IMAGE") or DEFAULT_WINDOWS_IMAGE).strip()
+        self.macos_image = (os.environ.get("CODX_COMPUTER_MACOS_IMAGE") or DEFAULT_MACOS_IMAGE).strip()
         self.network = (os.environ.get("CODX_BROWSER_NETWORK") or DEFAULT_DOCKER_NETWORK).strip()
         self.cdp_proxy_port = _env_int("CODX_BROWSER_CDP_PROXY_PORT", DEFAULT_CDP_PROXY_PORT)
         self.vnc_port = _env_int("CODX_BROWSER_VNC_PORT", DEFAULT_VNC_PORT)
+        self.display = (os.environ.get("CODX_COMPUTER_DISPLAY") or ":1").strip()
+        self.vm_vnc_port = _env_int("CODX_COMPUTER_VNC_PORT", DEFAULT_VM_VNC_PORT)
+        self.vm_web_port = _env_int("CODX_COMPUTER_WEB_PORT", DEFAULT_VM_WEB_PORT)
         self.auth_middleware = (os.environ.get("CODX_BROWSER_AUTH_MIDDLEWARE") or "codx-junior-auth").strip()
         self.auto_pull = _env_flag("CODX_BROWSER_AUTO_PULL", True)
-        self._image_ready = False
-        self._image_checked_at = 0.0
+        self.vm_auto_pull = _env_flag("CODX_COMPUTER_VM_AUTO_PULL", self.auto_pull)
+        self.publish_vnc = _env_flag("CODX_COMPUTER_PUBLISH_VNC", True)
+        self._image_ready: dict = {}
+        self._image_checked_at: dict = {}
         os.makedirs(browser_sessions_path, exist_ok=True)
         logger.debug(
-            "DockerBrowserManager initialized at '%s' (domain: %s, image: %s, project: %s, home: %s)",
+            "DockerBrowserManager initialized at '%s' (domain: %s, browser: %s, linux: %s, windows: %s, macos: %s, project: %s, home: %s)",
             browser_sessions_path,
             self.traefik_domain,
             self.image,
+            self.linux_image,
+            self.windows_image,
+            self.macos_image,
             self.project_root_path or "-",
             self.home_path,
         )
+
+    def image_for(self, session: BrowserSession) -> str:
+        """Return the Docker image that runs *session*."""
+        if session.image:
+            return session.image
+        return {
+            "browser": self.image,
+            "linux": self.linux_image,
+            "windows": self.windows_image,
+            "macos": self.macos_image,
+        }.get(session.kind, self.image)
+
+    @property
+    def sessions_dir(self) -> str:
+        """Legacy alias used by callers that still say ``browser_sessions_path``."""
+        return self.browser_sessions_path
 
     # -------------------------------------------------------------------------
     # Project folder sharing
@@ -287,6 +347,15 @@ class DockerBrowserManager:
                 mapping exceeds :data:`MAX_SHARED_FOLDERS`.
         """
         specs = [spec for spec in (share_folders or []) if spec]
+        if session.kind in ("windows", "macos"):
+            return self._configure_vm_share(
+                session,
+                share_project=share_project,
+                share_folders=specs,
+                readonly=readonly,
+                downloads_folder=downloads_folder,
+                downloads_mount=downloads_mount,
+            )
         if share_project is True and not self.can_share_project():
             raise RuntimeError(
                 "Cannot share project folders with the browser session: "
@@ -491,26 +560,121 @@ class DockerBrowserManager:
             mounts.append(f"{session.downloads_path}:{session.downloads_mount}")
         return mounts
 
+    def _configure_vm_share(
+        self,
+        session: BrowserSession,
+        share_project: Optional[bool] = None,
+        share_folders: Optional[List[Any]] = None,
+        readonly: Optional[bool] = None,
+        downloads_folder: Optional[str] = None,
+        downloads_mount: Optional[str] = None,
+    ) -> BrowserSession:
+        """
+        Map the project into a Windows/macOS VM.
+
+        dockurr images expose exactly one host folder inside the guest
+        (``/shared``, seen as ``Z:\\`` on Windows).  Multi-folder layouts cannot
+        be guaranteed through the 9p share, so the VM mounts the project root
+        (or, when the caller disabled project access, the session downloads
+        folder) and the AI tells the model the guest path via
+        ``guest_share_path``.
+        """
+        use_project = self.can_share_project() and (share_project is not False)
+        if use_project:
+            host_path = os.path.abspath(self.project_root_path)
+            label = self.project_name
+            readonly_value = self.project_readonly if readonly is None else bool(readonly)
+        else:
+            host_path = os.path.join(self._get_session_folder(session.id), "shared")
+            label = "Shared"
+            readonly_value = False
+        os.makedirs(host_path, exist_ok=True)
+
+        session.project_name = self.project_name
+        session.home_path = "/shared"
+        session.shared_folders = [
+            SharedFolder(
+                name=label,
+                folder="" if use_project else None,
+                host_path=host_path,
+                mount_path="/shared",
+                readonly=readonly_value,
+            )
+        ]
+
+        folder = (downloads_folder or "").strip().strip("/")
+        if use_project and folder:
+            # Caller explicitly chose a project folder for the VM files.
+            target = os.path.abspath(os.path.join(host_path, folder))
+            if target != host_path and not target.startswith(host_path + os.sep):
+                raise ValueError(f"downloads folder '{folder}' is outside the project")
+        elif use_project:
+            folder = f"{DEFAULT_COMPUTER_DOWNLOADS_FOLDER}/{session.id}"
+            target = os.path.abspath(os.path.join(host_path, folder))
+        else:
+            target = host_path
+        os.makedirs(target, exist_ok=True)
+
+        relative = os.path.relpath(target, host_path).replace(os.sep, "/")
+        session.downloads_path = target
+        session.downloads_folder = None if relative == "." else relative
+        inside = "" if relative == "." else f"/{relative}"
+        session.downloads_mount = f"/shared{inside}"
+        # The VM has exactly one host folder (/shared); the downloads folder
+        # lives inside it, so it must not be mounted a second time.
+        session.downloads_own_mount = False
+        if session.kind == "windows":
+            windows_inside = "" if not inside else inside.replace("/", "\\")
+            session.guest_share_path = "Z:\\" + windows_inside.lstrip("\\")
+        else:
+            session.guest_share_path = session.downloads_mount
+        logger.info(
+            "VM session %s shares %s at /shared (guest: %s); downloads: %s",
+            str(session.id)[:8],
+            host_path,
+            session.guest_share_path,
+            session.downloads_mount,
+        )
+        return session
+
     # -------------------------------------------------------------------------
     # Container lifecycle
     # -------------------------------------------------------------------------
 
     def start_container(self, session: BrowserSession) -> BrowserSession:
         """
-        Start a Chromium container for the session and resolve its endpoints.
+        Start the container backing *session* and resolve its endpoints.
+
+        The container flavour depends on ``session.kind``:
+
+        - ``browser``: LinuxServer Chromium + CDP proxy + Selkies live view;
+        - ``linux``: LinuxServer webtop desktop + Selkies live view;
+        - ``windows`` / ``macos``: dockurr QEMU VM + VNC (AI) and noVNC (human,
+          proxied by the API WebSocket bridge).
 
         Args:
             session: BrowserSession with ``id`` set.
 
         Returns:
-            Updated BrowserSession with container id, VNC URL and CDP URL.
+            Updated BrowserSession with container id and connection endpoints.
 
         Raises:
             RuntimeError: If the container cannot be started or does not become
-                ready within :data:`DOCKER_READY_TIMEOUT` seconds.
+                ready within the kind-specific timeout.
         """
-        session_folder = self._get_session_folder(session.id)
-        profile_path = self._profile_path(session.id)
+        is_browser = session.kind == "browser"
+        if is_browser:
+            profile_path = self._profile_path(session.id)
+            container_name = f"{CONTAINER_PREFIX}{session.id[:8]}"
+            router_name = f"codx-browser-{session.id[:8]}"
+        else:
+            profile_path = (
+                self._vm_storage_path(session.id)
+                if session.kind in ("windows", "macos")
+                else self._desktop_profile_path(session.id)
+            )
+            container_name = f"{CONTAINER_DESKTOP_PREFIX}{session.id[:8]}"
+            router_name = f"codx-computer-{session.id[:8]}"
         os.makedirs(profile_path, exist_ok=True)
         self._ensure_owned(profile_path)
 
@@ -519,11 +683,15 @@ class DockerBrowserManager:
             # enable sharing implicitly, only provide a downloads folder.
             self.configure_share(session, share_project=False)
 
-        container_name = f"{CONTAINER_PREFIX}{session.id[:8]}"
-        path_prefix = self._path_prefix(session.id)
-        router_name = f"codx-browser-{session.id[:8]}"
+        path_prefix = self._path_prefix(session.id, session.kind)
+        if not getattr(session, "library_item_id", None):
+            # Saved computers carry a committed image plus its resolved
+            # provider/live-view profile; resolving the image name again would
+            # canonicalise it back to the upstream base image.
+            self._apply_image_profile(session)
+        image = self.image_for(session)
 
-        self._ensure_image()
+        self._ensure_image(image)
 
         try:
             self._remove_same_named_container(container_name)
@@ -535,13 +703,14 @@ class DockerBrowserManager:
                 router_name=router_name,
             )
             logger.info(
-                "Starting Chromium container: %s (image: %s, network: %s, path: %s)",
+                "Starting %s container: %s (image: %s, network: %s, path: %s)",
+                session.kind,
                 container_name,
-                self.image,
+                image,
                 self.network,
                 path_prefix,
             )
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
             if result.returncode != 0:
                 raise RuntimeError(f"Docker run failed: {result.stderr.strip() or result.stdout.strip()}")
 
@@ -552,28 +721,54 @@ class DockerBrowserManager:
             session.container_id = container_id
             session.container_name = container_name
             session.browser_profile_path = profile_path
-            session.engine = "chromium"
+            session.profile_path = profile_path
+            session.image = image
+            session.engine = "chromium" if is_browser else "desktop"
             session.traefik_domain = self.traefik_domain
             session.traefik_path_prefix = path_prefix
-            session.vnc_url = self._build_vnc_url(session.id)
-            session.vnc_path = path_prefix
+            session.control = session.control or (
+                "cdp" if is_browser else ("docker" if session.kind == "linux" else "vnc")
+            )
+            if session.kind == "linux":
+                session.display = self.display
+                if (session.live_view or "selkies") in ("selkies", "kasmvnc"):
+                    session.vnc_url = self._build_vnc_url(session.id, path_prefix)
+                    session.vnc_path = path_prefix
+                else:
+                    # Unknown desktop image: no web live view; the UI falls
+                    # back to screenshot polling.
+                    session.vnc_url = None
+                    session.vnc_path = None
+            elif session.kind in ("windows", "macos"):
+                # The AI reaches QEMU's raw VNC port over the Docker network;
+                # the human uses the API's WebSocket VNC bridge (same screen).
+                session.vnc_host = container_name
+                session.vnc_port = self.vm_vnc_port
+                session.vnc_url = None
+                session.vnc_path = None
+                session.vnc_public_port = self._published_vnc_port(container_id)
+            else:
+                session.vnc_url = self._build_vnc_url(session.id, path_prefix)
+                session.vnc_path = path_prefix
             session.status = "running"
             session.error = None
             session.mark_active()
 
-            self._wait_for_container_ready(container_name, timeout=DOCKER_READY_TIMEOUT)
-            session.debug_url = self._resolve_debug_url(container_name)
+            self._wait_until_ready(session, container_name)
+            self._resolve_session_endpoints(session, container_name)
             session.current_url = session.current_url or None
             logger.info(
-                "Browser session %s ready (live view: %s, CDP: %s)",
+                "%s session %s ready (live view: %s, control: %s, debug: %s)",
+                session.kind.title(),
                 session.id[:8],
-                session.vnc_url,
+                session.vnc_url or f"ws-vnc:{session.vnc_host}:{session.vnc_port}",
+                session.control,
                 session.debug_url,
             )
             return session
 
         except Exception as ex:
-            logger.exception("Failed to start Chromium container")
+            logger.exception("Failed to start %s container", session.kind)
             if session.container_id:
                 # Don't leave a half-broken container behind
                 self.stop_container(session, remove=True)
@@ -679,13 +874,9 @@ class DockerBrowserManager:
                 )
                 if result.returncode != 0:
                     raise RuntimeError(result.stderr.strip() or "docker start failed")
-                self._wait_for_container_ready(
-                    session.container_name or session.container_id,
-                    timeout=DOCKER_READY_TIMEOUT,
-                )
-                session.debug_url = self._resolve_debug_url(
-                    session.container_name or session.container_id
-                )
+                container_name = session.container_name or session.container_id
+                self._wait_until_ready(session, container_name)
+                self._resolve_session_endpoints(session, container_name)
                 session.status = "running"
                 session.error = None
                 session.mark_active()
@@ -725,20 +916,184 @@ class DockerBrowserManager:
     # Utilities
     # -------------------------------------------------------------------------
 
+    def _apply_image_profile(self, session: BrowserSession) -> None:
+        """
+        Resolve the desktop image transport into the session record.
+
+        Older sessions (or sessions created directly through the manager) may
+        not carry ``image_provider``/``live_view``; infer them from the image
+        reference so a Kasmweb image is proxied as HTTPS+strip-prefix even when
+        it was selected before the catalog existed.
+        """
+        if session.kind not in ("linux",) and not session.image:
+            return
+        try:
+            from codx.junior.computer.images import resolve_image
+
+            spec = resolve_image(
+                session.image or os.environ.get("CODX_COMPUTER_LINUX_IMAGE"),
+                provider=session.image_provider,
+                kind=session.kind,
+            )
+            if session.kind != "linux":
+                return
+            session.image = spec.image
+            session.image_provider = spec.provider
+            session.live_view = spec.live_view
+            session.live_port = spec.live_port
+            session.live_scheme = spec.live_scheme
+            session.strip_prefix = spec.strip_prefix
+            session.viewer_user = spec.viewer_user
+            if spec.provider == "kasmweb" and not session.viewer_password:
+                session.viewer_password = secrets.token_urlsafe(9)
+            if spec.provider == "kasmweb" and session.downloads_path:
+                # Kasmweb runs as uid 1000; the API/project group is added to
+                # the container, so group-write keeps the shared folder usable.
+                try:
+                    os.chmod(session.downloads_path, 0o775)
+                except OSError:
+                    pass
+        except Exception as ex:
+            logger.warning("Could not resolve image profile for %s: %s", str(session.id)[:8], ex)
+
     def _profile_path(self, session_id: str) -> str:
         """Return the persistent Chromium profile folder for a session."""
         return os.path.join(self._get_session_folder(session_id), "chromium_profile")
 
-    def _path_prefix(self, session_id: str) -> str:
-        """Return the public Traefik path prefix (with trailing slash)."""
-        return f"/browser/{session_id}/"
+    def _desktop_profile_path(self, session_id: str) -> str:
+        """Return the persistent Linux desktop home folder (mounted at /config)."""
+        return os.path.join(self._get_session_folder(session_id), "desktop_profile")
 
-    def _build_vnc_url(self, session_id: str) -> str:
+    def _vm_storage_path(self, session_id: str) -> str:
+        """Return the disk image folder of a Windows/macOS VM (mounted at /storage)."""
+        return os.path.join(self._get_session_folder(session_id), "vm_storage")
+
+    def _path_prefix(self, session_id: str, kind: str = "browser") -> str:
+        """Return the public Traefik path prefix (with trailing slash)."""
+        # Browsers keep the historic /browser/ path; desktops live under
+        # /computer/ so bookmarks and proxy rules remain unambiguous.
+        root = "/browser" if kind == "browser" else "/computer"
+        return f"{root}/{session_id}/"
+
+    def _build_vnc_url(self, session_id: str, path_prefix: Optional[str] = None) -> str:
         """Build the public live-view URL for the session."""
         base = _public_base_url()
+        prefix = path_prefix or self._path_prefix(session_id)
         if base:
-            return f"{base}/browser/{session_id}/"
-        return f"{_normalize_domain(self.traefik_domain)}/browser/{session_id}/"
+            return f"{base}{prefix}"
+        return f"{_normalize_domain(self.traefik_domain)}{prefix}"
+
+    def _published_vnc_port(self, container_id: str) -> Optional[int]:
+        """Return the host port published for a VM's raw VNC endpoint."""
+        if not self.publish_vnc or not container_id:
+            return None
+        try:
+            result = subprocess.run(
+                ["docker", "port", container_id, f"{self.vm_vnc_port}/tcp"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode != 0:
+                return None
+            line = (result.stdout or "").strip().splitlines()[-1]
+            return int(line.rsplit(":", 1)[-1])
+        except Exception as ex:
+            logger.debug("Could not resolve published VNC port: %s", ex)
+            return None
+
+    # -------------------------------------------------------------------------
+    # Advanced settings: image, CPU/RAM/disk/shm and extra environment
+    # -------------------------------------------------------------------------
+
+    def _extra_env_args(self, session: BrowserSession, reserved: set) -> List[str]:
+        """
+        Build ``-e KEY=VALUE`` arguments for the image's extra environment.
+
+        Variables owned by codx-junior (routing, control channel, VM disk/OS)
+        are skipped: letting them be overridden from the dialog would break the
+        live view or point the AI at the wrong machine.
+        """
+        env = getattr(session, "extra_env", None) or {}
+        if not env:
+            return []
+        reserved = {key.upper() for key in reserved}
+        args: List[str] = []
+        for key in sorted(env):
+            if key.upper() in reserved:
+                logger.warning(
+                    "Ignoring advanced env '%s' for session %s: it is managed by codx-junior",
+                    key,
+                    str(session.id or "")[:8],
+                )
+                continue
+            args.extend(["-e", f"{key}={env[key]}"])
+        return args
+
+    @staticmethod
+    def _session_cpus(
+        session: BrowserSession,
+        env_name: str,
+        default: int,
+    ) -> int:
+        """Return the configured vCPUs, falling back to the environment."""
+        if session.cpu_cores:
+            return int(session.cpu_cores)
+        try:
+            return int((os.environ.get(env_name) or "").strip() or default)
+        except ValueError:
+            logger.warning("Invalid %s value; using %s", env_name, default)
+            return default
+
+    @staticmethod
+    def _session_size(
+        session: BrowserSession,
+        field: str,
+        env_name: Any,
+        default: str,
+    ) -> str:
+        """
+        Return the configured size, falling back to env/default.
+
+        ``env_name`` may be one name or a tuple of names checked in order, so a
+        kind-specific variable (``CODX_COMPUTER_MACOS_DISK``) can win over the
+        generic ``CODX_COMPUTER_VM_DISK``.
+        """
+        value = getattr(session, field, None)
+        if value:
+            return value
+        names: Tuple[str, ...] = (env_name,) if isinstance(env_name, str) else tuple(env_name)
+        fallback = default
+        for name in names:
+            candidate = (os.environ.get(name) or "").strip()
+            if candidate:
+                fallback = candidate
+                break
+        try:
+            return normalize_size(fallback, field) or default
+        except ValueError:
+            logger.warning("Invalid %s value %r; using %s", "/".join(names), fallback, default)
+            return default
+
+    def _container_resource_args(
+        self,
+        session: BrowserSession,
+        shm_default: str = "2gb",
+    ) -> List[str]:
+        """
+        Docker host limits for browser/Linux containers.
+
+        VMs are different: their RAM/CPU are guest settings handed to the image
+        (``RAM_SIZE``/``CPU_CORES``), not Docker limits, because QEMU needs
+        memory for its own overhead.
+        """
+        args: List[str] = []
+        if session.cpu_cores:
+            args.extend(["--cpus", str(int(session.cpu_cores))])
+        if session.ram_size:
+            args.extend(["--memory", session.ram_size])
+        args.extend(["--shm-size", session.shm_size or shm_default])
+        return args
 
     def _build_run_command(
         self,
@@ -748,9 +1103,44 @@ class DockerBrowserManager:
         path_prefix: str,
         router_name: str,
     ) -> List[str]:
-        """Build the ``docker run`` command for a session container."""
+        """Build the ``docker run`` command for the session's kind."""
+        if session.kind == "browser":
+            return self._build_browser_run_command(
+                session=session,
+                container_name=container_name,
+                profile_path=profile_path,
+                path_prefix=path_prefix,
+                router_name=router_name,
+            )
+        if session.kind == "linux":
+            return self._build_linux_run_command(
+                session=session,
+                container_name=container_name,
+                profile_path=profile_path,
+                path_prefix=path_prefix,
+                router_name=router_name,
+            )
+        if session.kind in ("windows", "macos"):
+            return self._build_vm_run_command(
+                session=session,
+                container_name=container_name,
+                profile_path=profile_path,
+            )
+        raise ValueError(f"Session kind '{session.kind}' does not run a container")
+
+    def _build_browser_run_command(
+        self,
+        session: BrowserSession,
+        container_name: str,
+        profile_path: str,
+        path_prefix: str,
+        router_name: str,
+    ) -> List[str]:
+        """Build the ``docker run`` command for a Chromium session."""
         proxy_script = self._prepare_cdp_proxy(session.id)
         url = (session.current_url or os.environ.get("CODX_BROWSER_START_URL") or "about:blank").strip()
+        width = int(session.desktop_width or 1920)
+        height = int(session.desktop_height or 1080)
         chrome_args = " ".join(
             arg for arg in [
                 "--remote-debugging-port=9222",
@@ -768,7 +1158,7 @@ class DockerBrowserManager:
                 "--media-cache-dir=/tmp/codx-chromium-media",
                 "--disable-background-networking",
                 "--start-maximized",
-                "--window-size=1920,1080",
+                f"--window-size={width},{height}",
                 url,
             ] if arg
         )
@@ -788,9 +1178,10 @@ class DockerBrowserManager:
             "-e", f"SUBFOLDER={path_prefix}",
             "-e", f"TITLE={self._container_title(session)}",
             "-e", f"CHROME_CLI={chrome_args}",
+            *self._extra_env_args(session, RESERVED_BROWSER_ENV),
             "-v", f"{profile_path}:/config",
             "-v", f"{proxy_script}:/cdp_proxy.py:ro",
-            "--shm-size=2gb",
+            *self._container_resource_args(session),
             "--security-opt", "seccomp=unconfined",
             "--entrypoint", "/bin/bash",
         ]
@@ -809,10 +1200,258 @@ class DockerBrowserManager:
             cmd.extend(["-l", label])
 
         cmd.extend([
-            self.image,
+            self.image_for(session),
             "-c",
             "python3 /cdp_proxy.py >/tmp/cdp-proxy.log 2>&1 & exec /init",
         ])
+        return cmd
+
+    def _build_linux_run_command(
+        self,
+        session: BrowserSession,
+        container_name: str,
+        profile_path: str,
+        path_prefix: str,
+        router_name: str,
+    ) -> List[str]:
+        """Dispatch the Linux desktop command by image provider."""
+        provider = (session.image_provider or "linuxserver").lower()
+        if provider == "kasmweb":
+            return self._build_kasm_run_command(
+                session=session,
+                container_name=container_name,
+                profile_path=profile_path,
+                path_prefix=path_prefix,
+                router_name=router_name,
+            )
+        if provider == "custom":
+            return self._build_generic_linux_run_command(
+                session=session,
+                container_name=container_name,
+                profile_path=profile_path,
+                path_prefix=path_prefix,
+                router_name=router_name,
+            )
+        return self._build_webtop_run_command(
+            session=session,
+            container_name=container_name,
+            profile_path=profile_path,
+            path_prefix=path_prefix,
+            router_name=router_name,
+        )
+
+    def _build_webtop_run_command(
+        self,
+        session: BrowserSession,
+        container_name: str,
+        profile_path: str,
+        path_prefix: str,
+        router_name: str,
+    ) -> List[str]:
+        """
+        Build the container command for a LinuxServer webtop desktop.
+
+        The image already runs Xvfb, the window manager and Selkies; the AI
+        agent script is mounted read-only and executed through ``docker exec``
+        (no port, no extra daemon).  The human uses the same Selkies view as the
+        browser sessions.
+        """
+        agent_script = self._prepare_computer_agent(session.id)
+        cmd = [
+            "docker",
+            "run",
+            "-d",
+            "--name", container_name,
+            "--network", self.network,
+            "--label", f"{CONTAINER_DESKTOP_LABEL}=true",
+            "--label", f"{CONTAINER_PROJECT_LABEL}={self.project_id or ''}",
+            "--label", f"{CONTAINER_SESSION_LABEL}={session.id}",
+            "-e", f"PUID={os.getuid() or 1000}",
+            "-e", f"PGID={os.getgid() or 1000}",
+            "-e", "TZ=Etc/UTC",
+            "-e", f"SUBFOLDER={path_prefix}",
+            "-e", f"TITLE={self._container_title(session)}",
+            "-e", f"DISPLAY={self.display}",
+            "-e", "START_DOCKER=false",
+            "-e", f"SELKIES_MANUAL_WIDTH={session.desktop_width or 1920}",
+            "-e", f"SELKIES_MANUAL_HEIGHT={session.desktop_height or 1080}",
+            "-e", f"SELKIES_IS_MANUAL_RESOLUTION_MODE={session.desktop_width or 1920}x{session.desktop_height or 1080}",
+            *self._extra_env_args(session, RESERVED_LINUX_ENV),
+            "-v", f"{profile_path}:/config",
+            "-v", f"{agent_script}:/codx/computer_agent.py:ro",
+            *self._container_resource_args(session),
+            "--security-opt", "seccomp=unconfined",
+        ]
+        for mount in self._build_share_mounts(session):
+            cmd.extend(["-v", mount])
+        for label in self._build_traefik_labels(
+            router_name=router_name,
+            session_id=session.id,
+            path_prefix=path_prefix,
+        ):
+            cmd.extend(["-l", label])
+        cmd.append(self.image_for(session))
+        return cmd
+
+    def _build_kasm_run_command(
+        self,
+        session: BrowserSession,
+        container_name: str,
+        profile_path: str,
+        path_prefix: str,
+        router_name: str,
+    ) -> List[str]:
+        """
+        Build the container command for a Kasmweb workspace image.
+
+        Kasmweb images run KasmVNC (HTTPS on 6901) and contain a regular X11
+        desktop (XFCE) but no xdotool.  The human watches the KasmVNC page; the
+        AI is driven by the same mounted X11 agent through ``docker exec``
+        (the agent falls back to libX11/libXtst + xwd).  The host gid is added
+        so the container user can write to project folders owned by the API
+        user's group.
+        """
+        agent_script = self._prepare_computer_agent(session.id)
+        viewer_password = session.viewer_password or secrets.token_urlsafe(9)
+        session.viewer_password = viewer_password
+        width = int(session.desktop_width or 1920)
+        height = int(session.desktop_height or 1080)
+        cmd = [
+            "docker",
+            "run",
+            "-d",
+            "--name", container_name,
+            "--network", self.network,
+            "--label", f"{CONTAINER_DESKTOP_LABEL}=true",
+            "--label", f"{CONTAINER_PROJECT_LABEL}={self.project_id or ''}",
+            "--label", f"{CONTAINER_SESSION_LABEL}={session.id}",
+            # Kasmweb images run as uid 1000.  Keep that uid (the image home
+            # and X11 config are owned by it) but use the API/project group as
+            # the primary group, so shared project folders are writable.
+            "--user", f"{os.environ.get('CODX_COMPUTER_KASM_UID', '1000')}:{os.getgid() or 1000}",
+            "-e", "TZ=Etc/UTC",
+            "-e", f"VNC_PW={viewer_password}",
+            "-e", f"VNC_VIEW_ONLY_PW={viewer_password}",
+            "-e", f"VNC_RESOLUTION={width}x{height}",
+            "-e", f"DISPLAY={self.display}",
+            *self._extra_env_args(session, RESERVED_KASM_ENV),
+            "-v", f"{agent_script}:/codx/computer_agent.py:ro",
+            *self._container_resource_args(session, shm_default="512m"),
+            "--security-opt", "seccomp=unconfined",
+        ]
+        for mount in self._build_share_mounts(session):
+            cmd.extend(["-v", mount])
+        for label in self._build_traefik_labels(
+            router_name=router_name,
+            session_id=session.id,
+            path_prefix=path_prefix,
+            port=6901,
+            scheme="https",
+            strip_prefix=True,
+            insecure_skip_verify=True,
+            basic_auth=f"kasm_user:{viewer_password}",
+        ):
+            cmd.extend(["-l", label])
+        cmd.append(self.image_for(session))
+        return cmd
+
+    def _build_generic_linux_run_command(
+        self,
+        session: BrowserSession,
+        container_name: str,
+        profile_path: str,
+        path_prefix: str,
+        router_name: str,
+    ) -> List[str]:
+        """
+        Start an arbitrary desktop image with the agent mounted.
+
+        The catalog does not know its live-view transport, so the session uses
+        screenshot polling in the UI; the AI still gets the X11 agent.  The
+        image must provide an X11 display and python3 (or a shell).
+        """
+        agent_script = self._prepare_computer_agent(session.id)
+        cmd = [
+            "docker",
+            "run",
+            "-d",
+            "--name", container_name,
+            "--network", self.network,
+            "--label", f"{CONTAINER_DESKTOP_LABEL}=true",
+            "--label", f"{CONTAINER_PROJECT_LABEL}={self.project_id or ''}",
+            "--label", f"{CONTAINER_SESSION_LABEL}={session.id}",
+            "-e", f"DISPLAY={self.display}",
+            "-e", "TZ=Etc/UTC",
+            *self._extra_env_args(session, RESERVED_LINUX_ENV),
+            "-v", f"{agent_script}:/codx/computer_agent.py:ro",
+            *self._container_resource_args(session),
+            "--security-opt", "seccomp=unconfined",
+        ]
+        for mount in self._build_share_mounts(session):
+            cmd.extend(["-v", mount])
+        cmd.append(self.image_for(session))
+        return cmd
+
+    def _build_vm_run_command(
+        self,
+        session: BrowserSession,
+        container_name: str,
+        profile_path: str,
+    ) -> List[str]:
+        """
+        Build the command for a Windows/macOS QEMU VM (dockurr images).
+
+        Requirements: KVM, ``/dev/net/tun`` and ``NET_ADMIN``.  The VM exposes
+        raw VNC on 5900 (AI + optional external client) and noVNC on 8006
+        (human, proxied by the API WebSocket bridge).  ``/shared`` is the single
+        host folder the guest sees.
+        """
+        is_windows = session.kind == "windows"
+        version = (session.os_version or ("11" if is_windows else "15")).strip()
+        # macOS needs more room than Windows for the same workload (the
+        # installer plus Xcode/Simulator); the generic VM variable still wins
+        # when explicitly set.
+        disk_env = (
+            "CODX_COMPUTER_WINDOWS_DISK" if is_windows else "CODX_COMPUTER_MACOS_DISK",
+            "CODX_COMPUTER_VM_DISK",
+        )
+        disk_default = "64G" if is_windows else "128G"
+        cmd = [
+            "docker",
+            "run",
+            "-d",
+            "--name", container_name,
+            "--network", self.network,
+            "--label", f"{CONTAINER_DESKTOP_LABEL}=true",
+            "--label", f"{CONTAINER_PROJECT_LABEL}={self.project_id or ''}",
+            "--label", f"{CONTAINER_SESSION_LABEL}={session.id}",
+            "--device", "/dev/kvm",
+            "--device", "/dev/net/tun",
+            "--cap-add", "NET_ADMIN",
+            "--stop-timeout", "120",
+            "-e", f"VERSION={version}",
+            # Advanced settings from the session (dialog) win over the host
+            # defaults.  RAM/CPU/DISK are guest settings consumed by dockurr;
+            # they are not Docker limits, so QEMU keeps its own overhead.
+            "-e", f"RAM_SIZE={self._session_size(session, 'ram_size', 'CODX_COMPUTER_VM_RAM', '8G')}",
+            "-e", f"CPU_CORES={self._session_cpus(session, 'CODX_COMPUTER_VM_CPUS', 4)}",
+            "-e", f"DISK_SIZE={self._session_size(session, 'disk_size', disk_env, disk_default)}",
+            "-v", f"{profile_path}:/storage",
+        ]
+        if is_windows:
+            cmd.extend([
+                "-e", f"USERNAME={os.environ.get('CODX_COMPUTER_VM_USER', 'Docker')}",
+                "-e", f"PASSWORD={os.environ.get('CODX_COMPUTER_VM_PASSWORD', 'admin')}",
+            ])
+        cmd.extend(self._extra_env_args(session, RESERVED_VM_ENV))
+        for mount in self._build_share_mounts(session):
+            cmd.extend(["-v", mount])
+        if self.publish_vnc:
+            cmd.extend([
+                "-p", f"127.0.0.1::{self.vm_vnc_port}",
+                "-p", f"127.0.0.1::{self.vm_web_port}",
+            ])
+        cmd.append(self.image_for(session))
         return cmd
 
     @staticmethod
@@ -843,46 +1482,76 @@ class DockerBrowserManager:
         shutil.copyfile(source, target)
         return str(target)
 
-    def _ensure_image(self) -> None:
-        """Pull the browser image when it is missing (best effort configurable)."""
-        if self._image_ready and time.time() - self._image_checked_at < 300:
+    def _prepare_computer_agent(self, session_id: str) -> str:
+        """
+        Copy the X11 desktop agent into the session folder and return its path.
+
+        The agent is mounted read-only at ``/codx/computer_agent.py`` and run
+        through ``docker exec`` for every AI action; nothing extra listens on
+        the network inside the desktop container.
+        """
+        target = Path(self._get_session_folder(session_id)) / "computer_agent.py"
+        candidates = [
+            Path(__file__).resolve().parents[1] / "computer" / "agent" / "computer_agent.py",
+            Path(__file__).resolve().parents[4] / "computer" / "agent" / "computer_agent.py",
+            Path(__file__).resolve().parents[3] / "computer" / "agent" / "computer_agent.py",
+        ]
+        source = next((path for path in candidates if path.exists()), None)
+        if source is None:
+            raise RuntimeError(
+                "Computer agent script not found (looked in: "
+                + ", ".join(str(path) for path in candidates)
+                + ")"
+            )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        return str(target)
+
+    def _ensure_image(self, image: Optional[str] = None) -> None:
+        """Pull the requested image when it is missing (best effort configurable)."""
+        image = (image or self.image).strip()
+        now = time.time()
+        if self._image_ready.get(image) and now - self._image_checked_at.get(image, 0.0) < 300:
             return
         try:
             inspect = subprocess.run(
-                ["docker", "image", "inspect", self.image],
+                ["docker", "image", "inspect", image],
                 capture_output=True,
                 text=True,
                 timeout=20,
             )
             if inspect.returncode == 0:
-                self._image_ready = True
-                self._image_checked_at = time.time()
+                self._image_ready[image] = True
+                self._image_checked_at[image] = now
                 return
         except Exception as ex:
-            logger.debug("Could not inspect image %s: %s", self.image, ex)
+            logger.debug("Could not inspect image %s: %s", image, ex)
 
-        if not self.auto_pull:
+        is_vm = image in (self.windows_image, self.macos_image)
+        auto_pull = self.vm_auto_pull if is_vm else self.auto_pull
+        if not auto_pull:
             raise RuntimeError(
-                f"Docker image '{self.image}' is not available. Pull it with "
-                f"'docker pull {self.image}' or set CODX_BROWSER_AUTO_PULL=1."
+                f"Docker image '{image}' is not available. Pull it with "
+                f"'docker pull {image}' or enable image pulling "
+                f"(CODX_BROWSER_AUTO_PULL / CODX_COMPUTER_VM_AUTO_PULL)."
             )
 
-        logger.info("Pulling browser image '%s' (first use may take a while)", self.image)
+        logger.info("Pulling image '%s' (first use may take a while)", image)
         try:
             result = subprocess.run(
-                ["docker", "pull", self.image],
+                ["docker", "pull", image],
                 capture_output=True,
                 text=True,
-                timeout=900,
+                timeout=1800,
             )
             if result.returncode != 0:
                 raise RuntimeError(result.stderr.strip() or result.stdout.strip())
-            self._image_ready = True
-            self._image_checked_at = time.time()
+            self._image_ready[image] = True
+            self._image_checked_at[image] = now
         except Exception as ex:
             raise RuntimeError(
-                f"Could not pull Docker image '{self.image}': {ex}. "
-                f"Pull it manually with 'docker pull {self.image}'."
+                f"Could not pull Docker image '{image}': {ex}. "
+                f"Pull it manually with 'docker pull {image}'."
             ) from ex
 
     def _remove_same_named_container(self, container_name: str) -> None:
@@ -926,33 +1595,78 @@ class DockerBrowserManager:
         router_name: str,
         session_id: str,
         path_prefix: str,
+        port: Optional[int] = None,
+        scheme: str = "http",
+        strip_prefix: bool = False,
+        insecure_skip_verify: bool = False,
+        basic_auth: Optional[str] = None,
     ) -> List[str]:
         """
         Build Traefik Docker labels for the live-view route.
 
-        The path prefix is **not** stripped: the container is started with
-        ``SUBFOLDER=<path_prefix>`` so Selkies serves its assets and websocket
-        endpoint under the same prefix.
+        LinuxServer/Selkies is started with ``SUBFOLDER=<path_prefix>``, so the
+        path is **not** stripped.  KasmVNC serves its assets and websocket from
+        the root, so its route strips ``/computer/<id>`` and talks HTTPS to the
+        container (self-signed certificate, therefore skip verification).
         """
         host = urlparse(_normalize_domain(self.traefik_domain)).netloc or self.traefik_domain
+        port = int(port or self.vnc_port)
+        middlewares: List[str] = []
+        if self.auth_middleware:
+            middlewares.append(self.auth_middleware)
         labels = [
             "traefik.enable=true",
             f"traefik.http.routers.{router_name}.rule=Host(`{host}`) && PathPrefix(`{path_prefix}`)",
             f"traefik.http.routers.{router_name}.service={router_name}-service",
-            f"traefik.http.services.{router_name}-service.loadbalancer.server.port={self.vnc_port}",
-            f"traefik.http.services.{router_name}-service.loadbalancer.server.scheme=http",
+            f"traefik.http.services.{router_name}-service.loadbalancer.server.port={port}",
+            f"traefik.http.services.{router_name}-service.loadbalancer.server.scheme={scheme}",
             f"traefik.docker.network={self.network}",
             f"traefik.http.routers.{router_name}.priority=200",
         ]
-        if self.auth_middleware:
+        if strip_prefix:
+            middleware_name = f"{router_name}-strip"
             labels.append(
-                f"traefik.http.routers.{router_name}.middlewares={self.auth_middleware}"
+                f"traefik.http.middlewares.{middleware_name}.stripprefix.prefixes="
+                f"{path_prefix.rstrip('/')}"
+            )
+            middlewares.append(f"{middleware_name}@docker")
+        if basic_auth:
+            # KasmVNC protects the page/websocket with HTTP Basic auth.  The
+            # iframe is same-origin and cannot receive credentials from the
+            # parent, so inject them upstream after the app forward-auth.
+            middleware_name = f"{router_name}-viewer-auth"
+            token = base64.b64encode(basic_auth.encode("utf-8")).decode("ascii")
+            labels.append(
+                f"traefik.http.middlewares.{middleware_name}.headers."
+                f"customrequestheaders.Authorization=Basic {token}"
+            )
+            middlewares.append(f"{middleware_name}@docker")
+        if middlewares:
+            labels.append(
+                f"traefik.http.routers.{router_name}.middlewares={','.join(middlewares)}"
+            )
+        if scheme == "https" and insecure_skip_verify:
+            # The transport is defined by the Traefik HTTP provider (see
+            # traefik/manager.py) because Docker labels cannot create a
+            # ServersTransport in Traefik v3.
+            labels.append(
+                f"traefik.http.services.{router_name}-service.loadbalancer.serversTransport="
+                "codx-insecure@http"
             )
         return labels
 
+    def _wait_until_ready(self, session: BrowserSession, container_name: str) -> None:
+        """Wait for the endpoint the AI needs, according to the session kind."""
+        if session.kind == "browser":
+            self._wait_for_container_ready(container_name, timeout=DOCKER_READY_TIMEOUT)
+        elif session.kind == "linux":
+            self._wait_for_linux_ready(session, container_name, timeout=DOCKER_READY_TIMEOUT)
+        elif session.kind in ("windows", "macos"):
+            self._wait_for_vnc_ready(container_name, timeout=DOCKER_VM_READY_TIMEOUT)
+
     def _wait_for_container_ready(self, container_name: str, timeout: int = DOCKER_READY_TIMEOUT) -> None:
         """
-        Wait until both the live view and the CDP proxy respond.
+        Wait until the CDP proxy responds (browser sessions).
 
         Args:
             container_name: Docker container name (also its DNS name on the
@@ -960,7 +1674,7 @@ class DockerBrowserManager:
             timeout: Maximum wait time in seconds.
 
         Raises:
-            TimeoutError: If either endpoint is not reachable in time.
+            TimeoutError: If the endpoint is not reachable in time.
         """
         deadline = time.time() + timeout
         last_error = "not started"
@@ -983,6 +1697,125 @@ class DockerBrowserManager:
             f"Browser container {container_name} failed to become ready in {timeout}s "
             f"(last error: {last_error})"
         )
+
+    def _wait_for_linux_ready(
+        self,
+        session: BrowserSession,
+        container_name: str,
+        timeout: int = DOCKER_READY_TIMEOUT,
+    ) -> None:
+        """Wait until the X11 display and the computer agent answer."""
+        deadline = time.time() + timeout
+        last_error = "not started"
+        while time.time() < deadline:
+            if not self._container_exists(container_name):
+                raise RuntimeError(
+                    f"Desktop container {container_name} exited before becoming ready"
+                )
+            try:
+                result = subprocess.run(
+                    [
+                        "docker", "exec", "-i",
+                        "-e", f"DISPLAY={session.display or ':1'}",
+                        container_name,
+                        "python3", "/codx/computer_agent.py",
+                    ],
+                    input=json.dumps({"action": "screen_size"}),
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+                if result.returncode == 0 and (result.stdout or "").strip():
+                    data = json.loads(result.stdout)
+                    if data.get("ok"):
+                        try:
+                            session.desktop_width = int(data.get("width") or 0) or session.desktop_width
+                            session.desktop_height = int(data.get("height") or 0) or session.desktop_height
+                        except (TypeError, ValueError):
+                            pass
+                        logger.debug("Desktop %s is ready (agent)", container_name)
+                        return
+                    last_error = str(data.get("error") or "agent failed")
+                else:
+                    last_error = (result.stderr or result.stdout or "agent failed").strip()
+            except Exception as ex:
+                last_error = str(ex)
+            # Backwards compatibility for a container started without the
+            # agent mount: fall back to xdotool.
+            try:
+                fallback = subprocess.run(
+                    [
+                        "docker", "exec", container_name, "/bin/bash", "-lc",
+                        f"DISPLAY={session.display or ':1'} xdotool getdisplaygeometry",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                if fallback.returncode == 0 and (fallback.stdout or "").strip():
+                    width, _, height = (fallback.stdout or "").strip().partition(" ")
+                    session.desktop_width = int(width)
+                    session.desktop_height = int(height)
+                    logger.debug("Desktop %s is ready (xdotool)", container_name)
+                    return
+            except Exception:
+                pass
+            time.sleep(0.5)
+
+        raise TimeoutError(
+            f"Desktop container {container_name} did not expose X11 in {timeout}s "
+            f"(last error: {last_error})"
+        )
+
+    def _wait_for_vnc_ready(
+        self,
+        container_name: str,
+        timeout: int = DOCKER_VM_READY_TIMEOUT,
+    ) -> None:
+        """Wait until QEMU's VNC port accepts TCP connections."""
+        deadline = time.time() + timeout
+        last_error = "not started"
+        while time.time() < deadline:
+            if not self._container_exists(container_name):
+                raise RuntimeError(f"VM container {container_name} exited before becoming ready")
+            try:
+                with socket.create_connection(
+                    (container_name, self.vm_vnc_port), timeout=3
+                ):
+                    logger.debug("VM %s is ready (VNC)", container_name)
+                    return
+            except Exception as ex:
+                last_error = str(ex)
+            time.sleep(1.0)
+        raise TimeoutError(
+            f"VM container {container_name} did not expose VNC on "
+            f"{self.vm_vnc_port} in {timeout}s (last error: {last_error})"
+        )
+
+    def _resolve_session_endpoints(
+        self,
+        session: BrowserSession,
+        container_name: str,
+    ) -> None:
+        """Fill the connection fields used by the AI backend."""
+        if session.kind == "browser":
+            session.debug_url = self._resolve_debug_url(container_name)
+            return
+        if session.kind == "linux":
+            session.debug_url = None
+            session.display = self.display
+            session.control = "docker" if session.control != "vnc" else "vnc"
+            session.vnc_host = container_name
+            # Keep the default port even for the docker-exec backend: the
+            # session record must stay reloadable and a Linux image may be
+            # switched to VNC later.
+            session.vnc_port = self.vm_vnc_port
+            return
+        if session.kind in ("windows", "macos"):
+            session.debug_url = None
+            session.control = "vnc"
+            session.vnc_host = container_name
+            session.vnc_port = self.vm_vnc_port
 
     def _resolve_debug_url(self, container_name: str) -> str:
         """
@@ -1028,39 +1861,44 @@ class DockerBrowserManager:
 
     def cleanup_all_containers(self) -> None:
         """
-        Stop all browser containers belonging to this project.
+        Stop all browser/computer containers belonging to this project.
 
         Cleanup on shutdown must never touch another project's containers, so
-        the filter uses the project label set at creation time.
+        the filter uses the project label set at creation time.  Browser and
+        desktop containers use different kind labels, so both are queried.
         """
         try:
-            filters = ["--filter", f"label={CONTAINER_LABEL}=true"]
-            if self.project_id:
-                filters.extend(["--filter", f"label={CONTAINER_PROJECT_LABEL}={self.project_id}"])
-            result = subprocess.run(
-                ["docker", "ps", "-aq", *filters],
-                capture_output=True,
-                text=True,
-                timeout=15,
-            )
-            if result.returncode != 0:
-                logger.warning("Could not list browser containers: %s", result.stderr.strip())
-                return
-            for cid in [line.strip() for line in (result.stdout or "").splitlines() if line.strip()]:
+            ids = set()
+            for kind_label in (CONTAINER_LABEL, CONTAINER_DESKTOP_LABEL):
+                filters = ["--filter", f"label={kind_label}=true"]
+                if self.project_id:
+                    filters.extend(["--filter", f"label={CONTAINER_PROJECT_LABEL}={self.project_id}"])
+                result = subprocess.run(
+                    ["docker", "ps", "-aq", *filters],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+                if result.returncode != 0:
+                    logger.warning("Could not list containers: %s", result.stderr.strip())
+                    continue
+                ids.update(line.strip() for line in (result.stdout or "").splitlines() if line.strip())
+            for cid in ids:
                 try:
-                    subprocess.run(["docker", "stop", cid], capture_output=True, timeout=20)
                     subprocess.run(["docker", "rm", "-f", cid], capture_output=True, timeout=20)
-                    logger.info("Cleaned up browser container: %s", cid[:12])
+                    logger.info("Cleaned up container: %s", cid[:12])
                 except Exception as ex:
                     logger.warning("Failed to cleanup container %s: %s", cid[:12], ex)
         except Exception as ex:
             logger.warning("Error during cleanup_all_containers: %s", ex)
 
 
-#: Backwards-compatible alias.  Older code (and persisted documentation) used
+#: Backwards-compatible aliases.  Older code (and persisted documentation) used
 #: the Firefox-specific name; the implementation now uses Chromium because
-#: Playwright's CDP support requires it.
+#: Playwright's CDP support requires it.  ``DockerComputerManager`` is the new
+#: name used by the computer-session code.
 DockerFirefoxManager = DockerBrowserManager
+DockerComputerManager = DockerBrowserManager
 
 
 # Made with ❤️ by codx-junior

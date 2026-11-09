@@ -11,21 +11,27 @@
       "title": "Docs",
       "color": "#000000",
       "folder": "Docs",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "8ba19b9d-346e-49a7-a168-044d51d535ed",
       "title": "Chat searcher",
       "color": "#3398DB",
       "folder": "Chat searcher",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "949baff2-8508-4af4-8651-3cb820cf438e",
       "title": "Background processes",
       "color": "#000000",
       "folder": "Background processes",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://images.datagraphs.com/F8Mvj5493/knowledge-graph-visualization-in-data-graphs-3.jpg",

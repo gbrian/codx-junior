@@ -11,7 +11,9 @@
       "title": "ToDo",
       "color": "#000000",
       "folder": "ToDo",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://ai-sandbox.list.lu/static/93179ec9161885e2190ab23c86b94f8d/83638/factory_0f35bf24e1.jpg",

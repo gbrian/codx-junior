@@ -42,3 +42,10 @@ localai-models
 kasm-user
 chromium_profile
 .codx/orchestration/worker.json
+
+# Saved computer images/metadata and container downloads
+.codx/computer_library/
+**/.codx/computer_library/
+.codx/computer_downloads/
+**/.codx/computer_downloads/
+desktop_profile/

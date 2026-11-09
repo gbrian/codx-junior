@@ -11,7 +11,9 @@
       "title": "Doc",
       "color": "#000000",
       "folder": "Doc",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://media.gettyimages.com/id/1778530904/vector/ai-chat-concept-chatbot-customer-service.jpg?s=612x612&w=gi&k=20&c=Qcyw0rfRmG5YZtmK2SksOrKZn-rNOmz19ax8ozCv6xs=",

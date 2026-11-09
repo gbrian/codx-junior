@@ -11,7 +11,9 @@
       "title": "Documentation",
       "color": "#000000",
       "folder": "Documentation",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://blog-cdn.skywork.ai/wp-content/uploads/2025/09/77484ffebe3440c995406ede9680d1a1.jpg",

@@ -341,6 +341,13 @@ class CodxUser(BaseModel):
             "through the assistant) or 'member' (follow the work)."
         ),
     )
+    language: Optional[str] = Field(
+        default="auto",
+        description=(
+            "Preferred language for assistant messages: 'auto' detects it from "
+            "the message, or an ISO code such as 'es', 'pt-BR', 'en'."
+        ),
+    )
     workspace_mode: Optional[str] = Field(
         default=WORKSPACE_MODE_AUTO,
         description=(
@@ -405,6 +412,13 @@ class CodxUser(BaseModel):
                 f"{', '.join(WORKSPACE_MODES)})"
             )
         return mode
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _language(cls, value):
+        """Normalize the assistant language preference (auto or ISO tag)."""
+        text = str(value or "").strip() or "auto"
+        return text
 
     @field_validator("companies", mode="before")
     @classmethod

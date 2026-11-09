@@ -273,7 +273,15 @@ def build_config() -> Dict[str, Any]:
         global_rules=list(global_settings.traefik_rules or []),
         project_rule_sets=get_project_rule_sets(),
     )
-    return result["config"]
+    config = result["config"]
+    # KasmVNC containers serve HTTPS with a self-signed certificate.  A shared
+    # transport (referenced from Docker labels as ``codx-insecure@http``) keeps
+    # those routes working without teaching every route its own transport.
+    http = config.setdefault("http", {})
+    http.setdefault("serversTransports", {})["codx-insecure"] = {
+        "insecureSkipVerify": True,
+    }
+    return config
 
 
 # ---------------------------------------------------------------------------

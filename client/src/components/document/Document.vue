@@ -9,6 +9,7 @@ import parser from '@/utils/markdownParser'
       v-for="(chapter, index) in chapters"
       :key="chapter.hash || ('chapter-' + chapter.level + '-' + index)"
       :chapter="chapter"
+      :chapter-path="[index]"
       :blocks="getChapterBlocks(chapter)"
       :files="files"
       :documentId="documentId"
@@ -16,6 +17,7 @@ import parser from '@/utils/markdownParser'
       :chat="chat"
       :message="message"
       :loading="loading"
+      :editable="editable"
       @add-file="$emit('add-file', $event)"
       @copy-chapter="handleCopyChapter"
       @create-task="handleCreateTask"
@@ -47,7 +49,10 @@ export default {
     chat: { type: Object, default: null },
     loading: { type: Boolean, default: false },
     documentId: { type: String, default: '' },
-    message: { type: Object, default: null }
+    message: { type: Object, default: null },
+    // In-place block editing is only offered where a save target exists (chat
+    // messages). Read-only document views keep the plain renderer.
+    editable: { type: Boolean, default: false }
   },
   emits: [
     'generate-code',
@@ -95,8 +100,7 @@ export default {
       return hash.toString()
     },
     getChapterBlocks(chapter) {
-      const contentWithoutHeader = parser.stripHeaderFromContent(chapter.content || '')
-      return parser.parseBlocks(contentWithoutHeader, parser.getRenderer)
+      return parser.parseBlocks(parser.getChapterBody(chapter.content || ''), parser.getRenderer)
     },
     handleCopyChapter(chapterData) {
       this.$emit('copy-chapter', chapterData)
@@ -105,11 +109,29 @@ export default {
       this.$emit('create-task', taskData)
     },
     onBlockEdited(editData) {
-      const { originalContent, newContent } = editData
-      const updatedContent = this.content.replace(originalContent, newContent)
+      // Preferred path: a chapter emitted its own new source plus its position
+      // in the tree. Serializing the parsed tree lets us replace exactly that
+      // section (and only that one), so identical blocks in another section are
+      // left untouched.
+      let fullContent = editData.fullContent
+      if (!fullContent && Array.isArray(editData.chapterPath)) {
+        fullContent = parser.serializeChapters(this.chapters, {
+          path: editData.chapterPath,
+          content: editData.newContent,
+          replaceChildren: editData.replaceChildren === true
+        })
+      }
+
+      // Backwards compatible fallback for callers that only send the block.
+      if (!fullContent) {
+        const { originalContent, newContent } = editData
+        fullContent = (this.content || '').replace(originalContent, newContent)
+      }
+
+      if (fullContent === this.content) return
       this.$emit('block-edited', {
         ...editData,
-        fullContent: updatedContent
+        fullContent
       })
     }
   }

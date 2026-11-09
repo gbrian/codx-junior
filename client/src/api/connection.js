@@ -95,6 +95,19 @@ export class CodxJuniorConnection {
       .finally(() => this.liveRequests--);
   }
 
+  /** GET a binary response (saved-computer previews) with the normal auth headers. */
+  getBlob(url) {
+    this.createConnection()
+    this.liveRequests++;
+    const request = this.axiosInstance.get(this.prepareUrl(url), {
+      headers: this.headers,
+      responseType: 'blob'
+    })
+    return this.trackLocalCall('GET', url, request)
+      .then(({ data }) => data)
+      .finally(() => this.liveRequests--);
+  }
+
   post(url, data) {
     this.createConnection()
     this.liveRequests++;

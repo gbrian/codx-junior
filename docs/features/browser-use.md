@@ -1,12 +1,17 @@
 # Browser use and co-browsing
 
+> Browser sessions are the `kind="browser"` case of
+> [computer sessions](/features/computer-use). The same manager, control lease
+> and activity trail now also drive Linux desktops, Windows/macOS VMs and remote
+> VNC/SSH machines.
+
 Browser use gives every chat a real Chromium browser that **you and the AI
 share**. It is not an AI-only headless browser and not a second "user browser":
 there is one page, one history, one cookie jar and one live view.
 
 ## What you can do
 
-- Open a browser session from **Browser sessions** or from a chat and watch the
+- Open a browser session from **Computer sessions** or from a chat and watch the
   page live while the AI works.
 - Click, type, scroll and navigate directly in the live view; the AI sees the
   same page on its next tool call.
@@ -59,7 +64,7 @@ there is one page, one history, one cookie jar and one live view.
 
 ### From the UI
 
-Open **Browser sessions**, create a session with a name and optional start URL,
+Open **Computer sessions**, create a browser session with a name and optional start URL,
 then select it. The live browser is embedded in the panel:
 
 - address bar, back, forward and refresh send actions through the REST API;

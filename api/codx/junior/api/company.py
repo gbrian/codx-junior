@@ -320,6 +320,13 @@ class AssistantRequest(BaseModel):
             "assistant asks one question at a time instead of dumping a form."
         ),
     )
+    language: str = Field(
+        default="",
+        description=(
+            "Browser/request language (e.g. 'es-ES'). Used by the AI fallback "
+            "when the rule-based assistant does not understand the message."
+        ),
+    )
     form_id: str = Field(
         default="", description="Set when submitting a form rendered by the assistant"
     )
@@ -786,6 +793,8 @@ def api_company_assistant(
             state=payload.state,
             form_id=payload.form_id,
             values=payload.values,
+            user=user,
+            language=payload.language,
         )
     )
 

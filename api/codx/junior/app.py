@@ -116,6 +116,9 @@ GLOBAL_REQUEST_TIMEOUT_SECONDS=30
 # API request so the first session does not fail with a 504.
 BROWSER_REQUEST_TIMEOUT_SECONDS = int(os.environ.get("CODX_BROWSER_REQUEST_TIMEOUT_SECONDS", "600"))
 BROWSER_LIFECYCLE_PREFIX = "/api/browsers"
+# Computer sessions also start containers/VMs: give create/restart/delete the
+# longer budget instead of the 30 s global API timeout.
+COMPUTER_LIFECYCLE_PREFIX = "/api/computers"
 
 # ── API performance logging ────────────────────────────────────────────────────
 # Records every HTTP call's duration/status into the API logs storage so that
@@ -324,7 +327,7 @@ async def timeout_middleware(request: Request, call_next):
     try:
         start_time = time.time()
         timeout = GLOBAL_REQUEST_TIMEOUT_SECONDS
-        if request.url.path.startswith(BROWSER_LIFECYCLE_PREFIX):
+        if request.url.path.startswith((BROWSER_LIFECYCLE_PREFIX, COMPUTER_LIFECYCLE_PREFIX)):
             timeout = BROWSER_REQUEST_TIMEOUT_SECONDS
         logger.info("HTTP starting: %s", request.url)
         return await asyncio.wait_for(call_next(request), timeout=timeout)

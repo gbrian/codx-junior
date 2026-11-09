@@ -372,6 +372,7 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             :loading="!message.done"
             :documentId="documentId"
             :message="message"
+            :editable="canEditMessage && isDone"
             @generate-code="onGenerateCode"
             @reload-file="$emit('reload-file', { file: $event, message })"
             @open-file="$emit('open-file', $event)"
@@ -1335,16 +1336,33 @@ export default {
       this.$emit('show-events', this.message)
     },
     onBlockEdited(data) {
-      const { blockHash, originalContent, newContent, block } = data
-      const updatedContent = this.replaceBlockInContent(
-        this.displayMessage.content,
-        originalContent,
-        newContent
-      )
+      const target = this.displayMessage
+      if (!target?.doc_id) return
+
+      // The Document serialized the whole updated message, so identical blocks
+      // in other sections are never replaced by mistake. Fall back to the old
+      // text replacement only when an older caller does not provide it.
+      const updatedContent = typeof data.fullContent === 'string'
+        ? data.fullContent
+        : this.replaceBlockInContent(target.content, data.originalContent, data.newContent)
+
+      if (updatedContent === target.content) return
+
+      const previousContent = target.content
+      const previousUpdatedAt = target.updated_at
+
+      // Optimistic local update: the block disappears from edit mode and the
+      // new markdown renders immediately, while the backend write is in flight.
+      target.content = updatedContent
+      target.updated_at = new Date().toISOString()
 
       this.$emit('edited', {
-        ...this.message,
-        content: updatedContent
+        ...target,
+        content: updatedContent,
+        // Used by the chat view to roll back the optimistic update if the
+        // backend rejects the write.
+        previousContent,
+        previousUpdatedAt
       })
     },
     replaceBlockInContent(fullContent, originalBlock, newBlock) {

@@ -38,24 +38,24 @@ const CanvaViewer = asyncChunk(() => import('./canva/CanvaViewer.vue'))
     @edit-save="onEditSave"
   >
     <div class="rounded-md py-2">
-      <!-- Edit button (shown on hover) -->
+      <!-- Edit button (revealed on hover, always reachable on touch) -->
       <div
-        class="absolute -left-10 top-0 opacity-0 hover:opacity-100 transition-opacity"
-        v-if="!isEditing"
+        class="absolute -left-10 top-0 opacity-0 hover:opacity-100 group-hover/editable-block:opacity-100 focus-within:opacity-100 max-md:opacity-100 transition-opacity"
+        v-if="editable && !isEditing"
       >
         <button
           class="btn btn-xs btn-ghost tooltip tooltip-right"
-          data-tip="Edit block"
+          data-tip="Edit block source"
           @click="startEdit"
         >
-          <i class="fa-solid fa-pen"></i>
+          <i class="fa-solid fa-pen-to-square"></i>
         </button>
       </div>
 
       <div class="flex gap-2 w-full justify-end rounded-t" ref="toolbar" v-if="(showMermaid || showHTMLPreview || showCanva) && !isEditing">
         <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource" v-if="showMermaid">
           <span v-if="showMermaidSource">View diagram</span>
-          <span v-else>View code</span>
+          <span v-else>View source</span>
         </button>
         <button class="btn btn-sm bg-info/60 my-2 flex gap-2" @click="htmlPreview = !htmlPreview" v-if="showHTMLPreview">
           <span v-if="htmlPreview">View code</span>
@@ -74,8 +74,9 @@ const CanvaViewer = asyncChunk(() => import('./canva/CanvaViewer.vue'))
       <MermaidViewerVue
         :diagram="codeText"
         theme="dark"
-        @click="showMermaidSource = !showMermaidSource"
+        :editable="editable"
         v-if="showMermaid && !showMermaidSource && !isEditing"
+        @change="onMermaidChange"
       />
 
       <HTMLPreview
@@ -136,7 +137,22 @@ const languageMapping = {
 }
 
 export default {
-  props: ['chat', 'finished', 'code', 'text', 'text-language', 'file-name', 'files', 'project', 'message', 'block-hash'],
+  props: {
+    chat: { type: Object, default: null },
+    finished: { type: Boolean, default: false },
+    code: { type: Object, default: null },
+    text: { type: String, default: '' },
+    textLanguage: { type: String, default: '' },
+    fileName: { type: String, default: '' },
+    files: { type: Array, default: null },
+    project: { type: Object, default: null },
+    message: { type: Object, default: null },
+    blockHash: { type: [String, Number], default: null },
+    blockIndex: { type: Number, default: null },
+    // Code blocks remain editable by default (standalone usage); document
+    // containers explicitly opt out when the view is read-only.
+    editable: { type: Boolean, default: true }
+  },
   emits: ['reload-file', 'open-file', 'save-file', 'add-file', 'sub-task', 'edit-message', 'generate-code', 'text-changed', 'block-edited'],
   data() {
     return {
@@ -268,9 +284,18 @@ export default {
         originalContent,
         newContent,
         blockHash: this.blockHash,
+        blockIndex: this.blockIndex,
         language: this.language
       })
       this.rebuildMarkdownText()
+    },
+    // The mermaid viewer has its own inline source editor (with preview and
+    // fullscreen mode). Saving there goes through the same block-edit path so
+    // the owning message persists it in the backend.
+    onMermaidChange(newContent) {
+      const originalContent = this.codeText
+      if (newContent === originalContent) return
+      this.onEditSave({ originalContent, newContent })
     },
     onMessageChange({ orgContent, newContent }) {
       this.codeText = newContent

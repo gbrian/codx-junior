@@ -15,35 +15,45 @@
       "title": "To Do",
       "color": "",
       "folder": "To Do",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "doing",
       "title": "Doing",
       "color": "#6366f1",
       "folder": "Doing",
-      "order": 1
+      "order": 1,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "onhold",
       "title": "On Hold",
       "color": "",
       "folder": "On Hold",
-      "order": 2
+      "order": 2,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "done",
       "title": "Done",
       "color": "",
       "folder": "Done",
-      "order": 3
+      "order": 3,
+      "project_id": null,
+      "profiles": []
     },
     {
       "id": "rejected",
       "title": "Rejected",
       "color": "",
       "folder": "Rejected",
-      "order": 4
+      "order": 4,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "last_update": "2026-10-21T05:30:25.266Z",

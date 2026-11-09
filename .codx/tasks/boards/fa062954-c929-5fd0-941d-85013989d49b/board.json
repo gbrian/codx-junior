@@ -11,7 +11,9 @@
       "title": "Docs",
       "color": "#000000",
       "folder": "Docs",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "background": "https://i.ytimg.com/vi/Z3OEsK2fUl8/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCND-POzY9OEpomELWoyrbCjV2J_g",

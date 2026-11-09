@@ -11,7 +11,9 @@
       "title": "Project",
       "color": "",
       "folder": "Project",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,

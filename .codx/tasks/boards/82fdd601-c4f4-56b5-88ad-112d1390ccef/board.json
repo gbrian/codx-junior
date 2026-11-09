@@ -11,7 +11,9 @@
       "title": "Docker",
       "color": "#000000",
       "folder": "Docker",
-      "order": 0
+      "order": 0,
+      "project_id": null,
+      "profiles": []
     }
   ],
   "active": false,
