@@ -76,6 +76,16 @@
       <span>Go to folder</span>
     </button>
 
+    <!-- Add the selection (or the current folder) to .gitignore -->
+    <button
+      class="w-full px-4 py-2 text-sm text-left hover:bg-base-200 flex items-center gap-2 transition-colors"
+      @click="handleGitignore"
+      title="Add the selected items (or this folder) to .gitignore"
+    >
+      <i class="fa-solid fa-ban w-4"></i>
+      <span>Add to .gitignore{{ isMultiSelect ? ` (${selectionCount})` : '' }}</span>
+    </button>
+
     <div class="divider my-1"></div>
 
     <!-- Copy the absolute path (selection, or the current folder on blank area) -->
@@ -157,6 +167,9 @@ export default {
     },
     handleCopyRelativePath() {
       this.$emit('copy-relative-path')
+    },
+    handleGitignore() {
+      this.$emit('gitignore')
     },
     handleDelete() {
       this.$emit('delete')

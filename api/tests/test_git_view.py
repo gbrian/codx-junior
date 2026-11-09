@@ -86,9 +86,10 @@ class FakeAI:
 class FakeSession:
     """Session facade used by the engine constructors."""
 
-    def __init__(self, settings, profiles=None):
+    def __init__(self, settings, profiles=None, chat_manager=None):
         self.settings = settings
         self.profile_manager = FakeProfileManager(profiles or [])
+        self.chat_manager = chat_manager
         self.ai = FakeAI()
 
     def get_profile_manager(self, settings=None):
@@ -96,6 +97,23 @@ class FakeSession:
 
     def get_ai(self, llm_model=None):
         return self.ai
+
+    def get_chat_manager(self):
+        return self.chat_manager
+
+
+class FakeChatManager:
+    """Return one in-memory task from a placeholder chat file."""
+
+    def __init__(self, chat, chat_file):
+        self.chat = chat
+        self.chat_file = chat_file
+
+    def chat_paths(self):
+        return [self.chat_file]
+
+    def load_chat_from_path(self, chat_file, chat_only=False):
+        return self.chat
 
 
 def run_git(repo, *args, env=None):
@@ -212,6 +230,60 @@ def test_worktrees_list_includes_their_file_changes(repo, tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# .gitignore editor
+# ---------------------------------------------------------------------------
+
+
+def test_gitignore_editor_reads_and_writes_the_checkout_file(repo):
+    """The editor loads an empty document and saves a new `.gitignore`."""
+    engine, _session = make_engine(repo)
+
+    initial = engine.get_gitignore()
+    assert initial["success"] is True
+    assert initial["exists"] is False
+    assert initial["content"] == ""
+
+    saved = engine.save_gitignore("dist/\n")
+    assert saved["success"] is True
+    assert saved["exists"] is True
+    assert engine.get_gitignore()["content"] == "dist/\n"
+
+
+def test_gitignore_add_anchors_and_dedupes_patterns(repo):
+    """Files and folders are anchored at the root and never duplicated."""
+    write_file(repo, "build/out.txt", "generated\n")
+    write_file(repo, "app.py", "print('one')\n")
+
+    engine, _session = make_engine(repo)
+    first = engine.add_to_gitignore([
+        {"path": "build", "is_dir": True},
+        {"path": "app.py", "is_dir": False},
+    ])
+
+    assert first["success"] is True
+    assert first["added"] == ["/build/", "/app.py"]
+    assert "/build/" in first["content"].splitlines()
+    assert "/app.py" in first["content"].splitlines()
+
+    second = engine.add_to_gitignore([
+        {"path": "build", "is_dir": True},
+        {"path": "app.py", "is_dir": False},
+    ])
+    assert second["success"] is True
+    assert second["added"] == []
+    assert second["skipped"] == ["/build/", "/app.py"]
+
+
+def test_gitignore_add_rejects_paths_outside_the_checkout(repo):
+    """The ignore file can never reference files outside the repository."""
+    engine, _session = make_engine(repo)
+    result = engine.add_to_gitignore([{"path": "../outside.txt"}])
+
+    assert result["success"] is False
+    assert "Invalid path" in " ".join(result["errors"])
+
+
+# ---------------------------------------------------------------------------
 # Local changes review
 # ---------------------------------------------------------------------------
 
@@ -292,6 +364,95 @@ def test_validator_runs_the_ai_with_the_selected_profile(repo):
     prompt = session.ai.prompts[0]
     assert "Check Python correctness carefully." in prompt
     assert "print('changed')" in prompt
+
+
+def test_validator_maps_the_profiles_associated_with_each_file(repo):
+    """Every file carries the profiles matched by its own `file_match`."""
+    py_profile = FakeProfile(
+        "py_reviewer", file_match=r"app\.py$", category="agent-validator"
+    )
+    js_profile = FakeProfile(
+        "js_reviewer", file_match=r"app\.js$", category="agent-validator"
+    )
+    write_file(repo, "app.py", "print('changed')\n")
+    write_file(repo, "app.js", "console.log('changed')\n")
+
+    engine, _session = make_engine(
+        repo,
+        profiles=[py_profile, js_profile],
+        engine_class=GitValidatorEngine,
+    )
+    context = engine.get_validation_context(source="local")
+    by_path = {entry["path"]: entry for entry in context["files"]}
+
+    assert by_path["app.py"]["profiles"] == ["py_reviewer"]
+    assert by_path["app.js"]["profiles"] == ["js_reviewer"]
+    assert context["default_profiles"] == ["js_reviewer", "py_reviewer"]
+
+
+def test_validator_correlates_the_tasks_that_changed_a_file(repo, tmp_path):
+    """A task whose mutation tool wrote a file is offered as review context."""
+    profile = FakeProfile(
+        "py_reviewer", file_match=r"app\.py$", category="agent-validator"
+    )
+    write_file(repo, "app.py", "print('changed')\n")
+
+    message = SimpleNamespace(
+        role="user",
+        content="Please update app.py",
+        files=[],
+        hide=False,
+        created_at="2024-02-01T10:00:00",
+        updated_at="2024-02-01T10:00:00",
+        tool_events=[
+            SimpleNamespace(
+                tool="project_apply_file_changes",
+                status="done",
+                request={"file_path": "app.py"},
+            )
+        ],
+    )
+    chat = SimpleNamespace(
+        id="task-1",
+        name="Update app",
+        description="Update the app entrypoint",
+        status="done",
+        board="board",
+        column="done",
+        branch="",
+        mode="task",
+        updated_at="2024-02-01T10:01:00",
+        file_list=[],
+        profiles=["py_reviewer"],
+        messages=[message],
+    )
+    chat_file = tmp_path / "task-1.json"
+    chat_file.write_text("{}", encoding="utf-8")
+
+    settings = FakeSettings(repo)
+    session = FakeSession(
+        settings,
+        profiles=[profile],
+        chat_manager=FakeChatManager(chat, str(chat_file)),
+    )
+    engine = GitValidatorEngine(session=session)
+    context = engine.get_validation_context(source="local")
+
+    assert context["task_count"] == 1
+    task = context["tasks"][0]
+    assert task["name"] == "Update app"
+    assert task["files"][0]["path"] == "app.py"
+    assert "modified" in task["files"][0]["evidence"]
+
+    result = asyncio.run(
+        engine.validate_changes(profiles=["py_reviewer"], source="local")
+    )
+    prompt = session.ai.prompts[0]
+    assert "Tasks that changed these files" in prompt
+    assert "Update app" in prompt
+    # Task text is explicitly untrusted (prompt-injection guard).
+    assert "prompt-injection" in prompt.lower()
+    assert result["task_count"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -466,6 +627,20 @@ def test_remove_worktree_keeps_the_branch(repo, tmp_path):
     assert not os.path.exists(worktree_path)
     branches = run_git(repo, "branch", "--format=%(refname:short)").splitlines()
     assert "feature" in branches
+
+
+def test_remove_worktree_unlocks_and_removes_a_locked_checkout(repo, tmp_path):
+    """A locked worktree is unlocked before retrying the removal."""
+    worktree_path = str(tmp_path / "wt-feature")
+    run_git(repo, "worktree", "add", "-b", "feature", worktree_path, "main")
+    run_git(repo, "worktree", "lock", worktree_path)
+
+    engine, _session = make_engine(repo)
+    result = engine.remove_worktree(branch="feature")
+
+    assert result["success"] is True
+    assert result["removed"] is True
+    assert not os.path.exists(worktree_path)
 
 
 def test_remove_worktree_rejects_the_main_checkout(repo):

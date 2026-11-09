@@ -238,6 +238,25 @@ class RemoveWorktreeRequest(BaseModel):
     path: Optional[str] = None
 
 
+class GitignoreSaveRequest(BaseModel):
+    """Payload to write the checkout's ``.gitignore`` from the editor."""
+
+    content: str = ""
+
+
+class GitignoreEntry(BaseModel):
+    """One file/folder to add to ``.gitignore``."""
+
+    path: str
+    is_dir: bool = False
+
+
+class GitignoreAddRequest(BaseModel):
+    """Payload to append ignore patterns for files/folders."""
+
+    entries: List[GitignoreEntry] = []
+
+
 class FilePathsRequest(BaseModel):
     """Payload for bulk operations over a set of working tree files."""
 
@@ -528,6 +547,60 @@ def api_git_repo_remove_worktree(
     )
 
 
+@router.get("/git/repo/gitignore")
+def api_git_repo_gitignore(
+    request: Request, user: CodxUser = Depends(get_authenticated_user)
+):
+    """
+    Return the checkout's ``.gitignore`` content for the editor.
+
+    Returns:
+        Dict with 'success', 'path', 'root', 'exists', 'content' and 'errors'.
+    """
+    return _ensure_success(_git_engine(request).get_gitignore())
+
+
+@router.post("/git/repo/gitignore")
+def api_git_repo_save_gitignore(
+    request: Request,
+    payload: GitignoreSaveRequest,
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Write the checkout's ``.gitignore``.
+
+    The file is created when missing. Nothing is staged or committed, so the
+    change appears in the working tree like any other edit.
+    """
+    return _ensure_success(_git_engine(request).save_gitignore(payload.content))
+
+
+@router.post("/git/repo/gitignore/add")
+def api_git_repo_add_gitignore(
+    request: Request,
+    payload: GitignoreAddRequest,
+    user: CodxUser = Depends(get_authenticated_user),
+):
+    """
+    Append ignore patterns for files/folders to ``.gitignore``.
+
+    Existing patterns are not duplicated; comments and negations are preserved.
+    Each entry is anchored at the checkout root and must stay inside it.
+
+    Args:
+        payload: ``entries`` with a ``path`` and optional ``is_dir``.
+
+    Returns:
+        Dict with 'success', 'path', 'root', 'exists', 'content', 'added',
+        'skipped' and 'errors'.
+    """
+    entries = [
+        {"path": entry.path, "is_dir": entry.is_dir}
+        for entry in (payload.entries or [])
+    ]
+    return _ensure_success(_git_engine(request).add_to_gitignore(entries))
+
+
 @router.get("/git/repo/branch/commits")
 def api_git_repo_branch_commits(
     request: Request,
@@ -604,7 +677,13 @@ def api_git_repo_validate_context(
 
     The default profiles are the ones associated with the changed files by the
     profile manager (``file_match``), so a Vue change starts with the Vue
-    profile instead of an arbitrary one.
+    profile instead of an arbitrary one. Every file entry carries its own
+    ``profiles`` list.
+
+    The context also correlates the changed files with the tasks/chats that
+    touched them since the base commit, so the reviewer understands WHY the
+    files changed. Task text is untrusted context used to detect suspicious or
+    injected changes; it is never followed as instructions.
 
     Args:
         source: ``local`` for uncommitted changes or ``branch`` for two refs.
@@ -614,7 +693,8 @@ def api_git_repo_validate_context(
 
     Returns:
         Dict with 'success', 'source', branch labels, 'stat', 'files',
-        'profiles' (lightweight entries) and 'default_profiles'.
+        'profiles' (lightweight entries), 'default_profiles', 'tasks' and
+        'task_since'.
     """
     source = (source or "local").strip().lower()
     if source not in ("local", "branch"):
@@ -643,8 +723,10 @@ async def api_git_repo_validate(
     Run an AI review of the selected project changes (Validator section).
 
     The selected profiles (or the defaults inferred from the changed files) are
-    added to the prompt together with the patch, and the model returns a
-    Markdown report. Nothing is committed or written: the review is read-only.
+    added to the prompt together with the patch, the profiles associated with
+    each file, and the tasks that touched those files since the base commit. The
+    model returns a Markdown report. Nothing is committed or written: the review
+    is read-only.
 
     Args:
         payload: Profiles, source (local/branch), branch pair, optional paths,
@@ -652,7 +734,8 @@ async def api_git_repo_validate(
 
     Returns:
         Dict with 'success', 'review' (Markdown), 'files', 'profiles',
-        'profile_details', 'source', 'base_branch' and 'diff_truncated'.
+        'profile_details', 'tasks', 'source', 'base_branch' and
+        'diff_truncated'.
 
     Raises:
         HTTPException: 400 when there are no changes or the AI fails.

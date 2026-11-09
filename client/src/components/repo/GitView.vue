@@ -1,6 +1,7 @@
 <script>
 import ChangesPanel from '@/components/vibe/panels/ChangesPanel.vue'
 import RepoFileDiff from '@/components/repo/RepoFileDiff.vue'
+import RepoBranchList from '@/components/repo/RepoBranchList.vue'
 import GitGraph from '@/components/repo/GitGraph.vue'
 import CommitDetail from '@/components/repo/CommitDetail.vue'
 import GitValidator from '@/components/repo/GitValidator.vue'
@@ -19,7 +20,7 @@ const FILE_EVENT_REFRESH_DELAY = 600
 
 export default {
   name: 'GitView',
-  components: { ChangesPanel, RepoFileDiff, GitGraph, CommitDetail, GitValidator, GitConflictResolver, GitContextMenu, ConfirmDialog, VerticalSplitter },
+  components: { ChangesPanel, RepoFileDiff, RepoBranchList, GitGraph, CommitDetail, GitValidator, GitConflictResolver, GitContextMenu, ConfirmDialog, VerticalSplitter },
   mixins: [contextMenuMixin],
   props: {
     params: { type: Object, default: () => ({}) }
@@ -39,6 +40,15 @@ export default {
       worktrees: [],
       // Worktree expansion, keyed by worktree path (undefined = expanded)
       expandedWorktrees: {},
+      // .gitignore editor
+      showGitignore: false,
+      gitignoreLoading: false,
+      gitignoreSaving: false,
+      gitignorePath: '',
+      gitignoreContent: '',
+      gitignoreExists: false,
+      gitignoreError: null,
+      gitignoreNotice: null,
       selectedBranch: null,
       branchFilter: '',
       collapsedSections: {},
@@ -172,6 +182,12 @@ export default {
       const filter = this.branchFilter.trim().toLowerCase()
       if (!filter) return this.branches
       return this.branches.filter(b => b.toLowerCase().includes(filter))
+    },
+    /** Commit counts shown next to each branch in the shared branch list */
+    branchCounts() {
+      return Object.fromEntries(
+        this.branches.map(branch => [branch, this.branchCommitCount(branch)])
+      )
     },
     /** Working tree files split into staged / not staged */
     statusFiles() {
@@ -579,7 +595,7 @@ export default {
 
     /** Remove a worktree after the user confirms (its branch is kept) */
     async removeWorktree(worktree) {
-      if (!worktree?.path || !this.api) return
+      if ((!worktree?.path && !worktree?.branch) || !this.api) return
       const changeCount = worktree.changeCount || worktree.changes?.file_count || 0
       const label = worktree.branch ? `"${worktree.branch}"` : worktree.path
       const accepted = await this.confirmAction({
@@ -614,6 +630,89 @@ export default {
       ) || null
     },
 
+    // ── .gitignore editor ───────────────────────────────────────────────
+    /** Open the editor and load the current `.gitignore` */
+    async openGitignoreEditor() {
+      this.showGitignore = true
+      await this.loadGitignore()
+    },
+
+    async loadGitignore() {
+      if (!this.api) return
+      this.gitignoreLoading = true
+      this.gitignoreError = null
+      this.gitignoreNotice = null
+      try {
+        const result = await this.api.repo.gitignore()
+        this.gitignorePath = result?.path || ''
+        this.gitignoreContent = result?.content || ''
+        this.gitignoreExists = !!result?.exists
+      } catch (ex) {
+        this.gitignoreError = ex?.response?.data?.detail || ex?.message || String(ex)
+      } finally {
+        this.gitignoreLoading = false
+      }
+    },
+
+    closeGitignoreEditor() {
+      if (this.gitignoreSaving) return
+      this.showGitignore = false
+      this.gitignoreError = null
+      this.gitignoreNotice = null
+    },
+
+    async saveGitignore() {
+      if (!this.api || this.gitignoreSaving) return
+      this.gitignoreSaving = true
+      this.gitignoreError = null
+      this.gitignoreNotice = null
+      try {
+        const result = await this.api.repo.saveGitignore(this.gitignoreContent)
+        this.gitignorePath = result?.path || this.gitignorePath
+        this.gitignoreContent = result?.content ?? this.gitignoreContent
+        this.gitignoreExists = !!result?.exists
+        this.gitignoreNotice = 'Saved .gitignore'
+        await this.loadRepo()
+      } catch (ex) {
+        this.gitignoreError = ex?.response?.data?.detail || ex?.message || String(ex)
+      } finally {
+        this.gitignoreSaving = false
+      }
+    },
+
+    /**
+     * Add files/folders to `.gitignore` and refresh the working tree.
+     *
+     * @param {Array<string|Object>} entries - Paths or `{ path, is_dir }`.
+     */
+    async addToGitignore(entries) {
+      const list = (entries || []).filter(entry => (
+        typeof entry === 'string' ? entry : entry?.path
+      ))
+      if (!list.length || !this.api) return
+      this.gitignoreError = null
+      this.gitignoreNotice = null
+      const result = await this.runOperation(
+        () => this.api.repo.addToGitignore(list),
+        null
+      )
+      if (!result) return
+      const added = result.added || []
+      const skipped = result.skipped || []
+      if (added.length) {
+        this.notice = `Added to .gitignore: ${added.join(', ')}`
+      } else if (skipped.length) {
+        this.notice = 'Already ignored (no duplicate added)'
+      }
+      const warnings = (result.errors || []).filter(Boolean)
+      if (warnings.length) this.error = warnings.join('; ')
+      if (this.showGitignore) {
+        this.gitignoreContent = result.content || this.gitignoreContent
+        this.gitignorePath = result.path || this.gitignorePath
+        this.gitignoreExists = !!result.exists
+      }
+    },
+
     // ── Context menus ───────────────────────────────────────────────────
     /** Branch sidebar entry */
     openBranchContextMenu(event, branch) {
@@ -631,6 +730,14 @@ export default {
         this.contextMenuItem('new-branch', 'New branch from…', 'fa-code-branch', () => this.openNewBranch(branch)),
         this.contextMenuDivider('branch-delete'),
         this.contextMenuItem('delete', 'Delete branch', 'fa-trash', () => this.deleteBranch(branch), { danger: true, disabled: isCurrent }),
+        ...(worktree
+          ? [
+              this.contextMenuItem('remove-worktree', 'Delete worktree', 'fa-folder-minus', () => this.removeWorktree(worktree), {
+                danger: true,
+                title: `Remove ${worktree.path} and keep the branch`
+              })
+            ]
+          : []),
         this.contextMenuDivider('branch-copy'),
         this.contextMenuItem('copy', 'Copy branch name', 'fa-copy', () => this.copyText(branch, 'Branch name copied'))
       ])
@@ -657,8 +764,35 @@ export default {
         this.contextMenuDivider('group-actions'),
         this.contextMenuItem('stage', staged ? 'Unstage all' : 'Stage all', staged ? 'fa-minus' : 'fa-plus', () => staged ? this.unstagePaths(paths) : this.stagePaths(paths), { disabled: !files.length }),
         this.contextMenuItem('discard', 'Roll back all', 'fa-rotate-left', () => this.discardPaths(paths), { danger: true, disabled: !files.length }),
+        this.contextMenuDivider('group-ignore'),
+        this.contextMenuItem('gitignore', `Add ${files.length} changed file(s) to .gitignore`, 'fa-ban', () => this.addToGitignore(paths), { disabled: !files.length }),
+        this.contextMenuItem('edit-gitignore', 'Edit .gitignore…', 'fa-pen', () => this.openGitignoreEditor()),
         this.contextMenuDivider('group-copy'),
         this.contextMenuItem('copy', 'Copy paths', 'fa-list', () => this.copyText(paths.join('\n'), 'Paths copied'), { disabled: !files.length })
+      ])
+    },
+
+    /** Working tree folder row: same actions as a file, applied to the folder */
+    openFolderContextMenu(event, group, row) {
+      if (!row?.path) return
+      const files = this.folderFiles(group, row.path)
+      const paths = files.map(file => file.path)
+      const staged = group === 'staged'
+      const suffix = paths.length ? ` (${paths.length})` : ''
+      this.openContextMenu(event, `Folder ${row.path}`, [
+        this.contextMenuItem('select-all', `Select all files${suffix}`, 'fa-check-double', () => this.selectFolder(group, row.path), { disabled: !paths.length }),
+        this.contextMenuDivider('folder-actions'),
+        this.contextMenuItem('stage', `${staged ? 'Unstage' : 'Stage'} folder${suffix}`, staged ? 'fa-minus' : 'fa-plus', () => this.stageFolder(group, row.path), { disabled: !paths.length }),
+        this.contextMenuItem('discard', `Roll back folder${suffix}`, 'fa-rotate-left', () => this.discardFolder(group, row.path), {
+          danger: true,
+          disabled: !paths.length,
+          title: `Restore ${paths.length} file(s) from the last commit (you will see the affected files before confirming)`
+        }),
+        this.contextMenuDivider('folder-ignore'),
+        this.contextMenuItem('gitignore', 'Add folder to .gitignore', 'fa-ban', () => this.addToGitignore([{ path: row.path, is_dir: true }])),
+        this.contextMenuItem('edit-gitignore', 'Edit .gitignore…', 'fa-pen', () => this.openGitignoreEditor()),
+        this.contextMenuDivider('folder-copy'),
+        this.contextMenuItem('copy-path', 'Copy folder path', 'fa-copy', () => this.copyText(row.path, 'Folder path copied'))
       ])
     },
 
@@ -684,6 +818,9 @@ export default {
         this.contextMenuDivider('file-actions'),
         this.contextMenuItem('stage', staged ? `Unstage${suffix}` : `Stage${suffix}`, staged ? 'fa-minus' : 'fa-plus', () => staged ? this.unstagePaths(paths) : this.stagePaths(paths)),
         this.contextMenuItem('discard', `Roll back${suffix}`, 'fa-rotate-left', () => this.discardPaths(paths), { danger: true }),
+        this.contextMenuDivider('file-ignore'),
+        this.contextMenuItem('gitignore', `Add to .gitignore${suffix}`, 'fa-ban', () => this.addToGitignore(paths)),
+        this.contextMenuItem('edit-gitignore', 'Edit .gitignore…', 'fa-pen', () => this.openGitignoreEditor()),
         this.contextMenuDivider('file-copy'),
         this.contextMenuItem('copy-path', 'Copy path', 'fa-copy', () => this.copyText(file.path, 'File path copied')),
         this.contextMenuItem('copy-paths', `Copy paths${suffix}`, 'fa-list', () => this.copyText(paths.join('\n'), 'Paths copied'), { disabled: count < 2 })
@@ -724,6 +861,9 @@ export default {
       const absolute = this.worktreeFilePath(worktree, file)
       this.openContextMenu(event, `${file.label}: ${file.path}`, [
         this.contextMenuItem('open', 'Open in editor', 'fa-up-right-from-square', () => this.openWorktreeFile(worktree, file)),
+        this.contextMenuDivider('worktree-file-ignore'),
+        this.contextMenuItem('gitignore', 'Add to .gitignore', 'fa-ban', () => this.addToGitignore([{ path: file.path, is_dir: false }])),
+        this.contextMenuItem('edit-gitignore', 'Edit .gitignore…', 'fa-pen', () => this.openGitignoreEditor()),
         this.contextMenuDivider('worktree-file-copy'),
         this.contextMenuItem('copy-path', 'Copy path', 'fa-copy', () => this.copyText(file.path, 'File path copied')),
         this.contextMenuItem('copy-absolute', 'Copy absolute path', 'fa-link', () => this.copyText(absolute, 'Absolute path copied')),
@@ -1112,6 +1252,49 @@ export default {
       return group === 'staged' ? this.stagedFiles : this.unstagedFiles
     },
 
+    /** Files of a group that live under a folder (the folder itself too) */
+    folderFiles(group, folderPath) {
+      const prefix = String(folderPath || '').replace(/\/+$/, '')
+      if (!prefix) return []
+      return this.groupFiles(group).filter(file => (
+        file.path === prefix || file.path.startsWith(`${prefix}/`)
+      ))
+    },
+
+    folderPaths(group, folderPath) {
+      return this.folderFiles(group, folderPath).map(file => file.path)
+    },
+
+    /** Select every file under a tree folder */
+    selectFolder(group, folderPath) {
+      const files = this.folderFiles(group, folderPath)
+      if (!files.length) return
+      this.setSelection(files.map(file => this.fileKey(group, file.path)))
+      this.selectionAnchor = null
+    },
+
+    /** Stage (or unstage) every file under a tree folder */
+    async stageFolder(group, folderPath) {
+      const paths = this.folderPaths(group, folderPath)
+      if (!paths.length) return
+      if (group === 'staged') {
+        await this.unstagePaths(paths)
+      } else {
+        await this.stagePaths(paths)
+      }
+    },
+
+    /** Roll back every file under a tree folder, warning about each file */
+    async discardFolder(group, folderPath) {
+      const paths = this.folderPaths(group, folderPath)
+      if (!paths.length) return
+      await this.discardPaths(paths, {
+        title: 'Roll back folder changes',
+        message: `Roll back ${paths.length} file(s) under "${folderPath}" to the last commit?`,
+        hint: 'Every file listed below is affected: tracked files are restored from the last commit, untracked/new files are deleted. This cannot be undone.'
+      })
+    },
+
     groupAllSelected(group) {
       const files = this.visibleGroupFiles(group)
       return files.length > 0 && files.every(file => this.isSelected(group, file.path))
@@ -1341,22 +1524,22 @@ export default {
       this.clearSelection()
     },
 
-    async discardPaths(paths) {
+    async discardPaths(paths, options = {}) {
       const list = paths || []
       if (!list.length || !this.api) return
 
       const accepted = await this.confirmAction({
-        title: 'Roll back changes',
-        message: list.length === 1
+        title: options.title || 'Roll back changes',
+        message: options.message || (list.length === 1
           ? `Roll back "${list[0]}" to the last commit?`
-          : `Roll back ${list.length} files to the last commit?`,
+          : `Roll back ${list.length} files to the last commit?`),
         details: list,
-        hint: 'Tracked files are restored from the last commit. Untracked and newly added files are deleted. This cannot be undone.',
-        icon: 'fa-rotate-left',
-        iconClass: 'text-error',
-        confirmLabel: 'Roll back',
-        confirmIcon: 'fa-rotate-left',
-        confirmClass: 'btn-error'
+        hint: options.hint || 'Tracked files are restored from the last commit. Untracked and newly added files are deleted. This cannot be undone.',
+        icon: options.icon || 'fa-rotate-left',
+        iconClass: options.iconClass || 'text-error',
+        confirmLabel: options.confirmLabel || 'Roll back',
+        confirmIcon: options.confirmIcon || 'fa-rotate-left',
+        confirmClass: options.confirmClass || 'btn-error'
       })
       if (!accepted) return
 
@@ -1811,6 +1994,16 @@ export default {
         </button>
       </div>
 
+      <button
+        class="btn btn-xs btn-ghost"
+        @click="openGitignoreEditor"
+        :disabled="!api || !isGit"
+        title="Edit .gitignore"
+        aria-label="Edit .gitignore"
+      >
+        <i class="fa-solid fa-ban"></i>
+      </button>
+
       <button class="btn btn-xs btn-ghost" @click="loadRepo" :disabled="loading" title="Reload repository">
         <i class="fa-solid fa-rotate-right" :class="{ 'animate-spin': loading }"></i>
       </button>
@@ -1993,32 +2186,17 @@ export default {
             </button>
           </div>
 
-          <div class="px-2 py-1.5 border-b border-base-content/10 shrink-0">
-            <input v-model="branchFilter" type="text" placeholder="Filter branches..." class="input input-xs input-bordered w-full" />
-          </div>
-
-          <div class="grow overflow-y-auto" @contextmenu.prevent="openBranchesContextMenu($event)">
-            <div v-if="loading && !branches.length" class="p-3 text-xs opacity-50">Loading branches...</div>
-            <div v-else-if="!filteredBranches.length" class="p-3 text-xs opacity-50">No branches</div>
-            <button
-              v-for="branch in filteredBranches"
-              :key="branch"
-              class="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors"
-              :class="[
-                selectedBranch === branch ? 'bg-primary/15 text-primary' : 'hover:bg-base-200',
-                sameBranch(branch, currentBranch) ? 'font-semibold' : ''
-              ]"
-              :title="`${branch} — right-click for branch actions`"
-              @click="selectBranch(branch)"
-              @contextmenu.prevent.stop="openBranchContextMenu($event, branch)"
-            >
-              <i
-                class="fa-solid shrink-0"
-                :class="sameBranch(branch, currentBranch) ? 'fa-circle-check text-success' : 'fa-code-branch opacity-50'"
-              ></i>
-              <span class="truncate grow min-w-0" :title="branch">{{ branch }}</span>
-              <span v-if="branchCommitCount(branch)" class="badge badge-xs badge-ghost shrink-0">{{ branchCommitCount(branch) }}</span>
-            </button>
+          <div class="grow min-h-0" @contextmenu.prevent="openBranchesContextMenu($event)">
+            <RepoBranchList
+              v-model:filter="branchFilter"
+              :branches="branches"
+              :current-branch="currentBranch"
+              :selected-branch="selectedBranch"
+              :loading="loading"
+              :counts="branchCounts"
+              @select="selectBranch"
+              @contextmenu="openBranchContextMenu"
+            />
           </div>
         </aside>
           </template>
@@ -2318,10 +2496,11 @@ export default {
                   <!-- Folder row (tree mode only) -->
                   <div
                     v-if="row.type === 'folder'"
-                    class="flex items-center gap-1.5 pr-1 py-0.5 cursor-pointer text-[11px] hover:bg-base-200/60 transition-colors"
+                    class="group flex items-center gap-1.5 pr-1 py-0.5 cursor-pointer text-[11px] hover:bg-base-200/60 transition-colors"
                     :style="{ paddingLeft: `${8 + row.depth * 14}px` }"
-                    :title="row.path"
+                    :title="`${row.path} — click to expand, right-click for folder actions`"
                     @click="toggleFolder(group.key, row.path)"
+                    @contextmenu.prevent.stop="openFolderContextMenu($event, group.key, row)"
                   >
                     <i
                       class="fa-solid text-[9px] opacity-50 shrink-0"
@@ -2330,6 +2509,26 @@ export default {
                     <i class="fa-solid fa-folder text-warning/70 text-[11px] shrink-0"></i>
                     <span class="font-mono truncate grow">{{ row.name }}</span>
                     <span class="badge badge-xs badge-ghost shrink-0">{{ row.count }}</span>
+                    <div class="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      <button
+                        class="btn btn-xs btn-ghost btn-square"
+                        :disabled="busy"
+                        :title="group.key === 'staged' ? 'Unstage all changes in this folder' : 'Stage all changes in this folder'"
+                        :aria-label="group.key === 'staged' ? 'Unstage all changes in this folder' : 'Stage all changes in this folder'"
+                        @click.stop="stageFolder(group.key, row.path)"
+                      >
+                        <i class="fa-solid text-[10px]" :class="group.key === 'staged' ? 'fa-minus' : 'fa-plus'"></i>
+                      </button>
+                      <button
+                        class="btn btn-xs btn-ghost btn-square text-error"
+                        :disabled="busy"
+                        title="Roll back all changes in this folder"
+                        aria-label="Roll back all changes in this folder"
+                        @click.stop="discardFolder(group.key, row.path)"
+                      >
+                        <i class="fa-solid fa-rotate-left text-[10px]"></i>
+                      </button>
+                    </div>
                   </div>
 
                   <!-- File row (list and tree mode) -->
@@ -2415,6 +2614,18 @@ export default {
                     >{{ worktree.changeCount }}</span>
                   </button>
                   <span class="text-[9px] opacity-40 truncate max-w-[42%]" :title="worktree.path">{{ worktree.path }}</span>
+                  <button
+                    class="btn btn-xs btn-ghost btn-square shrink-0"
+                    :disabled="busy || samePath(worktree.path, projectRoot)"
+                    :title="samePath(worktree.path, projectRoot)
+                      ? 'The checkout in use cannot be removed'
+                      : 'Delete this worktree (the branch is kept)'"
+                    aria-label="Delete worktree"
+                    @click.stop="removeWorktree(worktree)"
+                    @contextmenu.prevent.stop="openWorktreeContextMenu($event, worktree)"
+                  >
+                    <i class="fa-solid fa-folder-minus text-error text-[10px]"></i>
+                  </button>
                 </div>
 
                 <div v-if="isWorktreeExpanded(worktree.path)">
@@ -2629,6 +2840,66 @@ export default {
             <i class="fa-solid fa-spinner animate-spin" v-if="merging"></i>
             <i class="fa-solid fa-code-merge" v-else></i>
             {{ mergeActionLabel }} {{ mergeFrom }} → {{ mergeTo }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── .gitignore editor ─────────────────────────────────────────────── -->
+    <div v-if="showGitignore" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" @click.self="closeGitignoreEditor">
+      <div class="bg-base-100 border border-base-content/10 rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-xl">
+        <div class="flex items-center justify-between gap-2 px-4 py-3 border-b border-base-content/10 shrink-0">
+          <div class="min-w-0">
+            <h2 class="text-sm font-semibold flex items-center gap-2">
+              <i class="fa-solid fa-ban text-warning"></i>
+              {{ gitignoreExists ? 'Edit .gitignore' : 'Create .gitignore' }}
+            </h2>
+            <p class="text-[10px] font-mono opacity-50 truncate" :title="gitignorePath">{{ gitignorePath }}</p>
+          </div>
+          <button class="btn btn-xs btn-ghost" @click="closeGitignoreEditor" :disabled="gitignoreSaving" aria-label="Close">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="px-4 py-3 flex flex-col gap-2 overflow-y-auto grow min-h-0">
+          <div v-if="gitignoreError" class="alert alert-error py-1 px-2 text-xs rounded">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span class="break-words">{{ gitignoreError }}</span>
+          </div>
+          <div v-if="gitignoreNotice" class="alert alert-success py-1 px-2 text-xs rounded">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>{{ gitignoreNotice }}</span>
+          </div>
+
+          <p class="text-[10px] leading-tight opacity-60">
+            One pattern per line. A leading <code>/</code> anchors it at the checkout root;
+            a trailing <code>/</code> ignores a folder. Right-click a file or folder in the
+            working tree to append a pattern automatically.
+          </p>
+
+          <div v-if="gitignoreLoading" class="grow min-h-[240px] flex items-center justify-center gap-2 text-xs opacity-60">
+            <i class="fa-solid fa-spinner animate-spin"></i> Loading .gitignore...
+          </div>
+          <textarea
+            v-else
+            v-model="gitignoreContent"
+            rows="16"
+            spellcheck="false"
+            class="textarea textarea-bordered w-full font-mono text-xs leading-tight resize-y min-h-[240px]"
+            placeholder="# Ignore build output&#10;/dist/&#10;/node_modules/"
+            aria-label=".gitignore content"
+            @keydown.ctrl.s.prevent="saveGitignore"
+            @keydown.meta.s.prevent="saveGitignore"
+          ></textarea>
+        </div>
+
+        <div class="flex items-center gap-2 px-4 py-3 border-t border-base-content/10 shrink-0">
+          <span class="text-[10px] opacity-50 grow">Ctrl+S saves; nothing is committed.</span>
+          <button class="btn btn-sm btn-ghost" @click="closeGitignoreEditor" :disabled="gitignoreSaving">Cancel</button>
+          <button class="btn btn-sm btn-primary" :disabled="gitignoreLoading || gitignoreSaving" @click="saveGitignore">
+            <i class="fa-solid fa-spinner animate-spin" v-if="gitignoreSaving"></i>
+            <i class="fa-solid fa-floppy-disk" v-else></i>
+            Save
           </button>
         </div>
       </div>

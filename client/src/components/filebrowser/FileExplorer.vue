@@ -394,6 +394,7 @@ import FileSlideShow from './FileSlideShow.vue'
       @go-to-folder="handleContextGoToFolder"
       @copy-path="handleContextCopyPath"
       @copy-relative-path="handleContextCopyRelativePath"
+      @gitignore="handleContextGitignore"
       @delete="handleContextDelete"
     />
 
@@ -1295,6 +1296,36 @@ export default {
       this.$ui.addNotification({
         text: `Copied ${relative ? 'relative' : 'absolute'} path${paths.length > 1 ? 's' : ''}`
       })
+    },
+    /**
+     * Append the selected files/folders (or the current folder) to `.gitignore`.
+     *
+     * The backend anchors each pattern at the checkout root and skips patterns
+     * that are already present, so clicking this action twice is harmless.
+     */
+    async handleContextGitignore() {
+      this.closeContextMenu()
+      const entries = this.selectedEntries.length
+        ? this.selectedEntries.map(entry => ({
+            path: this.entryPath(entry),
+            is_dir: !!entry.is_dir
+          }))
+        : [{ path: this.getAbsolutePath(this.currentPath), is_dir: true }]
+      try {
+        if (!this.$api?.repo?.addToGitignore) {
+          throw new Error('The repository API is not available')
+        }
+        const result = await this.$api.repo.addToGitignore(entries)
+        const added = result?.added || []
+        this.$ui.addNotification({
+          text: added.length
+            ? `Added to .gitignore: ${added.join(', ')}`
+            : 'Already ignored (no duplicate added)'
+        })
+      } catch (error) {
+        console.error('Error adding to .gitignore', error)
+        this.error = `Failed to update .gitignore: ${error?.response?.data?.detail || error.message}`
+      }
     },
     async onMoveConfirm(targetPath) {
       this.showMoveDialog = false

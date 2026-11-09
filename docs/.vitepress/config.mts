@@ -47,6 +47,7 @@ export default defineConfig({
             { text: 'Computer use (desktops, VMs, remote)', link: '/features/computer-use' },
             { text: 'Browser use and co-browsing', link: '/features/browser-use' },
             { text: 'Teams and messenger', link: '/features/teams' },
+            { text: 'Slack and WhatsApp channels', link: '/features/slack-whatsapp-integration' },
             { text: 'Knowledge (RAG)', link: '/features/knowledge' },
             { text: 'Profiles', link: '/features/profiles' },
             { text: '@codx mentions', link: '/features/mentions' },

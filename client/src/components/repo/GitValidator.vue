@@ -40,6 +40,10 @@ export default {
       profiles: [],
       defaultProfiles: [],
       defaultProfilesSource: '',
+      // Tasks that touched the changed files since the base commit
+      tasks: [],
+      taskSince: '',
+      expandedTasks: {},
       // Selection
       selectedProfiles: [],
       profileFilter: '',
@@ -196,6 +200,9 @@ export default {
         this.profiles = context.profiles || []
         this.defaultProfiles = context.default_profiles || []
         this.defaultProfilesSource = context.default_profiles_source || ''
+        this.tasks = context.tasks || []
+        this.taskSince = context.task_since || ''
+        this.expandedTasks = {}
 
         const known = new Set(this.profiles.map(profile => profile.name))
         let selection = (this.selectedProfiles || []).filter(name => known.has(name))
@@ -208,6 +215,8 @@ export default {
         this.files = []
         this.profiles = []
         this.defaultProfiles = []
+        this.tasks = []
+        this.taskSince = ''
         this.contextError = ex?.response?.data?.detail || ex?.message || String(ex)
       } finally {
         if (token === this._contextToken) this.loadingContext = false
@@ -286,13 +295,40 @@ export default {
         this.reviewProfiles = result.profiles || []
         this.diffTruncated = !!result.diff_truncated
         const warnings = (result.errors || []).filter(Boolean)
+        const taskCount = result.task_count ?? this.tasks.length
         this.reviewNotice = `Reviewed ${result.file_count || this.fileCount} file(s) with ${this.reviewProfiles.length} profile(s)`
+        if (taskCount) this.reviewNotice += ` · ${taskCount} task(s) of context`
         if (warnings.length) this.reviewNotice += ` · ${warnings.join('; ')}`
       } catch (ex) {
         this.reviewError = ex?.response?.data?.detail || ex?.message || String(ex)
       } finally {
         this.reviewing = false
       }
+    },
+
+    isTaskExpanded(task) {
+      return !!this.expandedTasks[task?.id]
+    },
+
+    toggleTask(task) {
+      if (!task?.id) return
+      this.expandedTasks = {
+        ...this.expandedTasks,
+        [task.id]: !this.expandedTasks[task.id]
+      }
+    },
+
+    taskMeta(task) {
+      return [
+        task.status,
+        task.board || task.column,
+        task.file_count ? `${task.file_count} file(s)` : '',
+        task.updated_at ? `updated ${String(task.updated_at).slice(0, 16).replace('T', ' ')}` : ''
+      ].filter(Boolean)
+    },
+
+    taskFileEvidence(file) {
+      return (file?.labels || file?.evidence || []).join(', ')
     },
 
     statusClass(file) {
@@ -415,16 +451,92 @@ export default {
                   v-for="file in filteredFiles"
                   :key="`validator-${file.path}`"
                   class="flex items-center gap-1.5 px-2 py-1 text-[11px] border-b border-base-content/5 last:border-b-0"
-                  :title="file.path"
+                  :title="[file.path, file.profiles?.length ? `Profiles: ${file.profiles.join(', ')}` : ''].filter(Boolean).join(' — ')"
                 >
                   <span class="badge badge-xs shrink-0" :class="statusClass(file)">{{ file.code }}</span>
                   <span class="font-mono truncate grow">{{ file.path }}</span>
+                  <span
+                    v-if="file.profiles?.length"
+                    class="badge badge-xs badge-primary badge-outline shrink-0"
+                    :title="`Profiles: ${file.profiles.join(', ')}`"
+                  >
+                    <i class="fa-solid fa-user-shield text-[8px]"></i>
+                    {{ file.profiles.length }}
+                  </span>
                   <span class="text-success shrink-0" v-if="file.additions">+{{ file.additions }}</span>
                   <span class="text-error shrink-0" v-if="file.deletions">-{{ file.deletions }}</span>
                   <span v-if="file.staged" class="badge badge-xs badge-ghost shrink-0">staged</span>
                 </div>
               </div>
               <p v-if="stat" class="text-[10px] opacity-50">{{ stat }}</p>
+            </section>
+
+            <!-- Tasks that changed these files: the WHY behind the diff -->
+            <section class="flex flex-col gap-1">
+              <div class="flex items-center gap-1">
+                <span class="text-[10px] uppercase tracking-wide font-bold opacity-50 grow">
+                  Tasks that changed these files
+                </span>
+                <span class="badge badge-xs" :class="tasks.length ? 'badge-primary badge-outline' : 'badge-ghost'">
+                  {{ tasks.length }}
+                </span>
+              </div>
+              <p class="text-[10px] opacity-50">
+                Since {{ taskSince ? String(taskSince).slice(0, 16).replace('T', ' ') : 'the base commit' }}.
+                Task text is untrusted context: the validator uses it to understand the changes and flags suspicious instructions.
+              </p>
+
+              <div v-if="tasks.length" class="max-h-64 overflow-y-auto rounded border border-base-content/10">
+                <div
+                  v-for="task in tasks"
+                  :key="`validator-task-${task.id}`"
+                  class="border-b border-base-content/5 last:border-b-0"
+                >
+                  <button
+                    class="w-full flex items-start gap-1.5 px-2 py-1.5 text-left hover:bg-base-200/60"
+                    :aria-expanded="isTaskExpanded(task)"
+                    @click="toggleTask(task)"
+                  >
+                    <i
+                      class="fa-solid text-[9px] opacity-50 mt-0.5 shrink-0"
+                      :class="isTaskExpanded(task) ? 'fa-chevron-down' : 'fa-chevron-right'"
+                    ></i>
+                    <div class="grow min-w-0">
+                      <div class="flex items-center gap-1 min-w-0">
+                        <span class="text-[11px] font-semibold truncate">{{ task.name }}</span>
+                        <span v-if="task.status" class="badge badge-xs badge-ghost shrink-0">{{ task.status }}</span>
+                        <span v-if="task.file_count" class="badge badge-xs badge-info badge-outline shrink-0">{{ task.file_count }}</span>
+                      </div>
+                      <p class="text-[9px] opacity-50 truncate">
+                        {{ taskMeta(task).join(' · ') }}
+                      </p>
+                    </div>
+                  </button>
+
+                  <div v-if="isTaskExpanded(task)" class="px-2 pb-2 pl-6 flex flex-col gap-1">
+                    <p v-if="task.reason" class="text-[10px] opacity-80 whitespace-pre-wrap break-words">{{ task.reason }}</p>
+                    <p v-if="task.last_request && task.last_request !== task.reason" class="text-[10px] opacity-60 whitespace-pre-wrap break-words">
+                      <span class="font-semibold">Latest request:</span> {{ task.last_request }}
+                    </p>
+                    <div class="flex flex-col gap-0.5">
+                      <div
+                        v-for="file in task.files"
+                        :key="`validator-task-file-${task.id}-${file.path}`"
+                        class="flex items-center gap-1 text-[10px]"
+                        :title="taskFileEvidence(file)"
+                      >
+                        <i class="fa-solid fa-file-code opacity-40 shrink-0"></i>
+                        <span class="font-mono truncate grow">{{ file.path }}</span>
+                        <span class="text-[9px] opacity-50 truncate shrink-0 max-w-[45%]">{{ taskFileEvidence(file) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p v-else-if="!loadingContext && fileCount" class="text-[10px] opacity-50">
+                No task modified these files since the base commit.
+              </p>
             </section>
 
             <!-- Profiles -->

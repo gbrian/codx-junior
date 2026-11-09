@@ -16,3 +16,10 @@ The messenger brings people and AI agents into the same conversations.
 * Assign users to Kanban tasks.
 * Share a chat or a view with a link.
 * Receive notifications for new messages and finished AI work.
+
+## External channels
+
+A channel can be mirrored to an external Slack or WhatsApp conversation. The
+design and implementation plan covers global integrations, per-project
+overrides, per-chat bindings, the inbound/outbound bridge, identity mapping and
+security: [Slack and WhatsApp channel integration](/features/slack-whatsapp-integration).

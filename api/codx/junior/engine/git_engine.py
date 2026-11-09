@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 
 from datetime import datetime
@@ -61,6 +62,9 @@ AUTH_ERROR_HINT = (
 
 # Lock file git creates while the index is being written
 INDEX_LOCK_FILE = "index.lock"
+
+# Ignore file at the root of the checkout the view is working on
+GITIGNORE_FILE = ".gitignore"
 
 # Porcelain status code -> semantic status name
 PORCELAIN_STATUS = {
@@ -2133,6 +2137,94 @@ class GitEngine:
                 return worktree.get("path", "")
         return ""
 
+    def _force_remove_worktree_path(
+        self, path: str, cwd: Optional[str] = None
+    ) -> dict:
+        """
+        Remove a registered worktree checkout, including locked/dirty ones.
+
+        ``git worktree remove --force`` is the safe path and the only one used
+        while it succeeds. Some real-world checkouts still fail: a stale
+        ``locked`` admin entry, a registration whose directory was already
+        deleted, or a filesystem/git mismatch. In those cases the checkout is
+        deleted and the registration pruned, so the UI action actually completes
+        instead of leaving a worktree that can never be removed. Callers must
+        resolve *path* against the registered worktrees (never an arbitrary
+        directory) and reject the main/current checkout before calling this.
+
+        Args:
+            path: Absolute worktree path.
+            cwd: Repository directory. Defaults to the repository root.
+
+        Returns:
+            Dict with 'ok', 'removed', 'output' and 'error'.
+        """
+        result = {
+            "ok": False,
+            "removed": False,
+            "path": path,
+            "output": "",
+            "error": "",
+        }
+        remove = self._run_git(
+            ["worktree", "remove", "--force", path], cwd=cwd
+        )
+        if not remove["ok"] and os.path.lexists(path):
+            # A locked worktree refuses `remove` even with --force. Unlock and
+            # retry once; unlocking an unlocked worktree logs a harmless error,
+            # so it only runs after a failed removal.
+            self._run_git(["worktree", "unlock", path], cwd=cwd)
+            remove = self._run_git(
+                ["worktree", "remove", "--force", path], cwd=cwd
+            )
+        result["output"] = remove["output"]
+        if remove["ok"]:
+            result["ok"] = True
+            result["removed"] = True
+            return result
+
+        # Stale administrative entries must not hide a checkout that is already
+        # gone (folder deleted outside git).
+        self._run_git(["worktree", "prune"], cwd=cwd)
+        still_registered = any(
+            self._same_path(worktree.get("path", ""), path)
+            for worktree in self.list_worktrees(include_changes=False)
+        )
+        if not still_registered and not os.path.lexists(path):
+            result["ok"] = True
+            result["removed"] = True
+            result["output"] = result["output"] or "worktree pruned"
+            return result
+
+        # Last resort: delete the checkout and prune its registration. The
+        # caller already validated that this is a registered, non-main,
+        # non-active worktree and the user confirmed the data loss.
+        try:
+            if os.path.islink(path):
+                os.unlink(path)
+            elif os.path.isdir(path):
+                shutil.rmtree(path)
+        except OSError as ex:
+            result["error"] = remove["error"] or str(ex)
+            return result
+
+        self._run_git(["worktree", "prune"], cwd=cwd)
+        still_registered = any(
+            self._same_path(worktree.get("path", ""), path)
+            for worktree in self.list_worktrees(include_changes=False)
+        )
+        if still_registered:
+            result["error"] = (
+                remove["error"]
+                or "The checkout was deleted but git still lists the worktree"
+            )
+            return result
+
+        result["ok"] = True
+        result["removed"] = True
+        result["output"] = result["output"] or "checkout deleted and pruned"
+        return result
+
     def remove_worktree(
         self, branch: Optional[str] = None, path: Optional[str] = None
     ) -> dict:
@@ -2215,29 +2307,245 @@ class GitEngine:
             )
             return result
 
-        remove = self._run_git(
-            ["worktree", "remove", "--force", target_path],
-            cwd=repo_root,
-        )
+        remove = self._force_remove_worktree_path(target_path, cwd=repo_root)
         result["output"] = remove["output"]
         if not remove["ok"]:
-            # A stale registration (folder deleted outside git) must not block
-            # later worktree operations: prune and check whether the target is
-            # still registered. When it is gone the removal effectively worked.
-            self._run_git(["worktree", "prune"], cwd=repo_root)
-            still_registered = any(
-                self._same_path(worktree.get("path", ""), target_path)
-                for worktree in self.list_worktrees(include_changes=False)
+            result["errors"].append(
+                f"Could not remove worktree '{target_path}': "
+                f"{remove['error'] or remove['output']}"
             )
-            if still_registered:
-                result["errors"].append(
-                    f"Could not remove worktree '{target_path}': "
-                    f"{remove['error'] or remove['output']}"
-                )
-                return result
+            return result
 
         result["removed"] = True
         result["success"] = True
+        return result
+
+    # -------------------------------------------------------------------------
+    # .gitignore editor
+    # -------------------------------------------------------------------------
+
+    def get_gitignore_root(self) -> str:
+        """
+        Return the checkout root whose ``.gitignore`` the git view edits.
+
+        ``--show-toplevel`` resolves the checkout the project actually belongs
+        to: a linked worktree gets its own ``.gitignore`` instead of the main
+        checkout's, and a subproject uses the repository root (the only place
+        git applies a root ignore file from).
+
+        Returns:
+            Absolute checkout root.
+        """
+        return (
+            self._git_toplevel(self.settings.abs_project_path)
+            or self._get_repo_root()
+        )
+
+    def get_gitignore_path(self) -> str:
+        """Return the absolute path of the checkout's ``.gitignore``."""
+        return os.path.join(self.get_gitignore_root(), GITIGNORE_FILE)
+
+    def get_gitignore(self) -> dict:
+        """
+        Return the checkout's ``.gitignore`` content for the editor.
+
+        The file is optional: when it does not exist the editor starts with an
+        empty document and saves it on demand.
+
+        Returns:
+            Dict with 'success', 'path', 'root', 'exists', 'content' and
+            'errors'.
+        """
+        path = self.get_gitignore_path()
+        result = {
+            "success": False,
+            "path": path,
+            "root": self.get_gitignore_root(),
+            "exists": False,
+            "content": "",
+            "errors": [],
+        }
+        if not os.path.isfile(path):
+            result["success"] = True
+            return result
+
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as handle:
+                result["content"] = handle.read()
+        except OSError as ex:
+            logger.error("Could not read %s: %s", path, ex)
+            result["errors"].append(f"Could not read {path}: {ex}")
+            return result
+
+        result["exists"] = True
+        result["success"] = True
+        return result
+
+    def save_gitignore(self, content: str) -> dict:
+        """
+        Write the checkout's ``.gitignore``.
+
+        Line endings are normalized and a trailing newline is added, so the file
+        stays diff friendly. Nothing is staged or committed: it becomes a normal
+        working tree change the user can review.
+
+        Args:
+            content: New ``.gitignore`` content.
+
+        Returns:
+            Dict with 'success', 'path', 'root', 'exists', 'content' and
+            'errors'.
+        """
+        path = self.get_gitignore_path()
+        normalized = str(content or "").replace("\r\n", "\n").replace("\r", "\n")
+        if normalized and not normalized.endswith("\n"):
+            normalized += "\n"
+        result = {
+            "success": False,
+            "path": path,
+            "root": self.get_gitignore_root(),
+            "exists": os.path.isfile(path),
+            "content": normalized,
+            "errors": [],
+        }
+        try:
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(normalized)
+        except OSError as ex:
+            logger.error("Could not write %s: %s", path, ex)
+            result["errors"].append(f"Could not write {path}: {ex}")
+            return result
+
+        result["exists"] = True
+        result["success"] = True
+        return result
+
+    def _gitignore_relative_path(self, raw_path: str, root: str) -> str:
+        """
+        Resolve a file/folder path to a pattern path relative to *root*.
+
+        Absolute paths outside the checkout and ``..`` escapes are rejected:
+        the ignore file must never reference files outside the repository.
+
+        Args:
+            raw_path: Repo/project-relative or absolute path.
+            root: Checkout root containing the ``.gitignore``.
+
+        Returns:
+            Normalized relative path, or an empty string when it is not usable.
+        """
+        path = str(raw_path or "").strip().strip('"\'')
+        if not path or "\n" in path:
+            return ""
+        path = path.replace("\\", "/")
+        if os.path.isabs(path):
+            try:
+                path = os.path.relpath(os.path.realpath(path), os.path.realpath(root))
+            except (OSError, ValueError):
+                return ""
+        relative = os.path.normpath(path).replace("\\", "/")
+        while relative.startswith("./"):
+            relative = relative[2:]
+        if not relative or relative == "." or relative.startswith(".."):
+            return ""
+        return relative
+
+    @staticmethod
+    def _gitignore_pattern(relative_path: str, is_dir: bool) -> str:
+        """
+        Build an anchored gitignore pattern for one path.
+
+        The leading ``/`` anchors the pattern at the repository root, so
+        ``/config/`` ignores the root folder without hiding every ``config``
+        folder in the tree. Glob characters in the literal path are escaped.
+
+        Args:
+            relative_path: Path relative to the checkout root.
+            is_dir: Whether the entry is a folder.
+
+        Returns:
+            Gitignore pattern, e.g. ``/logs/``.
+        """
+        escaped = re.sub(r"([\\*?\[\]])", r"\\\1", relative_path)
+        return f"/{escaped}" + ("/" if is_dir else "")
+
+    def add_to_gitignore(self, entries: List[dict]) -> dict:
+        """
+        Append ignore patterns for files/folders to the checkout's `.gitignore`.
+
+        Existing patterns are never duplicated and the rest of the document is
+        preserved (comments, blank lines, negations). Every entry is resolved
+        against the checkout root and writes are atomic enough for this small
+        text file.
+
+        Args:
+            entries: ``[{'path': 'build', 'is_dir': True}, ...]``. ``is_dir`` is
+                inferred from the filesystem when omitted.
+
+        Returns:
+            Dict with 'success', 'path', 'root', 'exists', 'content', 'added',
+            'skipped' and 'errors'.
+
+        Example:
+            >>> engine.add_to_gitignore([{'path': 'node_modules', 'is_dir': True}])
+            {'success': True, 'added': ['/node_modules/'], ...}
+        """
+        root = self.get_gitignore_root()
+        path = os.path.join(root, GITIGNORE_FILE)
+        current = self.get_gitignore()
+        content = current.get("content") or ""
+        lines = content.splitlines()
+
+        result = {
+            "success": False,
+            "path": path,
+            "root": root,
+            "exists": bool(current.get("exists")),
+            "content": content,
+            "added": [],
+            "skipped": [],
+            "errors": list(current.get("errors") or []),
+        }
+        if not current.get("success"):
+            return result
+
+        existing = {
+            line.strip()
+            for line in lines
+            if line.strip() and not line.strip().startswith("#")
+        }
+
+        for entry in entries or []:
+            if isinstance(entry, str):
+                raw_path = entry
+                is_dir = False
+            else:
+                raw_path = (entry or {}).get("path") or ""
+                is_dir = bool((entry or {}).get("is_dir"))
+            relative = self._gitignore_relative_path(raw_path, root)
+            if not relative:
+                result["errors"].append(f"Invalid path for .gitignore: {raw_path}")
+                continue
+            if not is_dir:
+                is_dir = os.path.isdir(os.path.join(root, relative))
+            pattern = self._gitignore_pattern(relative, is_dir)
+            if pattern in existing:
+                result["skipped"].append(pattern)
+                continue
+            lines.append(pattern)
+            existing.add(pattern)
+            result["added"].append(pattern)
+
+        if not result["added"]:
+            result["success"] = not result["errors"]
+            return result
+
+        new_content = "\n".join(lines).rstrip() + "\n"
+        saved = self.save_gitignore(new_content)
+        result["content"] = saved.get("content") or new_content
+        result["exists"] = saved.get("exists", False)
+        result["success"] = bool(saved.get("success"))
+        result["errors"].extend(saved.get("errors") or [])
         return result
 
     def _create_branch_worktree(
@@ -2401,14 +2709,11 @@ class GitEngine:
                 "error": "",
             }
 
-        result = self._run_git(["worktree", "remove", "--force", worktree_path], cwd=cwd)
-        if not result["ok"]:
-            # Stale administrative entries block future worktree operations
-            self._run_git(["worktree", "prune"], cwd=cwd)
+        result = self._force_remove_worktree_path(worktree_path, cwd=cwd)
 
         return {
             "ok": result["ok"],
-            "removed": result["ok"],
+            "removed": result["removed"],
             "path": worktree_path,
             "output": result["output"],
             "error": result["error"],

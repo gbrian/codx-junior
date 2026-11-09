@@ -15,6 +15,9 @@
  *   GET    /api/git/repo/remotes
  *   GET    /api/git/repo/worktrees
  *   POST   /api/git/repo/worktree/remove
+ *   GET    /api/git/repo/gitignore
+ *   POST   /api/git/repo/gitignore
+ *   POST   /api/git/repo/gitignore/add
  *   GET    /api/git/repo/branch/commits
  *   GET    /api/git/repo/changes
  *   GET    /api/git/repo/validate/context
@@ -151,6 +154,42 @@ export const repoModule = (API) => ({
       branch: branch || undefined,
       path: path || undefined
     })
+  },
+
+  // ── .gitignore editor ─────────────────────────────────────────────────────
+
+  /**
+   * Read the checkout's `.gitignore`.
+   *
+   * @returns {Promise<Object>} `{ success, path, root, exists, content, errors }`.
+   */
+  gitignore() {
+    return API.get('/api/git/repo/gitignore')
+  },
+
+  /**
+   * Write the checkout's `.gitignore`.
+   *
+   * @param {string} content - New file content.
+   * @returns {Promise<Object>} `{ success, path, root, exists, content, errors }`.
+   */
+  saveGitignore(content = '') {
+    return API.post('/api/git/repo/gitignore', { content })
+  },
+
+  /**
+   * Append ignore patterns for files/folders.
+   *
+   * @param {Array<string|Object>} entries - Paths or `{ path, is_dir }` entries.
+   * @returns {Promise<Object>} `{ success, path, content, added, skipped, errors }`.
+   */
+  addToGitignore(entries = []) {
+    const payload = (entries || []).map(entry => (
+      typeof entry === 'string'
+        ? { path: entry, is_dir: false }
+        : { path: entry?.path || '', is_dir: !!entry?.is_dir }
+    )).filter(entry => entry.path)
+    return API.post('/api/git/repo/gitignore/add', { entries: payload })
   },
 
   // ── Commits ───────────────────────────────────────────────────────────────
@@ -299,13 +338,18 @@ export const repoModule = (API) => ({
    * The backend matches every changed file against the profile `file_match`
    * rules (`ProfileManager.get_file_profiles_by_file_path`) and returns them as
    * `default_profiles`, so the UI starts with the relevant reviewer profiles.
+   * Each file entry carries its own `profiles` list.
+   *
+   * It also correlates the changed files with the tasks that touched them since
+   * the base commit (`tasks`) so the review knows why the files changed, and
+   * treats task text as untrusted context to detect prompt injections.
    *
    * @param {Object} [params] - Options.
    * @param {'local'|'branch'} [params.source] - Change source.
    * @param {string} [params.from_branch] - Base (local) or source branch.
    * @param {string} [params.to_branch] - Target branch.
    * @param {string[]} [params.paths] - Local files to restrict the review to.
-   * @returns {Promise<Object>} `{ files, profiles, default_profiles, ... }`.
+   * @returns {Promise<Object>} `{ files, profiles, default_profiles, tasks, ... }`.
    *
    * @example
    * const ctx = await api.repo.validateContext({ source: 'local' })
@@ -331,7 +375,7 @@ export const repoModule = (API) => ({
    * @param {string[]} [params.paths] - Local files to restrict the review to.
    * @param {string} [params.instructions] - Extra reviewer instructions.
    * @param {number} [params.max_diff_chars] - Patch budget.
-   * @returns {Promise<Object>} `{ success, review, files, profiles, ... }`.
+   * @returns {Promise<Object>} `{ success, review, files, profiles, tasks, ... }`.
    *
    * @example
    * const { review } = await api.repo.validate({ profiles: ['reviewer'] })

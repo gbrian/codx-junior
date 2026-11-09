@@ -397,6 +397,29 @@ def _extract_file_paths(
 # ---------------------------------------------------------------------------
 
 
+def extract_tool_file_paths(
+    tool_name: str,
+    request: Dict[str, Any],
+    *,
+    include_path_key: bool = True,
+) -> List[str]:
+    """
+    Return the file paths a tool call targets (public helper).
+
+    Other features (the git Validator correlates tasks with changed files) need
+    the same path extraction used by this module, so it is exposed instead of
+    importing the private helper.
+
+    :param tool_name: Name of the tool.
+    :param request: Parsed tool arguments.
+    :param include_path_key: Whether the generic ``path`` key is considered.
+    :return: Deduplicated path list, order preserved.
+    """
+    return _extract_file_paths(
+        tool_name, request or {}, include_path_key=include_path_key
+    )
+
+
 def _iter_tool_events(message: Any) -> Iterable[Any]:
     """Yield the tool events of *message* (defensive: attribute may be None)."""
     for event in getattr(message, "tool_events", None) or []:
