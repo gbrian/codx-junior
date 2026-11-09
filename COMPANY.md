@@ -49,6 +49,7 @@ missions — ready for a human to review before anything is dispatched.
 | REST API | `api/codx/junior/api/company.py` |
 | AI profile tool | `api/codx/junior/tools/company_tools.py` |
 | Company assistant | `api/codx/junior/company/assistant.py` + `client/src/components/company/CompanyAssistant.vue` |
+| Company chats | `client/src/components/company/CompanyChatPanel.vue` + company chat API |
 | Profile/team advisor | `api/codx/junior/company/profile_advisor.py` |
 | Language detection | `api/codx/junior/company/language.py` |
 | User roles / memberships | `api/codx/junior/model/user.py` (`CodxUser.companies`, `workspace_mode`) |
@@ -241,7 +242,7 @@ The company shell has **one screen**:
 
 ### From an AI profile
 
-Every profile can use the `company_management` tool. It exposes 28 actions:
+Every profile can use the `company_management` tool. It exposes 30 actions:
 
 ```text
 list, get, create, update, delete, references, snapshot,
@@ -250,7 +251,8 @@ add_team, update_team, delete_team,
 add_team_members, remove_team_members, set_team_lead,
 link_project, unlink_project,
 add_mission, update_mission, delete_mission,
-dispatch_mission, accept_mission, reject_mission, transition_mission,
+dispatch_mission, accept_mission, reject_mission,
+approve_mission, deny_mission, transition_mission,
 sync, configure_autonomy, run_cycle
 ```
 
@@ -320,7 +322,18 @@ curl -X POST /api/companies/<id>/missions \
 curl -X POST /api/companies/<id>/missions/<mission>/dispatch
 curl -X POST /api/companies/<id>/missions/<mission>/accept \
   -d '{"result":"Provisioning works"}'
+curl -X POST /api/companies/<id>/missions/<mission>/approve \
+  -d '{"note":"Looks safe"}'
+curl -X POST /api/companies/<id>/missions/<mission>/deny \
+  -d '{"note":"Not now"}'
 curl -X POST /api/companies/<id>/missions/sync
+
+# Company chats (channel chats hosted by a linked project)
+curl /api/companies/<id>/chats
+curl -X POST /api/companies/<id>/chats \
+  -d '{"name":"platform","team_id":"<team>","project_id":"proj_123"}'
+curl -X POST /api/companies/<id>/chats/<chat>/sync-members
+curl -X DELETE /api/companies/<id>/chats/<chat>
 
 # Autonomy
 curl -X PUT /api/companies/<id>/autonomy \
@@ -370,7 +383,7 @@ Board titles are sanitized before they are used as folders under
 | `interval_minutes` | `60` | Minimum time between automatic cycles (5–1440) |
 | `max_concurrent_missions` | `2` | Running missions allowed at once |
 | `max_missions_per_cycle` | `1` | Missions dispatched by one cycle |
-| `daily_budget_cxjcoins` | `0` | Soft daily budget (0 = no limit) |
+| `daily_budget_cxjcoins` | `0` | Daily AI budget; the autopilot stops when reached (0 = no limit) |
 | `require_human_acceptance` | `true` | Completed runs stop at `review` |
 
 A cycle:
@@ -382,6 +395,11 @@ A cycle:
    `max_concurrent_missions`,
 4. records the cycle in the autonomy policy and the journal.
 
+When the daily budget is exhausted the cycle returns
+`status="budget_exhausted"`, records an `autopilot.budget_exhausted` journal
+event and does not dispatch anything. A human can still force a manual cycle
+(`force=true`) or raise the limit.
+
 The background loop is started by `codx.junior.background` when background
 services are enabled. It can be disabled independently:
 
@@ -389,6 +407,108 @@ services are enabled. It can be disabled independently:
 export CODX_JUNIOR_COMPANY_AUTOPILOT=false
 export CODX_JUNIOR_COMPANY_AUTOPILOT_TICK_SECONDS=60
 ```
+
+## Budget ledger
+
+Every orchestration run reports its cumulative cost (`RunState.spent_cxjcoins`).
+`sync_missions` reads it and:
+
+* updates `Mission.spent_cxjcoins` (the cumulative cost of that mission),
+* appends **only the positive delta** to `Company.spend` (`SpendEntry` rows with
+  time, mission, project, run and amount), so syncing the same run twice never
+  double counts,
+* updates `Company.spent_cxjcoins`, a cumulative counter that survives mission
+  deletion/archival.
+
+The company document keeps at most `SPEND_LEDGER_LIMIT` (2000) ledger rows; the
+cumulative total is separate, so trimming old deltas never loses the overall
+number.
+
+The snapshot exposes a `budget` block:
+
+```json
+{
+  "currency": "cxjcoins",
+  "daily_limit_cxjcoins": 100,
+  "spent_today_cxjcoins": 42.5,
+  "remaining_today_cxjcoins": 57.5,
+  "over_daily_budget": false,
+  "spent_total_cxjcoins": 412.5,
+  "total_project_budget_cxjcoins": 300,
+  "remaining_project_budget_cxjcoins": 120,
+  "projects": [
+    {"project_id": "proj_123", "budget_cxjcoins": 300,
+     "spent_cxjcoins": 180, "remaining_cxjcoins": 120, "over_budget": false}
+  ],
+  "teams": [
+    {"team_id": "team-...", "budget_cxjcoins": 100,
+     "spent_cxjcoins": 80, "remaining_cxjcoins": 20, "over_budget": false}
+  ],
+  "by_mission": {"msn-...": 42.5}
+}
+```
+
+Enforcement:
+
+| Limit | Enforced by | Behaviour when reached |
+| --- | --- | --- |
+| **Project budget** (`CompanyProject.budget_cxjcoins`) | `dispatch_mission` | Dispatch is refused with a clear error; `force=true` bypasses it |
+| **Team budget** (`CompanyTeam.budget_cxjcoins`) | `dispatch_mission` | Dispatch is refused with a clear error; `force=true` bypasses it |
+| **Mission budget** (`Mission.budget_cxjcoins`) | Orchestration run + dispatch check | The run stops with `budget_exhausted`; re-dispatch is refused |
+| **Daily company budget** (`AutonomyPolicy.daily_budget_cxjcoins`) | Autopilot cycle | The cycle returns `budget_exhausted` and dispatches nothing |
+
+The company assistant answers “How is our budget?” from the same block, and the
+company home shows a budget card with today’s spend and the remaining amount.
+
+## Approvals
+
+A mission can be gated before it runs, either per mission
+(`Mission.requires_approval`) or by a team policy
+(`CompanyTeam.requires_approval`). A gated mission starts with
+`approval_status="pending"` and `dispatch_mission` refuses to start it until a
+human approves it:
+
+```bash
+# Approve / deny (company manager or admin)
+curl -X POST /api/companies/<id>/missions/<mission>/approve -d '{"note":"Go"}'
+curl -X POST /api/companies/<id>/missions/<mission>/deny -d '{"note":"Not now"}'
+```
+
+* Approval does **not** dispatch the mission: the human still chooses when to
+  start it.
+* `denied` missions stay blocked until they are approved.
+* The autopilot skips unapproved missions, and the attention queue reports
+  `approval` for pending/denied ones.
+* The assistant answers “show pending approvals” and supports
+  “approve <mission>” / “deny <mission>”.
+* The approval is audited with `approved_by`, `approved_at` and
+  `approval_note`.
+
+## Company chats
+
+The company has its own channel list, but it does **not** reimplement
+messaging: each channel is a normal `mode="channel"` `Chat` hosted by one of the
+company's linked projects. The Messenger stack (mentions, attachments, unread
+badges, AI replies, media) therefore works unchanged.
+
+* A channel belongs to a **team**; the team's humans and AI profiles become the
+  chat roster (`chat.users` / `chat.profiles`). Without a team the channel is a
+  plain human channel.
+* Messages live in the selected project. The company document stores only the
+  reference (`CompanyChat`: chat id, project id, name, team, pinned).
+* **Chats** in the company header opens the company channel list. Pick a
+  channel, talk to the team with the normal `ChatView`, create a channel with
+  **New channel**, **Sync members** to copy the team roster again, or delete the
+  channel.
+* The channel list is available from `GET /api/companies/<id>/chats`; creating
+  or deleting channels requires a company manager/admin.
+* If a linked project is removed or the hosted chat disappears, the channel is
+  still listed as `available: false` until a human removes it.
+
+Why host the chat in a project? A project is where codx-junior already stores
+conversations, resolves the AI profiles, meters cost and runs the agent. The
+company layer only adds the organization/team context and the cross-project
+channel list.
 
 ## Mission lifecycle
 
@@ -425,15 +545,14 @@ PYTHONPATH=api python -m unittest discover -s tests -p 'test_company*.py' -v
 The tests cover persistence/journaling, the SaaS template, hybrid rosters,
 profile validation, project linking, dispatch, run sync, accept/reject,
 transition validation, the autonomy guard rails, the dashboard snapshot, the
-role-driven company mode, company memberships and the company assistant forms.
+budget ledger and its dispatch/autopilot enforcement, mission approval gates,
+company channels hosted by linked projects, the role-driven company mode,
+company memberships and the company assistant forms.
 
 ## Next steps
 
-* **Budget ledger** — aggregate `cxjcoins` across the company's runs and pause
-  teams that exceed their budget.
-* **Approvals** — per-team policies for risky actions (deploy, spend, delete).
-* **Company chat** — a channel per company/team where humans and profiles plan
-  together before creating missions.
+* **Rich channel automations** — for example, a channel where a new message can
+  create a mission or a task directly.
 * **Multi-company** — the storage and API already support it; the UI needs a
   workspace switcher.
 

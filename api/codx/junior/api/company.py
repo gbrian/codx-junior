@@ -177,6 +177,8 @@ class TeamRequest(BaseModel):
     autonomy: str = "supervised"
     tools: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
+    budget_cxjcoins: float = 0.0
+    requires_approval: bool = False
     color: str = "#6366f1"
     icon: str = "fa-solid fa-people-group"
 
@@ -223,6 +225,7 @@ class MissionRequest(BaseModel):
     owner_kind: str = "user"
     owner_name: str = ""
     dispatch_mode: str = "manual"
+    requires_approval: Optional[bool] = None
     budget_cxjcoins: float = 0.0
     due_date: str = ""
     tags: List[str] = Field(default_factory=list)
@@ -245,6 +248,30 @@ class RejectRequest(BaseModel):
     """Reject a mission in review."""
 
     reason: str = ""
+
+
+class ApprovalRequest(BaseModel):
+    """Approve or deny a gated mission."""
+
+    note: str = ""
+
+
+class ChatCreateRequest(BaseModel):
+    """Create a company channel."""
+
+    name: str
+    description: str = ""
+    team_id: str = ""
+    project_id: str = ""
+
+
+class ChatUpdateRequest(BaseModel):
+    """Update a company channel."""
+
+    name: Optional[str] = None
+    description: Optional[str] = None
+    team_id: Optional[str] = None
+    pinned: Optional[bool] = None
 
 
 class AutonomyRequest(BaseModel):
@@ -800,6 +827,87 @@ def api_company_assistant(
 
 
 # ---------------------------------------------------------------------------
+# Company chats
+# ---------------------------------------------------------------------------
+
+
+@router.get("/companies/{company_id}/chats")
+def api_list_company_chats(
+    company_id: str,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """List the company channels with their hosted chat summary."""
+    return _run(lambda: _manager().list_company_chats(company_id))
+
+
+@router.post("/companies/{company_id}/chats", status_code=201)
+def api_create_company_chat(
+    company_id: str,
+    payload: ChatCreateRequest,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Create a company channel (hosted by a linked project)."""
+    manager, _ = _run(lambda: _get_editable(company_id, user))
+    return _run(
+        lambda: manager.create_company_chat(
+            company_id,
+            name=payload.name,
+            description=payload.description,
+            team_id=payload.team_id,
+            project_id=payload.project_id,
+            actor=_actor(user),
+        )
+    )
+
+
+@router.put("/companies/{company_id}/chats/{chat_id}")
+def api_update_company_chat(
+    company_id: str,
+    chat_id: str,
+    payload: ChatUpdateRequest,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Update a company channel."""
+    manager, _ = _run(lambda: _get_editable(company_id, user))
+    return _run(
+        lambda: manager.update_company_chat(
+            company_id,
+            chat_id,
+            payload.model_dump(exclude_unset=True),
+            actor=_actor(user),
+        )
+    )
+
+
+@router.post("/companies/{company_id}/chats/{chat_id}/sync-members")
+def api_sync_company_chat_members(
+    company_id: str,
+    chat_id: str,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Copy the owning team roster into the hosted chat."""
+    manager, _ = _run(lambda: _get_editable(company_id, user))
+    return _run(
+        lambda: manager.sync_company_chat_members(
+            company_id, chat_id, actor=_actor(user)
+        )
+    )
+
+
+@router.delete("/companies/{company_id}/chats/{chat_id}")
+def api_delete_company_chat(
+    company_id: str,
+    chat_id: str,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Delete a company channel and its hosted chat."""
+    manager, _ = _run(lambda: _get_editable(company_id, user))
+    return _run(
+        lambda: manager.delete_company_chat(company_id, chat_id, actor=_actor(user))
+    )
+
+
+# ---------------------------------------------------------------------------
 # Organization
 # ---------------------------------------------------------------------------
 
@@ -1106,6 +1214,38 @@ def api_reject_mission(
     return _run(
         lambda: manager.reject_mission(
             company_id, mission_id, reason=payload.reason, actor=_actor(user)
+        )
+    )
+
+
+@router.post("/companies/{company_id}/missions/{mission_id}/approve")
+def api_approve_mission(
+    company_id: str,
+    mission_id: str,
+    payload: ApprovalRequest,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Approve a mission that needs approval before dispatch."""
+    manager, _ = _run(lambda: _get_editable(company_id, user))
+    return _run(
+        lambda: manager.approve_mission(
+            company_id, mission_id, note=payload.note, actor=_actor(user)
+        )
+    )
+
+
+@router.post("/companies/{company_id}/missions/{mission_id}/deny")
+def api_deny_mission(
+    company_id: str,
+    mission_id: str,
+    payload: ApprovalRequest,
+    user: Optional[CodxUser] = Depends(get_authenticated_user),
+):
+    """Deny a gated mission (it cannot be dispatched until approved)."""
+    manager, _ = _run(lambda: _get_editable(company_id, user))
+    return _run(
+        lambda: manager.deny_mission(
+            company_id, mission_id, note=payload.note, actor=_actor(user)
         )
     )
 

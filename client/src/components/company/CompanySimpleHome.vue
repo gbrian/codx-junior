@@ -26,6 +26,16 @@ const teams = computed(() => props.snapshot?.teams || [])
 const projects = computed(() => props.snapshot?.projects || [])
 const missions = computed(() => props.snapshot?.missions || [])
 const journal = computed(() => (props.snapshot?.journal || []).slice(-4).reverse())
+const budget = computed(() => props.snapshot?.budget || {})
+const budgetProgress = computed(() => {
+  const limit = Number(budget.value.daily_limit_cxjcoins || 0)
+  if (limit <= 0) return 0
+  return Math.min(100, Math.round((Number(budget.value.spent_today_cxjcoins || 0) / limit) * 100))
+})
+const showBudget = computed(() =>
+  Number(budget.value.daily_limit_cxjcoins || 0) > 0
+  || Number(budget.value.spent_total_cxjcoins || 0) > 0
+)
 
 const reviewMissions = computed(() =>
   missions.value.filter(mission => mission.status === 'review')
@@ -33,8 +43,16 @@ const reviewMissions = computed(() =>
 const runningMissions = computed(() =>
   missions.value.filter(mission => mission.status === 'running')
 )
+const approvalMissions = computed(() =>
+  missions.value.filter(
+    mission => ['pending', 'denied'].includes(mission.approval_status)
+      && ['ready', 'blocked'].includes(mission.status)
+  )
+)
 
-const firstAttention = computed(() => reviewMissions.value[0] || runningMissions.value[0] || null)
+const firstAttention = computed(() =>
+  reviewMissions.value[0] || approvalMissions.value[0] || runningMissions.value[0] || null
+)
 
 const simpleGreeting = computed(() => {
   const hour = new Date().getHours()
@@ -49,6 +67,10 @@ function ask(prompt) {
 
 function askAboutMission(mission) {
   if (!mission) return
+  if (['pending', 'denied'].includes(mission.approval_status)) {
+    ask('Show pending approvals')
+    return
+  }
   if (mission.status === 'review') {
     ask(`Review mission ${mission.title}`)
     return
@@ -172,6 +194,38 @@ function projectName(project) {
       </button>
     </section>
 
+    <!-- Budget (only when a limit exists or money has been spent) -->
+    <section v-if="showBudget" class="rounded-2xl border border-base-content/10 bg-base-100 p-3.5">
+      <div class="flex items-center gap-2">
+        <span class="w-8 h-8 rounded-lg grid place-items-center bg-warning/15 text-warning">
+          <i class="fa-solid fa-coins"></i>
+        </span>
+        <div class="min-w-0 flex-1">
+          <div class="text-xs font-bold">AI budget</div>
+          <div class="text-[10px] text-base-content/50">
+            {{ budget.spent_total_cxjcoins || 0 }} cxj spent in total
+            <template v-if="Number(budget.daily_limit_cxjcoins || 0) > 0">
+              · {{ budget.spent_today_cxjcoins || 0 }} / {{ budget.daily_limit_cxjcoins }} today
+            </template>
+          </div>
+        </div>
+        <span v-if="budget.over_daily_budget" class="badge badge-xs badge-error">over budget</span>
+        <span v-else-if="Number(budget.daily_limit_cxjcoins || 0) > 0" class="badge badge-xs badge-ghost">
+          {{ budget.remaining_today_cxjcoins }} left
+        </span>
+        <button type="button" class="btn btn-ghost btn-xs" @click="ask('How is our budget?')">
+          Details
+        </button>
+      </div>
+      <progress
+        v-if="Number(budget.daily_limit_cxjcoins || 0) > 0"
+        class="progress w-full h-1.5 mt-2"
+        :class="budget.over_daily_budget ? 'progress-error' : 'progress-warning'"
+        :value="budgetProgress"
+        max="100"
+      ></progress>
+    </section>
+
     <!-- What needs a human -->
     <section v-if="firstAttention" class="rounded-2xl border border-warning/25 bg-warning/5 p-4">
       <div class="flex items-start justify-between gap-3">
@@ -189,11 +243,19 @@ function projectName(project) {
           <p v-if="firstAttention.status === 'review'" class="text-[11px] text-base-content/45 mt-1">
             The AI team finished this mission. Do you accept the result?
           </p>
+          <p v-else-if="['pending', 'denied'].includes(firstAttention.approval_status)"
+             class="text-[11px] text-base-content/45 mt-1">
+            This mission needs your approval before it can run.
+          </p>
         </div>
         <div class="flex flex-col gap-1.5 shrink-0">
           <button type="button" class="btn btn-warning btn-sm"
                   @click="askAboutMission(firstAttention)">
-            {{ firstAttention.status === 'review' ? 'Review it' : 'Ask about it' }}
+            {{
+              ['pending', 'denied'].includes(firstAttention.approval_status)
+                ? 'Review approval'
+                : (firstAttention.status === 'review' ? 'Review it' : 'Ask about it')
+            }}
           </button>
           <button type="button" class="btn btn-ghost btn-xs"
                   @click="ask('What needs my attention?')">See all</button>

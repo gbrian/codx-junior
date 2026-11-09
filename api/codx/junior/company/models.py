@@ -99,6 +99,8 @@ MISSION_PRIORITIES = ("low", "medium", "high", "critical")
 MISSION_DISPATCH_MODES = ("manual", "auto")
 MISSION_SOURCES = ("human", "autopilot", "template")
 
+APPROVAL_STATUSES = ("not_required", "pending", "approved", "denied")
+
 AUTONOMY_LEVELS = ("off", "supervised", "autonomous")
 TEAM_AUTONOMY_LEVELS = ("manual", "supervised", "autonomous")
 
@@ -112,6 +114,7 @@ ID_PREFIXES = {
     "team": "team",
     "mission": "msn",
     "event": "evt",
+    "spend": "spd",
 }
 
 
@@ -489,6 +492,14 @@ class CompanyTeam(BaseModel):
     )
     tools: List[str] = Field(default_factory=list, description="Extra tool names")
     tags: List[str] = Field(default_factory=list, description="Discovery tags")
+    budget_cxjcoins: float = Field(
+        default=0.0,
+        description="Optional AI budget for this team (0 = no limit)",
+    )
+    requires_approval: bool = Field(
+        default=False,
+        description="Missions of this team need explicit approval before dispatch",
+    )
     color: str = Field(default="#6366f1", description="UI accent colour")
     icon: str = Field(default="fa-solid fa-people-group", description="UI icon")
     created_at: str = Field(default_factory=now_iso, description="Creation timestamp")
@@ -546,6 +557,15 @@ class CompanyTeam(BaseModel):
         if isinstance(value, str):
             value = [value]
         return _unique(value)
+
+    @field_validator("budget_cxjcoins", mode="before")
+    @classmethod
+    def _budget(cls, value: Any) -> float:
+        """Clamp the team budget to a non-negative number."""
+        try:
+            return max(0.0, float(value or 0.0))
+        except (TypeError, ValueError):
+            return 0.0
 
     @model_validator(mode="after")
     def _validate(self) -> "CompanyTeam":
@@ -943,6 +963,21 @@ class Mission(BaseModel):
     )
     source: str = Field(default="human", description="human | autopilot | template")
     budget_cxjcoins: float = Field(default=0.0, description="Run budget (0 = none)")
+    spent_cxjcoins: float = Field(
+        default=0.0,
+        description="AI spend reported by the orchestration run (cxjcoins)",
+    )
+    requires_approval: bool = Field(
+        default=False,
+        description="This mission needs explicit approval before dispatch",
+    )
+    approval_status: str = Field(
+        default="not_required",
+        description="not_required | pending | approved | denied",
+    )
+    approved_by: str = Field(default="", description="Username that approved it")
+    approved_at: str = Field(default="", description="Approval timestamp")
+    approval_note: str = Field(default="", description="Approval/denial note")
     due_date: str = Field(default="", description="Optional ISO due date")
     run_id: str = Field(default="", description="Orchestration run id")
     run_status: str = Field(default="", description="Last orchestration status")
@@ -992,6 +1027,20 @@ class Mission(BaseModel):
             )
         return mode
 
+    @field_validator("approval_status", mode="before")
+    @classmethod
+    def _approval_status(cls, value: Any) -> str:
+        """Validate/normalize the approval status; 'required' means pending."""
+        status = _clean(value).lower() or "not_required"
+        if status in ("required", "needed", "awaiting"):
+            return "pending"
+        if status not in APPROVAL_STATUSES:
+            raise ValueError(
+                f"invalid approval status '{status}' (expected one of "
+                f"{', '.join(APPROVAL_STATUSES)})"
+            )
+        return status
+
     @field_validator("source", mode="before")
     @classmethod
     def _source(cls, value: Any) -> str:
@@ -1018,6 +1067,9 @@ class Mission(BaseModel):
         "run_status",
         "result",
         "last_error",
+        "approved_by",
+        "approved_at",
+        "approval_note",
         "created_by",
         mode="before",
     )
@@ -1026,10 +1078,10 @@ class Mission(BaseModel):
         """Trim free-form strings."""
         return _clean(value)
 
-    @field_validator("budget_cxjcoins", mode="before")
+    @field_validator("budget_cxjcoins", "spent_cxjcoins", mode="before")
     @classmethod
     def _budget(cls, value: Any) -> float:
-        """Clamp the budget to a non-negative number."""
+        """Clamp the budget/spend to a non-negative number."""
         try:
             return max(0.0, float(value or 0.0))
         except (TypeError, ValueError):
@@ -1069,6 +1121,11 @@ class Mission(BaseModel):
         return self.status in MISSION_OPEN_STATUSES
 
     @property
+    def needs_approval(self) -> bool:
+        """``True`` when the mission is still waiting for (or denied) approval."""
+        return self.requires_approval or self.approval_status in ("pending", "denied")
+
+    @property
     def is_terminal(self) -> bool:
         """``True`` when the mission will not change by itself anymore."""
         return self.status in ("done", "cancelled")
@@ -1097,6 +1154,89 @@ class CompanyEvent(BaseModel):
     message: str = Field(default="", description="Human readable summary")
     mission_id: str = Field(default="", description="Related mission id")
     data: Dict[str, Any] = Field(default_factory=dict, description="Extra event data")
+
+
+class CompanyChat(BaseModel):
+    """
+    A company channel, hosted by one of the company's linked projects.
+
+    The messages themselves live in a normal codx-junior ``Chat`` with
+    ``mode='channel'`` (so the Messenger UI, mentions, attachments, unread
+    counters and AI replies all keep working). The company document stores only
+    the reference plus the company-specific metadata: which project hosts the
+    chat and which hybrid team owns it.
+
+    Attributes:
+        chat_id: Id of the hosted ``Chat``.
+        project_id: Project that stores the chat and its messages.
+        name: Channel name (kept in sync with the Chat).
+        description: What the channel is for.
+        team_id: Team whose humans/AI profiles are the channel roster.
+        pinned: Pinned in the company channel list.
+        created_by / created_at / updated_at: Audit fields.
+    """
+
+    chat_id: str = Field(default="", description="Hosted chat id")
+    project_id: str = Field(default="", description="Project that stores the chat")
+    name: str = Field(default="", description="Channel name")
+    description: str = Field(default="", description="Channel purpose")
+    team_id: str = Field(default="", description="Owning company team id")
+    pinned: bool = Field(default=False, description="Pinned channel")
+    created_by: str = Field(default="", description="Username that created it")
+    created_at: str = Field(default_factory=now_iso, description="Creation timestamp")
+    updated_at: str = Field(default_factory=now_iso, description="Last update timestamp")
+
+    @field_validator("chat_id", "project_id", "name", mode="before")
+    @classmethod
+    def _required(cls, value: Any) -> str:
+        """Require the identity fields that make the reference resolvable."""
+        text = _clean(value)
+        if not text:
+            raise ValueError("company chat needs chat_id, project_id and name")
+        return text
+
+    @field_validator("description", "team_id", "created_by", mode="before")
+    @classmethod
+    def _strip(cls, value: Any) -> str:
+        """Trim free-form strings."""
+        return _clean(value)
+
+
+class SpendEntry(BaseModel):
+    """
+    One delta of AI spend attributed to a mission.
+
+    The company keeps a small append-only ledger so it can answer "how much did
+    we spend today?" without scanning every run in every project. The mission
+    itself stores the cumulative ``spent_cxjcoins``; this ledger stores the
+    positive deltas reported by each run sync.
+
+    Attributes:
+        id: Unique entry id.
+        at: Timestamp of the sync that observed the spend.
+        mission_id: Mission the cost belongs to.
+        project_id: Project where the run executed.
+        run_id: Orchestration run that reported the cost.
+        amount: Positive delta in cxjcoins.
+        note: Optional human-readable detail.
+    """
+
+    id: str = Field(default_factory=lambda: new_id("spend"))
+    at: str = Field(default_factory=now_iso, description="Observation timestamp")
+    mission_id: str = Field(default="", description="Mission id")
+    project_id: str = Field(default="", description="Project id")
+    run_id: str = Field(default="", description="Orchestration run id")
+    amount: float = Field(default=0.0, description="Positive spend delta (cxjcoins)")
+    note: str = Field(default="", description="Optional detail")
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def _amount(cls, value: Any) -> float:
+        """Clamp the amount to a non-negative number."""
+        try:
+            return max(0.0, float(value or 0.0))
+        except (TypeError, ValueError):
+            return 0.0
 
 
 class Company(BaseModel):
@@ -1140,6 +1280,18 @@ class Company(BaseModel):
     teams: List[CompanyTeam] = Field(default_factory=list)
     projects: List[CompanyProject] = Field(default_factory=list)
     missions: List[Mission] = Field(default_factory=list)
+    chats: List[CompanyChat] = Field(
+        default_factory=list,
+        description="Company channels hosted by linked projects",
+    )
+    spend: List[SpendEntry] = Field(
+        default_factory=list,
+        description="Append-only AI spend ledger (bounded to the most recent entries)",
+    )
+    spent_cxjcoins: float = Field(
+        default=0.0,
+        description="Cumulative AI spend observed by the company (cxjcoins)",
+    )
     autonomy: AutonomyPolicy = Field(default_factory=AutonomyPolicy)
     tags: List[str] = Field(default_factory=list)
     created_at: str = Field(default_factory=now_iso, description="Creation timestamp")
@@ -1163,6 +1315,15 @@ class Company(BaseModel):
     def _strip(cls, value: Any) -> str:
         """Trim free-form strings."""
         return _clean(value)
+
+    @field_validator("spent_cxjcoins", mode="before")
+    @classmethod
+    def _spent(cls, value: Any) -> float:
+        """Clamp the cumulative spend to a non-negative number."""
+        try:
+            return max(0.0, float(value or 0.0))
+        except (TypeError, ValueError):
+            return 0.0
 
     @field_validator("values", "tags", mode="before")
     @classmethod
@@ -1280,6 +1441,14 @@ class Company(BaseModel):
             "ai": self.ai_count,
             "missions": len(self.missions),
             "open_missions": len(self.open_missions),
+            "chats": len(self.chats),
+            "spent_cxjcoins": round(
+                max(
+                    self.spent_cxjcoins,
+                    sum(mission.spent_cxjcoins for mission in self.missions),
+                ),
+                4,
+            ),
         }
         for status in MISSION_STATUSES:
             counts[status] = sum(

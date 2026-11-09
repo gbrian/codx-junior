@@ -13,7 +13,9 @@ Run with either::
 
 import os
 import shutil
+import sys
 import tempfile
+import types
 import unittest
 
 from datetime import datetime
@@ -56,6 +58,56 @@ PROFILE_NAMES = (
 USERS = [{"username": "alice", "avatar": ""}, {"username": "bob", "avatar": ""}]
 
 
+class FakeChat:
+    """Minimal hosted-chat object used by the company channel tests."""
+
+    def __init__(self, **kwargs):
+        self.id = kwargs.pop("id", None)
+        self.messages = kwargs.pop("messages", [])
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def model_dump(self):
+        return {
+            "id": self.id,
+            "name": getattr(self, "name", ""),
+            "mode": getattr(self, "mode", ""),
+            "profiles": getattr(self, "profiles", []),
+            "users": getattr(self, "users", []),
+            "updated_at": getattr(self, "updated_at", ""),
+        }
+
+
+# The environment running the domain tests may not have the full chat stack
+# installed (db.py imports slugify). Inject a tiny db module when needed; the
+# manager only needs the Chat constructor.
+try:  # pragma: no cover - depends on the test environment
+    import codx.junior.db  # noqa: F401
+except Exception:
+    _fake_db = types.ModuleType("codx.junior.db")
+    _fake_db.Chat = FakeChat
+    sys.modules["codx.junior.db"] = _fake_db
+
+
+class FakeChatManager:
+    """In-memory ChatManager stand-in (no project filesystem)."""
+
+    def __init__(self):
+        self.chats = {}
+
+    def save_chat(self, chat, chat_only=False):
+        if not getattr(chat, "id", None):
+            chat.id = f"chat-{len(self.chats) + 1}"
+        self.chats[chat.id] = chat
+        return chat
+
+    def find_by_id(self, chat_id=None):
+        return self.chats.get(chat_id)
+
+    def delete_chat(self, chat_id=None, file_path=None):
+        self.chats.pop(chat_id, None)
+
+
 class FakeClock:
     """Deterministic clock used by the autonomy tests."""
 
@@ -89,6 +141,7 @@ class CompanyTestCase(unittest.TestCase):
         def run_status(project_id, run_id):
             return self.runs.get(run_id) or {"status": "running", "progress": 0}
 
+        self.chat_manager = FakeChatManager()
         self.manager = CompanyManager(
             root_path=self.root,
             projects_provider=lambda: PROJECTS,
@@ -104,6 +157,7 @@ class CompanyTestCase(unittest.TestCase):
             ],
             dispatcher=dispatcher,
             run_status_provider=run_status,
+            chat_manager_provider=lambda project_id: self.chat_manager,
             clock=self.clock,
         )
 
@@ -305,6 +359,257 @@ class CompanyTestCase(unittest.TestCase):
         company, mission = self.add_ready_mission(company)
         with self.assertRaises(CompanyValidationError):
             self.manager.transition_mission(company.id, mission.id, "done", actor="alice")
+
+    def test_sync_tracks_spend_without_double_counting(self):
+        company = self.create_company()
+        company, mission = self.add_ready_mission(company)
+        company = self.manager.dispatch_mission(company.id, mission.id, actor="alice")
+        self.runs["run-1"] = {
+            "status": "running",
+            "progress": 50,
+            "spent_cxjcoins": 12.5,
+        }
+        sync = self.manager.sync_missions(company.id)
+        self.assertTrue(sync["spend_changed"])
+        company = self.manager.get_company(company.id)
+        mission = company.get_mission(mission.id)
+        self.assertEqual(mission.spent_cxjcoins, 12.5)
+        self.assertEqual(company.spent_cxjcoins, 12.5)
+        self.assertEqual(len(company.spend), 1)
+
+        # Syncing the same value is idempotent: no second ledger entry.
+        sync = self.manager.sync_missions(company.id)
+        self.assertFalse(sync["spend_changed"])
+        company = self.manager.get_company(company.id)
+        self.assertEqual(len(company.spend), 1)
+
+        # A later delta adds only the difference.
+        self.runs["run-1"]["spent_cxjcoins"] = 20.0
+        self.manager.sync_missions(company.id)
+        company = self.manager.get_company(company.id)
+        self.assertEqual(company.get_mission(mission.id).spent_cxjcoins, 20.0)
+        self.assertEqual(company.spent_cxjcoins, 20.0)
+        self.assertEqual(len(company.spend), 2)
+        self.assertEqual(
+            round(sum(entry.amount for entry in company.spend), 4), 20.0
+        )
+        budget = self.manager.budget_state(company)
+        self.assertEqual(budget["spent_total_cxjcoins"], 20.0)
+        self.assertEqual(budget["spent_today_cxjcoins"], 20.0)
+
+    def test_company_channels_use_a_hosted_project_chat(self):
+        company = self.create_company()
+        team = company.teams[2]
+        company = self.manager.create_company_chat(
+            company.id,
+            name="platform",
+            description="Platform team channel",
+            team_id=team.id,
+            actor="alice",
+        )
+        self.assertEqual(len(company.chats), 1)
+        ref = company.chats[0]
+        self.assertTrue(ref.chat_id)
+        self.assertEqual(ref.project_id, "proj_platform")
+
+        hosted = self.chat_manager.find_by_id(ref.chat_id)
+        self.assertEqual(hosted.mode, "channel")
+        self.assertEqual(hosted.name, "platform")
+        self.assertEqual(hosted.owner_project_id, "proj_platform")
+        self.assertEqual(set(hosted.profiles), set(team.profile_names))
+
+        listed = self.manager.list_company_chats(company.id)
+        self.assertEqual(len(listed), 1)
+        self.assertTrue(listed[0]["available"])
+        self.assertEqual(listed[0]["chat"]["name"], "platform")
+
+        company = self.manager.update_company_chat(
+            company.id, ref.chat_id, {"name": "platform-chat", "pinned": True},
+            actor="alice",
+        )
+        self.assertEqual(company.chats[0].name, "platform-chat")
+        self.assertEqual(self.chat_manager.find_by_id(ref.chat_id).name, "platform-chat")
+        listed = self.manager.list_company_chats(company.id)
+        self.assertTrue(listed[0]["pinned"])
+
+        company = self.manager.delete_company_chat(company.id, ref.chat_id, actor="alice")
+        self.assertEqual(company.chats, [])
+        self.assertIsNone(self.chat_manager.find_by_id(ref.chat_id))
+
+    def test_company_channel_requires_a_linked_project(self):
+        company = self.manager.create_company({"name": "No project"}, actor="alice")
+        with self.assertRaises(CompanyConflict):
+            self.manager.create_company_chat(
+                company.id, name="general", actor="alice"
+            )
+
+    def test_company_channel_syncs_team_members(self):
+        company = self.create_company()
+        team = company.teams[0]
+        company = self.manager.create_company_chat(
+            company.id, name="leadership", team_id=team.id, actor="alice"
+        )
+        ref = company.chats[0]
+        company = self.manager.add_team_members(
+            company.id, team.id, [{"kind": "user", "name": "bob", "role": "member"}],
+            actor="alice",
+        )
+        company = self.manager.sync_company_chat_members(
+            company.id, ref.chat_id, actor="alice"
+        )
+        hosted = self.chat_manager.find_by_id(ref.chat_id)
+        self.assertIn("bob", hosted.users)
+
+    def test_project_budget_blocks_dispatch(self):
+        company = self.create_company()
+        company = self.manager.link_project(
+            company.id,
+            "proj_platform",
+            actor="alice",
+            budget_cxjcoins=10.0,
+        )
+        company, first = self.add_ready_mission(company)
+        company = self.manager.dispatch_mission(company.id, first.id, actor="alice")
+        self.runs["run-1"] = {
+            "status": "running",
+            "progress": 70,
+            "spent_cxjcoins": 10.0,
+        }
+        self.manager.sync_missions(company.id)
+
+        company = self.manager.get_company(company.id)
+        company, second = self.add_ready_mission(
+            company, title="Second mission", objective="Do the second thing"
+        )
+        with self.assertRaises(CompanyConflict):
+            self.manager.dispatch_mission(company.id, second.id, actor="alice")
+
+        # The admin escape hatch still works.
+        company = self.manager.dispatch_mission(
+            company.id, second.id, actor="alice", force=True
+        )
+        self.assertEqual(company.get_mission(second.id).status, "running")
+
+    def test_team_approval_policy_blocks_until_approved(self):
+        company = self.create_company()
+        team = company.teams[0]
+        company = self.manager.update_team(
+            company.id, team.id, {"requires_approval": True}, actor="alice"
+        )
+        company, mission = self.add_ready_mission(company)
+        mission = company.get_mission(mission.id)
+        self.assertEqual(mission.approval_status, "pending")
+        with self.assertRaises(CompanyConflict):
+            self.manager.dispatch_mission(company.id, mission.id, actor="alice")
+
+        company = self.manager.approve_mission(
+            company.id, mission.id, note="Looks safe", actor="alice"
+        )
+        mission = company.get_mission(mission.id)
+        self.assertEqual(mission.approval_status, "approved")
+        self.assertEqual(mission.approved_by, "alice")
+        company = self.manager.dispatch_mission(company.id, mission.id, actor="alice")
+        self.assertEqual(company.get_mission(mission.id).status, "running")
+
+    def test_mission_can_require_approval_without_team_policy(self):
+        company = self.create_company()
+        company, mission = self.add_ready_mission(
+            company, requires_approval=True
+        )
+        mission = company.get_mission(mission.id)
+        self.assertEqual(mission.approval_status, "pending")
+        with self.assertRaises(CompanyConflict):
+            self.manager.dispatch_mission(company.id, mission.id, actor="alice")
+        company = self.manager.deny_mission(
+            company.id, mission.id, note="Not now", actor="alice"
+        )
+        self.assertEqual(company.get_mission(mission.id).approval_status, "denied")
+        self.assertEqual(
+            self.manager.snapshot(company.id)["attention"][0]["reason"], "approval"
+        )
+
+    def test_autopilot_skips_unapproved_mission(self):
+        company = self.create_company()
+        team = company.teams[0]
+        company = self.manager.update_team(
+            company.id, team.id, {"requires_approval": True}, actor="alice"
+        )
+        company, mission = self.add_ready_mission(company)
+        company = self.manager.update_autonomy(
+            company.id,
+            {"enabled": True, "level": "supervised", "interval_minutes": 5},
+            actor="alice",
+        )
+        result = self.manager.cycle(company.id, actor="autopilot", force=False)
+        self.assertEqual(result["status"], "ran")
+        self.assertEqual(result["dispatched"], [])
+        self.assertEqual(len(self.dispatched), 0)
+        self.assertEqual(
+            self.manager.get_company(company.id).get_mission(mission.id).status,
+            "ready",
+        )
+
+    def test_team_budget_blocks_dispatch(self):
+        company = self.create_company()
+        team = company.teams[0]
+        company = self.manager.update_team(
+            company.id, team.id, {"budget_cxjcoins": 10.0}, actor="alice"
+        )
+        company, first = self.add_ready_mission(company)
+        company = self.manager.dispatch_mission(company.id, first.id, actor="alice")
+        self.runs["run-1"] = {
+            "status": "running",
+            "progress": 60,
+            "spent_cxjcoins": 10.0,
+        }
+        self.manager.sync_missions(company.id)
+
+        company = self.manager.get_company(company.id)
+        company, second = self.add_ready_mission(
+            company, title="Second team mission", objective="Second"
+        )
+        with self.assertRaises(CompanyConflict):
+            self.manager.dispatch_mission(company.id, second.id, actor="alice")
+        budget = self.manager.budget_state(company)
+        team_budget = next(
+            item for item in budget["teams"] if item["team_id"] == team.id
+        )
+        self.assertTrue(team_budget["over_budget"])
+
+    def test_autopilot_stops_when_daily_budget_is_exhausted(self):
+        company = self.create_company()
+        company, first = self.add_ready_mission(company)
+        company = self.manager.update_autonomy(
+            company.id,
+            {
+                "enabled": True,
+                "level": "supervised",
+                "interval_minutes": 5,
+                "daily_budget_cxjcoins": 5.0,
+            },
+            actor="alice",
+        )
+        company = self.manager.dispatch_mission(company.id, first.id, actor="alice")
+        self.runs["run-1"] = {
+            "status": "running",
+            "progress": 20,
+            "spent_cxjcoins": 6.0,
+        }
+        self.manager.sync_missions(company.id)
+
+        company = self.manager.get_company(company.id)
+        company, second = self.add_ready_mission(
+            company, title="Second mission", objective="Second"
+        )
+        result = self.manager.cycle(company.id, actor="autopilot", force=False)
+        self.assertEqual(result["status"], "budget_exhausted")
+        self.assertEqual(result["dispatched"], [])
+        self.assertEqual(
+            self.manager.get_company(company.id).get_mission(second.id).status,
+            "ready",
+        )
+        events = [event["type"] for event in self.manager.journal(company.id)]
+        self.assertIn("autopilot.budget_exhausted", events)
 
     def test_new_mission_cannot_start_running(self):
         company = self.create_company()

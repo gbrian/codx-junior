@@ -47,12 +47,14 @@ from .models import (
     MISSION_TRANSITIONS,
     AutonomyPolicy,
     Company,
+    CompanyChat,
     CompanyEvent,
     CompanyMember,
     CompanyProject,
     CompanyTeam,
     Mission,
     OrgUnit,
+    SpendEntry,
     can_transition,
     new_id,
     now_iso,
@@ -93,6 +95,8 @@ TEAM_EDITABLE_FIELDS = (
     "autonomy",
     "tools",
     "tags",
+    "budget_cxjcoins",
+    "requires_approval",
     "color",
     "icon",
 )
@@ -107,6 +111,7 @@ MISSION_EDITABLE_FIELDS = (
     "owner_kind",
     "owner_name",
     "dispatch_mode",
+    "requires_approval",
     "budget_cxjcoins",
     "due_date",
     "tags",
@@ -124,6 +129,11 @@ AUTONOMY_EDITABLE_FIELDS = (
 
 #: Order used when picking the next mission to dispatch.
 _PRIORITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+#: Maximum SpendEntry rows kept in the company document. The cumulative total
+#: lives on Company.spent_cxjcoins, so trimming old deltas never loses the
+#: overall number; it only limits how far back the daily ledger can look.
+SPEND_LEDGER_LIMIT = 2000
 
 #: Run statuses that mean "still working" (sync keeps the mission running).
 _ACTIVE_RUN_STATUSES = ("queued", "running")
@@ -273,6 +283,7 @@ class CompanyManager:
         project_settings_provider: Callable(project_id) returning settings.
         dispatcher: Callable(company, mission, brief) starting the mission.
         run_status_provider: Callable(project_id, run_id) returning run status.
+        chat_manager_provider: Callable(project_id) returning a ChatManager.
         clock: Callable returning ``datetime.now``.
     """
 
@@ -290,6 +301,7 @@ class CompanyManager:
         run_status_provider: Optional[
             Callable[[str, str], Dict[str, Any]]
         ] = None,
+        chat_manager_provider: Optional[Callable[[str], Any]] = None,
         clock: Optional[Callable[[], datetime]] = None,
     ):
         self.store = store or CompanyStore(root_path=root_path)
@@ -301,6 +313,9 @@ class CompanyManager:
         )
         self._dispatcher = dispatcher or self._default_dispatcher
         self._run_status_provider = run_status_provider or self._default_run_status
+        self._chat_manager_provider = (
+            chat_manager_provider or self._default_chat_manager
+        )
         self._clock = clock or datetime.now
 
     # ------------------------------------------------------------------
@@ -1378,6 +1393,299 @@ class CompanyManager:
             return saved
 
     # ------------------------------------------------------------------
+    # Company chats
+    # ------------------------------------------------------------------
+
+    def _default_chat_manager(self, project_id: str) -> Any:
+        """Build the real ``ChatManager`` of a linked project (lazy import)."""
+        settings = self._project_settings_provider(project_id)
+        if settings is None:
+            raise CompanyDispatchError(
+                f"Project '{project_id}' is not available (not discovered)"
+            )
+        from codx.junior.chat_manager import ChatManager
+
+        return ChatManager(settings=settings)
+
+    def _chat_manager_for(self, project_id: str) -> Any:
+        """Return the chat manager used to read/write a company channel."""
+        try:
+            manager = self._chat_manager_provider(project_id)
+        except CompanyDispatchError:
+            raise
+        except Exception as ex:
+            raise CompanyDispatchError(
+                f"Chats are not available for project '{project_id}': {ex}"
+            ) from ex
+        if manager is None:
+            raise CompanyDispatchError(
+                f"Project '{project_id}' has no chat storage available"
+            )
+        return manager
+
+    @staticmethod
+    def _chat_summary(chat: Any) -> Dict[str, Any]:
+        """Serialize a hosted Chat for the company channel list."""
+        messages = list(getattr(chat, "messages", None) or [])
+        last = messages[-1] if messages else None
+        return {
+            "id": getattr(chat, "id", ""),
+            "name": getattr(chat, "name", "") or "",
+            "description": getattr(chat, "description", "") or "",
+            "mode": getattr(chat, "mode", "") or "",
+            "profiles": list(getattr(chat, "profiles", None) or []),
+            "users": list(getattr(chat, "users", None) or []),
+            "updated_at": getattr(chat, "updated_at", "") or "",
+            "message_count": len(messages),
+            "last_message": (
+                last.model_dump()
+                if hasattr(last, "model_dump")
+                else (last if isinstance(last, dict) else None)
+            ),
+        }
+
+    def _company_chat_ref(self, company: Company, chat_id: str) -> CompanyChat:
+        """Find a company channel reference or raise."""
+        chat_id = self._clean(chat_id)
+        ref = next((item for item in company.chats if item.chat_id == chat_id), None)
+        if ref is None:
+            raise CompanyNotFound(f"Company chat '{chat_id}' not found")
+        return ref
+
+    def list_company_chats(self, company_id: str) -> List[Dict[str, Any]]:
+        """
+        List the company channels with their hosted chat summary.
+
+        A channel whose project/chat disappeared is still listed with
+        ``available=false``; the company document keeps the reference until a
+        human removes it.
+        """
+        company = self.get_company(company_id)
+        result: List[Dict[str, Any]] = []
+        for ref in company.chats:
+            entry = {**ref.model_dump(), "available": False, "error": ""}
+            try:
+                manager = self._chat_manager_for(ref.project_id)
+                chat = manager.find_by_id(ref.chat_id)
+                if chat is not None:
+                    entry["available"] = True
+                    entry["chat"] = self._chat_summary(chat)
+                    # The hosted Chat is the source of truth for the name:
+                    # ChatView can rename it without going through this API.
+                    entry["name"] = chat.name or entry.get("name", "")
+                    entry["description"] = (
+                        getattr(chat, "description", "") or entry.get("description", "")
+                    )
+            except Exception as ex:
+                entry["error"] = str(ex)
+            result.append(entry)
+        def sort_key(item: Dict[str, Any]):
+            updated = parse_iso(item.get("updated_at"))
+            return (
+                not item.get("pinned", False),
+                -(updated.timestamp() if updated else 0),
+                (item.get("name") or "").lower(),
+            )
+
+        return sorted(result, key=sort_key)
+
+    def create_company_chat(
+        self,
+        company_id: str,
+        name: str,
+        description: str = "",
+        team_id: str = "",
+        project_id: str = "",
+        actor: str = "system",
+    ) -> Company:
+        """
+        Create a company channel as a normal ``mode='channel'`` Chat.
+
+        The chat is hosted by one of the company's linked projects, so messages,
+        mentions, attachments, unread counters and AI replies use the existing
+        Messenger machinery. The company document stores the reference.
+        """
+        name = self._clean(name)
+        if not name:
+            raise CompanyValidationError("channel name is required")
+        with self.store.lock(self._company_id(company_id)):
+            company = self.get_company(company_id)
+            project_id = self._clean(project_id) or (
+                company.projects[0].project_id if company.projects else ""
+            )
+            if not project_id:
+                raise CompanyConflict(
+                    "Link a project before creating a company channel: the "
+                    "messages need a project to live in."
+                )
+            if company.project(project_id) is None:
+                raise CompanyValidationError(
+                    f"Project '{project_id}' is not linked to this company"
+                )
+            team = company.team(team_id) if team_id else None
+            if team_id and team is None:
+                raise CompanyValidationError(f"Team '{team_id}' does not exist")
+            profiles = team.profile_names if team else []
+            users = team.user_names if team else []
+            try:
+                from codx.junior.db import Chat
+
+                chat = Chat(
+                    name=name,
+                    description=self._clean(description),
+                    mode="channel",
+                    board="messenger",
+                    column="channels",
+                    profiles=profiles,
+                    users=users,
+                    owner_project_id=project_id,
+                    project_id=project_id,
+                    tags=[
+                        "company",
+                        f"company:{company.id}",
+                        *([f"company-team:{team.id}"] if team else []),
+                    ],
+                    meta_data={
+                        "company_id": company.id,
+                        "company_team_id": team.id if team else "",
+                    },
+                )
+                saved = self._chat_manager_for(project_id).save_chat(chat=chat)
+            except CompanyDispatchError:
+                raise
+            except Exception as ex:
+                raise CompanyDispatchError(
+                    f"Could not create the company channel: {ex}"
+                ) from ex
+            ref = CompanyChat(
+                chat_id=saved.id,
+                project_id=project_id,
+                name=saved.name or name,
+                description=self._clean(description),
+                team_id=team.id if team else "",
+                created_by=actor,
+            )
+            company.chats.append(ref)
+            saved_company = self.store.save(company)
+            self._event(
+                saved_company,
+                "chat.created",
+                f"Channel '{ref.name}' created in project '{project_id}'",
+                actor=actor,
+                chat_id=ref.chat_id,
+                project_id=project_id,
+                team_id=ref.team_id,
+            )
+            return saved_company
+
+    def update_company_chat(
+        self,
+        company_id: str,
+        chat_id: str,
+        patch: Any,
+        actor: str = "system",
+    ) -> Company:
+        """Update a company channel (name, description, team, pinned)."""
+        values = self._patch_dict(patch)
+        with self.store.lock(self._company_id(company_id)):
+            company = self.get_company(company_id)
+            ref = self._company_chat_ref(company, chat_id)
+            if "name" in values:
+                name = self._clean(values["name"])
+                if not name:
+                    raise CompanyValidationError("channel name is required")
+                values["name"] = name
+            team_id = values.get("team_id", ref.team_id)
+            team = company.team(team_id) if team_id else None
+            if team_id and team is None:
+                raise CompanyValidationError(f"Team '{team_id}' does not exist")
+            changed = self._apply(
+                ref, values, ("name", "description", "team_id", "pinned")
+            )
+            if team_id != ref.team_id:
+                ref.team_id = team_id
+            ref.updated_at = now_iso()
+            # Best effort: keep the hosted chat in sync; a missing chat keeps
+            # the company reference editable.
+            try:
+                manager = self._chat_manager_for(ref.project_id)
+                chat = manager.find_by_id(ref.chat_id)
+                if chat is not None:
+                    chat.name = ref.name
+                    chat.description = ref.description
+                    chat.profiles = team.profile_names if team else []
+                    chat.users = team.user_names if team else []
+                    manager.save_chat(chat=chat, chat_only=True)
+            except Exception as ex:
+                logger.warning("Company chat '%s' could not be updated: %s", chat_id, ex)
+            saved = self.store.save(company)
+            if changed:
+                self._event(
+                    saved,
+                    "chat.updated",
+                    f"Channel '{ref.name}' updated: {', '.join(changed)}",
+                    actor=actor,
+                    chat_id=chat_id,
+                )
+            return saved
+
+    def sync_company_chat_members(
+        self, company_id: str, chat_id: str, actor: str = "system"
+    ) -> Company:
+        """Copy the owning team roster (humans + AI profiles) into the chat."""
+        with self.store.lock(self._company_id(company_id)):
+            company = self.get_company(company_id)
+            ref = self._company_chat_ref(company, chat_id)
+            team = company.team(ref.team_id) if ref.team_id else None
+            if team is None:
+                raise CompanyConflict(
+                    f"Channel '{ref.name}' has no owning team to sync from"
+                )
+            manager = self._chat_manager_for(ref.project_id)
+            chat = manager.find_by_id(ref.chat_id)
+            if chat is None:
+                raise CompanyNotFound(
+                    f"Hosted chat '{ref.chat_id}' no longer exists"
+                )
+            chat.profiles = team.profile_names
+            chat.users = team.user_names
+            manager.save_chat(chat=chat, chat_only=True)
+            ref.updated_at = now_iso()
+            saved = self.store.save(company)
+            self._event(
+                saved,
+                "chat.members.synced",
+                f"Channel '{ref.name}' synced with team '{team.name}'",
+                actor=actor,
+                chat_id=chat_id,
+                team_id=team.id,
+            )
+            return saved
+
+    def delete_company_chat(
+        self, company_id: str, chat_id: str, actor: str = "system"
+    ) -> Company:
+        """Delete a company channel reference and its hosted chat."""
+        with self.store.lock(self._company_id(company_id)):
+            company = self.get_company(company_id)
+            ref = self._company_chat_ref(company, chat_id)
+            try:
+                self._chat_manager_for(ref.project_id).delete_chat(chat_id=ref.chat_id)
+            except Exception as ex:
+                logger.warning("Company chat '%s' file not deleted: %s", chat_id, ex)
+            company.chats = [item for item in company.chats if item.chat_id != chat_id]
+            saved = self.store.save(company)
+            self._event(
+                saved,
+                "chat.deleted",
+                f"Channel '{ref.name}' deleted",
+                actor=actor,
+                chat_id=chat_id,
+                project_id=ref.project_id,
+            )
+            return saved
+
+    # ------------------------------------------------------------------
     # Missions
     # ------------------------------------------------------------------
 
@@ -1410,6 +1718,11 @@ class CompanyManager:
         with self.store.lock(self._company_id(company_id)):
             company = self.get_company(company_id)
             self._validate_mission_destination(company, company_mission)
+            if (
+                self._mission_needs_approval(company, company_mission)
+                and company_mission.approval_status == "not_required"
+            ):
+                company_mission.approval_status = "pending"
             company.missions.append(company_mission)
             saved = self.store.save(company)
             self._event(
@@ -1563,6 +1876,15 @@ class CompanyManager:
                     "back to ready first)"
                 )
             self._validate_mission_destination(company, mission)
+            if (
+                self._mission_needs_approval(company, mission)
+                and mission.approval_status != "approved"
+            ):
+                raise CompanyConflict(
+                    f"Mission '{mission.title}' needs approval before it can be "
+                    f"dispatched (status: {mission.approval_status})."
+                )
+            self._ensure_dispatch_budget(company, mission, force=force)
             brief = self.build_mission_brief(company, mission)
             try:
                 result = self._dispatcher(company, mission, brief) or {}
@@ -1760,6 +2082,99 @@ class CompanyManager:
             )
             return saved
 
+    def approve_mission(
+        self,
+        company_id: str,
+        mission_id: str,
+        note: str = "",
+        actor: str = "system",
+    ) -> Company:
+        """
+        Approve a mission that is gated by a mission/team approval policy.
+
+        Approval does not dispatch the mission: it only removes the gate, so a
+        human keeps control of *when* the run starts.
+
+        Args:
+            company_id: Company id.
+            mission_id: Mission id.
+            note: Optional approval note.
+            actor: Username recorded in the audit trail.
+
+        Returns:
+            The updated company.
+        """
+        with self.store.lock(self._company_id(company_id)):
+            company = self.get_company(company_id)
+            mission = company.get_mission(mission_id)
+            if mission is None:
+                raise CompanyNotFound(f"Mission '{mission_id}' not found")
+            if mission.status in ("done", "cancelled"):
+                raise CompanyConflict(
+                    f"Mission '{mission.title}' is '{mission.status}' and no "
+                    "longer needs approval"
+                )
+            mission.approval_status = "approved"
+            mission.approved_by = actor
+            mission.approved_at = now_iso()
+            mission.approval_note = self._clean(note)
+            mission.updated_at = mission.approved_at
+            saved = self.store.save(company)
+            self._event(
+                saved,
+                "mission.approved",
+                f"Mission '{mission.title}' approved",
+                actor=actor,
+                mission_id=mission_id,
+                note=mission.approval_note[:500],
+            )
+            return saved
+
+    def deny_mission(
+        self,
+        company_id: str,
+        mission_id: str,
+        note: str = "",
+        actor: str = "system",
+    ) -> Company:
+        """
+        Deny a gated mission; it cannot be dispatched until approved.
+
+        Args:
+            company_id: Company id.
+            mission_id: Mission id.
+            note: Why it was denied.
+            actor: Username recorded in the audit trail.
+
+        Returns:
+            The updated company.
+        """
+        with self.store.lock(self._company_id(company_id)):
+            company = self.get_company(company_id)
+            mission = company.get_mission(mission_id)
+            if mission is None:
+                raise CompanyNotFound(f"Mission '{mission_id}' not found")
+            if mission.status in ("done", "cancelled"):
+                raise CompanyConflict(
+                    f"Mission '{mission.title}' is '{mission.status}' and no "
+                    "longer needs approval"
+                )
+            mission.approval_status = "denied"
+            mission.approved_by = actor
+            mission.approved_at = now_iso()
+            mission.approval_note = self._clean(note)
+            mission.updated_at = mission.approved_at
+            saved = self.store.save(company)
+            self._event(
+                saved,
+                "mission.denied",
+                f"Mission '{mission.title}' denied",
+                actor=actor,
+                mission_id=mission_id,
+                note=mission.approval_note[:500],
+            )
+            return saved
+
     # ------------------------------------------------------------------
     # Autonomy
     # ------------------------------------------------------------------
@@ -1822,6 +2237,7 @@ class CompanyManager:
             company = self.get_company(company_id)
             changed: List[Dict[str, Any]] = []
             checked = 0
+            spend_changed = False
             for mission in company.missions:
                 if not mission.run_id or mission.status in ("done", "cancelled"):
                     continue
@@ -1840,6 +2256,40 @@ class CompanyManager:
                 if progress is not None:
                     mission.progress = max(0, min(100, int(progress)))
                 mission.run_status = status or mission.run_status
+
+                # The run's cumulative cost is the source of truth. Only the
+                # positive delta goes to the ledger, so re-syncing the same run
+                # never double counts; a run that reports a lower value (reset)
+                # adjusts the mission without a negative entry.
+                spent = run.get("spent_cxjcoins")
+                if spent is not None:
+                    try:
+                        observed = max(0.0, float(spent))
+                    except (TypeError, ValueError):
+                        observed = mission.spent_cxjcoins
+                    delta = round(observed - mission.spent_cxjcoins, 6)
+                    if delta > 0:
+                        company.spend.append(
+                            SpendEntry(
+                                at=self._now().isoformat(),
+                                mission_id=mission.id,
+                                project_id=mission.project_id,
+                                run_id=mission.run_id,
+                                amount=delta,
+                                note=f"Run {mission.run_id} spend",
+                            )
+                        )
+                        company.spent_cxjcoins = round(
+                            company.spent_cxjcoins + delta, 6
+                        )
+                        mission.spent_cxjcoins = observed
+                        mission.updated_at = self._now().isoformat()
+                        spend_changed = True
+                    elif observed < mission.spent_cxjcoins:
+                        mission.spent_cxjcoins = observed
+                        mission.updated_at = self._now().isoformat()
+                        spend_changed = True
+
                 target = self._mission_status_for_run(company, run)
                 if target and target != mission.status:
                     previous = mission.status
@@ -1872,13 +2322,19 @@ class CompanyManager:
                         run_id=mission.run_id,
                         run_status=status,
                     )
-            if changed:
+            if len(company.spend) > SPEND_LEDGER_LIMIT:
+                # Keep the document bounded; the cumulative total is separate.
+                company.spend = company.spend[-SPEND_LEDGER_LIMIT:]
+                spend_changed = True
+            if changed or spend_changed:
                 self.store.save(company)
             return {
                 "company_id": company.id,
                 "checked": checked,
                 "changed": len(changed),
+                "spend_changed": spend_changed,
                 "missions": changed,
+                "budget": self.budget_state(company),
             }
 
     def cycle(
@@ -1928,6 +2384,35 @@ class CompanyManager:
         synced = self.sync_missions(company.id, actor=actor)
         company = self.get_company(company.id)
 
+        budget = self.budget_state(company, now=now)
+        if budget["over_daily_budget"] and not force:
+            message = (
+                "Daily budget exhausted: "
+                f"{budget['spent_today_cxjcoins']} / "
+                f"{budget['daily_limit_cxjcoins']} cxjcoins spent today"
+            )
+            company.autonomy.mark_cycle(message, now=now)
+            company.updated_at = now_iso()
+            self.store.save(company)
+            self._event(
+                company,
+                "autopilot.budget_exhausted",
+                message,
+                actor=actor,
+                spent_today=budget["spent_today_cxjcoins"],
+                daily_limit=budget["daily_limit_cxjcoins"],
+            )
+            return {
+                "status": "budget_exhausted",
+                "company_id": company.id,
+                "message": message,
+                "dispatched": [],
+                "failed": [],
+                "synced": synced,
+                "budget": budget,
+                "autonomy": company.autonomy.model_dump(),
+            }
+
         candidates = self._dispatchable_missions(company)
         running = len(company.active_missions)
         slots = max(
@@ -1958,10 +2443,13 @@ class CompanyManager:
                 )
 
         company = self.get_company(company.id)
+        budget = self.budget_state(company, now=now)
         summary = (
             f"{len(dispatched)} dispatched, {len(failed)} failed, "
             f"{synced.get('changed', 0)} synced"
         )
+        if budget["over_daily_budget"]:
+            summary += " (over daily budget, forced)"
         company.autonomy.mark_cycle(summary, now=now)
         company.updated_at = now_iso()
         self.store.save(company)
@@ -1981,6 +2469,7 @@ class CompanyManager:
             "dispatched": dispatched,
             "failed": failed,
             "synced": synced,
+            "budget": budget,
             "autonomy": company.autonomy.model_dump(),
             "summary": summary,
         }
@@ -2085,6 +2574,123 @@ class CompanyManager:
             result.append(entry)
         return sorted(result, key=lambda item: (item["parent_project_name"].lower(), item["project_name"].lower()))
 
+    def _project_spent(self, company: Company, project_id: str) -> float:
+        """Return the cumulative AI spend attributed to one project."""
+        return round(
+            sum(
+                mission.spent_cxjcoins
+                for mission in company.missions
+                if mission.project_id == project_id
+            ),
+            4,
+        )
+
+    def _team_spent(self, company: Company, team_id: str) -> float:
+        """Return the cumulative AI spend attributed to one team."""
+        return round(
+            sum(
+                mission.spent_cxjcoins
+                for mission in company.missions
+                if mission.team_id == team_id
+            ),
+            4,
+        )
+
+    def budget_state(
+        self, company: Company, now: Optional[datetime] = None
+    ) -> Dict[str, Any]:
+        """
+        Build the company budget ledger shown by the UI and the assistant.
+
+        ``spent_today`` is computed from the append-only :class:`SpendEntry`
+        ledger (bounded to the most recent entries); ``spent_total`` is the
+        cumulative counter on the company, so deleting/archiving a mission does
+        not make past spend disappear. Project budgets are hard limits checked
+        on dispatch; the daily limit is enforced by the autopilot cycle.
+
+        Args:
+            company: Company document.
+            now: Instant used to define "today" (defaults to the manager clock).
+
+        Returns:
+            A budget block with the daily limit, today/total spend, remaining
+            amounts, per-project rows and per-mission totals.
+        """
+        current = now or self._now()
+        today = current.date()
+        spent_today = 0.0
+        for entry in company.spend:
+            at = parse_iso(entry.at)
+            if at is not None and at.date() == today:
+                spent_today = round(spent_today + entry.amount, 6)
+
+        mission_spent = round(
+            sum(mission.spent_cxjcoins for mission in company.missions), 4
+        )
+        spent_total = round(max(company.spent_cxjcoins, mission_spent), 4)
+        daily_limit = round(float(company.autonomy.daily_budget_cxjcoins or 0.0), 4)
+
+        projects: List[Dict[str, Any]] = []
+        for project in company.projects:
+            spent = self._project_spent(company, project.project_id)
+            budget = round(float(project.budget_cxjcoins or 0.0), 4)
+            remaining = None if budget <= 0 else round(max(0.0, budget - spent), 4)
+            projects.append(
+                {
+                    "project_id": project.project_id,
+                    "name": project.name or project.project_id,
+                    "budget_cxjcoins": budget,
+                    "spent_cxjcoins": spent,
+                    "remaining_cxjcoins": remaining,
+                    "over_budget": budget > 0 and spent >= budget,
+                }
+            )
+
+        teams: List[Dict[str, Any]] = []
+        for team in company.teams:
+            spent = self._team_spent(company, team.id)
+            budget = round(float(team.budget_cxjcoins or 0.0), 4)
+            remaining = None if budget <= 0 else round(max(0.0, budget - spent), 4)
+            teams.append(
+                {
+                    "team_id": team.id,
+                    "name": team.name,
+                    "budget_cxjcoins": budget,
+                    "spent_cxjcoins": spent,
+                    "remaining_cxjcoins": remaining,
+                    "over_budget": budget > 0 and spent >= budget,
+                }
+            )
+
+        total_budget = round(
+            sum(project.budget_cxjcoins for project in company.projects), 4
+        )
+        return {
+            "currency": "cxjcoins",
+            "daily_limit_cxjcoins": daily_limit,
+            "spent_today_cxjcoins": round(spent_today, 4),
+            "remaining_today_cxjcoins": (
+                None
+                if daily_limit <= 0
+                else round(max(0.0, daily_limit - spent_today), 4)
+            ),
+            "over_daily_budget": daily_limit > 0 and spent_today >= daily_limit,
+            "spent_total_cxjcoins": spent_total,
+            "total_project_budget_cxjcoins": total_budget,
+            "remaining_project_budget_cxjcoins": (
+                None
+                if total_budget <= 0
+                else round(max(0.0, total_budget - mission_spent), 4)
+            ),
+            "projects": projects,
+            "teams": teams,
+            "by_mission": {
+                mission.id: round(mission.spent_cxjcoins, 4)
+                for mission in company.missions
+                if mission.spent_cxjcoins > 0
+            },
+        }
+
     def snapshot(self, company_id: str, journal_limit: int = 30) -> Dict[str, Any]:
         """
         Build the full payload the company dashboard renders.
@@ -2099,6 +2705,10 @@ class CompanyManager:
         """
         company = self.get_company(company_id)
         catalog = {project["project_id"]: project for project in self._project_catalog()}
+        budget = self.budget_state(company)
+        budget_by_project = {
+            row["project_id"]: row for row in budget.get("projects", [])
+        }
         teams = []
         for team in company.teams:
             open_missions = [
@@ -2124,6 +2734,7 @@ class CompanyManager:
         projects = []
         for project in company.projects:
             discovered = catalog.get(project.project_id)
+            project_budget = budget_by_project.get(project.project_id, {})
             projects.append(
                 {
                     **project.model_dump(),
@@ -2138,6 +2749,11 @@ class CompanyManager:
                             if mission.project_id == project.project_id
                         ]
                     ),
+                    "spent_cxjcoins": project_budget.get("spent_cxjcoins", 0.0),
+                    "remaining_budget_cxjcoins": project_budget.get(
+                        "remaining_cxjcoins"
+                    ),
+                    "over_budget": project_budget.get("over_budget", False),
                 }
             )
         missions = [
@@ -2150,7 +2766,9 @@ class CompanyManager:
             for event in self.store.read_events(company.id, limit=journal_limit)
         ]
         return {
-            "company": company.model_dump(),
+            # The ledger is not needed by the dashboard: `budget` summarises it.
+            # Excluding it keeps the snapshot small even with a long history.
+            "company": company.model_dump(exclude={"spend"}),
             "counts": {
                 **company.counts(),
                 "child_projects": len(child_projects),
@@ -2163,6 +2781,7 @@ class CompanyManager:
             "attention": attention,
             "journal": journal,
             "autonomy": company.autonomy.model_dump(),
+            "budget": budget,
             "due": company.autonomy.is_due(self._now()),
         }
 
@@ -2446,6 +3065,66 @@ class CompanyManager:
             if team.id != exclude_id and team.name.lower() == wanted:
                 raise CompanyConflict(f"A team named '{name}' already exists")
 
+    def _mission_needs_approval(self, company: Company, mission: Mission) -> bool:
+        """
+        Tell whether a mission is subject to an approval gate.
+
+        The gate is enabled by the mission itself or by its team policy. It is
+        intentionally dynamic: turning the team policy on blocks the next
+        dispatch even for missions created before the policy existed.
+        """
+        team = company.team(mission.team_id)
+        return bool(
+            mission.requires_approval
+            or (team is not None and team.requires_approval)
+        )
+
+    def _ensure_dispatch_budget(
+        self, company: Company, mission: Mission, force: bool = False
+    ) -> None:
+        """
+        Enforce the hard budgets before a mission starts a new run.
+
+        A project budget and a mission budget are hard limits: once the observed
+        spend reaches them, dispatch is refused unless *force* is set (an admin
+        escape hatch). The daily budget is a policy limit enforced by the
+        autopilot cycle, not here, because a human may deliberately dispatch
+        over it.
+
+        Args:
+            company: Company document.
+            mission: Mission about to be dispatched.
+            force: Bypass the hard limits.
+
+        Raises:
+            CompanyConflict: When a project or mission budget is exhausted.
+        """
+        if force:
+            return
+        project = company.project(mission.project_id)
+        if project is not None and project.budget_cxjcoins > 0:
+            spent = self._project_spent(company, project.project_id)
+            if spent >= project.budget_cxjcoins:
+                raise CompanyConflict(
+                    f"Project '{project.name or project.project_id}' is over its "
+                    f"budget: {spent} / {project.budget_cxjcoins} cxjcoins. "
+                    "Increase the budget or force the dispatch."
+                )
+        team = company.team(mission.team_id)
+        if team is not None and team.budget_cxjcoins > 0:
+            spent = self._team_spent(company, team.id)
+            if spent >= team.budget_cxjcoins:
+                raise CompanyConflict(
+                    f"Team '{team.name}' is over its budget: {spent} / "
+                    f"{team.budget_cxjcoins} cxjcoins. Increase the budget or "
+                    "force the dispatch."
+                )
+        if mission.budget_cxjcoins > 0 and mission.spent_cxjcoins >= mission.budget_cxjcoins:
+            raise CompanyConflict(
+                f"Mission '{mission.title}' is over its budget: "
+                f"{mission.spent_cxjcoins} / {mission.budget_cxjcoins} cxjcoins."
+            )
+
     def _validate_mission_destination(self, company: Company, mission: Mission) -> None:
         """Validate the team/project of a mission (project optional while draft)."""
         if mission.team_id and not company.team(mission.team_id):
@@ -2481,6 +3160,11 @@ class CompanyManager:
                 continue
             team = company.team(mission.team_id)
             if team is not None and team.autonomy == "manual":
+                continue
+            if (
+                self._mission_needs_approval(company, mission)
+                and mission.approval_status != "approved"
+            ):
                 continue
             candidates.append(mission)
         return sorted(candidates, key=self._mission_sort_key)
@@ -2520,7 +3204,13 @@ class CompanyManager:
         items: List[Dict[str, Any]] = []
         for mission in company.missions:
             reason = ""
-            if mission.status == "blocked":
+            if (
+                mission.status in ("ready", "blocked")
+                and self._mission_needs_approval(company, mission)
+                and mission.approval_status in ("pending", "denied")
+            ):
+                reason = "approval"
+            elif mission.status == "blocked":
                 reason = "blocked"
             elif mission.last_error:
                 reason = "error"
@@ -2683,6 +3373,7 @@ class CompanyManager:
             "run_id": run.run_id,
             "status": run.status,
             "progress": run.progress(),
+            "spent_cxjcoins": float(getattr(run, "spent_cxjcoins", 0.0) or 0.0),
             "error": getattr(run, "last_error", "") or "",
             "name": run.name,
         }

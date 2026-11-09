@@ -30,23 +30,27 @@ Made with ❤️ by codx-junior
 from .models import (
     AutonomyPolicy,
     Company,
+    CompanyChat,
     CompanyEvent,
     CompanyMember,
     CompanyProject,
     CompanyTeam,
     Mission,
     OrgUnit,
+    SpendEntry,
 )
 
 __all__ = [
     "AutonomyPolicy",
     "Company",
+    "CompanyChat",
     "CompanyEvent",
     "CompanyMember",
     "CompanyProject",
     "CompanyTeam",
     "Mission",
     "OrgUnit",
+    "SpendEntry",
 ]
 
 # Made with ❤️ by codx-junior
