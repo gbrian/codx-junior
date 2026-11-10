@@ -139,6 +139,48 @@ policy. Page updates realign existing content to the profile when they conflict.
 Changing the profile applies to the next generated pages. Use **Rebuild** to
 realign the whole wiki immediately.
 
+## Deploy as an independent website
+
+Every generated wiki folder is also a standalone documentation site with a
+local-AI assistant. The folder contains:
+
+- a VitePress build (`npm run docs:build`),
+- a lightweight FastAPI server (`server.py`),
+- a Dockerfile and `docker-compose.yml`,
+- the `docs.json` manifest and markdown pages used by the assistant.
+
+```bash
+cd <project>/wiki
+WIKI_AI_BASE_URL=http://host.docker.internal:11434/v1 \
+WIKI_AI_MODEL=qwen2.5:7b \
+docker compose up --build
+# open http://localhost:8080
+```
+
+The assistant uses any OpenAI-compatible local endpoint (Ollama, vLLM, LM
+Studio). It reads the generated `docs.json` and markdown pages directly and does
+not need a running codx-junior instance.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `WIKI_AI_BASE_URL` | `http://127.0.0.1:11434/v1` | Local OpenAI-compatible API |
+| `WIKI_AI_API_KEY` | `ollama` | Token for the local endpoint |
+| `WIKI_AI_MODEL` | `qwen2.5:7b` | Model used by the assistant |
+| `WIKI_AI_TIMEOUT` | `120` | Request timeout in seconds |
+| `WIKI_PORT` | `8080` | Published site port |
+
+The standalone server exposes:
+
+- `GET /api/health`
+- `GET /api/site`
+- `GET /api/page?path=...`
+- `POST /api/assistant` with `{question, page, history}`
+
+The VitePress theme adds a floating **AI** button that calls `/api/assistant`.
+The site is served from `/`, so it can be hosted behind any static host or
+reverse proxy; use `WIKI_BASE` when generating the config if it must live under
+a sub-path.
+
 ## Every project gets a wiki
 
 Projects are not left without documentation. When a project is discovered, the

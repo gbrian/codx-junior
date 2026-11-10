@@ -55,6 +55,22 @@ For code projects the prompt requires at least one Mermaid diagram and a
 runnable example. Every project asks for callout hints (`> [!TIP]`,
 `> [!WARNING]`).
 
+## Standalone website
+
+The generated wiki folder is deployable on its own:
+
+```bash
+cd <project>/wiki
+WIKI_AI_BASE_URL=http://host.docker.internal:11434/v1 \
+WIKI_AI_MODEL=qwen2.5:7b \
+docker compose up --build
+```
+
+`server.py` serves the VitePress build and a local-AI assistant over
+`/api/assistant`. It reads `docs.json` and the markdown pages directly; no
+running codx-junior API is required. The theme files, Dockerfile and compose
+file are managed from `wiki_template/` and synced into every wiki.
+
 ## Background updates
 
 `ChangeManager` (and the legacy wiki engine) enqueue changed files. The

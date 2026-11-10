@@ -14,9 +14,9 @@ category: Integrations
 DSH stays behind its own security boundary. codx-junior never dials DSH; the
 Harness plugin calls the codx-junior agent API.
 
-![Figure 4: DSH Harness dashboard with a registered instance](/wiki/images/figure-04-dsh-harness-dashboard.png)
+![Figure 6: DSH Harness dashboard with a registered instance](/images/figure-06-dsh-harness-dashboard.svg)
 
-*Figure 4 — Global Settings → DSH Harness: registered instances, token controls
+*Figure 6 — Global Settings → DSH Harness: registered instances, token controls
 and the board sync actions.*
 
 ## What the integration does
@@ -79,9 +79,9 @@ read on demand through `get_task` and are **not persisted** by codx-junior.
   prompts it.
 - Board actions map to `prompt`, `cancel`, `rename`, `get_task` and `list_tasks`.
 
-![Figure 5: A mirrored DSH task opened from the DSH board](/wiki/images/figure-05-dsh-task.png)
+![Figure 7: A mirrored DSH task opened from the DSH board](/images/figure-07-dsh-task.svg)
 
-*Figure 5 — A mirrored DSH task. The card stores placement and status; the
+*Figure 7 — A mirrored DSH task. The card stores placement and status; the
 messages are read live from the Harness.*
 
 ## Security

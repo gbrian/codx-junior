@@ -1,0 +1,7 @@
+/* Standalone wiki theme. Keep the default VitePress look and only add the
+   assistant-specific polish; the project's brand comes from the generated pages. */
+:root {
+  --vp-c-brand-1: #cc0099;
+  --vp-c-brand-2: #8f008f;
+  --vp-c-brand-3: #550e57;
+}

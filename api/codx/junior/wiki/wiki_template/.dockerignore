@@ -1,0 +1,7 @@
+node_modules
+.vitepress/dist
+.vitepress/cache
+.git
+.codx
+update_status.json
+docs.json.tmp

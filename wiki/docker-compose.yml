@@ -1,0 +1,13 @@
+services:
+  wiki:
+    build: .
+    ports:
+      - "${WIKI_PORT:-8080}:8080"
+    environment:
+      WIKI_AI_BASE_URL: ${WIKI_AI_BASE_URL:-http://host.docker.internal:11434/v1}
+      WIKI_AI_API_KEY: ${WIKI_AI_API_KEY:-ollama}
+      WIKI_AI_MODEL: ${WIKI_AI_MODEL:-qwen2.5:7b}
+      WIKI_AI_TIMEOUT: ${WIKI_AI_TIMEOUT:-120}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

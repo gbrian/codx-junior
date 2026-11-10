@@ -1234,6 +1234,9 @@ class WikiSiteBuilder:
                 "repository": project.get("repository"),
             },
             "sidebar": sidebar,
+            # Standalone deployments serve the wiki at the site root. When the
+            # same build is hosted under codx-junior, override with WIKI_BASE.
+            "base": os.environ.get("WIKI_BASE", "/"),
             "last_update": site.get("generated_at"),
         }
         _atomic_write(
@@ -1265,9 +1268,6 @@ class WikiSiteBuilder:
             "    - theme: brand",
             '      text: "Get started"',
             f"      link: {json.dumps('/' + (home.get('page') or ''), ensure_ascii=False)}",
-            "    - theme: alt",
-            '      text: "Ask the assistant"',
-            '      link: "/assistant"',
             "",
             "features:",
         ]

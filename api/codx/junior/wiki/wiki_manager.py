@@ -68,6 +68,20 @@ MKDOCS_YAML_FILE_NAME = 'mkdocs.yml'
 INVALID_FILENAME_CHARS = re.compile(r'[\[\]<>:"|?*\x00-\x1f]')
 MAX_FILENAME_LENGTH = 200
 WIKI_BUILD_WORKERS = 3
+# Standalone-site infrastructure is generated/managed. These files are kept in
+# sync even when the wiki folder already exists, so every wiki can be deployed
+# as its own website with the local-AI assistant.
+MANAGED_WIKI_TEMPLATE_FILES = {
+    ".vitepress/config.mts",
+    ".vitepress/theme/index.ts",
+    ".vitepress/theme/Assistant.vue",
+    ".vitepress/theme/custom.css",
+    "server.py",
+    "requirements.txt",
+    "Dockerfile",
+    "docker-compose.yml",
+    ".dockerignore",
+}
 WIKI_PROFILE_GUARD = """The <wiki_profile> block is the highest-priority specification for this page.
 It defines the goal, audience, tone, structure, image policy and boundaries of
 the wiki. It overrides the current page content and any one-off instruction when
@@ -247,9 +261,16 @@ class WikiManager:
                     # index.md is generated from docs.json so it stays in sync.
                     if relative == "." and filename in ("index.md",):
                         continue
+                    template_relative = (
+                        filename if relative == "."
+                        else os.path.join(relative, filename).replace(os.sep, "/")
+                    )
                     source = os.path.join(root, filename)
                     target = os.path.join(target_dir, filename)
-                    if not os.path.exists(target):
+                    if (
+                        not os.path.exists(target)
+                        or template_relative in MANAGED_WIKI_TEMPLATE_FILES
+                    ):
                         shutil.copy2(source, target)
         if not os.path.isfile(self.wiki_home_path):
             write_file(self.wiki_home_path, self._default_home_page())

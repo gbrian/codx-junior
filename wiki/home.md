@@ -10,7 +10,7 @@ tags: [overview, install, getting-started]
 > experienced developers build software together: chats, Kanban, dev
 > containers, knowledge, docs and harness integrations in one place.
 
-![Figure 1: codx-junior desktop workspace with a project, chat and Kanban board](/wiki/images/figure-01-codx-junior-desktop.png)
+![Figure 1: codx-junior desktop workspace with a project, chat and Kanban board](/images/figure-01-codx-junior-desktop.svg)
 
 *Figure 1 — The desktop workspace. Replace this placeholder with a full-width
 screenshot showing the project switcher, a chat and the Kanban board on one
@@ -41,28 +41,28 @@ engineers. It gives a single developer the leverage of a small team:
 
 ### Chat and agents
 
-![Figure 2: Chat panel with an agent using tools on a project](/wiki/images/figure-02-chat.png)
+![Figure 2: Chat panel with an agent using tools on a project](/images/figure-02-chat.svg)
 
 *Figure 2 — A project chat. The screenshot should show the conversation, tool
 activity and the generated code/file changes.*
 
 ### Kanban and planning
 
-![Figure 3: Kanban board with sprints and task cards](/wiki/images/figure-03-kanban.png)
+![Figure 3: Kanban board with sprints and task cards](/images/figure-03-kanban.svg)
 
 *Figure 3 — The Kanban board, including columns, a task card and its linked
 chat.*
 
 ### Workspaces and previews
 
-![Figure 4: Dev workspace with a live preview](/wiki/images/figure-04-workspace.png)
+![Figure 4: Dev workspace with a live preview](/images/figure-04-workspace.svg)
 
 *Figure 4 — A dev container workspace with the file tree, terminal and live
 preview side by side.*
 
 ### Knowledge and wiki
 
-![Figure 5: Wiki documentation site and assistant](/wiki/images/figure-05-wiki.png)
+![Figure 5: Wiki documentation site and assistant](/images/figure-05-wiki.svg)
 
 *Figure 5 — The project wiki with its navigation, search, diagrams and the
 documentation assistant.*
