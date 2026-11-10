@@ -397,8 +397,7 @@ class WikiManager:
         """
         try:
             existing = self.site_builder.load()
-            settings = self.load_wiki_settings()
-            if existing and existing.get("pages") and settings.get("categories"):
+            if existing and existing.get("pages"):
                 return False
         except Exception:
             pass
