@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "boards": [
+    {
+      "id": "3c036d74-c805-5aec-a0f4-7c9a79af600d",
+      "title": "kanban",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "kanban",
+      "order": 0
+    },
+    {
+      "id": "e509655d-80a6-5d20-9ef8-9e0b317710b2",
+      "title": "mentions",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "mentions",
+      "order": 1
+    },
+    {
+      "id": "cbba25c9-4dda-5aca-808c-1abde522ce70",
+      "title": "Docs v0.1",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Docs v0.1",
+      "order": 2
+    }
+  ],
+  "tags": {}
+}

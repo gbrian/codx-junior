@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "boards": [
+    {
+      "id": "de4b1e24-f91c-5211-a757-8be5741515f4",
+      "title": "Infrastructure",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Infrastructure",
+      "order": 0
+    }
+  ],
+  "tags": {}
+}

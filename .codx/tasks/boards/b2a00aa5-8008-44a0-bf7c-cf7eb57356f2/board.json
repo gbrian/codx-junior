@@ -1,6 +1,10 @@
 {
+  "id": "b2a00aa5-8008-44a0-bf7c-cf7eb57356f2",
   "title": "Run: Board column sort methods",
   "type": "sprint",
+  "parent_id": null,
+  "folder": "Run: Board column sort methods",
+  "order": 126,
   "columns": [
     {
       "id": "cb5d90f6-8adf-4b73-8c56-1041a59d4fcb",
@@ -39,9 +43,5 @@
       "profiles": []
     }
   ],
-  "id": "b2a00aa5-8008-44a0-bf7c-cf7eb57356f2",
-  "description": "",
-  "parent_id": null,
-  "folder": "Run: Board column sort methods",
-  "order": 126
+  "description": ""
 }

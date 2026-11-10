@@ -169,6 +169,29 @@ export const chatsModule = (API) => ({
 
     delete(kanban_title) {
       return API.delete('/api/kanban?kanban_title=' + kanban_title)
+    },
+
+    // Project-wide task search (all boards and sprints, server side so tasks
+    // outside the last 30 days are searchable too).
+    async searchTasks(params = {}) {
+      const query = new URLSearchParams()
+      Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') return
+        query.append(key, value)
+      })
+      const qs = query.toString()
+      return API.get(`/api/kanban/search${qs ? `?${qs}` : ''}`)
+    },
+
+    manager: {
+      // Configuration + runtime state of the board manager(s).
+      status() {
+        return API.get('/api/kanban/manager')
+      },
+      // Queue an immediate review; the background worker executes it.
+      run(board) {
+        return API.post('/api/kanban/manager/run', { board })
+      }
     }
   }
 })

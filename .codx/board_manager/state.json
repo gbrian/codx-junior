@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "boards": {
+    "2a9f1295-ed2c-5b12-84f3-2ec156e89a93": {
+      "board": "codx-junior maintenance",
+      "board_id": "2a9f1295-ed2c-5b12-84f3-2ec156e89a93",
+      "running": false,
+      "wake_requested": false,
+      "last_run_at": "2026-11-10T09:34:50.785949+00:00",
+      "last_finished_at": "2026-11-10T09:35:28.586118+00:00",
+      "last_status": "ok",
+      "last_error": "",
+      "last_summary": "Reviewed all 80 tasks. The board is mostly chat-derived summary cards sitting in Backlog / To Do with a legacy status field, so most 'doing/0%' rows are stale rather than actionable \u2014 I left them alone to avoid cosmetic churn. One structural defect stands out: task e73c67e3 sits in 'Blocked', which is not a valid column. I also found two tasks with the identical title 'User language' and flagged the empty one as a duplicate. No card is demonstrably finished, so nothing was closed.",
+      "last_report": "## Board manager review \u00b7 codx-junior maintenance\n\nReviewed all 80 tasks. The board is mostly chat-derived summary cards sitting in Backlog / To Do with a legacy status field, so most 'doing/0%' rows are stale rather than actionable \u2014 I left them alone to avoid cosmetic churn. One structural defect stands out: task e73c67e3 sits in 'Blocked', which is not a valid column. I also found two tasks with the identical title 'User language' and flagged the empty one as a duplicate. No card is demonstrably finished, so nothing was closed.\n\n### Actions\n- \u2705 move_task `e73c67e3-0212-4339-98dd-b50a1db5b867`: Moved to On Hold\n- \u2705 comment `7a7b9911-0b43-4429-b517-311fd71e605d`: Comment added",
+      "last_cost": 0.006427949999999999,
+      "total_cost": 0.006427949999999999,
+      "runs": 1,
+      "duration_ms": 37798.24790917337,
+      "last_profile": "ProjectManager",
+      "last_actions": [
+        {
+          "at": "2026-11-10T09:35:26.758799+00:00",
+          "type": "move_task",
+          "task_id": "e73c67e3-0212-4339-98dd-b50a1db5b867",
+          "task_name": "Orchrestration task",
+          "proposed": {
+            "type": "move_task",
+            "task_id": "e73c67e3-0212-4339-98dd-b50a1db5b867",
+            "column": "On Hold",
+            "status": "",
+            "comment": "",
+            "reason": "Card is in 'Blocked', which is not one of the board's valid columns, and its status is 'onhold' with a stalled orchestration run. Moving to the valid 'On Hold' column so the card is reachable and correctly placed; no content change.",
+            "priority": "",
+            "due_date": "",
+            "progress": null,
+            "assignees": [],
+            "tags": [],
+            "name": "",
+            "description": ""
+          },
+          "applied": true,
+          "summary": "Moved to On Hold",
+          "error": ""
+        },
+        {
+          "at": "2026-11-10T09:35:28.037796+00:00",
+          "type": "comment",
+          "task_id": "7a7b9911-0b43-4429-b517-311fd71e605d",
+          "task_name": "User language",
+          "proposed": {
+            "type": "comment",
+            "task_id": "7a7b9911-0b43-4429-b517-311fd71e605d",
+            "column": "",
+            "status": "",
+            "comment": "Duplicate of task 8f30485b ('User language', Backlog/API), which carries the full brief (per-user locale + settings overwrite bug). This card has no description and only investigation chatter. Consolidate the work into 8f30485b and close this one, or merge the two to avoid double work.",
+            "reason": "Two tasks share the exact title 'User language' with overlapping scope; flagging the empty one so a human consolidates instead of the team doing the work twice.",
+            "priority": "",
+            "due_date": "",
+            "progress": null,
+            "assignees": [],
+            "tags": [],
+            "name": "",
+            "description": ""
+          },
+          "applied": true,
+          "summary": "Comment added",
+          "error": ""
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "columns": [
+    {
+      "id": "5e598ee3-fd1a-4af0-9f1c-28631a1dc9e7",
+      "title": "Todo",
+      "color": "",
+      "folder": "Todo",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2025-09-07T09:15:15.859Z",
+  "id": "c5d58cfa-18ce-54dc-bdd4-7d9d723b5b57",
+  "title": "OAuth - 1",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "OAuth - 1",
+  "order": 17
+}

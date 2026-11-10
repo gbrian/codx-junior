@@ -1,0 +1,56 @@
+{
+  "id": "e6d2ffdd-ee8d-5f6e-893a-bdf60117ece1",
+  "title": "Mobile Refactor",
+  "description": "Deep refactor of mobile mode for the codx-junior web client. Goal: one consistent navigation model and page layout across every module on phones/tablets (current state: no global navigation, every screen brings its own layout, two conflicting isMobile definitions, three navigation paradigms). Delivery is incremental: strategy decision first, then vertical slices that are each deployable and demoable.",
+  "branch": "",
+  "type": "kanban",
+  "parent_id": null,
+  "columns": [
+    {
+      "id": "e409003c-3527-457d-8294-b53a8304ab72",
+      "title": "Backlog",
+      "color": "",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "b87c6f6c-6b96-4f02-b75e-640177fbe192",
+      "title": "Discovery",
+      "color": "",
+      "folder": "Discovery",
+      "order": 1
+    },
+    {
+      "id": "b857e230-4fca-4b7e-b1df-902aa4520d35",
+      "title": "Design",
+      "color": "",
+      "folder": "Design",
+      "order": 2
+    },
+    {
+      "id": "d91ea49e-8863-4514-ad8f-e3251d9bad3c",
+      "title": "In Progress",
+      "color": "",
+      "folder": "In Progress",
+      "order": 3
+    },
+    {
+      "id": "f7ddd356-1688-4f0f-b722-909b9939c60e",
+      "title": "Review & Demo",
+      "color": "",
+      "folder": "Review & Demo",
+      "order": 4
+    },
+    {
+      "id": "d871ce60-b97f-42ce-b8c7-49ee50537efc",
+      "title": "Done",
+      "color": "",
+      "folder": "Done",
+      "order": 5
+    }
+  ],
+  "active": false,
+  "last_update": "2026-11-02T13:49:36.081846",
+  "folder": "Mobile Refactor",
+  "order": 30
+}

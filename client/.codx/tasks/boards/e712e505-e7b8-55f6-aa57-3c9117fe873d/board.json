@@ -1,0 +1,22 @@
+{
+  "title": "TipTap",
+  "columns": [
+    {
+      "id": "431c91c9-ad5f-421e-ac08-c98ef9eef5ca",
+      "title": "TipTap",
+      "color": "#000000",
+      "folder": "TipTap",
+      "order": 0
+    }
+  ],
+  "background": "https://i.ytimg.com/vi/VcnROkRhJ34/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLBU0x5RH6I_5ZthJpC4uPYGeC-Qwg",
+  "parent_id": "chats",
+  "bookmark": true,
+  "active": false,
+  "last_update": "2025-11-17T06:09:16.266Z",
+  "id": "e712e505-e7b8-55f6-aa57-3c9117fe873d",
+  "description": "",
+  "type": "kanban",
+  "folder": "TipTap",
+  "order": 24
+}

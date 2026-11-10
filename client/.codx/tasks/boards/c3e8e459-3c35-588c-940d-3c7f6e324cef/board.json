@@ -1,0 +1,35 @@
+{
+  "id": "c3e8e459-3c35-588c-940d-3c7f6e324cef",
+  "description": "Backlog board",
+  "branch": "Set of wizards and tutorials to help user use codx-junior",
+  "columns": [
+    {
+      "id": "de23eef3-3061-4d67-b645-32b41ac6d188",
+      "title": "Backlog",
+      "color": "#FFC300",
+      "folder": "Backlog",
+      "order": 0
+    },
+    {
+      "id": "033a0832-a5de-4743-9f73-61f7fe92baa1",
+      "title": "In Development",
+      "color": "#DAF7A6",
+      "folder": "In Development",
+      "order": 1
+    },
+    {
+      "id": "e18a938f-41fe-4c7b-8c22-6273cb75b57b",
+      "title": "Completed",
+      "color": "#C70039",
+      "folder": "Completed",
+      "order": 2
+    }
+  ],
+  "last_update": "2025-05-30T04:07:04.378Z",
+  "active": false,
+  "title": "codx-junior wizards",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "codx-junior wizards",
+  "order": 7
+}

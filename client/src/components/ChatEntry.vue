@@ -11,6 +11,7 @@ import MessageFileView from './chat/MessageFileView.vue'
 import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
 import ChatMessageEvents from './chat/ChatMessageEvents.vue'
+import ChatImageEditorModal from './chat/ChatImageEditorModal.vue'
 </script>
 
 <template>
@@ -328,10 +329,56 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
         />
 
         <!-- ── Skeleton loader ── -->
-        <div v-if="!displayMessage.content && !displayMessage.think" class="space-y-2 py-1">
+        <div v-if="!displayMessage.content && !displayMessage.think && !mediaImages.length" class="space-y-2 py-1">
           <div class="skeleton h-4 w-full rounded"></div>
           <div class="skeleton h-4 w-4/5 rounded"></div>
           <div class="skeleton h-4 w-2/3 rounded"></div>
+        </div>
+
+        <!-- ── Media — message images ──
+             WhatsApp layout: every picture is printed FULL SIZE ABOVE the text,
+             one after the other (never a thumbnail strip and never below the
+             message). Clicking one opens its settings (zoom / rotate / crop /
+             resize / alt text).
+             Source of truth: `message.images` PLUS the image attachments uploaded
+             with the message — the composer stores pasted pictures as
+             attachments, so ignoring them left the images down in the
+             attachments card.
+             Hidden in the alternative views (source / diff / files / review). -->
+        <div
+          v-if="showMedia"
+          class="mb-2 flex w-full flex-col gap-1"
+          :class="mediaAlignClass"
+        >
+          <button
+            v-for="media in mediaImages"
+            :key="media.key"
+            type="button"
+            class="group/img relative block max-w-full shrink-0 overflow-hidden rounded-2xl border border-base-content/10 bg-base-200 shadow-sm transition-shadow duration-200 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            :aria-label="`Open image settings for ${media.alt || 'image'}`"
+            :title="media.alt || 'Click to edit image'"
+            @click.stop="openImageViewer(media)"
+          >
+            <img
+              :src="media.src"
+              :alt="media.alt || 'Image'"
+              class="block h-auto max-h-[68vh] w-auto max-w-full object-contain @lg/panel:max-h-[74vh]"
+              loading="lazy"
+            />
+            <!-- Hover veil + edit affordance -->
+            <span
+              class="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-200 group-hover/img:bg-black/15"
+            ></span>
+            <span
+              class="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-1 text-[10px] font-medium text-white/90 opacity-0 backdrop-blur-sm transition-opacity duration-200 group-hover/img:opacity-100"
+            >
+              <i class="fa-solid fa-sliders" aria-hidden="true"></i> Edit
+            </span>
+            <span
+              v-if="media.alt"
+              class="absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] text-white/90 backdrop-blur-sm"
+            >{{ media.alt }}</span>
+          </button>
         </div>
 
         <!-- ── TOC for long documents ── -->
@@ -530,29 +577,6 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             @sub-task="$emit('sub-task', $event)"
           />
 
-          <!-- Images -->
-          <div v-if="images && !showPRView && !showFileView && !showAttachments && images?.length" class="mt-3">
-            <p class="text-xs text-base-content/40 mb-2">
-              <i class="fa-solid fa-images mr-1"></i>Images
-            </p>
-            <div class="carousel gap-2">
-              <div
-                class="carousel-item cursor-pointer"
-                v-for="image in images"
-                :key="image.src"
-                @click="$emit('image', image)"
-              >
-                <div class="flex flex-col gap-1">
-                  <div
-                    class="bg-cover bg-center border border-base-100 rounded-lg w-20 h-20 hover:border-primary transition-colors"
-                    :style="`background-image: url(${image.src})`"
-                  ></div>
-                  <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 12) }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- Linked files — project file paths belong to developer chats only.
                Channels/DMs share files through attachments (see below). -->
           <div
@@ -593,10 +617,12 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
             </div>
           </div>
 
-          <!-- Attachments — channels render them as large Discord-style previews -->
+          <!-- Attachments — files & audio notes only: the pictures already render
+               full size above the message (see the media block), printing them a
+               second time as thumbnails only duplicated them. -->
           <ChatAttachmentPreview
-            v-if="displayMessage.attachments?.length"
-            :attachments="displayMessage.attachments"
+            v-if="fileAttachments.length"
+            :attachments="fileAttachments"
             :size="isChannel ? 'lg' : 'sm'"
             @update-attachment="onAttachmentUpdated"
           />
@@ -638,6 +664,17 @@ import ChatMessageEvents from './chat/ChatMessageEvents.vue'
         </div>
       </div>
     </div>
+
+    <!-- ── Image settings (message media) ──
+         Owned by the entry so every host — chat panel, channel, thread, mobile —
+         gets the same click-to-edit behaviour. <modal> attaches itself to the app
+         root, so the dialog is never clipped by the conversation scroll area. -->
+    <ChatImageEditorModal
+      v-if="editingImage"
+      :image="editingImage"
+      @close="closeImageViewer"
+      @save="onImageSaved"
+    />
   </div>
 </template>
 
@@ -698,7 +735,12 @@ export default {
       // Code block selection for bulk save (lives here so CodeViewers stay dumb)
       selectedCodeBlockKeys: [],
       savingCodeBlocks: false,
-      codeBlockSaveStatus: null
+      codeBlockSaveStatus: null,
+      // Image opened from the media block (null = settings closed)
+      editingImage: null,
+      editingImageIndex: -1,
+      // Where the edited picture lives: 'images' | 'attachments'
+      editingImageKind: null
     }
   },
   created() {
@@ -800,6 +842,57 @@ export default {
           return { src: i }
         }
       })
+    },
+    // Every picture of the message, in reading order: `message.images` first,
+    // then the pictures uploaded as attachments (what the composer stores when a
+    // screenshot is pasted or dropped). `kind` + `index` tell `onImageSaved()`
+    // where the edited picture has to be written back.
+    mediaImages() {
+      const items = []
+      ;(this.images || []).forEach((image, index) => {
+        if (!image?.src) return
+        items.push({
+          key: `image-${index}`,
+          src: image.src,
+          alt: image.alt || '',
+          kind: 'images',
+          index
+        })
+      })
+      ;(this.displayMessage.attachments || []).forEach((raw, index) => {
+        const attachment = this.parseAttachment(raw)
+        if (!attachment?.base64_data || !this.isImageAttachment(attachment)) return
+        items.push({
+          key: `attachment-${index}`,
+          src: `data:${attachment.file_type};base64,${attachment.base64_data}`,
+          alt: attachment.file_name || '',
+          kind: 'attachments',
+          index
+        })
+      })
+      return items
+    },
+    // Attachments still listed under the text (documents, audio notes, …).
+    // Pictures are rendered full size above the message, listing them twice is
+    // the duplication this block exists to avoid.
+    fileAttachments() {
+      return (this.displayMessage.attachments || []).filter(raw => {
+        return !this.isImageAttachment(this.parseAttachment(raw))
+      })
+    },
+    // Pictures hidden while an alternative view (source / diff / files / review)
+    // is open, where they would only be noise.
+    showMedia() {
+      return this.mediaImages.length > 0 &&
+        !this.srcView &&
+        !this.showDiff &&
+        !this.showPRView &&
+        !this.showFileView &&
+        !this.showAttachments
+    },
+    // Own messages stack on the right, everybody else's on the left (WhatsApp).
+    mediaAlignClass() {
+      return this.isMyMessage ? 'items-end' : 'items-start'
     },
     messageContent() {
       return this.displayMessage.content
@@ -986,6 +1079,8 @@ export default {
     message() {
       this.loadThreadChat()
       this.resetSeenTracking()
+      // The rendered message changed: never keep the editor on stale data.
+      this.closeImageViewer()
     },
     'message.content': function() {
       this.extractImprovementData()
@@ -1097,6 +1192,92 @@ export default {
         this.showDiff = false
         this.showPRView = false
         this.showAttachments = false
+      }
+    },
+    // ─────────────────────────────────────────────────────────────
+    // Message images — settings / edition
+    // ─────────────────────────────────────────────────────────────
+    // Attachments arrive either parsed (objects) or serialized (JSON strings).
+    parseAttachment(raw) {
+      if (!raw) return null
+      if (typeof raw !== 'string') return raw
+      try {
+        return JSON.parse(raw)
+      } catch {
+        return null
+      }
+    },
+    isImageAttachment(attachment) {
+      return String(attachment?.file_type || '').startsWith('image/')
+    },
+    // Splits the data URL produced by the editor into mime + base64 payload
+    parseDataUrl(src) {
+      const match = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(src || '')
+      if (!match) return { mime: 'image/png', base64: '' }
+      return { mime: match[1] || 'image/png', base64: match[3] || '' }
+    },
+    // Clicking a picture opens its settings (zoom / rotate / crop / resize / alt
+    // text). The entry owns the dialog so every host behaves the same.
+    openImageViewer(media) {
+      if (!media?.src) return
+      this.editingImageIndex = media.index
+      this.editingImageKind = media.kind
+      this.editingImage = { src: media.src, alt: media.alt || '' }
+    },
+    closeImageViewer() {
+      this.editingImage = null
+      this.editingImageIndex = -1
+      this.editingImageKind = null
+    },
+    // Writes the edited picture back where it came from.
+    async onImageSaved({ src, alt } = {}) {
+      const message = this.displayMessage
+      const index = this.editingImageIndex
+      if (!src || !message || index < 0) {
+        return this.closeImageViewer()
+      }
+      if (this.editingImageKind === 'attachments') {
+        this.saveEditedAttachment({ message, index, src, alt })
+      } else {
+        await this.saveEditedImage({ message, index, src, alt })
+      }
+      this.closeImageViewer()
+    },
+    // Pictures uploaded with the message live in `attachments`: the chat view
+    // owns their persistence (`update-attachment`), the same path the attachment
+    // card uses.
+    saveEditedAttachment({ message, index, src, alt }) {
+      const attachments = message.attachments || []
+      const raw = attachments[index]
+      const current = this.parseAttachment(raw) || {}
+      const { mime, base64 } = this.parseDataUrl(src)
+      const updated = {
+        ...current,
+        file_name: alt || current.file_name || 'image.png',
+        file_type: mime || current.file_type || 'image/png',
+        file_size: Math.round(base64.length * 3 / 4) || current.file_size || 0,
+        base64_data: base64,
+        uploaded_at: current.uploaded_at || new Date().toISOString()
+      }
+      // Keep the representation the message already uses (JSON string or object)
+      attachments.splice(index, 1, typeof raw === 'string' ? JSON.stringify(updated) : updated)
+      this.$emit('update-attachment', { message, index, attachment: updated })
+    },
+    // `message.images` has no parent handler: the whole list is persisted from
+    // here, in one write, so the stored order is never rebuilt.
+    async saveEditedImage({ message, index, src, alt }) {
+      const images = [...(message.images || [])]
+      images.splice(index, 1, JSON.stringify({ src, alt }))
+      message.images = images
+      try {
+        await this.$service.chat.updateExistingMessage({
+          chat: this.chat,
+          doc_id: message.doc_id,
+          update: { images, updated_at: new Date().toISOString() }
+        })
+      } catch (ex) {
+        console.error('Failed to save the image', ex)
+        this.$ui?.addNotification?.({ text: 'Failed to save the image', type: 'error' })
       }
     },
     // ─────────────────────────────────────────────────────────────
@@ -1268,11 +1449,16 @@ export default {
     openFile(file) {
       this.$emit('preview-file', file)
     },
+    // `fileAttachments` is a filtered view of `message.attachments`: translate
+    // the child index back to the position the attachment really holds.
     onAttachmentUpdated({ index, attachment }) {
       const message = this.displayMessage
-      if (!message?.attachments) return
-      message.attachments.splice(index, 1, attachment)
-      this.$emit('update-attachment', { message, index, attachment })
+      const attachments = message?.attachments
+      if (!attachments?.length) return
+      const realIndex = attachments.indexOf(this.fileAttachments[index])
+      if (realIndex < 0) return
+      attachments.splice(realIndex, 1, attachment)
+      this.$emit('update-attachment', { message, index: realIndex, attachment })
     },
     openThread() {
       this.$chats.setActiveChat(this.threadChat)

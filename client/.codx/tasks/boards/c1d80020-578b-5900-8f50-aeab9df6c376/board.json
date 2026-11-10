@@ -1,0 +1,36 @@
+{
+  "title": "Maintenance",
+  "columns": [
+    {
+      "id": "745bd48e-4820-45ba-8d10-10b1818344a9",
+      "title": "To Do",
+      "color": "#000000",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "1b212263-a2e8-477a-870f-81fd67a613e6",
+      "title": "Doing",
+      "color": "#000000",
+      "folder": "Doing",
+      "order": 1
+    },
+    {
+      "id": "db2404c6-172f-460a-9f59-36cbab6fed1b",
+      "title": "Done",
+      "color": "#000000",
+      "folder": "Done",
+      "order": 2
+    }
+  ],
+  "id": "c1d80020-578b-5900-8f50-aeab9df6c376",
+  "background": "https://cdn.dribbble.com/userupload/21467403/file/original-3ded6d9af79bb20d0c86b58ce4c0a9ce.png?resize=400x0",
+  "parent_id": null,
+  "active": false,
+  "last_update": "2026-03-14T10:02:18.443Z",
+  "bookmark": true,
+  "description": "",
+  "type": "kanban",
+  "folder": "Maintenance",
+  "order": 27
+}

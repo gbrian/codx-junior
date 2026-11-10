@@ -1,0 +1,28 @@
+{
+  "title": "Infrastructure",
+  "columns": [
+    {
+      "id": "b7474e9e-f859-4a2b-914b-2a42ead2a6f3",
+      "title": "Documentation",
+      "color": "#000000",
+      "folder": "Documentation",
+      "order": 0
+    },
+    {
+      "id": "ab01349c-694b-4358-9956-144edc289256",
+      "title": "Workspaces",
+      "color": "#000000",
+      "folder": "Workspaces",
+      "order": 1
+    }
+  ],
+  "background": "",
+  "active": true,
+  "last_update": "2025-12-28T11:48:22.109Z",
+  "id": "de4b1e24-f91c-5211-a757-8be5741515f4",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Infrastructure",
+  "order": 0
+}

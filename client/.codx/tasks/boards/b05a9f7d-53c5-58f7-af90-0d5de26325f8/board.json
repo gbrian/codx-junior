@@ -1,0 +1,27 @@
+{
+  "columns": [
+    {
+      "id": "ce4eddee-f511-4063-95db-e2699fd8c46d",
+      "title": "tasks",
+      "color": "",
+      "folder": "tasks",
+      "order": 0
+    },
+    {
+      "id": "999e4b4b-0669-4aae-acc6-9c1ade64fd3b",
+      "title": "Backlog",
+      "color": "",
+      "folder": "Backlog",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "last_update": "2025-09-24T07:40:36.053Z",
+  "id": "b05a9f7d-53c5-58f7-af90-0d5de26325f8",
+  "title": "Default",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Default",
+  "order": 0
+}

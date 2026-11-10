@@ -1,0 +1,28 @@
+{
+  "columns": [
+    {
+      "id": "3263e700-2f86-461b-8e26-88b7b0dcfd8f",
+      "title": "tasks",
+      "color": "",
+      "folder": "tasks",
+      "order": 0
+    },
+    {
+      "id": "a7294649-a905-4854-85a5-d369ed9ad7f4",
+      "title": "Done",
+      "color": "#27AF60",
+      "folder": "Done",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "last_update": "2026-04-02T05:16:21.964Z",
+  "bookmark": true,
+  "id": "77fe3f9c-6b2d-5f2c-bbfa-874c332a3e32",
+  "title": "kanban",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "kanban",
+  "order": 3
+}

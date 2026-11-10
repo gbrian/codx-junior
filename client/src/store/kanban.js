@@ -102,6 +102,30 @@ function normalizeAssignee(value) {
   return name || null
 }
 
+// Board manager configuration (board settings → Board manager). The manager is
+// an opt-in background reviewer: a profile reviews the board periodically and
+// applies the actions it decides. The normalized shape mirrors
+// api/codx/junior/board_manager/models.py so the UI and the worker agree on
+// defaults and limits.
+function normalizeManager(value) {
+  if (!value || typeof value !== 'object') return null
+  const clamp = (number, min, max, fallback) => {
+    const parsed = Number(number)
+    if (!Number.isFinite(parsed)) return fallback
+    return Math.max(min, Math.min(max, Math.round(parsed)))
+  }
+  return {
+    enabled: !!value.enabled,
+    profile: value.profile == null ? '' : String(value.profile).trim().replace(/^@+/, ''),
+    mode: value.mode === 'suggest' ? 'suggest' : 'apply',
+    interval_minutes: clamp(value.interval_minutes, 5, 7 * 24 * 60, 60),
+    max_actions: clamp(value.max_actions, 1, 20, 5),
+    max_tasks: clamp(value.max_tasks, 1, 200, 80),
+    include_done: !!value.include_done,
+    instructions: value.instructions == null ? '' : String(value.instructions).slice(0, 8000)
+  }
+}
+
 // Canonical spelling of a task status: the status list value when the given
 // status matches one ignoring case ("Doing" → "doing"), otherwise the value as
 // the user defined it, trimmed.
@@ -382,7 +406,9 @@ export const getters = getterTree(state, {
         // Board participants (user list) — optional
         users: boards[title]?.users || [],
         // Profile the board is assigned to (single profile name) — optional
-        assignee: boards[title]?.assignee || null
+        assignee: boards[title]?.assignee || null,
+        // Background board manager configuration — null when never configured
+        manager: normalizeManager(boards[title]?.manager)
       }))
   },
 
@@ -429,6 +455,29 @@ export const getters = getterTree(state, {
       $storex.profiles.profilesByProject?.[project?.project_id] ||
       []
     return profiles.find(p => sameKey(p.name, assignee)) || { name: assignee }
+  },
+
+  // The PROFILE selected for the board manager (board settings → Board manager).
+  //
+  // Unlike `boardAssignee` it does NOT fall back to the board assistant: an
+  // empty manager profile means "not selected yet", and the toolbar shows a
+  // generic user icon instead of borrowing the assistant's avatar. The profile
+  // is resolved against the board's own project (the board may live in another
+  // project than the active one), with a minimal `{ name }` fallback while the
+  // profiles are still loading.
+  boardManagerProfile: (state, getters) => (boardId) => {
+    const board = getters.boardById(boardId)
+    const name = board?.manager?.profile == null
+      ? ''
+      : String(board.manager.profile).trim()
+    if (!name) return null
+
+    const project = $storex.projects.allProjectsById?.[board.project_id] ||
+      $storex.projects.activeProject
+    const profiles = project?.$state?.profiles ||
+      $storex.profiles.profilesByProject?.[project?.project_id] ||
+      []
+    return profiles.find(p => sameKey(p.name, name)) || { name }
   },
 
   // Tasks that belong to a board (chat.board === boardId). The virtual board
@@ -1308,7 +1357,7 @@ export const actions = actionTree(
       return chat
     },
 
-    async addBoard({ state }, { title, description, background, parent_id, project_id, columns, type, users, assignee }) {
+    async addBoard({ state }, { title, description, background, parent_id, project_id, columns, type, users, assignee, manager }) {
       const kanban = getKanban()
       if (!kanban) return
 
@@ -1329,6 +1378,8 @@ export const actions = actionTree(
         users: users || [],
         // Profile the board is assigned to (single profile name)
         assignee: normalizeAssignee(assignee),
+        // Background board manager configuration (opt-in)
+        manager: normalizeManager(manager),
         columns: columns || [],
         last_update: new Date().toISOString()
       }
@@ -1378,6 +1429,11 @@ export const actions = actionTree(
       const assignee = board.assignee !== undefined
         ? normalizeAssignee(board.assignee)
         : normalizeAssignee(existing.assignee)
+      // The manager is merged like the assignee: an omitted value keeps the
+      // stored configuration, an explicit null disables/clears it.
+      const manager = board.manager !== undefined
+        ? normalizeManager(board.manager)
+        : normalizeManager(existing.manager)
       kanban.boards[newName] = {
         ...existing,
         title: newName,
@@ -1388,7 +1444,9 @@ export const actions = actionTree(
         project_id: board.project_id !== undefined ? board.project_id : (existing.project_id || null),
         users: board.users !== undefined ? board.users : (existing.users || []),
         // Profile the board is assigned to (shown on the board header)
-        assignee
+        assignee,
+        // Background review policy (enabled profile, interval, mode, limits)
+        manager
       }
 
       await $storex.kanban.saveKanban()

@@ -1,0 +1,20 @@
+{
+  "columns": [
+    {
+      "id": "c46b6193-5f4c-4fdf-b889-a85be0a35dcc",
+      "title": "chats",
+      "color": "",
+      "folder": "chats",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2026-03-21T16:13:51.852Z",
+  "id": "a19e3a81-c36d-5103-8cdf-3f01c54abc74",
+  "title": "chats",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "chats",
+  "order": 14
+}

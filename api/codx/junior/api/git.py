@@ -507,15 +507,24 @@ def api_git_repo_worktrees(
     """
     Return the repository's registered worktrees.
 
-    Each worktree carries its branch and, unless ``include_changes`` is false,
-    the files changed inside that worktree (staged and unstaged lists), so the
-    git view can show every worktree's change list in one request.
+    Each worktree carries its branch, its files changed inside the checkout
+    (staged and unstaged lists, unless ``include_changes`` is false) and
+    ``merge_status``: what the worktree branch would bring into the branch
+    currently checked out. This endpoint is intentionally separate from
+    ``/git/repo/info``: scanning every worktree is expensive and must not block
+    the repository header.
     """
-    return {
-        "worktrees": _git_engine(request).list_worktrees(
-            include_changes=include_changes
+    engine = _git_engine(request)
+    worktrees = engine.list_worktrees(include_changes=include_changes)
+    current_branch = engine.get_project_current_branch()
+    for worktree in worktrees:
+        # What the worktree branch would bring into the current branch. This is
+        # intentionally in this endpoint (not in /info): it runs git commands
+        # per worktree and must not block the repository header.
+        worktree["merge_status"] = engine.get_worktree_merge_status(
+            worktree.get("branch", ""), current_branch
         )
-    }
+    return {"worktrees": worktrees}
 
 
 @router.post("/git/repo/worktree/remove")

@@ -1,0 +1,254 @@
+{
+  "version": 2,
+  "boards": [
+    {
+      "id": "b05a9f7d-53c5-58f7-af90-0d5de26325f8",
+      "title": "Default",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Default",
+      "order": 0
+    },
+    {
+      "id": "5da83009-125c-5d24-8f67-6dcc3ea359d5",
+      "title": "Profiles",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Profiles",
+      "order": 1
+    },
+    {
+      "id": "ee8848ad-e35c-5c81-83a4-d2f3e3554604",
+      "title": "Browser",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Browser",
+      "order": 2
+    },
+    {
+      "id": "77fe3f9c-6b2d-5f2c-bbfa-874c332a3e32",
+      "title": "kanban",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "kanban",
+      "order": 3
+    },
+    {
+      "id": "952219ed-881f-57be-81f5-d0b028b61a8c",
+      "title": "Knowledge so-ish",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Knowledge so-ish",
+      "order": 4
+    },
+    {
+      "id": "9db042ab-4641-53f3-b70e-f57ee4a0a252",
+      "title": "mentions",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "mentions",
+      "order": 5
+    },
+    {
+      "id": "744c9908-8e9d-50bb-819c-4e92e785ebaa",
+      "title": "Bugs",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Bugs",
+      "order": 6
+    },
+    {
+      "id": "c3e8e459-3c35-588c-940d-3c7f6e324cef",
+      "title": "codx-junior wizards",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "codx-junior wizards",
+      "order": 7
+    },
+    {
+      "id": "4ad64416-4694-536c-a7fb-ba97ea19a968",
+      "title": "App Crashes on Android 32bit When emit event from TurboModule",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "App Crashes on Android 32bit When emit event from TurboModule",
+      "order": 8
+    },
+    {
+      "id": "7988a08b-180f-5f75-8fd1-ffa7d4abd11e",
+      "title": "Folder Names Do Not Update with Front Matter Titles on Obsidian Start Until Folder Notes Plugin Is Toggled Off/On",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Folder Names Do Not Update with Front Matter Titles on Obsidian Start Until Folder Notes Plugin Is Toggled Off-On",
+      "order": 9
+    },
+    {
+      "id": "4f99fd01-802a-523e-976e-25d1f192e253",
+      "title": "Log viewer",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Log viewer",
+      "order": 10
+    },
+    {
+      "id": "bb866363-5504-50c3-be92-9ac9b2e147ba",
+      "title": "New board",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "New board",
+      "order": 11
+    },
+    {
+      "id": "3bfb1e9d-79fc-54e3-90f9-c455c09942fb",
+      "title": "codx-junior",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "codx-junior",
+      "order": 12
+    },
+    {
+      "id": "dd17cd19-a9d2-56a8-a4f1-32898cfcba56",
+      "title": "Knowledge Search",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Knowledge Search",
+      "order": 13
+    },
+    {
+      "id": "a19e3a81-c36d-5103-8cdf-3f01c54abc74",
+      "title": "chats",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "chats",
+      "order": 14
+    },
+    {
+      "id": "e0f0d59e-7903-5b51-a60a-0920a8a4f6e2",
+      "title": "Project selector",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Project selector",
+      "order": 15
+    },
+    {
+      "id": "266fdb00-25cd-58c9-b5a2-b8dc9a8af729",
+      "title": "OAuth",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "OAuth",
+      "order": 16
+    },
+    {
+      "id": "c5d58cfa-18ce-54dc-bdd4-7d9d723b5b57",
+      "title": "OAuth - 1",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "OAuth - 1",
+      "order": 17
+    },
+    {
+      "id": "a0e46345-74fc-52de-a5d2-385acc74e716",
+      "title": "OAuth - 2",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "OAuth - 2",
+      "order": 18
+    },
+    {
+      "id": "3725a205-8170-530b-a6b2-404a62777fae",
+      "title": "Global Settings",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Global Settings",
+      "order": 19
+    },
+    {
+      "id": "6d490328-beb8-54f4-b477-1e40338830d8",
+      "title": "Workspaces",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Workspaces",
+      "order": 20
+    },
+    {
+      "id": "ab24a2d4-f6a8-5de7-b28f-39435e23581a",
+      "title": "Document viewer",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Document viewer",
+      "order": 21
+    },
+    {
+      "id": "7fadab5e-f709-5080-888b-60a048bc64ef",
+      "title": "Pull Request",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Pull Request",
+      "order": 22
+    },
+    {
+      "id": "3e9edc0e-e40e-59a7-8b30-5c3a22572cf3",
+      "title": "Mobile",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Mobile",
+      "order": 23
+    },
+    {
+      "id": "e712e505-e7b8-55f6-aa57-3c9117fe873d",
+      "title": "TipTap",
+      "type": "kanban",
+      "parent_id": "chats",
+      "folder": "TipTap",
+      "order": 24
+    },
+    {
+      "id": "88ad3f05-db22-5e5c-855a-ddca5a2c2606",
+      "title": "Wall",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Wall",
+      "order": 25
+    },
+    {
+      "id": "b9aaa714-6bff-5126-be43-1fc48e8f4559",
+      "title": "Navigator",
+      "type": "kanban",
+      "parent_id": "Workspaces",
+      "folder": "Navigator",
+      "order": 26
+    },
+    {
+      "id": "c1d80020-578b-5900-8f50-aeab9df6c376",
+      "title": "Maintenance",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Maintenance",
+      "order": 27
+    },
+    {
+      "id": "0c4493db-aed5-5a57-81f0-6d7a4fa3414f",
+      "title": "Services",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Services",
+      "order": 28
+    },
+    {
+      "id": "12bcbe94-1785-53f5-994a-ad8ef19d4e80",
+      "title": "Test",
+      "type": "kanban",
+      "parent_id": "Services",
+      "folder": "Test",
+      "order": 29
+    },
+    {
+      "id": "e6d2ffdd-ee8d-5f6e-893a-bdf60117ece1",
+      "title": "Mobile Refactor",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Mobile Refactor",
+      "order": 30
+    }
+  ],
+  "tags": {}
+}

@@ -1,0 +1,21 @@
+{
+  "title": "Workspaces",
+  "columns": [
+    {
+      "id": "c9e1bbd3-6880-4791-a135-7b9c7d7c67ef",
+      "title": "ToDo",
+      "color": "#222F3D",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ],
+  "background": "",
+  "active": false,
+  "last_update": "2026-01-02T16:47:05.897Z",
+  "id": "6d490328-beb8-54f4-b477-1e40338830d8",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Workspaces",
+  "order": 20
+}

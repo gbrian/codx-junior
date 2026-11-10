@@ -1,0 +1,21 @@
+{
+  "title": "Global Settings",
+  "columns": [
+    {
+      "id": "ff79012a-71df-4b43-a13a-38f9007763f7",
+      "title": "ToDo",
+      "color": "#3D556E",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ],
+  "background": "",
+  "active": false,
+  "last_update": "2025-09-18T13:32:03.113Z",
+  "id": "3725a205-8170-530b-a6b2-404a62777fae",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Global Settings",
+  "order": 19
+}

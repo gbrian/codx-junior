@@ -229,8 +229,8 @@ def test_worktrees_list_includes_their_file_changes(repo, tmp_path):
     assert main["changes"]["file_count"] == 0
 
 
-def test_repo_info_reports_worktree_files_pending_to_merge(repo, tmp_path):
-    """The repository view knows what each worktree branch would merge."""
+def test_worktree_merge_status_reports_files_pending_to_merge(repo, tmp_path):
+    """The worktrees endpoint knows what each branch would bring into current."""
     run_git(repo, "checkout", "-b", "feature")
     commit_file(repo, "feature.txt", "feature\n", "2024-02-01T10:00:00 +0000")
     run_git(repo, "checkout", "main")
@@ -240,9 +240,13 @@ def test_repo_info_reports_worktree_files_pending_to_merge(repo, tmp_path):
 
     engine, _session = make_engine(repo)
     info = engine.get_repo_info()
-    worktree = next(item for item in info["worktrees"] if item["path"] == worktree_path)
+    # `/info` stays cheap: metadata only, no worktree status/merge scan.
+    assert any(item["path"] == worktree_path for item in info["worktrees"])
+    assert "changes" not in next(
+        item for item in info["worktrees"] if item["path"] == worktree_path
+    )
 
-    status = worktree["merge_status"]
+    status = engine.get_worktree_merge_status("feature", "main")
     assert status["applicable"] is True
     assert status["source_branch"] == "feature"
     assert status["target_branch"] == "main"

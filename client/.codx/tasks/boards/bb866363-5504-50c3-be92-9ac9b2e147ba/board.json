@@ -1,0 +1,19 @@
+{
+  "columns": [
+    {
+      "id": "74c057bc-984d-41ec-bb50-b6ebf1108571",
+      "title": "Backlog",
+      "color": "",
+      "folder": "Backlog",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "id": "bb866363-5504-50c3-be92-9ac9b2e147ba",
+  "title": "New board",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "New board",
+  "order": 11
+}

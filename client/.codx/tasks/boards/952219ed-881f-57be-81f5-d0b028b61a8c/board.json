@@ -1,0 +1,26 @@
+{
+  "columns": [
+    {
+      "id": "bf85289c-10b4-4f3e-8adb-f07ee8e69f9b",
+      "title": "design",
+      "color": "",
+      "folder": "design",
+      "order": 0
+    },
+    {
+      "id": "83c8f3fb-d9c4-4f88-a107-ec6bccf77337",
+      "title": "Doing",
+      "color": "",
+      "folder": "Doing",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "id": "952219ed-881f-57be-81f5-d0b028b61a8c",
+  "title": "Knowledge so-ish",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Knowledge so-ish",
+  "order": 4
+}

@@ -815,6 +815,34 @@ defineExpose({
           </p>
         </div>
 
+        <!-- Board manager: the profile that reviews this board in the background -->
+        <div class="form-control mb-3">
+          <label class="label py-1">
+            <span class="label-text text-xs font-semibold uppercase tracking-wider text-base-content/50">Board manager</span>
+            <span class="label-text-alt text-[10px] text-base-content/40">
+              {{ editBoardForm.manager?.enabled ? 'enabled' : 'disabled' }}
+            </span>
+          </label>
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost border border-base-100 w-full justify-start gap-1.5"
+            @click="openBoardManager"
+          >
+            <i class="fa-solid fa-user-tie text-xs text-primary"></i>
+            <span class="text-xs font-medium truncate">
+              {{ editBoardForm.manager?.profile || editBoardForm.assignee || 'ProjectManager (default)' }}
+            </span>
+            <span class="text-[10px] text-base-content/40 ml-auto">Configure</span>
+            <i class="fa-solid fa-chevron-right text-[10px] text-base-content/30"></i>
+          </button>
+          <p class="text-[10px] text-base-content/40 mt-1.5 flex items-start gap-1">
+            <i class="fa-solid fa-circle-info text-[10px] mt-0.5 shrink-0"></i>
+            <span>
+              A background review keeps this board healthy: move cards, comment, close finished tasks.
+            </span>
+          </p>
+        </div>
+
         <!-- Participants (user list) -->
         <div class="form-control mb-4">
           <label class="label py-1">
@@ -1036,6 +1064,8 @@ const DEFAULT_EDIT_BOARD = () => ({
   background: '',
   // Profile name the board is assigned to (its chat assistant) — optional
   assignee: null,
+  // Background board manager configuration (opt-in)
+  manager: null,
   users: []
 })
 
@@ -1061,7 +1091,7 @@ export default {
   },
   emits: [
     'task-created', 'tasks-added', 'column-created', 'column-updated', 'column-deleted',
-    'board-created', 'board-updated', 'board-delete'
+    'board-created', 'board-updated', 'board-delete', 'board-manager'
   ],
   data() {
     return {
@@ -1824,6 +1854,9 @@ export default {
         background: board.background || '',
         // Profile the board is assigned to (its chat assistant) — single name
         assignee: board.assignee || null,
+        // Background review policy (keep it when the board settings dialog is
+        // saved: saveBoard merges it, so the manager modal owns its edits)
+        manager: board.manager || null,
         users: [...(board.users || [])]
       }
       this.showEditBoard = true
@@ -1831,6 +1864,14 @@ export default {
     },
     closeEditBoard() {
       this.showEditBoard = false
+    },
+    // The manager configuration has its own dialog (it also shows the runtime
+    // status and the last actions); closing the settings dialog first avoids
+    // stacking two modals.
+    openBoardManager() {
+      const board = this.$storex.kanban.boardById(this.boardId)
+      this.showEditBoard = false
+      this.$emit('board-manager', board)
     },
     // Single-selection profile picker: the board assistant is ONE profile.
     // Clearing the selection falls back to ProjectManager (see the board view).
@@ -1854,6 +1895,9 @@ export default {
           background: this.editBoardForm.background?.trim() || '',
           // Profile that answers the board chat (null ⇒ ProjectManager)
           assignee: this.editBoardForm.assignee || null,
+          // Background review policy (the dedicated modal edits it, but the
+          // value must survive a board-settings save)
+          manager: this.editBoardForm.manager || null,
           users: [...this.editBoardForm.users]
         }
       })

@@ -1,0 +1,19 @@
+{
+  "columns": [
+    {
+      "id": "ec3d4827-bfa0-4c59-b513-d73c5ac7bdd1",
+      "title": "tasks",
+      "color": "",
+      "folder": "tasks",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "id": "3c036d74-c805-5aec-a0f4-7c9a79af600d",
+  "title": "kanban",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "kanban",
+  "order": 0
+}

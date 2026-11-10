@@ -1,0 +1,19 @@
+{
+  "columns": [
+    {
+      "id": "a9265fe9-4817-4416-a110-86190afaa5cc",
+      "title": "changes",
+      "color": "",
+      "folder": "changes",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "id": "e509655d-80a6-5d20-9ef8-9e0b317710b2",
+  "title": "mentions",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "mentions",
+  "order": 1
+}

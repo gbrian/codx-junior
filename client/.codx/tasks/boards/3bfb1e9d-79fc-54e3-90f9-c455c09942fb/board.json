@@ -1,0 +1,26 @@
+{
+  "columns": [
+    {
+      "id": "046345cb-69f4-4162-ae87-687a356ba807",
+      "title": "2025-07-12",
+      "color": "",
+      "folder": "2025-07-12",
+      "order": 0
+    },
+    {
+      "id": "fac2f77f-af2f-4bd2-b4d3-d68add886bc5",
+      "title": "2025-08-26",
+      "color": "",
+      "folder": "2025-08-26",
+      "order": 1
+    }
+  ],
+  "active": false,
+  "id": "3bfb1e9d-79fc-54e3-90f9-c455c09942fb",
+  "title": "codx-junior",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "codx-junior",
+  "order": 12
+}

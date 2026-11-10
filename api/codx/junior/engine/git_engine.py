@@ -2252,13 +2252,14 @@ class GitEngine:
         }
         if not source or not target or source == target:
             return result
-        if not self._ref_exists(f"refs/heads/{source}"):
-            return result
 
         result["applicable"] = True
         repo_path = self._get_repo_root()
+        # One command gives the file list AND the line counts. The separate
+        # `--name-only` + `--shortstat` pair used to run twice per worktree and
+        # made the repository info endpoint slow with many checkouts.
         diff = self._run_git(
-            ["diff", "--name-only", f"{target}...{source}"], cwd=repo_path
+            ["diff", "--numstat", f"{target}...{source}"], cwd=repo_path
         )
         if not diff["ok"]:
             # A missing target (or no common ancestor) must not break the
@@ -2266,13 +2267,26 @@ class GitEngine:
             result["errors"].append(diff["error"] or "Could not compare branches")
             return result
 
-        files = [
-            line.strip()
-            for line in diff["output"].split("\n")
-            if line.strip()
-        ]
+        files = []
+        additions = 0
+        deletions = 0
+        for line in diff["output"].split("\n"):
+            parts = line.split("\t")
+            if len(parts) < 3:
+                continue
+            added, removed, path = parts[0], parts[1], parts[2]
+            files.append(path)
+            if added.isdigit():
+                additions += int(added)
+            if removed.isdigit():
+                deletions += int(removed)
         result["file_count"] = len(files)
         result["files"] = files[:50]
+        if files:
+            result["stat"] = (
+                f"{len(files)} file(s) changed, "
+                f"{additions} insertion(s)(+), {deletions} deletion(s)(-)"
+            )
 
         commits = self._run_git(
             ["rev-list", "--count", f"{target}..{source}"], cwd=repo_path
@@ -2280,11 +2294,6 @@ class GitEngine:
         if commits["ok"] and commits["output"].strip().isdigit():
             result["commit_count"] = int(commits["output"].strip())
 
-        stat = self._run_git(
-            ["diff", "--shortstat", f"{target}...{source}"], cwd=repo_path
-        )
-        if stat["ok"]:
-            result["stat"] = stat["output"]
         result["has_changes"] = bool(result["file_count"] or result["commit_count"])
         return result
 
@@ -3539,14 +3548,15 @@ class GitEngine:
         Returns:
             Dict with repo path, project path, active/default branch, remote
             url, ahead/behind counters, working tree state (including the
-            staged and unstaged file lists), lock state, worktrees, the git
-            identity commits are signed with, the token state (never the token
-            itself) and the last commit. Every worktree also carries
-            ``merge_status``: the files its branch would bring into the current
-            branch. 'changed_files' lists one entry per changed file: untracked
-            directories are expanded and untracked nested repositories
-            (submodules) are ignored, so it never contains folder paths nor
-            files belonging to a submodule.
+            staged and unstaged file lists), lock state, worktree metadata, the
+            git identity commits are signed with, the token state (never the
+            token itself) and the last commit. Worktree file changes and merge
+            previews are NOT scanned here (that is the expensive part of a
+            large repository): ``GET /git/repo/worktrees`` loads them
+            separately. 'changed_files' lists one entry per changed file:
+            untracked directories are expanded and untracked nested
+            repositories (submodules) are ignored, so it never contains folder
+            paths nor files belonging to a submodule.
 
         Example:
             >>> engine.get_repo_info()["active_branch"]
@@ -3563,30 +3573,11 @@ class GitEngine:
         lock = self.get_lock_info()
         identity = self.get_git_identity()
 
-        # Worktree change lists. The main worktree reuses the status already
-        # read above instead of running `git status` on the same folder twice
-        # (a large working tree makes that duplicate scan expensive).
-        main_changes = {
-            "ok": status["ok"],
-            "dirty": status["dirty"],
-            "files": status["files"],
-            "staged": changes["staged"],
-            "unstaged": changes["unstaged"],
-            "file_count": len(status["files"]),
-            "errors": [] if status["ok"] else [status["error"]],
-        }
+        # Only the cheap worktree metadata here. Reading `git status` and the
+        # merge preview for every worktree is expensive (and can time out on
+        # large trees); the Repository view loads `/git/repo/worktrees`
+        # separately so this endpoint stays fast.
         worktrees = self.list_worktrees(include_changes=False)
-        for worktree in worktrees:
-            worktree["changes"] = (
-                main_changes
-                if worktree.get("is_main")
-                else self._worktree_changes(worktree["path"])
-            )
-            # Repository view hint: does this worktree branch have files
-            # pending to merge into the branch currently checked out?
-            worktree["merge_status"] = self.get_worktree_merge_status(
-                worktree.get("branch", ""), current_branch
-            )
 
         return {
             "repo_path": self._get_repo_root(),

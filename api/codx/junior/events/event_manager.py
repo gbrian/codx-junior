@@ -49,6 +49,20 @@ class EventManager:
             self.event_data(payload),
         )
 
+    def board_manager_event(self, payload: dict):
+        """
+        Emit a board-manager event to connected clients.
+
+        The payload carries ``board``, ``event`` (started/finished/error/...),
+        ``message`` and event-specific data. The REST endpoints remain the
+        source of truth; clients can subscribe to ``codx-junior-board-manager``
+        for live status updates.
+        """
+        self.channel.send_event(
+            'codx-junior-board-manager',
+            self.event_data(payload),
+        )
+
     def wiki_event(self, message: str):
         self.channel.send_event('wiki-event', self.event_data({ "info": message }))
         # self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")

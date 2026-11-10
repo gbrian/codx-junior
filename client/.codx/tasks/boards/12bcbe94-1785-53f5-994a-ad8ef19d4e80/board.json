@@ -1,0 +1,11 @@
+{
+  "title": "Test",
+  "columns": [],
+  "id": "12bcbe94-1785-53f5-994a-ad8ef19d4e80",
+  "parent_id": "Services",
+  "active": false,
+  "description": "",
+  "type": "kanban",
+  "folder": "Test",
+  "order": 29
+}

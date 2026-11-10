@@ -90,5 +90,16 @@
   ],
   "last_update": "2026-11-09T09:12:40.905Z",
   "active": true,
-  "users": []
+  "users": [],
+  "assignee": null,
+  "manager": {
+    "enabled": true,
+    "profile": "ProjectManager",
+    "mode": "apply",
+    "interval_minutes": 60,
+    "max_actions": 5,
+    "max_tasks": 80,
+    "include_done": true,
+    "instructions": ""
+  }
 }

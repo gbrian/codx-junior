@@ -1,10 +1,611 @@
 {
   "project": {
     "name": "codx-junior",
-    "description": "codx-junior wiki",
-    "icon": "https://codx-dev.meetnav.com/only_icon.png",
-    "repository": "https://github.com/gbrian/codx-junior.git\n"
+    "description": "We bridge the gap between rapid AI automation and elite human expertise.",
+    "icon": "https://gbrian.codxjunior.com/only_icon.png",
+    "repository": ""
   },
-  "sidebar": [],
-  "last_update": null
+  "sidebar": [
+    {
+      "text": "Overview",
+      "items": [
+        {
+          "text": "codx-junior features",
+          "link": "/codx-junior.features"
+        },
+        {
+          "text": "Introduction",
+          "link": "/home"
+        },
+        {
+          "text": "Licensing and Legal Documentation",
+          "link": "/user-support-and-documentation"
+        },
+        {
+          "text": "Markdown Extension Examples",
+          "link": "/markdown-examples"
+        },
+        {
+          "text": "Runtime API Examples",
+          "link": "/api-examples"
+        },
+        {
+          "text": "Setup and Installation: codx-junior API",
+          "link": "/setup-and-installation"
+        }
+      ]
+    },
+    {
+      "text": "Ai and knowledge management",
+      "items": [
+        {
+          "text": "Agentic Development Tools and Harnesses",
+          "link": "/ai-and-knowledge-management/agents/vllm-models-agent-harnesses-json"
+        },
+        {
+          "text": "Ai and knowledge management vllm models hub cachedir tag",
+          "link": "/ai-and-knowledge-management/vllm-models-hub-cachedir-tag"
+        },
+        {
+          "text": "Model Documentation: Qwen2.5-7B-Instruct",
+          "link": "/ai-and-knowledge-management/models/vllm-models-hub-models-qwen-qwen2-5-7b-instruct-blobs-0178295f88afc3c7f279ed284f961f8c1be00654"
+        }
+      ]
+    },
+    {
+      "text": "App module",
+      "items": [
+        {
+          "text": "App module codx junior python sh",
+          "link": "/app-module/codx-junior-python-sh"
+        }
+      ]
+    },
+    {
+      "text": "Database and data storage",
+      "items": [
+        {
+          "text": "codx-junior Wiki Documentation",
+          "link": "/database-and-data-storage/readme-md"
+        },
+        {
+          "text": "Database and Data Storage Documentation",
+          "link": "/database-and-data-storage/codx-junior-code-workspace"
+        },
+        {
+          "text": "Developer Settings Configuration",
+          "link": "/database-and-data-storage/code-server-user-settings-json"
+        }
+      ]
+    },
+    {
+      "text": "Deployment and operations",
+      "items": [
+        {
+          "text": "API Restart Utility",
+          "link": "/deployment-and-operations/restar-api-sh"
+        },
+        {
+          "text": "Client Deployment and Operations",
+          "link": "/deployment-and-operations/scripts-install-client-sh"
+        },
+        {
+          "text": "codx-junior Deployment and Operations Guide",
+          "link": "/deployment-and-operations/codx-junior"
+        },
+        {
+          "text": "Deployment and Operations: API Execution Script",
+          "link": "/deployment-and-operations/scripts-run-api-sh"
+        },
+        {
+          "text": "Deployment and Operations: Client Execution",
+          "link": "/deployment-and-operations/scripts-run-client-sh"
+        },
+        {
+          "text": "Deployment and Operations: codx-junior",
+          "link": "/deployment-and-operations/build-docker-sh"
+        },
+        {
+          "text": "Deployment and Operations: codx-junior Entrypoint",
+          "link": "/deployment-and-operations/entrypoint-sh"
+        },
+        {
+          "text": "Deployment and Operations: Codx-Junior Installer",
+          "link": "/deployment-and-operations/installer-sh"
+        },
+        {
+          "text": "Deployment and Operations: codx-junior-python.sh",
+          "link": "/deployment-and-operations/codx-junior-python-sh"
+        },
+        {
+          "text": "Deployment and Operations: Docker Execution",
+          "link": "/deployment-and-operations/scripts-run-docker-sh"
+        },
+        {
+          "text": "Deployment and Operations: Entrypoint Script",
+          "link": "/deployment-and-operations/scripts-entrypoint-sh"
+        },
+        {
+          "text": "Deployment and Operations: Installation Script",
+          "link": "/deployment-and-operations/scripts-install-sh"
+        },
+        {
+          "text": "Deployment and Operations: llmFactory Service",
+          "link": "/deployment-and-operations/scripts-run-llmfactory-sh"
+        },
+        {
+          "text": "Scan Watcher Deployment Log Documentation",
+          "link": "/deployment-and-operations/ciso-scripts-scanwatch-20260809-141749-scan-events-20260809-141749-log"
+        },
+        {
+          "text": "VNC Application Deployment Tool",
+          "link": "/deployment-and-operations/scripts-tools-vnc-app-sh"
+        }
+      ]
+    },
+    {
+      "text": "Development and testing",
+      "items": [
+        {
+          "text": "Development and Testing Configuration",
+          "link": "/development-and-testing/pytest-ini"
+        },
+        {
+          "text": "Development and testing vscode settings json",
+          "link": "/development-and-testing/vscode-settings-json"
+        },
+        {
+          "text": "Development and Testing: Websockify Configuration",
+          "link": "/development-and-testing/websockify-token-cfg"
+        }
+      ]
+    },
+    {
+      "text": "Project overview",
+      "items": [
+        {
+          "text": "GNU Affero General Public License v3 Documentation",
+          "link": "/project-overview/license-md"
+        },
+        {
+          "text": "Project Overview",
+          "link": "/project-overview/config-json"
+        },
+        {
+          "text": "Project Overview",
+          "link": "/project-overview/dockerignore"
+        },
+        {
+          "text": "Project Overview: Codx-Junior",
+          "link": "/project-overview/scripts-logo-sh"
+        },
+        {
+          "text": "Project Overview: CODX-Junior WebSockify Configuration",
+          "link": "/project-overview/websockify-token-cfg"
+        },
+        {
+          "text": "Project Overview: Qwen2.5-7B-Instruct Tokenizer Configuration",
+          "link": "/project-overview/vllm-models-hub-models-qwen-qwen2-5-7b-instruct-blobs-07bfe0640cb5a0037f9322287fbfc682806cf672"
+        }
+      ]
+    },
+    {
+      "text": "Architecture",
+      "items": [
+        {
+          "text": "Advanced Container Build Management",
+          "link": "/domains/advanced-container-build-management"
+        },
+        {
+          "text": "Advanced Container Lifecycle Management",
+          "link": "/domains/advanced-container-lifecycle-management"
+        },
+        {
+          "text": "AI Pricing Configuration",
+          "link": "/domains/ai-pricing-configuration"
+        },
+        {
+          "text": "Build Artifact Configuration",
+          "link": "/domains/build-artifact-configuration"
+        },
+        {
+          "text": "Build Context Configuration",
+          "link": "/domains/build-context-configuration"
+        },
+        {
+          "text": "Build Context Exclusion",
+          "link": "/domains/build-context-exclusion"
+        },
+        {
+          "text": "Build Context Filtering",
+          "link": "/domains/build-context-filtering"
+        },
+        {
+          "text": "Build Context Ignoring",
+          "link": "/domains/build-context-ignoring"
+        },
+        {
+          "text": "Build Context Management",
+          "link": "/domains/build-context-management"
+        },
+        {
+          "text": "Build Environment Configuration",
+          "link": "/domains/build-environment-configuration"
+        },
+        {
+          "text": "Build Exclusion Configuration",
+          "link": "/domains/build-exclusion-configuration"
+        },
+        {
+          "text": "Claude Pricing Configuration",
+          "link": "/domains/claude-pricing-configuration"
+        },
+        {
+          "text": "Container Build Configuration",
+          "link": "/domains/container-build-configuration"
+        },
+        {
+          "text": "Container Build Context Control",
+          "link": "/domains/container-build-context-control"
+        },
+        {
+          "text": "Container Build Context Exclusions",
+          "link": "/domains/container-build-context-exclusions"
+        },
+        {
+          "text": "Container Build Context Management",
+          "link": "/domains/container-build-context-management"
+        },
+        {
+          "text": "Container Build Context Utility",
+          "link": "/domains/container-build-context-utility"
+        },
+        {
+          "text": "Container Build Exclusion",
+          "link": "/domains/container-build-exclusion"
+        },
+        {
+          "text": "Container Build Exclusion Settings",
+          "link": "/domains/container-build-exclusion-settings"
+        },
+        {
+          "text": "Container Build Exclusion Setup",
+          "link": "/domains/container-build-exclusion-setup"
+        },
+        {
+          "text": "Container Build Filtering",
+          "link": "/domains/container-build-filtering"
+        },
+        {
+          "text": "Container Build Ignore Rules",
+          "link": "/domains/container-build-ignore-rules"
+        },
+        {
+          "text": "Container Build Management",
+          "link": "/domains/container-build-management"
+        },
+        {
+          "text": "Container Build Optimization",
+          "link": "/domains/container-build-optimization"
+        },
+        {
+          "text": "Container Build Preparation",
+          "link": "/domains/container-build-preparation"
+        },
+        {
+          "text": "Container Build Setup",
+          "link": "/domains/container-build-setup"
+        },
+        {
+          "text": "Container Build Utilities",
+          "link": "/domains/container-build-utilities"
+        },
+        {
+          "text": "Container Deployment Setup",
+          "link": "/domains/container-deployment-setup"
+        },
+        {
+          "text": "Container Deployment Strategies",
+          "link": "/domains/container-deployment-strategies"
+        },
+        {
+          "text": "Container Exclusion Management",
+          "link": "/domains/container-exclusion-management"
+        },
+        {
+          "text": "Container Exclusion Rules",
+          "link": "/domains/container-exclusion-rules"
+        },
+        {
+          "text": "Container Image Configuration",
+          "link": "/domains/container-image-configuration"
+        },
+        {
+          "text": "Container Lifecycle Management",
+          "link": "/domains/container-lifecycle-management"
+        },
+        {
+          "text": "Container Optimization Layer",
+          "link": "/domains/container-optimization-layer"
+        },
+        {
+          "text": "Containerization Build Configuration",
+          "link": "/domains/containerization-build-configuration"
+        },
+        {
+          "text": "Containerization Build Setup",
+          "link": "/domains/containerization-build-setup"
+        },
+        {
+          "text": "Containerization Setup Management",
+          "link": "/domains/containerization-setup-management"
+        },
+        {
+          "text": "Containerization Setup Module",
+          "link": "/domains/containerization-setup-module"
+        },
+        {
+          "text": "Deployment Build Configuration",
+          "link": "/domains/deployment-build-configuration"
+        },
+        {
+          "text": "Deployment Build Context Management",
+          "link": "/domains/deployment-build-context-management"
+        },
+        {
+          "text": "Deployment Context Management",
+          "link": "/domains/deployment-context-management"
+        },
+        {
+          "text": "Development Container Infrastructure",
+          "link": "/domains/development-container-infrastructure"
+        },
+        {
+          "text": "Docker Build Context",
+          "link": "/domains/docker-build-context"
+        },
+        {
+          "text": "Docker Build Context Config",
+          "link": "/domains/docker-build-context-config"
+        },
+        {
+          "text": "Docker Build Context Configuration",
+          "link": "/domains/docker-build-context-configuration"
+        },
+        {
+          "text": "Docker Build Context Control",
+          "link": "/domains/docker-build-context-control"
+        },
+        {
+          "text": "Docker Build Context Definition",
+          "link": "/domains/build-context-definition"
+        },
+        {
+          "text": "Docker Build Context Exclusion",
+          "link": "/domains/docker-build-context-exclusion"
+        },
+        {
+          "text": "Docker Build Context Exclusions",
+          "link": "/domains/docker-build-context-exclusions"
+        },
+        {
+          "text": "Docker Build Context Files",
+          "link": "/domains/docker-build-context-files"
+        },
+        {
+          "text": "Docker Build Context Filtering",
+          "link": "/domains/docker-build-context-filtering"
+        },
+        {
+          "text": "Docker Build Context Handler",
+          "link": "/domains/docker-build-context-handler"
+        },
+        {
+          "text": "Docker Build Context Handling",
+          "link": "/domains/docker-build-context-handling"
+        },
+        {
+          "text": "Docker Build Context Management",
+          "link": "/domains/docker-build-context-management"
+        },
+        {
+          "text": "Docker Build Context Setup",
+          "link": "/domains/docker-build-context-setup"
+        },
+        {
+          "text": "Docker Build Exclusion",
+          "link": "/domains/docker-build-exclusion"
+        },
+        {
+          "text": "Docker Build Exclusion Config",
+          "link": "/domains/docker-build-exclusion-config"
+        },
+        {
+          "text": "Docker Build Exclusion Helper",
+          "link": "/domains/docker-build-exclusion-helper"
+        },
+        {
+          "text": "Docker Build Exclusion Management",
+          "link": "/domains/docker-build-exclusion-management"
+        },
+        {
+          "text": "Docker Build Exclusion Manager",
+          "link": "/domains/docker-build-exclusion-manager"
+        },
+        {
+          "text": "Docker Build Exclusion Rules",
+          "link": "/domains/docker-build-exclusion-rules"
+        },
+        {
+          "text": "Docker Build Exclusion Settings",
+          "link": "/domains/docker-build-exclusion-settings"
+        },
+        {
+          "text": "Docker Build Exclusions",
+          "link": "/domains/docker-build-exclusions"
+        },
+        {
+          "text": "Docker Build Ignore Configuration",
+          "link": "/domains/docker-build-ignore-configuration"
+        },
+        {
+          "text": "Docker Build Management",
+          "link": "/domains/docker-build-management"
+        },
+        {
+          "text": "Docker Build Metadata",
+          "link": "/domains/docker-build-metadata"
+        },
+        {
+          "text": "Docker Build Optimization",
+          "link": "/domains/docker-build-optimization"
+        },
+        {
+          "text": "Docker Configuration Management",
+          "link": "/domains/docker-configuration-management"
+        },
+        {
+          "text": "Docker Container Build Optimization",
+          "link": "/domains/docker-container-build-optimization"
+        },
+        {
+          "text": "Docker Context Configuration",
+          "link": "/domains/docker-context-configuration"
+        },
+        {
+          "text": "Docker Context Exclusion",
+          "link": "/domains/docker-context-exclusion"
+        },
+        {
+          "text": "Docker Context Filtering",
+          "link": "/domains/docker-context-filtering"
+        },
+        {
+          "text": "Docker Context Management",
+          "link": "/domains/docker-context-management"
+        },
+        {
+          "text": "Docker Environment Setup",
+          "link": "/domains/docker-environment-setup"
+        },
+        {
+          "text": "Docker Exclusion Management",
+          "link": "/domains/docker-exclusion-management"
+        },
+        {
+          "text": "Docker File Management",
+          "link": "/domains/docker-file-management"
+        },
+        {
+          "text": "Docker Ignore Configuration",
+          "link": "/domains/docker-ignore-configuration"
+        },
+        {
+          "text": "Docker Image Preparation",
+          "link": "/domains/docker-image-preparation"
+        },
+        {
+          "text": "Dockerfile Context Management",
+          "link": "/domains/dockerfile-context-management"
+        },
+        {
+          "text": "Domain Container Deployment",
+          "link": "/domains/domain-container-deployment"
+        },
+        {
+          "text": "Domain Container Lifecycle Management",
+          "link": "/domains/domain-container-lifecycle-management"
+        },
+        {
+          "text": "Domain Container Orchestration",
+          "link": "/domains/domain-container-orchestration"
+        },
+        {
+          "text": "Domain Deployment Configuration",
+          "link": "/domains/domain-deployment-configuration"
+        },
+        {
+          "text": "Domain-Based Container Deployment",
+          "link": "/domains/domain-based-container-deployment"
+        },
+        {
+          "text": "Domain-Specific Container Deployment",
+          "link": "/domains/domain-specific-container-deployment"
+        },
+        {
+          "text": "general",
+          "link": "/domains/general"
+        },
+        {
+          "text": "Local Build Configuration",
+          "link": "/domains/local-build-configuration"
+        },
+        {
+          "text": "Multi-Domain Build & Deployment",
+          "link": "/domains/multi-domain-build-deployment"
+        },
+        {
+          "text": "Multi-Domain Container Build",
+          "link": "/domains/multi-domain-container-build"
+        },
+        {
+          "text": "Multi-Domain Container Deployment",
+          "link": "/domains/multi-domain-container-deployment"
+        },
+        {
+          "text": "Multi-Domain Container Infrastructure",
+          "link": "/domains/multi-domain-container-infrastructure"
+        },
+        {
+          "text": "Multi-Domain Container Lifecycle",
+          "link": "/domains/multi-domain-container-lifecycle"
+        },
+        {
+          "text": "Multi-Domain Container Lifecycle Management",
+          "link": "/domains/multi-domain-container-lifecycle-management"
+        },
+        {
+          "text": "Multi-Domain Container Management",
+          "link": "/domains/multi-domain-container-management"
+        },
+        {
+          "text": "Multi-Domain Container Operations",
+          "link": "/domains/multi-domain-container-operations"
+        },
+        {
+          "text": "Multi-Domain Container Orchestration",
+          "link": "/domains/multi-domain-container-orchestration"
+        },
+        {
+          "text": "Multi-Domain Container Platform",
+          "link": "/domains/multi-domain-container-platform"
+        },
+        {
+          "text": "Multi-Domain Container Setup",
+          "link": "/domains/multi-domain-container-setup"
+        },
+        {
+          "text": "Multi-Domain Container Workflow Management",
+          "link": "/domains/multi-domain-container-workflow-management"
+        },
+        {
+          "text": "Multi-Domain Deployment Management",
+          "link": "/domains/multi-domain-deployment-management"
+        },
+        {
+          "text": "Multi-Domain Deployment Platform",
+          "link": "/domains/multi-domain-deployment-platform"
+        },
+        {
+          "text": "Project Configuration Files",
+          "link": "/domains/project-configuration-files"
+        },
+        {
+          "text": "Software Domain Wiki: Docker Build Configuration",
+          "link": "/domains/docker-build-configuration"
+        }
+      ]
+    }
+  ],
+  "last_update": 1794301274
 }

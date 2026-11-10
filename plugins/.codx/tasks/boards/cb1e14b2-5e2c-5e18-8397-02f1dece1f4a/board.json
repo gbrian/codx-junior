@@ -1,0 +1,21 @@
+{
+  "title": "Azure DevOps",
+  "columns": [
+    {
+      "id": "13f77409-8878-41b3-8fd7-b0f5d4c90dd2",
+      "title": "Doc",
+      "color": "#000000",
+      "folder": "Doc",
+      "order": 0
+    }
+  ],
+  "background": "https://devtron.ai/blog/content/images/2025/01/2172552.png",
+  "active": false,
+  "last_update": "2026-02-08T03:19:46.438Z",
+  "id": "cb1e14b2-5e2c-5e18-8397-02f1dece1f4a",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Azure DevOps",
+  "order": 0
+}

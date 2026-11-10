@@ -1,0 +1,20 @@
+{
+  "id": "e0f0d59e-7903-5b51-a60a-0920a8a4f6e2",
+  "title": "Project selector",
+  "description": "",
+  "columns": [
+    {
+      "id": "8ff06c78-8a7b-4797-8482-221115c69e20",
+      "title": "To Do",
+      "color": "#000000",
+      "folder": "To Do",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-08-20T13:06:30.741Z",
+  "active": false,
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Project selector",
+  "order": 15
+}

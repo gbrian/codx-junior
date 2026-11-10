@@ -1,0 +1,34 @@
+{
+  "id": "dd17cd19-a9d2-56a8-a4f1-32898cfcba56",
+  "title": "Knowledge Search",
+  "description": "Scrum board",
+  "columns": [
+    {
+      "id": "f646a8db-e61f-4962-9599-df5a62b99a8a",
+      "title": "To Do",
+      "color": "#FF5733",
+      "folder": "To Do",
+      "order": 0
+    },
+    {
+      "id": "f9d3c3bf-a936-4bc1-b66b-5d271364d394",
+      "title": "In Progress",
+      "color": "#33FF57",
+      "folder": "In Progress",
+      "order": 1
+    },
+    {
+      "id": "4c4eba3f-cc28-4ffc-b1e7-241df3469442",
+      "title": "Done",
+      "color": "#3357FF",
+      "folder": "Done",
+      "order": 2
+    }
+  ],
+  "last_update": "2026-05-02T09:41:12.340Z",
+  "active": true,
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Knowledge Search",
+  "order": 13
+}

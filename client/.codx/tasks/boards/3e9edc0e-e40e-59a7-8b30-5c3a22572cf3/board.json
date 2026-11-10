@@ -1,0 +1,21 @@
+{
+  "title": "Mobile",
+  "columns": [
+    {
+      "id": "e1c9bc17-3e1b-428f-9bb0-1201f539af70",
+      "title": "ToDo",
+      "color": "#000000",
+      "folder": "ToDo",
+      "order": 0
+    }
+  ],
+  "background": "https://mir-s3-cdn-cf.behance.net/projects/404/a6930c217888627.Y3JvcCwzMjMyLDI1MjgsMCww.jpg",
+  "active": false,
+  "last_update": "2025-12-07T07:54:20.393Z",
+  "id": "3e9edc0e-e40e-59a7-8b30-5c3a22572cf3",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Mobile",
+  "order": 23
+}

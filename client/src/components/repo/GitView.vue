@@ -38,6 +38,11 @@ export default {
       repoTree: [],
       // Registered worktrees with the changes inside each checkout
       worktrees: [],
+      // The worktree details (status + merge preview) are loaded separately
+      // so `/info` stays fast on repositories with many checkouts.
+      worktreesLoading: false,
+      worktreesError: null,
+      worktreesToken: 0,
       // Worktree expansion, keyed by worktree path (undefined = expanded)
       expandedWorktrees: {},
       // .gitignore editor
@@ -1715,8 +1720,11 @@ export default {
       }
       this.branches = Array.isArray(branchesRes) ? branchesRes : (branchesRes?.branches || [])
       this.repoTree = branchesRes?.repo_tree || []
-      // Repository info carries every worktree with the files changed inside it
+      // `/info` carries only the cheap worktree metadata. File counts and the
+      // merge preview are loaded in the background; scanning every checkout
+      // inside `/info` could time out on large repositories.
       this.worktrees = Array.isArray(this.info.worktrees) ? this.info.worktrees : []
+      this.loadWorktrees()
       // Conflict state: the backend detects a pending merge/rebase while
       // loading the info, so the banner appears without another request.
       this.conflictState = this.info.conflict_state || null
@@ -1734,6 +1742,30 @@ export default {
       this.pruneSelection()
       this.syncSelectedFile()
       this.loading = false
+    },
+
+    /**
+     * Load worktree file changes and the "pending to merge" preview.
+     *
+     * This is the expensive part of the old `/info` payload: one `git status`
+     * per worktree plus the branch comparison. It runs as a separate request so
+     * the repository header can render immediately.
+     */
+    async loadWorktrees() {
+      if (!this.api) return
+      const token = ++this.worktreesToken
+      this.worktreesLoading = true
+      this.worktreesError = null
+      try {
+        const list = await this.api.repo.worktrees({ includeChanges: true })
+        if (token !== this.worktreesToken) return
+        if (Array.isArray(list)) this.worktrees = list
+      } catch (ex) {
+        if (token !== this.worktreesToken) return
+        this.worktreesError = ex?.response?.data?.detail || ex?.message || String(ex)
+      } finally {
+        if (token === this.worktreesToken) this.worktreesLoading = false
+      }
     },
 
     selectBranch(branch) {
@@ -2733,8 +2765,12 @@ export default {
               <div class="flex items-center gap-1.5 px-2 py-1.5 bg-base-200/40">
                 <i class="fa-solid fa-folder-tree text-info text-[10px]"></i>
                 <span class="text-[11px] font-bold uppercase tracking-wide opacity-60 grow">Worktrees</span>
+                <i v-if="worktreesLoading" class="fa-solid fa-spinner animate-spin text-[10px] opacity-50"></i>
                 <span class="badge badge-xs badge-ghost">{{ worktreeList.length }}</span>
               </div>
+              <p v-if="worktreesError" class="px-2 py-1 text-[10px] text-error break-words">
+                {{ worktreesError }}
+              </p>
 
               <div
                 v-for="worktree in worktreeList"

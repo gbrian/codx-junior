@@ -1,0 +1,21 @@
+{
+  "columns": [
+    {
+      "id": "a7636264-511b-44df-8acc-1312121f1b2f",
+      "title": "Editor",
+      "color": "#000000",
+      "folder": "Editor",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "last_update": "2025-11-01T11:38:00.660Z",
+  "background": "https://t4.ftcdn.net/jpg/04/67/33/63/360_F_467336388_0va3c6r0LhxYW0szCrOEb4LYAhYMTbjo.jpg",
+  "id": "5da83009-125c-5d24-8f67-6dcc3ea359d5",
+  "title": "Profiles",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Profiles",
+  "order": 1
+}

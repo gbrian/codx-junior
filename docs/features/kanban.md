@@ -27,3 +27,67 @@ Switch between the **board** view (columns and cards), a **grid** view with filt
 ## Templates
 
 Mark a chat as a template to reuse it when creating new tasks.
+
+## Global task search
+
+Large boards hide work. The **Find** button in the Kanban toolbar (or
+`Ctrl/Cmd+Shift+F`) opens a project-wide search over **every board and sprint**,
+not only the board that is currently open.
+
+The search runs on the server (`GET /api/kanban/search`) so it also finds tasks
+outside the default 30-day chat window. Every whitespace-separated term must
+match somewhere in the:
+
+* task name and description,
+* board, column, status and priority,
+* profiles, people and tags,
+* last message.
+
+Results are scored (an exact title match first, then a title prefix, then the
+metadata and messages) and can be filtered by board, status, priority, profile
+and assignee. `Include done` is on by default; turn it off to focus on open work.
+Use `↑` / `↓` and `Enter` to open a result without leaving the keyboard. A result
+on another board switches the Kanban panel to that board before opening the card.
+
+## Board manager
+
+A board can associate a **profile** and let it review the board in the
+background. Open **Board manager** in the board toolbar (or in *Board settings*)
+to configure:
+
+* **Manager profile** — the profile that reviews the board. Empty falls back to
+  the board assistant and then to `ProjectManager`.
+* **Mode** — `Apply changes` writes the actions, `Suggest only` records them in
+  the report.
+* **Review every** — the minimum interval between two automatic reviews.
+* **Max actions per review** — a hard upper bound.
+* **Include done** — closed tasks are sent as context but are never modified.
+* **Instructions** — board-specific policy (for example *close tasks completed
+  more than 7 days ago*, *move blocked cards to On hold*).
+
+The background worker sends the profile a bounded snapshot of the board and asks
+for a JSON decision. Supported actions are:
+
+| Action | Effect |
+| --- | --- |
+| `move_task` | Move a kanban card to a column, or a sprint card to a status |
+| `comment` | Add a comment to the task (an assistant message) |
+| `close_task` | Set the status to done, progress 100 and move to the Done column when it exists |
+| `update_task` | Change priority, due date, progress, assignees or tags |
+| `create_task` | Create a follow-up task on the board |
+
+Every action is validated before it is applied: the task must belong to the
+board, the destination column must exist, and closed tasks, templates, channels
+and cards owned by an active orchestration run are never modified. In *Suggest
+only* mode nothing is written.
+
+The **status panel** of the board manager shows the last run, next run, total
+cost, the last report and the applied actions. **Run now** queues an immediate
+review; the actual AI turn is executed by the background worker, so the HTTP
+request returns immediately. If the worker is not running, the panel says so and
+the review stays queued.
+
+The manager is disabled by default. Enable it explicitly per board. The
+background loop is controlled by `CODX_JUNIOR_BOARD_MANAGER` and
+`CODX_JUNIOR_BOARD_MANAGER_TICK_SECONDS`; it can be turned off without disabling
+the rest of the background services.

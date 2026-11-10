@@ -1,0 +1,21 @@
+{
+  "id": "266fdb00-25cd-58c9-b5a2-b8dc9a8af729",
+  "title": "OAuth",
+  "columns": [
+    {
+      "id": "83907c93-00cd-4d87-91cf-879846f1c9f2",
+      "title": "Todo",
+      "color": "#000000",
+      "folder": "Todo",
+      "order": 0
+    }
+  ],
+  "last_update": "2025-09-07T08:49:58.595Z",
+  "active": false,
+  "description": "Desc",
+  "background": "https://cdn-media-1.freecodecamp.org/images/1*c8t6OXt7tMEUpeki-HEobg.jpeg",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "OAuth",
+  "order": 16
+}

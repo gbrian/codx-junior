@@ -9,6 +9,8 @@ import FollowupView from './FollowupView.vue'
 import TaskTableView from './TaskTableView.vue'
 import BoardAssistantChat from './BoardAssistantChat.vue'
 import BoardTransferModal from './BoardTransferModal.vue'
+import GlobalTaskSearch from '../GlobalTaskSearch.vue'
+import BoardManagerModal from '../BoardManagerModal.vue'
 import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 import ChatView from '@/views/ChatView.vue'
 import ChatIcon from '@/components/chat/ChatIcon.vue'
@@ -44,6 +46,7 @@ import MobileActionSheet from '@/components/mobile/MobileActionSheet.vue'
             @select="onSelectBoardFromList"
             @new-board="openNewBoardModal"
             @bookmark="onBookmark"
+            @find-tasks="openGlobalSearch"
           />
         </div>
       </div>
@@ -238,6 +241,17 @@ import MobileActionSheet from '@/components/mobile/MobileActionSheet.vue'
         <span class="hidden sm:inline text-xs">All boards</span>
       </button>
 
+      <!-- Project-wide task search (all boards + sprints) -->
+      <button
+        class="btn btn-ghost btn-xs gap-1.5 text-base-content/40 hover:text-primary tooltip tooltip-bottom"
+        title="Find any task (Ctrl/Cmd+Shift+F)"
+        aria-label="Find any task"
+        @click="openGlobalSearch"
+      >
+        <i class="fa-solid fa-magnifying-glass-chart text-xs"></i>
+        <span class="hidden lg:inline text-xs">Find</span>
+      </button>
+
       <!-- Sprint stats (hidden by default) -->
       <button
         v-if="isSprintBoard"
@@ -312,6 +326,40 @@ import MobileActionSheet from '@/components/mobile/MobileActionSheet.vue'
       >
         <i class="fa-solid fa-right-left text-xs"></i>
         <span class="hidden sm:inline text-xs">Transfer</span>
+      </button>
+
+      <!-- Board manager: background reviewer of this board. The selected
+           profile avatar is the button icon; it turns grey while the manager is
+           disabled, and an empty selection falls back to the generic user icon. -->
+      <button
+        v-if="!isVirtualBoard"
+        class="btn btn-ghost btn-xs gap-1.5"
+        :class="boardManagerEnabled ? 'text-primary' : 'text-base-content/40 hover:text-primary'"
+        :title="boardManagerTitle"
+        aria-label="Board manager"
+        @click="openBoardManager()"
+      >
+        <span
+          v-if="boardManagerAvatar"
+          class="w-5 h-5 rounded-full overflow-hidden bg-base-300 shrink-0 transition-all"
+          :class="{ 'grayscale opacity-50': !boardManagerEnabled }"
+        >
+          <img
+            :src="boardManagerAvatar"
+            :alt="boardManagerProfile?.name || 'Board manager'"
+            class="w-full h-full object-cover"
+          />
+        </span>
+        <i
+          v-else
+          class="fa-solid fa-user text-xs"
+          :class="{ 'opacity-50': !boardManagerEnabled }"
+        ></i>
+        <span class="hidden lg:inline text-xs">Manager</span>
+        <span
+          v-if="boardManagerEnabled"
+          class="w-1.5 h-1.5 rounded-full bg-primary"
+        ></span>
       </button>
 
       <!-- Board settings: name, description, background, assistant & participants -->
@@ -648,6 +696,7 @@ import MobileActionSheet from '@/components/mobile/MobileActionSheet.vue'
       @board-created="onBoardCreated"
       @board-updated="onBoardUpdated"
       @board-delete="onBoardDelete"
+      @board-manager="onBoardManagerFromSettings"
     />
 
     <!-- Export / import board (kanban & sprint) -->
@@ -657,6 +706,24 @@ import MobileActionSheet from '@/components/mobile/MobileActionSheet.vue'
       :project="project"
       @close="showTransfer = false"
       @imported="onBoardImported"
+    />
+
+    <!-- Board manager (background project manager for this board) -->
+    <BoardManagerModal
+      v-if="showBoardManager && managerBoard"
+      :board="managerBoard"
+      :project="project || $projects.activeProject"
+      @close="showBoardManager = false"
+      @save="onBoardManagerSave"
+    />
+
+    <!-- Project-wide task search (all boards and sprints) -->
+    <GlobalTaskSearch
+      v-if="showGlobalSearch"
+      :project="project || $projects.activeProject"
+      :boards="boards"
+      @close="showGlobalSearch = false"
+      @select="onGlobalTaskSelected"
     />
 
     <!-- Mobile overflow menu -->
@@ -713,7 +780,12 @@ export default {
       showStats: false,
       // Mobile toolbar state
       showMobileSearch: false,
-      showMobileActions: false
+      showMobileActions: false,
+      // Project-wide search modal (all boards / sprints)
+      showGlobalSearch: false,
+      // Background board manager configuration/status modal
+      showBoardManager: false,
+      managerBoardId: null
     }
   },
   created() {
@@ -737,6 +809,28 @@ export default {
     this.syncAppInfo()
     // Single mode: mirror the open board in the route so a refresh reopens it.
     this.syncRouteParams()
+  },
+  mounted() {
+    // Resolve the board manager profile avatar as soon as the board is open.
+    this.ensureManagerProfiles()
+    this.onGlobalSearchShortcut = (event) => {
+      // Ctrl/Cmd+Shift+F opens the project-wide task search. Cmd+K is already
+      // owned by the top bar, so the Kanban search uses its own shortcut.
+      if (!((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'f')) return
+      // Several Kanban panels can be mounted at once (desktop mode): only the
+      // focused/hosted one answers the shortcut.
+      const activeTabId = this.appTabId
+      const activeAppTabId = this.$storex.ui.activeApp?.tabId
+      if (activeTabId && activeAppTabId && activeTabId !== activeAppTabId) return
+      const focused = document.activeElement
+      if (focused && focused !== document.body && !this.$el.contains(focused)) return
+      event.preventDefault()
+      this.openGlobalSearch()
+    }
+    document.addEventListener('keydown', this.onGlobalSearchShortcut)
+  },
+  beforeUnmount() {
+    document.removeEventListener('keydown', this.onGlobalSearchShortcut)
   },
   computed: {
     // Resolve a requested initial view from app params (multiple shapes) or the route query
@@ -798,6 +892,13 @@ export default {
           toneClass: 'bg-secondary/15 text-secondary'
         },
         {
+          key: 'find-tasks',
+          label: 'Find any task',
+          description: 'Search every board and sprint',
+          icon: 'fa-solid fa-magnifying-glass-chart',
+          toneClass: 'bg-secondary/15 text-secondary'
+        },
+        {
           key: 'new-task',
           label: 'New task',
           description: 'Add a card to the first column',
@@ -827,6 +928,14 @@ export default {
           description: 'Name, background, assistant and people',
           icon: 'fa-solid fa-gear',
           toneClass: 'bg-base-content/10 text-base-content/70',
+          disabled: this.isVirtualBoard
+        },
+        {
+          key: 'board-manager',
+          label: 'Board manager',
+          description: 'Automate reviews of this board',
+          icon: 'fa-solid fa-user-tie',
+          toneClass: 'bg-primary/15 text-primary',
           disabled: this.isVirtualBoard
         },
         {
@@ -871,6 +980,29 @@ export default {
     },
     activeBoardTitle() {
       return this.activeBoard?.title || 'Sprint'
+    },
+    // Board whose manager modal is open (it may be different from the active
+    // board when opened from the board list).
+    managerBoard() {
+      return this.$storex.kanban.boardById(this.managerBoardId || this.activeBoardId)
+    },
+    // Profile explicitly selected for the board manager (no assignee fallback:
+    // an empty selection must show the generic user icon, not the assistant).
+    boardManagerProfile() {
+      return this.$storex.kanban.boardManagerProfile(this.activeBoardId)
+    },
+    boardManagerAvatar() {
+      const profile = this.boardManagerProfile
+      return profile?.avatar_url || profile?.avatar || null
+    },
+    boardManagerEnabled() {
+      return !!this.activeBoard?.manager?.enabled
+    },
+    boardManagerTitle() {
+      const name = this.boardManagerProfile?.name || 'no profile selected'
+      return this.boardManagerEnabled
+        ? `Board manager: ${name} (enabled)`
+        : `Board manager: ${name} (disabled)`
     },
     // Sprint boards replace the kanban canvas/sidebar with the sprint shell
     isSprintBoard() {
@@ -1095,6 +1227,7 @@ export default {
     activeBoardId() {
       this.sideTaskId = null
       this.editingColumn = null
+      this.ensureManagerProfiles()
     },
     // Single (non-desktop) mode: reopen the board addressed by the URL whenever
     // the route changes (refresh, back/forward, deep link or a link to another
@@ -1257,6 +1390,9 @@ export default {
         case 'search':
           this.showMobileSearch = !this.showMobileSearch
           break
+        case 'find-tasks':
+          this.openGlobalSearch()
+          break
         case 'new-task':
           this.openNewTask({})
           break
@@ -1269,6 +1405,9 @@ export default {
         case 'board-settings':
           this.openEditBoardModal()
           break
+        case 'board-manager':
+          this.openBoardManager()
+          break
         case 'new-board':
           this.openNewBoardModal()
           break
@@ -1279,6 +1418,81 @@ export default {
           this.openAddExisting()
           break
       }
+    },
+
+    // ── Board manager ────────────────────────────────────────────────────────
+    // Profiles are loaded per project (and only on demand): the manager avatar
+    // needs the profile that may live in another project than the active one.
+    async ensureManagerProfiles() {
+      const board = this.activeBoard
+      if (!board?.manager?.profile) return
+      const project = this.$storex.projects.allProjectsById?.[board.project_id] ||
+        this.project || this.$storex.projects.activeProject
+      if (!project) return
+      const loaded = project.$state?.profiles ||
+        this.$storex.profiles.profilesByProject?.[project.project_id]
+      if (loaded?.length) return
+      await this.$storex.profiles.loadProjectProfiles({ project })
+    },
+    openBoardManager(board = null) {
+      this.managerBoardId = board?.id || board?.title || this.activeBoardId
+      this.showBoardManager = true
+    },
+    onBoardManagerFromSettings(board) {
+      this.openBoardManager(board)
+    },
+    async onBoardManagerSave({ board, manager }) {
+      const title = board?.title || this.activeBoardId
+      if (!title) return
+      await this.$storex.kanban.saveBoard({
+        originalTitle: board?.id || title,
+        board: { title, manager }
+      })
+      this.showBoardManager = false
+      await this.ensureManagerProfiles()
+      this.$ui?.addNotification?.({
+        text: manager?.enabled
+          ? 'Board manager saved and enabled'
+          : 'Board manager saved and disabled'
+      })
+    },
+
+    // ── Global task search ───────────────────────────────────────────────────
+    async openGlobalSearch() {
+      this.showGlobalSearch = true
+    },
+    // A global result may live on another board (a sprint also accepts cards
+    // from other kanban boards). Switch to the best matching board first, then
+    // load the full chat and open it in the shared detail pane.
+    async onGlobalTaskSelected(result) {
+      if (!result?.id) return
+      this.showGlobalSearch = false
+      const candidateBoards = [
+        result.board,
+        ...(result.sprints || []),
+        this.activeBoardId
+      ].filter(Boolean)
+      const targetBoard = candidateBoards.find(boardId =>
+        this.$storex.kanban.boardById(boardId)
+      )
+      if (targetBoard && targetBoard !== this.activeBoardId) {
+        this.boardAppliedFromParams = true
+        this.activeBoardId = targetBoard
+        this.selectedTaskId = null
+        this.activeColumnFilter = 'all'
+        this.showBoardList = false
+      }
+      let chat = this.$storex.chats.chats?.[result.id] || null
+      try {
+        chat = await this.$storex.chats.loadChat({
+          id: result.id,
+          owner_project_id: result.owner_project_id,
+          project_id: result.project_id
+        })
+      } catch (error) {
+        console.error('[KanbanBoardView] Could not open search result:', error)
+      }
+      if (chat) this.onSelectTask(chat)
     },
 
     // ── Task selection / detail pane ─────────────────────────────────────────

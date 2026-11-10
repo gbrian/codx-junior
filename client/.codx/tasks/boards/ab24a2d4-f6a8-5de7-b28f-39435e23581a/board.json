@@ -1,0 +1,21 @@
+{
+  "title": "Document viewer",
+  "columns": [
+    {
+      "id": "4f5da956-66f0-461c-92d1-cef16dfe5213",
+      "title": "Doing",
+      "color": "#F39C19",
+      "folder": "Doing",
+      "order": 0
+    }
+  ],
+  "background": "",
+  "active": false,
+  "last_update": "2025-09-24T04:42:24.616Z",
+  "id": "ab24a2d4-f6a8-5de7-b28f-39435e23581a",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Document viewer",
+  "order": 21
+}

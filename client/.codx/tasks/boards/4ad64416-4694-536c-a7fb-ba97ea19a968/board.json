@@ -1,0 +1,19 @@
+{
+  "columns": [
+    {
+      "id": "f05a781f-dd08-43e5-a9c1-4ffbdb73379c",
+      "title": "Backlog",
+      "color": "",
+      "folder": "Backlog",
+      "order": 0
+    }
+  ],
+  "active": false,
+  "id": "4ad64416-4694-536c-a7fb-ba97ea19a968",
+  "title": "App Crashes on Android 32bit When emit event from TurboModule",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "App Crashes on Android 32bit When emit event from TurboModule",
+  "order": 8
+}

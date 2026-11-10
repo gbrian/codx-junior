@@ -1,0 +1,3556 @@
+{
+  "project": {
+    "name": "codx-api",
+    "description": "codx-api is a Python FastAPI backend exposing all functionalities for codx-junior.",
+    "icon": "https://gbrian.codxjunior.com/only_icon.png",
+    "repository": ""
+  },
+  "sidebar": [
+    {
+      "text": "Overview",
+      "items": [
+        {
+          "text": "Introduction",
+          "link": "/home"
+        }
+      ]
+    },
+    {
+      "text": "Ai and knowledge management",
+      "items": [
+        {
+          "text": "/codx/junior/ai/__init__.py",
+          "link": "/ai-and-knowledge-management/models/codx-junior-ai-init-py"
+        },
+        {
+          "text": "/codx/junior/ai/ai_logger.py",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-ai-ai-logger-py"
+        },
+        {
+          "text": "/codx/junior/knowledge/knowledge_keywords.py",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-knowledge-knowledge-keywords-py"
+        },
+        {
+          "text": "Agent Runtime Documentation",
+          "link": "/ai-and-knowledge-management/agents/engine-agent-runtime-py"
+        },
+        {
+          "text": "Agents",
+          "link": "/ai-and-knowledge-management/agents/codx-junior-agents-base-agent-py"
+        },
+        {
+          "text": "Ai and knowledge management codx junior ai ai py",
+          "link": "/ai-and-knowledge-management/codx-junior-ai-ai-py"
+        },
+        {
+          "text": "Ai and knowledge management codx junior analytics model py",
+          "link": "/ai-and-knowledge-management/codx-junior-analytics-model-py"
+        },
+        {
+          "text": "Ai and knowledge management codx junior knowledge knowledge training py",
+          "link": "/ai-and-knowledge-management/codx-junior-knowledge-knowledge-training-py"
+        },
+        {
+          "text": "Ai and knowledge management knowledge codx junior changes change manager py",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-changes-change-manager-py"
+        },
+        {
+          "text": "Ai and knowledge management knowledge codx junior globals py",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-globals-py"
+        },
+        {
+          "text": "Ai and knowledge management models codx junior api chatgptlikeapi py",
+          "link": "/ai-and-knowledge-management/models/codx-junior-api-chatgptlikeapi-py"
+        },
+        {
+          "text": "Ai and knowledge management models codx junior knowledge embeddings py",
+          "link": "/ai-and-knowledge-management/models/codx-junior-knowledge-embeddings-py"
+        },
+        {
+          "text": "Ai and knowledge management models codx junior plugins plugin manager py",
+          "link": "/ai-and-knowledge-management/models/codx-junior-plugins-plugin-manager-py"
+        },
+        {
+          "text": "AI Class Documentation",
+          "link": "/ai-and-knowledge-management/models/codx-junior-ai-ai-py"
+        },
+        {
+          "text": "AI Interaction Manager",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-ai-ai-py"
+        },
+        {
+          "text": "AI Model Configuration",
+          "link": "/ai-and-knowledge-management/models/codx-junior-model-ai-model-py"
+        },
+        {
+          "text": "AI Raw Log Models Documentation",
+          "link": "/ai-and-knowledge-management/models/codx-junior-model-logs-py"
+        },
+        {
+          "text": "Analytics Service Guide",
+          "link": "/ai-and-knowledge-management/codx-junior-analytics-analytics-py"
+        },
+        {
+          "text": "Background Service Management Guide",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-background-py"
+        },
+        {
+          "text": "Chat Engine",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-chat-chat-engine-py"
+        },
+        {
+          "text": "ChatEventBridge Documentation",
+          "link": "/ai-and-knowledge-management/codx-junior-chat-chat-event-bridge-py"
+        },
+        {
+          "text": "Check for tools",
+          "link": "/ai-and-knowledge-management/codx-junior-ai-mistral-ai-py-disabled"
+        },
+        {
+          "text": "Clone the repository (example path)",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-knowledge-readme-md"
+        },
+        {
+          "text": "codx-app/codx/junior/chat_manager.py",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-chat-manager-py"
+        },
+        {
+          "text": "Create a backup file name with the current date and time",
+          "link": "/ai-and-knowledge-management/models/codx-junior-settings-py"
+        },
+        {
+          "text": "Custom Tool Models",
+          "link": "/ai-and-knowledge-management/models/custom-tool"
+        },
+        {
+          "text": "Custom Tools Module",
+          "link": "/ai-and-knowledge-management/init"
+        },
+        {
+          "text": "Define the PluginArgument model",
+          "link": "/ai-and-knowledge-management/models/codx-junior-model-model-py"
+        },
+        {
+          "text": "DevOps Agent",
+          "link": "/ai-and-knowledge-management/agents/codx-junior-agents-devops-agent-py"
+        },
+        {
+          "text": "Generate Tasks Tool",
+          "link": "/ai-and-knowledge-management/codx-junior-tools-generate-tasks-tool-py"
+        },
+        {
+          "text": "Git API Documentation",
+          "link": "/ai-and-knowledge-management/agents/codx-junior-api-git-py"
+        },
+        {
+          "text": "GitHub Agent",
+          "link": "/ai-and-knowledge-management/agents/codx-junior-misc-github-py"
+        },
+        {
+          "text": "GitHub API Module",
+          "link": "/ai-and-knowledge-management/agents/codx-junior-api-github-py"
+        },
+        {
+          "text": "Global Settings Module Documentation",
+          "link": "/ai-and-knowledge-management/models/codx-junior-global-settings-py"
+        },
+        {
+          "text": "if not file_path.endswith(\".md\") and False:",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-knowledge-knowledge-code-splitter-py"
+        },
+        {
+          "text": "Image Engine Documentation",
+          "link": "/ai-and-knowledge-management/image-engine"
+        },
+        {
+          "text": "Image Model Documentation",
+          "link": "/ai-and-knowledge-management/models/image-model"
+        },
+        {
+          "text": "Image Tools Documentation",
+          "link": "/ai-and-knowledge-management/image-tools"
+        },
+        {
+          "text": "Knowledge Base API Documentation",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-api-knowledge-py"
+        },
+        {
+          "text": "Knowledge Engine Operations",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-engine-knowledge-engine-py"
+        },
+        {
+          "text": "Knowledge Loader Documentation",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-knowledge-knowledge-loader-py"
+        },
+        {
+          "text": "Knowledge Management System",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-knowledge-knowledge-milvus-py"
+        },
+        {
+          "text": "Knowledge Splitter",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-knowledge-knowledge-splitter-py"
+        },
+        {
+          "text": "KnowledgeDB Implementation Guide",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-knowledge-knowledge-db-py"
+        },
+        {
+          "text": "Loop Protection for SmolAgent Tool Calling",
+          "link": "/ai-and-knowledge-management/codx-junior-ai-smol-loop-guard-py"
+        },
+        {
+          "text": "Model Classes Documentation",
+          "link": "/ai-and-knowledge-management/model"
+        },
+        {
+          "text": "Model Documentation",
+          "link": "/ai-and-knowledge-management/codx-junior-model-model-py"
+        },
+        {
+          "text": "Models",
+          "link": "/ai-and-knowledge-management/models/codx-junior-model-user-py"
+        },
+        {
+          "text": "OpenAI AI Integration",
+          "link": "/ai-and-knowledge-management/models/codx-junior-ai-openai-ai-py"
+        },
+        {
+          "text": "Profile Manager",
+          "link": "/ai-and-knowledge-management/models/codx-junior-profiles-profile-manager-py"
+        },
+        {
+          "text": "Profile Manager",
+          "link": "/ai-and-knowledge-management/models/profile-manager"
+        },
+        {
+          "text": "Profile Model",
+          "link": "/ai-and-knowledge-management/models/codx-junior-model-profile-py"
+        },
+        {
+          "text": "Profile Model",
+          "link": "/ai-and-knowledge-management/models/profile"
+        },
+        {
+          "text": "Progress Callback System",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-engine-progress-callback-py"
+        },
+        {
+          "text": "self.client = Client(",
+          "link": "/ai-and-knowledge-management/models/codx-junior-ai-llmfactory-py"
+        },
+        {
+          "text": "Set up logging for this module",
+          "link": "/ai-and-knowledge-management/agents/codx-junior-agents-git-issues-agent-py"
+        },
+        {
+          "text": "SmolAgent Basic Chat Tests",
+          "link": "/ai-and-knowledge-management/agents/tests-ai-smol-test-smol-agent-py"
+        },
+        {
+          "text": "SmolAgent Constants Reference",
+          "link": "/ai-and-knowledge-management/codx-junior-ai-smol-constants-py"
+        },
+        {
+          "text": "SmolAgent Documentation",
+          "link": "/ai-and-knowledge-management/agents/smol-agent"
+        },
+        {
+          "text": "SmolAgent Package",
+          "link": "/ai-and-knowledge-management/agents/codx-junior-ai-smol-init-py"
+        },
+        {
+          "text": "SmolAgent: Async OpenAI Chat Agent",
+          "link": "/ai-and-knowledge-management/agents/codx-junior-ai-smol-smol-agent-py"
+        },
+        {
+          "text": "This file is used to mark the 'knowledge' directory as a Python package",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-knowledge-init-py"
+        },
+        {
+          "text": "TokenUsageEvent Model",
+          "link": "/ai-and-knowledge-management/models/codx-junior-analytics-model-py"
+        },
+        {
+          "text": "Tool Execution Cache Manager",
+          "link": "/ai-and-knowledge-management/codx-junior-ai-smol-tool-cache-py"
+        },
+        {
+          "text": "Try continue",
+          "link": "/ai-and-knowledge-management/knowledge/codx-junior-knowledge-knowledge-code-to-dcouments-py"
+        },
+        {
+          "text": "VllmCPUAI",
+          "link": "/ai-and-knowledge-management/models/codx-junior-ai-vllm-cpu-ai-py"
+        },
+        {
+          "text": "Wiki Manager Analysis",
+          "link": "/ai-and-knowledge-management/wiki-manager"
+        },
+        {
+          "text": "WikiManager Code Analysis",
+          "link": "/ai-and-knowledge-management/codx-junior-wiki-wiki-manager-py"
+        },
+        {
+          "text": "Workspace Models",
+          "link": "/ai-and-knowledge-management/models/codx-junior-workspaces-model-py"
+        }
+      ]
+    },
+    {
+      "text": "App module",
+      "items": [
+        {
+          "text": "App Module",
+          "link": "/app-module/codx-junior-main-py"
+        },
+        {
+          "text": "App module codx junior engine progress callback py",
+          "link": "/app-module/codx-junior-engine-progress-callback-py"
+        },
+        {
+          "text": "App module codx junior knowledge prepromts extract document tags md",
+          "link": "/app-module/codx-junior-knowledge-prepromts-extract-document-tags-md"
+        },
+        {
+          "text": "App module codx junior profiles coding profiles json",
+          "link": "/app-module/codx-junior-profiles-coding-profiles-json"
+        },
+        {
+          "text": "App module git engine",
+          "link": "/app-module/git-engine"
+        },
+        {
+          "text": "Background Services Overview",
+          "link": "/app-module/codx-junior-background-py"
+        },
+        {
+          "text": "Extract Query Tags",
+          "link": "/app-module/codx-junior-knowledge-prepromts-extract-query-tags-md"
+        },
+        {
+          "text": "Files API Module",
+          "link": "/app-module/files"
+        },
+        {
+          "text": "Files API Module Documentation",
+          "link": "/app-module/codx-junior-api-files-py"
+        },
+        {
+          "text": "GitEngine \u2013 Wiki Documentation",
+          "link": "/app-module/codx-junior-engine-git-engine-py"
+        },
+        {
+          "text": "Image API Module",
+          "link": "/app-module/image"
+        },
+        {
+          "text": "Wiki API Documentation",
+          "link": "/app-module/routes/codx-junior-api-wiki-py"
+        }
+      ]
+    },
+    {
+      "text": "Database and data storage",
+      "items": [
+        {
+          "text": "/README.md",
+          "link": "/database-and-data-storage/readme-md"
+        },
+        {
+          "text": "Analytics API Documentation",
+          "link": "/database-and-data-storage/codx-junior-analytics-analytics-py"
+        },
+        {
+          "text": "Analytics Router Documentation",
+          "link": "/database-and-data-storage/codx-junior-api-analytics-py"
+        },
+        {
+          "text": "Chat API Documentation",
+          "link": "/database-and-data-storage/codx-junior-api-chat-py"
+        },
+        {
+          "text": "CODX Junior Settings",
+          "link": "/database-and-data-storage/settings"
+        },
+        {
+          "text": "Custom Tool Manager",
+          "link": "/database-and-data-storage/custom-tool-manager"
+        },
+        {
+          "text": "Custom Tools API",
+          "link": "/database-and-data-storage/custom-tools"
+        },
+        {
+          "text": "Database and Data Storage",
+          "link": "/database-and-data-storage/codx-junior-db-py"
+        },
+        {
+          "text": "Database and data storage codx junior api db router py",
+          "link": "/database-and-data-storage/codx-junior-api-db-router-py"
+        },
+        {
+          "text": "Database Models and Data Storage",
+          "link": "/database-and-data-storage/db"
+        },
+        {
+          "text": "Global Settings Documentation",
+          "link": "/database-and-data-storage/codx-junior-global-settings-py"
+        },
+        {
+          "text": "GlobalSettingsManager",
+          "link": "/database-and-data-storage/settings-manager"
+        },
+        {
+          "text": "KnowledgeDB",
+          "link": "/database-and-data-storage/codx-junior-knowledge-knowledge-db-py"
+        },
+        {
+          "text": "Shared API Utilities",
+          "link": "/database-and-data-storage/init"
+        },
+        {
+          "text": "Workspace Model Compatibility Shim",
+          "link": "/database-and-data-storage/codx-junior-model-workspace-py"
+        },
+        {
+          "text": "Workspaces API",
+          "link": "/database-and-data-storage/codx-junior-api-workspaces-py"
+        }
+      ]
+    },
+    {
+      "text": "Engine module",
+      "items": [
+        {
+          "text": "Background Service Overview",
+          "link": "/engine-module/codx-junior-background-py"
+        },
+        {
+          "text": "Chat Engine Actions Module",
+          "link": "/engine-module/codx-junior-engine-chat-engine-actions-py"
+        },
+        {
+          "text": "ChatEngine Documentation",
+          "link": "/engine-module/chat-engine"
+        },
+        {
+          "text": "ChatEngine Documentation",
+          "link": "/engine-module/codx-junior-chat-chat-engine-py"
+        },
+        {
+          "text": "CodeEngine Overview",
+          "link": "/engine-module/codx-junior-engine-code-engine-py"
+        },
+        {
+          "text": "CODX Junior API Engine Module",
+          "link": "/engine-module/app"
+        },
+        {
+          "text": "CODXJuniorSession \u2014 Engine Session Module",
+          "link": "/engine-module/codx-junior-engine-session-py"
+        },
+        {
+          "text": "DockerComposeEngine",
+          "link": "/engine-module/codx-junior-workspaces-engines-compose-py"
+        },
+        {
+          "text": "Engine Module Documentation",
+          "link": "/engine-module/codx-junior-app-py"
+        },
+        {
+          "text": "Engine module session",
+          "link": "/engine-module/session"
+        },
+        {
+          "text": "Engine Module: Analytics and Session Management Issue",
+          "link": "/engine-module/content-mermaid"
+        },
+        {
+          "text": "File Engine Documentation",
+          "link": "/engine-module/codx-junior-engine-file-engine-py"
+        },
+        {
+          "text": "File Engine Module Documentation",
+          "link": "/engine-module/file-engine"
+        },
+        {
+          "text": "Project Manager",
+          "link": "/engine-module/codx-junior-project-project-manager-py"
+        },
+        {
+          "text": "Static Site Workspace Docker Compose Template",
+          "link": "/engine-module/codx-junior-workspaces-templates-static-site-docker-compose-yaml-j2"
+        },
+        {
+          "text": "Workspace Manager",
+          "link": "/engine-module/codx-junior-workspaces-manager-py"
+        },
+        {
+          "text": "Workspace Templates Module",
+          "link": "/engine-module/codx-junior-workspaces-templates-py"
+        },
+        {
+          "text": "WorkspaceEngine \u2014 Abstract Base Class",
+          "link": "/engine-module/codx-junior-workspaces-engines-base-py"
+        },
+        {
+          "text": "WorkspaceManager Documentation",
+          "link": "/engine-module/codx-junior-workspace-workspace-manager-py"
+        }
+      ]
+    },
+    {
+      "text": "Project overview",
+      "items": [
+        {
+          "text": "Agent Coding Task Guide",
+          "link": "/project-overview/codx-junior-profiles-agent-coding-task-md"
+        },
+        {
+          "text": "Chat API Documentation",
+          "link": "/project-overview/codx-junior-api-chat-py"
+        },
+        {
+          "text": "Code Block Generator Tool",
+          "link": "/project-overview/codx-junior-tools-code-block-generator-py"
+        },
+        {
+          "text": "Custom Tool Executor",
+          "link": "/project-overview/custom-tool-executor"
+        },
+        {
+          "text": "Custom Tool Models",
+          "link": "/project-overview/custom-tool"
+        },
+        {
+          "text": "Custom Tools Module",
+          "link": "/project-overview/init"
+        },
+        {
+          "text": "Dev Stack Docker Compose Template",
+          "link": "/project-overview/codx-junior-workspaces-templates-dev-stack-docker-compose-yaml-j2"
+        },
+        {
+          "text": "Dev Stack Dockerfile Overview",
+          "link": "/project-overview/codx-junior-workspaces-templates-dev-stack-dockerfile"
+        },
+        {
+          "text": "File Changes Application Tool",
+          "link": "/project-overview/apply-file-changes"
+        },
+        {
+          "text": "Project Overview",
+          "link": "/project-overview/codx-junior-profiles-project-profile"
+        },
+        {
+          "text": "Project Overview",
+          "link": "/project-overview/pyproject-toml"
+        },
+        {
+          "text": "Project overview codx junior profiles analyst profile md",
+          "link": "/project-overview/codx-junior-profiles-analyst-profile-md"
+        },
+        {
+          "text": "Project overview codx junior profiles software developer profile",
+          "link": "/project-overview/codx-junior-profiles-software-developer-profile"
+        },
+        {
+          "text": "Remove table of contents marker from header",
+          "link": "/project-overview/codx-junior-engine-session-py"
+        },
+        {
+          "text": "Replace with your session object",
+          "link": "/project-overview/codx-junior-engine-git-engine-py"
+        },
+        {
+          "text": "Token Usage Event and Tool Usage Event Documentation",
+          "link": "/project-overview/codx-junior-analytics-model-py"
+        },
+        {
+          "text": "Traefik Dynamic Configuration Provider",
+          "link": "/project-overview/traefik"
+        },
+        {
+          "text": "Wiki Profile",
+          "link": "/project-overview/codx-junior-profiles-wiki-profile"
+        }
+      ]
+    },
+    {
+      "text": "Security and authentication",
+      "items": [
+        {
+          "text": "/codx/junior/api/users.py",
+          "link": "/security-and-authentication/codx-junior-api-users-py"
+        },
+        {
+          "text": "EDGE CASE: In case of duplicates, give preference to projects in the \"projects_root_path\" folder",
+          "link": "/security-and-authentication/codx-junior-project-project-discover-py"
+        },
+        {
+          "text": "Ensure the code_verifier length is within the required 43 to 128 range by generating more characters",
+          "link": "/security-and-authentication/codx-junior-security-github-oauth-py"
+        },
+        {
+          "text": "Import necessary modules and dependencies",
+          "link": "/security-and-authentication/codx-junior-api-global-settings-py"
+        },
+        {
+          "text": "Update password in the user logins",
+          "link": "/security-and-authentication/codx-junior-security-user-management-py"
+        }
+      ]
+    },
+    {
+      "text": "Utility functions",
+      "items": [
+        {
+          "text": "/codx/junior/log_parser.py",
+          "link": "/utility-functions/codx-junior-log-parser-py"
+        },
+        {
+          "text": "/codx/junior/profiles/profile_manager.py",
+          "link": "/utility-functions/codx-junior-profiles-profile-manager-py"
+        },
+        {
+          "text": "Chat Manager Documentation",
+          "link": "/utility-functions/codx-junior-chat-manager-py"
+        },
+        {
+          "text": "ChatEventBridge Documentation",
+          "link": "/utility-functions/codx-junior-chat-chat-event-bridge-py"
+        },
+        {
+          "text": "Code Block Generator",
+          "link": "/utility-functions/codx-junior-tools-code-block-generator-py"
+        },
+        {
+          "text": "Codx-Junior Tools API",
+          "link": "/utility-functions/init"
+        },
+        {
+          "text": "Configure logger",
+          "link": "/utility-functions/codx-junior-profiling-profiler-py"
+        },
+        {
+          "text": "Content Formatter Module Documentation",
+          "link": "/utility-functions/codx-junior-utils-content-formatter-py"
+        },
+        {
+          "text": "Custom Tool Executor",
+          "link": "/utility-functions/custom-tool-executor"
+        },
+        {
+          "text": "Ensure the temporary file is removed after conversion",
+          "link": "/utility-functions/codx-junior-chat-chat-export-py"
+        },
+        {
+          "text": "Globals Configuration",
+          "link": "/utility-functions/codx-junior-globals-py"
+        },
+        {
+          "text": "Message Helpers for SmolAgent",
+          "link": "/utility-functions/codx-junior-ai-smol-messages-py"
+        },
+        {
+          "text": "Project Structure Tool",
+          "link": "/utility-functions/codx-junior-tools-project-structure-py"
+        },
+        {
+          "text": "Project Tools Documentation",
+          "link": "/utility-functions/codx-junior-tools-project-tools-py"
+        },
+        {
+          "text": "Project Tools Documentation",
+          "link": "/utility-functions/project-tools"
+        },
+        {
+          "text": "Recipe Manager Documentation",
+          "link": "/utility-functions/recipe-manager"
+        },
+        {
+          "text": "Recipe Tools Documentation",
+          "link": "/utility-functions/recipe-tools"
+        },
+        {
+          "text": "Setting up logging",
+          "link": "/utility-functions/codx-junior-file-manager-init-py"
+        },
+        {
+          "text": "ToolResponse",
+          "link": "/utility-functions/codx-junior-tools-model-py"
+        },
+        {
+          "text": "Tools Module Documentation",
+          "link": "/utility-functions/codx-junior-tools-init-py"
+        },
+        {
+          "text": "Tutorial Management Module",
+          "link": "/utility-functions/tutorial-manager"
+        },
+        {
+          "text": "Tutorial Tools",
+          "link": "/utility-functions/tutorial-tools"
+        },
+        {
+          "text": "Utility functions codx junior ai utils py",
+          "link": "/utility-functions/codx-junior-ai-utils-py"
+        },
+        {
+          "text": "Utility functions codx junior chat searcher py",
+          "link": "/utility-functions/codx-junior-chat-searcher-py"
+        },
+        {
+          "text": "Utility functions codx junior knowledge settings py",
+          "link": "/utility-functions/codx-junior-knowledge-settings-py"
+        },
+        {
+          "text": "We want to find best repos for gbrian profile",
+          "link": "/utility-functions/codx-junior-profiles-browser-profile"
+        }
+      ]
+    },
+    {
+      "text": "Architecture",
+      "items": [
+        {
+          "text": "Advanced AI Agent System",
+          "link": "/domains/advanced-ai-agent-system"
+        },
+        {
+          "text": "Advanced AI Development Agent System",
+          "link": "/domains/advanced-ai-development-agent-system"
+        },
+        {
+          "text": "Advanced AI Service Layer",
+          "link": "/domains/advanced-ai-service-layer"
+        },
+        {
+          "text": "Advanced Knowledge Platform",
+          "link": "/domains/advanced-knowledge-platform"
+        },
+        {
+          "text": "Advanced Knowledge Repository",
+          "link": "/domains/advanced-knowledge-repository"
+        },
+        {
+          "text": "Advanced Knowledge Service",
+          "link": "/domains/advanced-knowledge-service"
+        },
+        {
+          "text": "Agentic AI Development Companion",
+          "link": "/domains/agentic-ai-development-companion"
+        },
+        {
+          "text": "Agentic AI Development Platform",
+          "link": "/domains/agentic-ai-development-platform"
+        },
+        {
+          "text": "Agentic AI Workflow Engine",
+          "link": "/domains/agentic-ai-workflow-engine"
+        },
+        {
+          "text": "Agentic Development Assistant",
+          "link": "/domains/agentic-development-assistant"
+        },
+        {
+          "text": "AI Agent & Knowledge Engine",
+          "link": "/domains/ai-agent-knowledge-engine"
+        },
+        {
+          "text": "AI Agent & Knowledge Platform",
+          "link": "/domains/ai-agent-knowledge-platform"
+        },
+        {
+          "text": "AI Agent Automation Engine",
+          "link": "/domains/ai-agent-automation-engine"
+        },
+        {
+          "text": "AI Agent Copiloting Platform",
+          "link": "/domains/ai-agent-copiloting-platform"
+        },
+        {
+          "text": "AI Agent Development Platform",
+          "link": "/domains/ai-agent-development-platform"
+        },
+        {
+          "text": "AI Agent Framework",
+          "link": "/domains/ai-agent-framework"
+        },
+        {
+          "text": "AI Agent Orchestration Platform",
+          "link": "/domains/ai-agent-orchestration-platform"
+        },
+        {
+          "text": "AI Agent Orchestration System",
+          "link": "/domains/ai-agent-orchestration-system"
+        },
+        {
+          "text": "AI Agent Workflow Platform",
+          "link": "/domains/ai-agent-workflow-platform"
+        },
+        {
+          "text": "AI Agentic Developer Platform",
+          "link": "/domains/ai-agentic-developer-platform"
+        },
+        {
+          "text": "AI Analytics API Core",
+          "link": "/domains/ai-analytics-api-core"
+        },
+        {
+          "text": "AI Analytics API Platform",
+          "link": "/domains/ai-analytics-api-platform"
+        },
+        {
+          "text": "AI Analytics Backend API",
+          "link": "/domains/ai-analytics-backend-api"
+        },
+        {
+          "text": "AI Analytics Framework",
+          "link": "/domains/ai-analytics-framework"
+        },
+        {
+          "text": "AI and Analytics Backend",
+          "link": "/domains/ai-and-analytics-backend"
+        },
+        {
+          "text": "AI and Analytics Core",
+          "link": "/domains/ai-and-analytics-core"
+        },
+        {
+          "text": "AI API Platform Services",
+          "link": "/domains/ai-api-platform-services"
+        },
+        {
+          "text": "AI Application & Analytics Backend",
+          "link": "/domains/ai-application-analytics-backend"
+        },
+        {
+          "text": "AI Application Backend",
+          "link": "/domains/ai-application-backend"
+        },
+        {
+          "text": "AI Application Service Backend",
+          "link": "/domains/ai-application-service-backend"
+        },
+        {
+          "text": "AI Assistant Backend Core",
+          "link": "/domains/ai-assistant-backend-core"
+        },
+        {
+          "text": "AI Automation Assistant Platform",
+          "link": "/domains/ai-automation-assistant-platform"
+        },
+        {
+          "text": "AI Backend Core Services",
+          "link": "/domains/ai-backend-core-services"
+        },
+        {
+          "text": "AI Backend Service Core",
+          "link": "/domains/ai-backend-service-core"
+        },
+        {
+          "text": "AI Backend Services Core",
+          "link": "/domains/ai-backend-services-core"
+        },
+        {
+          "text": "AI Code & Chat API Services",
+          "link": "/domains/ai-code-chat-api-services"
+        },
+        {
+          "text": "AI Code & Interaction Platform",
+          "link": "/domains/ai-code-interaction-platform"
+        },
+        {
+          "text": "AI Code and Project Copilot",
+          "link": "/domains/ai-code-and-project-copilot"
+        },
+        {
+          "text": "AI Code Development Backend",
+          "link": "/domains/ai-code-development-backend"
+        },
+        {
+          "text": "AI Code Development Platform",
+          "link": "/domains/ai-code-development-platform"
+        },
+        {
+          "text": "AI Code Generation Engine",
+          "link": "/domains/ai-code-generation-engine"
+        },
+        {
+          "text": "AI Code Generation Platform",
+          "link": "/domains/ai-code-generation-platform"
+        },
+        {
+          "text": "AI Code Integration Engine",
+          "link": "/domains/ai-code-integration-engine"
+        },
+        {
+          "text": "AI Code Intelligence Services",
+          "link": "/domains/ai-code-intelligence-services"
+        },
+        {
+          "text": "AI Coding & Analytics Engine",
+          "link": "/domains/ai-coding-analytics-engine"
+        },
+        {
+          "text": "AI Coding & Analytics Platform",
+          "link": "/domains/ai-coding-analytics-platform"
+        },
+        {
+          "text": "AI Coding & Learning Engine",
+          "link": "/domains/ai-coding-learning-engine"
+        },
+        {
+          "text": "AI Coding Agent Framework",
+          "link": "/domains/ai-coding-agent-framework"
+        },
+        {
+          "text": "AI Coding Agent Platform",
+          "link": "/domains/ai-coding-agent-platform"
+        },
+        {
+          "text": "AI Coding and Chat Engine",
+          "link": "/domains/ai-coding-and-chat-engine"
+        },
+        {
+          "text": "AI Coding Assistance API",
+          "link": "/domains/ai-coding-assistance-api"
+        },
+        {
+          "text": "AI Coding Assistance APIs",
+          "link": "/domains/ai-coding-assistance-apis"
+        },
+        {
+          "text": "AI Coding Assistant Platform",
+          "link": "/domains/ai-coding-assistant-platform"
+        },
+        {
+          "text": "AI Coding Backend System",
+          "link": "/domains/ai-coding-backend-system"
+        },
+        {
+          "text": "AI Coding Development Platform",
+          "link": "/domains/ai-coding-development-platform"
+        },
+        {
+          "text": "AI Coding Interaction Core",
+          "link": "/domains/ai-coding-interaction-core"
+        },
+        {
+          "text": "AI Coding Service Backend",
+          "link": "/domains/ai-coding-service-backend"
+        },
+        {
+          "text": "AI Coding Workflow Engine",
+          "link": "/domains/ai-coding-workflow-engine"
+        },
+        {
+          "text": "AI Content Generation Engine",
+          "link": "/domains/ai-content-generation-engine"
+        },
+        {
+          "text": "AI Copilot System",
+          "link": "/domains/ai-copilot-system"
+        },
+        {
+          "text": "AI Dev Assistant Backend",
+          "link": "/domains/ai-dev-assistant-backend"
+        },
+        {
+          "text": "AI Dev Workflow Engine",
+          "link": "/domains/ai-dev-workflow-engine"
+        },
+        {
+          "text": "AI Developer Agent",
+          "link": "/domains/ai-developer-agent"
+        },
+        {
+          "text": "AI Developer Agent Framework",
+          "link": "/domains/ai-developer-agent-framework"
+        },
+        {
+          "text": "AI Developer Agent Platform",
+          "link": "/domains/ai-developer-agent-platform"
+        },
+        {
+          "text": "AI Developer Agent System",
+          "link": "/domains/ai-developer-agent-system"
+        },
+        {
+          "text": "AI Developer Agents Platform",
+          "link": "/domains/ai-developer-agents-platform"
+        },
+        {
+          "text": "AI Developer Assistant",
+          "link": "/domains/ai-developer-assistant"
+        },
+        {
+          "text": "AI Developer Assistant Platform",
+          "link": "/domains/ai-developer-assistant-platform"
+        },
+        {
+          "text": "AI Developer Co-Pilot System",
+          "link": "/domains/ai-developer-co-pilot-system"
+        },
+        {
+          "text": "AI Developer Copilot",
+          "link": "/domains/ai-developer-copilot"
+        },
+        {
+          "text": "AI Developer Intelligence Platform",
+          "link": "/domains/ai-developer-intelligence-platform"
+        },
+        {
+          "text": "AI Developer Productivity Platform",
+          "link": "/domains/ai-developer-productivity-platform"
+        },
+        {
+          "text": "AI Developer Workflow Assistant",
+          "link": "/domains/ai-developer-workflow-assistant"
+        },
+        {
+          "text": "AI Developer Workspace Assistant",
+          "link": "/domains/ai-developer-workspace-assistant"
+        },
+        {
+          "text": "AI Development & Analytics Platform",
+          "link": "/domains/ai-development-analytics-platform"
+        },
+        {
+          "text": "AI Development & Learning Platform",
+          "link": "/domains/ai-development-learning-platform"
+        },
+        {
+          "text": "AI Development & Workflow Platform",
+          "link": "/domains/ai-development-workflow-platform"
+        },
+        {
+          "text": "AI Development Agent",
+          "link": "/domains/ai-development-agent"
+        },
+        {
+          "text": "AI Development Agent Framework",
+          "link": "/domains/ai-development-agent-framework"
+        },
+        {
+          "text": "AI Development Agent Platform",
+          "link": "/domains/ai-development-agent-platform"
+        },
+        {
+          "text": "AI Development Agent System",
+          "link": "/domains/ai-development-agent-system"
+        },
+        {
+          "text": "AI Development and Analytics",
+          "link": "/domains/ai-development-and-analytics"
+        },
+        {
+          "text": "AI Development API Backend",
+          "link": "/domains/ai-development-api-backend"
+        },
+        {
+          "text": "AI Development API Core",
+          "link": "/domains/ai-development-api-core"
+        },
+        {
+          "text": "AI Development Assistant",
+          "link": "/domains/ai-development-assistant"
+        },
+        {
+          "text": "AI Development Assistant API",
+          "link": "/domains/ai-development-assistant-api"
+        },
+        {
+          "text": "AI Development Assistant Engine",
+          "link": "/domains/ai-development-assistant-engine"
+        },
+        {
+          "text": "AI Development Assistant Framework",
+          "link": "/domains/ai-development-assistant-framework"
+        },
+        {
+          "text": "AI Development Assistant Platform",
+          "link": "/domains/ai-development-assistant-platform"
+        },
+        {
+          "text": "AI Development Assistant System",
+          "link": "/domains/ai-development-assistant-system"
+        },
+        {
+          "text": "AI Development Automation",
+          "link": "/domains/ai-development-automation"
+        },
+        {
+          "text": "AI Development Automation Platform",
+          "link": "/domains/ai-development-automation-platform"
+        },
+        {
+          "text": "AI Development Backend",
+          "link": "/domains/ai-development-backend"
+        },
+        {
+          "text": "AI Development Backend Services",
+          "link": "/domains/ai-development-backend-services"
+        },
+        {
+          "text": "AI Development Companion API",
+          "link": "/domains/ai-development-companion-api"
+        },
+        {
+          "text": "AI Development Companion Platform",
+          "link": "/domains/ai-development-companion-platform"
+        },
+        {
+          "text": "AI Development Core",
+          "link": "/domains/ai-development-core"
+        },
+        {
+          "text": "AI Development Core Engine",
+          "link": "/domains/ai-development-core-engine"
+        },
+        {
+          "text": "AI Development Core Services",
+          "link": "/domains/ai-development-core-services"
+        },
+        {
+          "text": "AI Development Ecosystem",
+          "link": "/domains/ai-development-ecosystem"
+        },
+        {
+          "text": "AI Development Engine",
+          "link": "/domains/ai-development-engine"
+        },
+        {
+          "text": "AI Development Intelligence Engine",
+          "link": "/domains/ai-development-intelligence-engine"
+        },
+        {
+          "text": "AI Development Knowledge Engine",
+          "link": "/domains/ai-development-knowledge-engine"
+        },
+        {
+          "text": "AI Development Orchestrator",
+          "link": "/domains/ai-development-orchestrator"
+        },
+        {
+          "text": "AI Development Platform",
+          "link": "/domains/ai-development-platform"
+        },
+        {
+          "text": "AI Development Platform API",
+          "link": "/domains/ai-development-platform-api"
+        },
+        {
+          "text": "AI Development Platform Backend",
+          "link": "/domains/ai-development-platform-backend"
+        },
+        {
+          "text": "AI Development Platform Core",
+          "link": "/domains/ai-development-platform-core"
+        },
+        {
+          "text": "AI Development Platform Engine",
+          "link": "/domains/ai-development-platform-engine"
+        },
+        {
+          "text": "AI Development Tooling API",
+          "link": "/domains/ai-development-tooling-api"
+        },
+        {
+          "text": "AI Development Toolkit",
+          "link": "/domains/ai-development-toolkit"
+        },
+        {
+          "text": "AI Development Workbench",
+          "link": "/domains/ai-development-workbench"
+        },
+        {
+          "text": "AI Development Workflow Engine",
+          "link": "/domains/ai-development-workflow-engine"
+        },
+        {
+          "text": "AI Development Workspace Engine",
+          "link": "/domains/ai-development-workspace-engine"
+        },
+        {
+          "text": "AI Domain Development Suite",
+          "link": "/domains/ai-domain-development-suite"
+        },
+        {
+          "text": "AI Driven Backend Platform",
+          "link": "/domains/ai-driven-backend-platform"
+        },
+        {
+          "text": "AI Engine and Analytics",
+          "link": "/domains/ai-engine-and-analytics"
+        },
+        {
+          "text": "AI Engine and Services",
+          "link": "/domains/ai-engine-and-services"
+        },
+        {
+          "text": "AI Engine Core Services",
+          "link": "/domains/ai-engine-core-services"
+        },
+        {
+          "text": "AI Engineering Hub",
+          "link": "/domains/ai-engineering-hub"
+        },
+        {
+          "text": "AI Engineering Workflow Platform",
+          "link": "/domains/ai-engineering-workflow-platform"
+        },
+        {
+          "text": "AI Finance API Backend",
+          "link": "/domains/ai-finance-api-backend"
+        },
+        {
+          "text": "AI Generation & Interaction API",
+          "link": "/domains/ai-generation-interaction-api"
+        },
+        {
+          "text": "AI Generation and Analytics Engine",
+          "link": "/domains/ai-generation-and-analytics-engine"
+        },
+        {
+          "text": "AI Generation Backend Core",
+          "link": "/domains/ai-generation-backend-core"
+        },
+        {
+          "text": "AI Integration Backend API",
+          "link": "/domains/ai-integration-backend-api"
+        },
+        {
+          "text": "AI Intelligence & Analytics Platform",
+          "link": "/domains/ai-intelligence-analytics-platform"
+        },
+        {
+          "text": "AI Intelligence Core Engine",
+          "link": "/domains/ai-intelligence-core-engine"
+        },
+        {
+          "text": "AI Interaction & Analytics Backend",
+          "link": "/domains/ai-interaction-analytics-backend"
+        },
+        {
+          "text": "AI Interaction & Workflow Engine",
+          "link": "/domains/ai-interaction-workflow-engine"
+        },
+        {
+          "text": "AI Interaction and Analytics Core",
+          "link": "/domains/ai-interaction-and-analytics-core"
+        },
+        {
+          "text": "AI Interaction Backend API",
+          "link": "/domains/ai-interaction-backend-api"
+        },
+        {
+          "text": "AI Interaction Backend Core",
+          "link": "/domains/ai-interaction-backend-core"
+        },
+        {
+          "text": "AI Interaction Backend Platform",
+          "link": "/domains/ai-interaction-backend-platform"
+        },
+        {
+          "text": "AI Interaction Engine",
+          "link": "/domains/ai-interaction-engine"
+        },
+        {
+          "text": "AI Interaction Engine API",
+          "link": "/domains/ai-interaction-engine-api"
+        },
+        {
+          "text": "AI Interaction Pipeline",
+          "link": "/domains/ai-interaction-pipeline"
+        },
+        {
+          "text": "AI Interaction Platform",
+          "link": "/domains/ai-interaction-platform"
+        },
+        {
+          "text": "AI Interaction Platform Core",
+          "link": "/domains/ai-interaction-platform-core"
+        },
+        {
+          "text": "AI Knowledge & Chat Engine",
+          "link": "/domains/ai-knowledge-chat-engine"
+        },
+        {
+          "text": "AI Knowledge & Domain API",
+          "link": "/domains/ai-knowledge-domain-api"
+        },
+        {
+          "text": "AI Knowledge Agent",
+          "link": "/domains/ai-knowledge-agent"
+        },
+        {
+          "text": "AI Knowledge Agent Core",
+          "link": "/domains/ai-knowledge-agent-core"
+        },
+        {
+          "text": "AI Knowledge Agent Platform",
+          "link": "/domains/ai-knowledge-agent-platform"
+        },
+        {
+          "text": "AI Knowledge Agents",
+          "link": "/domains/ai-knowledge-agents"
+        },
+        {
+          "text": "AI Knowledge API",
+          "link": "/domains/ai-knowledge-api"
+        },
+        {
+          "text": "AI Knowledge API Core",
+          "link": "/domains/ai-knowledge-api-core"
+        },
+        {
+          "text": "AI Knowledge API Platform",
+          "link": "/domains/ai-knowledge-api-platform"
+        },
+        {
+          "text": "AI Knowledge Development Platform",
+          "link": "/domains/ai-knowledge-development-platform"
+        },
+        {
+          "text": "AI Knowledge Domain System",
+          "link": "/domains/ai-knowledge-domain-system"
+        },
+        {
+          "text": "AI Knowledge Integration API",
+          "link": "/domains/ai-knowledge-integration-api"
+        },
+        {
+          "text": "AI Knowledge Integration Layer",
+          "link": "/domains/ai-knowledge-integration-layer"
+        },
+        {
+          "text": "AI Knowledge Management System",
+          "link": "/domains/ai-knowledge-management-system"
+        },
+        {
+          "text": "AI Knowledge Processing Core",
+          "link": "/domains/ai-knowledge-processing-core"
+        },
+        {
+          "text": "AI Knowledge Repository API",
+          "link": "/domains/ai-knowledge-repository-api"
+        },
+        {
+          "text": "AI Knowledge Service",
+          "link": "/domains/ai-knowledge-service"
+        },
+        {
+          "text": "AI Knowledge Service Core",
+          "link": "/domains/ai-knowledge-service-core"
+        },
+        {
+          "text": "AI Knowledge Service Layer",
+          "link": "/domains/ai-knowledge-service-layer"
+        },
+        {
+          "text": "AI Knowledge Services",
+          "link": "/domains/ai-knowledge-services"
+        },
+        {
+          "text": "AI Microservice Backend API",
+          "link": "/domains/ai-microservice-backend-api"
+        },
+        {
+          "text": "AI Model Service Engine",
+          "link": "/domains/ai-model-service-engine"
+        },
+        {
+          "text": "AI Platform Backend Services",
+          "link": "/domains/ai-platform-backend-services"
+        },
+        {
+          "text": "AI Platform Core Services",
+          "link": "/domains/ai-platform-core-services"
+        },
+        {
+          "text": "AI Powered Backend API",
+          "link": "/domains/ai-powered-backend-api"
+        },
+        {
+          "text": "AI Productivity API Backend",
+          "link": "/domains/ai-productivity-api-backend"
+        },
+        {
+          "text": "AI Project Assistant Platform",
+          "link": "/domains/ai-project-assistant-platform"
+        },
+        {
+          "text": "AI Service & Analytics Engine",
+          "link": "/domains/ai-service-analytics-engine"
+        },
+        {
+          "text": "AI Software Development Agent",
+          "link": "/domains/ai-software-development-agent"
+        },
+        {
+          "text": "AI Software Development Assistant",
+          "link": "/domains/ai-software-development-assistant"
+        },
+        {
+          "text": "AI Software Workflow Agent",
+          "link": "/domains/ai-software-workflow-agent"
+        },
+        {
+          "text": "AI Wallet Analytics Backend",
+          "link": "/domains/ai-wallet-analytics-backend"
+        },
+        {
+          "text": "AI Workflow & Analytics Engine",
+          "link": "/domains/ai-workflow-analytics-engine"
+        },
+        {
+          "text": "AI Workflow & API Core",
+          "link": "/domains/ai-workflow-api-core"
+        },
+        {
+          "text": "AI Workflow & Intelligence Core",
+          "link": "/domains/ai-workflow-intelligence-core"
+        },
+        {
+          "text": "AI Workflow and Analytics",
+          "link": "/domains/ai-workflow-and-analytics"
+        },
+        {
+          "text": "AI Workflow and API Engine",
+          "link": "/domains/ai-workflow-and-api-engine"
+        },
+        {
+          "text": "AI Workflow and Engineering Core",
+          "link": "/domains/ai-workflow-and-engineering-core"
+        },
+        {
+          "text": "AI Workflow Engine",
+          "link": "/domains/ai-workflow-engine"
+        },
+        {
+          "text": "AI Workflow Integration Engine",
+          "link": "/domains/ai-workflow-integration-engine"
+        },
+        {
+          "text": "AI Workflow Intelligence Engine",
+          "link": "/domains/ai-workflow-intelligence-engine"
+        },
+        {
+          "text": "AI Workflow Management System",
+          "link": "/domains/ai-workflow-management-system"
+        },
+        {
+          "text": "AI Workflow Platform",
+          "link": "/domains/ai-workflow-platform"
+        },
+        {
+          "text": "AI-Driven Application Agent",
+          "link": "/domains/ai-driven-application-agent"
+        },
+        {
+          "text": "AI-Engine Knowledge Service",
+          "link": "/domains/aiengine-knowledge-service"
+        },
+        {
+          "text": "AI-Powered API Middleware",
+          "link": "/domains/ai-powered-api-middleware"
+        },
+        {
+          "text": "AI-Powered Dev Workflow Engine",
+          "link": "/domains/ai-powered-dev-workflow-engine"
+        },
+        {
+          "text": "AI-Powered Developer Assistant",
+          "link": "/domains/ai-powered-developer-assistant"
+        },
+        {
+          "text": "AI-Powered Junior API Platform",
+          "link": "/domains/ai-powered-junior-api-platform"
+        },
+        {
+          "text": "API & Blockchain Services",
+          "link": "/domains/api-blockchain-services"
+        },
+        {
+          "text": "API Backend & Dev Environment",
+          "link": "/domains/api-backend-dev-environment"
+        },
+        {
+          "text": "API Backend and Dev Environment",
+          "link": "/domains/api-backend-and-dev-environment"
+        },
+        {
+          "text": "API Backend Development Stack",
+          "link": "/domains/api-backend-development-stack"
+        },
+        {
+          "text": "API Cancellation Module",
+          "link": "/domains/api-cancellation-module"
+        },
+        {
+          "text": "API Core Logic Service",
+          "link": "/domains/api-core-logic-service"
+        },
+        {
+          "text": "API Data Persistence Layer",
+          "link": "/domains/api-data-persistence-layer"
+        },
+        {
+          "text": "API Development Infrastructure",
+          "link": "/domains/api-development-infrastructure"
+        },
+        {
+          "text": "API Engine and Data Processing",
+          "link": "/domains/api-engine-and-data-processing"
+        },
+        {
+          "text": "API Intelligence Platform",
+          "link": "/domains/api-intelligence-platform"
+        },
+        {
+          "text": "API Service Core and Analytics",
+          "link": "/domains/api-service-core-and-analytics"
+        },
+        {
+          "text": "API Service Development Environment",
+          "link": "/domains/api-service-development-environment"
+        },
+        {
+          "text": "API Wiki Data Management",
+          "link": "/domains/api-wiki-data-management"
+        },
+        {
+          "text": "Async Workflow and Change Management",
+          "link": "/domains/async-workflow-and-change-management"
+        },
+        {
+          "text": "Asynchronous Backend Services",
+          "link": "/domains/asynchronous-backend-services"
+        },
+        {
+          "text": "Asynchronous Background Processing",
+          "link": "/domains/asynchronous-background-processing"
+        },
+        {
+          "text": "Asynchronous Background Service",
+          "link": "/domains/asynchronous-background-service"
+        },
+        {
+          "text": "Asynchronous Change Management",
+          "link": "/domains/asynchronous-change-management"
+        },
+        {
+          "text": "Asynchronous Job and Change Management",
+          "link": "/domains/asynchronous-job-and-change-management"
+        },
+        {
+          "text": "Asynchronous Service Management",
+          "link": "/domains/asynchronous-service-management"
+        },
+        {
+          "text": "Asynchronous Service Processing",
+          "link": "/domains/asynchronous-service-processing"
+        },
+        {
+          "text": "Asynchronous Services and State Management",
+          "link": "/domains/asynchronous-services-and-state-management"
+        },
+        {
+          "text": "Asynchronous Task and Change Management",
+          "link": "/domains/asynchronous-task-and-change-management"
+        },
+        {
+          "text": "Asynchronous Task Management",
+          "link": "/domains/asynchronous-task-management"
+        },
+        {
+          "text": "Asynchronous Task Processing",
+          "link": "/domains/asynchronous-task-processing"
+        },
+        {
+          "text": "Asynchronous Workflow Engine",
+          "link": "/domains/asynchronous-workflow-engine"
+        },
+        {
+          "text": "Asynchronous Workflow Management",
+          "link": "/domains/asynchronous-workflow-management"
+        },
+        {
+          "text": "Autonomous Agent Orchestration Platform",
+          "link": "/domains/autonomous-agent-orchestration-platform"
+        },
+        {
+          "text": "Autonomous AI Agent Framework",
+          "link": "/domains/autonomous-ai-agent-framework"
+        },
+        {
+          "text": "Autonomous AI Agent System",
+          "link": "/domains/autonomous-ai-agent-system"
+        },
+        {
+          "text": "Autonomous AI Assistant Platform",
+          "link": "/domains/autonomous-ai-assistant-platform"
+        },
+        {
+          "text": "Autonomous Development Agent",
+          "link": "/domains/autonomous-development-agent"
+        },
+        {
+          "text": "Autonomous Knowledge Agents",
+          "link": "/domains/autonomous-knowledge-agents"
+        },
+        {
+          "text": "Backend API & Dev Setup",
+          "link": "/domains/backend-api-dev-setup"
+        },
+        {
+          "text": "Backend API & Development Infrastructure",
+          "link": "/domains/backend-api-development-infrastructure"
+        },
+        {
+          "text": "Backend API & Development Suite",
+          "link": "/domains/backend-api-development-suite"
+        },
+        {
+          "text": "Backend API and Development Toolkit",
+          "link": "/domains/backend-api-and-development-toolkit"
+        },
+        {
+          "text": "Backend API Development Stack",
+          "link": "/domains/backend-api-development-stack"
+        },
+        {
+          "text": "Backend API Engine",
+          "link": "/domains/backend-api-engine"
+        },
+        {
+          "text": "Backend API Infrastructure",
+          "link": "/domains/backend-api-infrastructure"
+        },
+        {
+          "text": "Backend API Service Development",
+          "link": "/domains/backend-api-service-development"
+        },
+        {
+          "text": "Backend API Service Module",
+          "link": "/domains/backend-api-service-module"
+        },
+        {
+          "text": "Backend API Services",
+          "link": "/domains/backend-api-services"
+        },
+        {
+          "text": "Backend Core Services",
+          "link": "/domains/backend-core-services"
+        },
+        {
+          "text": "Backend Processing and State Management",
+          "link": "/domains/backend-processing-and-state-management"
+        },
+        {
+          "text": "Background & Change Management",
+          "link": "/domains/background-change-management"
+        },
+        {
+          "text": "Background Change Service (Background Async Processing)",
+          "link": "/domains/background-change-service"
+        },
+        {
+          "text": "Background Job & State Management",
+          "link": "/domains/background-job-state-management"
+        },
+        {
+          "text": "Background Job and Change Management",
+          "link": "/domains/background-job-and-change-management"
+        },
+        {
+          "text": "Background Job Management",
+          "link": "/domains/background-job-management"
+        },
+        {
+          "text": "Background Process & State Management",
+          "link": "/domains/background-process-state-management"
+        },
+        {
+          "text": "Background Process and Change Management",
+          "link": "/domains/background-process-and-change-management"
+        },
+        {
+          "text": "Background Process Management",
+          "link": "/domains/background-process-management"
+        },
+        {
+          "text": "Background Processing & Change Management",
+          "link": "/domains/background-processing-change-management"
+        },
+        {
+          "text": "Background Processing & State Management",
+          "link": "/domains/background-processing-state-management"
+        },
+        {
+          "text": "Background Processing & Workflow Management",
+          "link": "/domains/background-processing-workflow-management"
+        },
+        {
+          "text": "Background Processing and Change Management",
+          "link": "/domains/background-processing-and-change-management"
+        },
+        {
+          "text": "Background Processing and State Change",
+          "link": "/domains/background-processing-and-state-change"
+        },
+        {
+          "text": "Background Service & State Management",
+          "link": "/domains/background-service-state-management"
+        },
+        {
+          "text": "Background Service and Change Management",
+          "link": "/domains/background-service-and-change-management"
+        },
+        {
+          "text": "Background Service and State Changes",
+          "link": "/domains/background-service-and-state-changes"
+        },
+        {
+          "text": "Background Service and State Management",
+          "link": "/domains/background-service-and-state-management"
+        },
+        {
+          "text": "Background Service Engine",
+          "link": "/domains/background-service-engine"
+        },
+        {
+          "text": "Background Service Management",
+          "link": "/domains/background-service-management"
+        },
+        {
+          "text": "Background Service Orchestration",
+          "link": "/domains/background-service-orchestration"
+        },
+        {
+          "text": "Background Service Processing",
+          "link": "/domains/background-service-processing"
+        },
+        {
+          "text": "Background Services and Change Control",
+          "link": "/domains/background-services-and-change-control"
+        },
+        {
+          "text": "Background Services and State Management",
+          "link": "/domains/background-services-and-state-management"
+        },
+        {
+          "text": "Background State Management",
+          "link": "/domains/background-state-management"
+        },
+        {
+          "text": "Background Task & State Management",
+          "link": "/domains/background-task-state-management"
+        },
+        {
+          "text": "Background Task and Change Management",
+          "link": "/domains/background-task-and-change-management"
+        },
+        {
+          "text": "Background Task and State Management",
+          "link": "/domains/background-task-and-state-management"
+        },
+        {
+          "text": "Background Task Management",
+          "link": "/domains/background-task-management"
+        },
+        {
+          "text": "Background Task Management Service",
+          "link": "/domains/background-task-management-service"
+        },
+        {
+          "text": "Background Task Management System",
+          "link": "/domains/background-task-management-system"
+        },
+        {
+          "text": "Background Task Orchestration",
+          "link": "/domains/background-task-orchestration"
+        },
+        {
+          "text": "Background Task Processing and Change Management",
+          "link": "/domains/background-task-processing-and-change-management"
+        },
+        {
+          "text": "Background Workflow & State Changes",
+          "link": "/domains/background-workflow-state-changes"
+        },
+        {
+          "text": "Background Workflow and Change Management",
+          "link": "/domains/background-workflow-and-change-management"
+        },
+        {
+          "text": "Background Workflow Management",
+          "link": "/domains/background-workflow-management"
+        },
+        {
+          "text": "Background Workflow Processing",
+          "link": "/domains/background-workflow-processing"
+        },
+        {
+          "text": "Background Workflow Services",
+          "link": "/domains/background-workflow-services"
+        },
+        {
+          "text": "Change and Knowledge Management",
+          "link": "/domains/change-and-knowledge-management"
+        },
+        {
+          "text": "Change Management Storage",
+          "link": "/domains/change-management-storage"
+        },
+        {
+          "text": "Change Management System",
+          "link": "/domains/change-management-system"
+        },
+        {
+          "text": "Code Automation Agents Platform",
+          "link": "/domains/code-automation-agents-platform"
+        },
+        {
+          "text": "Code Intelligence Backend",
+          "link": "/domains/code-intelligence-backend"
+        },
+        {
+          "text": "Code Intelligence Engine",
+          "link": "/domains/code-intelligence-engine"
+        },
+        {
+          "text": "Code Licensing and Governance",
+          "link": "/domains/code-licensing-and-governance"
+        },
+        {
+          "text": "Code X Junior Infrastructure",
+          "link": "/domains/code-x-junior-infrastructure"
+        },
+        {
+          "text": "Code-Aware Development Assistant",
+          "link": "/domains/code-aware-development-assistant"
+        },
+        {
+          "text": "Codebase & Knowledge Agent",
+          "link": "/domains/codebase-knowledge-agent"
+        },
+        {
+          "text": "Codebase Change Management",
+          "link": "/domains/codebase-change-management"
+        },
+        {
+          "text": "Codebase Intelligence Engine",
+          "link": "/domains/codebase-intelligence-engine"
+        },
+        {
+          "text": "Codebase Intelligence Platform",
+          "link": "/domains/codebase-intelligence-platform"
+        },
+        {
+          "text": "CodeX Junior API Backend",
+          "link": "/domains/codex-junior-api-backend"
+        },
+        {
+          "text": "Codex Junior API Platform",
+          "link": "/domains/codex-junior-api-platform"
+        },
+        {
+          "text": "CodeX Junior Backend API",
+          "link": "/domains/codex-junior-backend-api"
+        },
+        {
+          "text": "Coding Intelligence Engine",
+          "link": "/domains/coding-intelligence-engine"
+        },
+        {
+          "text": "Codx Junior Analytics",
+          "link": "/domains/codx-junior-analytics"
+        },
+        {
+          "text": "Codx Junior API Backend",
+          "link": "/domains/codx-junior-api-backend"
+        },
+        {
+          "text": "Codx Junior API Modules",
+          "link": "/domains/codx-junior-api-modules"
+        },
+        {
+          "text": "Codx Junior API Service",
+          "link": "/domains/codx-junior-api-service"
+        },
+        {
+          "text": "Codx Junior API Services",
+          "link": "/domains/codx-junior-api-services"
+        },
+        {
+          "text": "Codx Junior Backend API Platform",
+          "link": "/domains/codx-junior-backend-api-platform"
+        },
+        {
+          "text": "Codx Junior Core",
+          "link": "/domains/codx-junior-core"
+        },
+        {
+          "text": "CodX Junior Intelligence",
+          "link": "/domains/codx-junior-intelligence"
+        },
+        {
+          "text": "CodX Junior Intelligence Core",
+          "link": "/domains/codx-junior-intelligence-core"
+        },
+        {
+          "text": "CodX Junior Intelligence Engine",
+          "link": "/domains/codx-junior-intelligence-engine"
+        },
+        {
+          "text": "CoDx Junior Knowledge Ecosystem",
+          "link": "/domains/codx-junior-knowledge-ecosystem"
+        },
+        {
+          "text": "CodX Junior Knowledge Engine",
+          "link": "/domains/codx-junior-knowledge-engine"
+        },
+        {
+          "text": "CodX-Junior Core Systems",
+          "link": "/domains/codx-junior-core-systems"
+        },
+        {
+          "text": "Cognitive AI Agent Framework",
+          "link": "/domains/cognitive-ai-agent-framework"
+        },
+        {
+          "text": "Cognitive AI Platform Core",
+          "link": "/domains/cognitive-ai-platform-core"
+        },
+        {
+          "text": "Contextual AI Agent Framework",
+          "link": "/domains/contextual-ai-agent-framework"
+        },
+        {
+          "text": "Contextual Codebase AI Assistant",
+          "link": "/domains/contextual-codebase-ai-assistant"
+        },
+        {
+          "text": "Conversational AI System",
+          "link": "/domains/conversational-ai-system"
+        },
+        {
+          "text": "Core API Service Layer",
+          "link": "/domains/core-api-service-layer"
+        },
+        {
+          "text": "Core Data and Systems Management",
+          "link": "/domains/core-data-and-systems-management"
+        },
+        {
+          "text": "Core Data Infrastructure",
+          "link": "/domains/core-data-infrastructure"
+        },
+        {
+          "text": "Core Data Management",
+          "link": "/domains/core-data-management"
+        },
+        {
+          "text": "Core Data Management Architecture",
+          "link": "/domains/core-data-management-architecture"
+        },
+        {
+          "text": "Core Knowledge and AI Services",
+          "link": "/domains/core-knowledge-and-ai-services"
+        },
+        {
+          "text": "Crypto Data Processing API",
+          "link": "/domains/crypto-data-processing-api"
+        },
+        {
+          "text": "Data & Knowledge Persistence",
+          "link": "/domains/data-knowledge-persistence"
+        },
+        {
+          "text": "Data and Database Storage",
+          "link": "/domains/data-and-database-storage"
+        },
+        {
+          "text": "Data and Knowledge Storage",
+          "link": "/domains/data-and-knowledge-storage"
+        },
+        {
+          "text": "Data and Knowledge Storage API",
+          "link": "/domains/data-and-knowledge-storage-api"
+        },
+        {
+          "text": "Data Change Management",
+          "link": "/domains/data-change-management"
+        },
+        {
+          "text": "Data Management and Change Orchestration",
+          "link": "/domains/data-management-and-change-orchestration"
+        },
+        {
+          "text": "Data Management and Change Tracking",
+          "link": "/domains/data-management-and-change-tracking"
+        },
+        {
+          "text": "Data Persistence and Storage",
+          "link": "/domains/data-persistence-and-storage"
+        },
+        {
+          "text": "Data Persistence and Wiki Backend",
+          "link": "/domains/data-persistence-and-wiki-backend"
+        },
+        {
+          "text": "Data Persistence Backend",
+          "link": "/domains/data-persistence-backend"
+        },
+        {
+          "text": "Data Persistence Layer",
+          "link": "/domains/data-persistence-layer"
+        },
+        {
+          "text": "Data Persistence Management",
+          "link": "/domains/data-persistence-management"
+        },
+        {
+          "text": "Data Persistence Module",
+          "link": "/domains/data-persistence-module"
+        },
+        {
+          "text": "Data Persistence/Wiki API",
+          "link": "/domains/data-persistence-wiki-api"
+        },
+        {
+          "text": "Data Storage & API Services",
+          "link": "/domains/data-storage-api-services"
+        },
+        {
+          "text": "Data Storage & Wiki API",
+          "link": "/domains/data-storage-wiki-api"
+        },
+        {
+          "text": "Data Storage & Wiki APIs",
+          "link": "/domains/data-storage-wiki-apis"
+        },
+        {
+          "text": "Data Storage & Wiki Services",
+          "link": "/domains/data-storage-wiki-services"
+        },
+        {
+          "text": "Data Storage and API",
+          "link": "/domains/data-storage-and-api"
+        },
+        {
+          "text": "Data Storage and API Management",
+          "link": "/domains/data-storage-and-api-management"
+        },
+        {
+          "text": "Data Storage and API Services",
+          "link": "/domains/data-storage-and-api-services"
+        },
+        {
+          "text": "Data Storage and APIs",
+          "link": "/domains/data-storage-and-apis"
+        },
+        {
+          "text": "Data Storage and Change Management",
+          "link": "/domains/data-storage-and-change-management"
+        },
+        {
+          "text": "Data Storage and Content Backend",
+          "link": "/domains/data-storage-and-content-backend"
+        },
+        {
+          "text": "Data Storage and Database APIs",
+          "link": "/domains/data-storage-and-database-apis"
+        },
+        {
+          "text": "Data Storage and Database Services",
+          "link": "/domains/data-storage-and-database-services"
+        },
+        {
+          "text": "Data Storage and Knowledge APIs",
+          "link": "/domains/data-storage-and-knowledge-apis"
+        },
+        {
+          "text": "Data Storage and Persistence",
+          "link": "/domains/data-storage-and-persistence"
+        },
+        {
+          "text": "Data Storage and Persistence Layer",
+          "link": "/domains/data-storage-and-persistence-layer"
+        },
+        {
+          "text": "Data Storage and Retrieval",
+          "link": "/domains/data-storage-and-retrieval"
+        },
+        {
+          "text": "Data Storage and Wiki API",
+          "link": "/domains/data-storage-and-wiki-api"
+        },
+        {
+          "text": "Data Storage and Wiki APIs",
+          "link": "/domains/data-storage-and-wiki-apis"
+        },
+        {
+          "text": "Data Storage and Wiki Backend",
+          "link": "/domains/data-storage-and-wiki-backend"
+        },
+        {
+          "text": "Data Storage and Wiki Content",
+          "link": "/domains/data-storage-and-wiki-content"
+        },
+        {
+          "text": "Data Storage API",
+          "link": "/domains/data-storage-api"
+        },
+        {
+          "text": "Data Storage API & Wiki Management",
+          "link": "/domains/data-storage-api-wiki-management"
+        },
+        {
+          "text": "Data Storage API Documentation",
+          "link": "/domains/data-storage-api-documentation"
+        },
+        {
+          "text": "Data Storage Backend APIs",
+          "link": "/domains/data-storage-backend-apis"
+        },
+        {
+          "text": "Data Storage for Wikis",
+          "link": "/domains/data-storage-for-wikis"
+        },
+        {
+          "text": "Data Storage Interface",
+          "link": "/domains/data-storage-interface"
+        },
+        {
+          "text": "Data Storage Service",
+          "link": "/domains/data-storage-service"
+        },
+        {
+          "text": "Data Storage Services",
+          "link": "/domains/data-storage-services"
+        },
+        {
+          "text": "Database & Data Storage",
+          "link": "/domains/database-data-storage"
+        },
+        {
+          "text": "Database and Analytics",
+          "link": "/domains/database-and-analytics"
+        },
+        {
+          "text": "Database and Analytics Infrastructure",
+          "link": "/domains/database-and-analytics-infrastructure"
+        },
+        {
+          "text": "Database and Change Management",
+          "link": "/domains/database-and-change-management"
+        },
+        {
+          "text": "Database and Content Storage",
+          "link": "/domains/database-and-content-storage"
+        },
+        {
+          "text": "Database and Data Architecture",
+          "link": "/domains/database-and-data-architecture"
+        },
+        {
+          "text": "Database and Data Management",
+          "link": "/domains/database-and-data-management"
+        },
+        {
+          "text": "Database and Data Persistence",
+          "link": "/domains/database-and-data-persistence"
+        },
+        {
+          "text": "Database and Data Persistence Layer",
+          "link": "/domains/database-and-data-persistence-layer"
+        },
+        {
+          "text": "Database and Data Services",
+          "link": "/domains/database-and-data-services"
+        },
+        {
+          "text": "Database and Data Storage",
+          "link": "/domains/database-and-data-storage"
+        },
+        {
+          "text": "Database and Data Storage API",
+          "link": "/domains/database-and-data-storage-api"
+        },
+        {
+          "text": "Database and Data Storage Layer",
+          "link": "/domains/database-and-data-storage-layer"
+        },
+        {
+          "text": "Database and Knowledge Management",
+          "link": "/domains/database-and-knowledge-management"
+        },
+        {
+          "text": "Database and State Management",
+          "link": "/domains/database-and-state-management"
+        },
+        {
+          "text": "Database and Storage Management",
+          "link": "/domains/database-and-storage-management"
+        },
+        {
+          "text": "Database and Synchronization",
+          "link": "/domains/database-and-synchronization"
+        },
+        {
+          "text": "Database Change Management",
+          "link": "/domains/database-change-management"
+        },
+        {
+          "text": "Database Data Management",
+          "link": "/domains/database-data-management"
+        },
+        {
+          "text": "Database Data Persistence Layer",
+          "link": "/domains/database-data-persistence-layer"
+        },
+        {
+          "text": "Database Storage and Data Management",
+          "link": "/domains/database-storage-and-data-management"
+        },
+        {
+          "text": "Developer Agent Platform",
+          "link": "/domains/developer-agent-platform"
+        },
+        {
+          "text": "Developer AI Service Core",
+          "link": "/domains/developer-ai-service-core"
+        },
+        {
+          "text": "Developer Automation Platform",
+          "link": "/domains/developer-automation-platform"
+        },
+        {
+          "text": "Development API Services",
+          "link": "/domains/development-api-services"
+        },
+        {
+          "text": "Development Intelligence Platform",
+          "link": "/domains/development-intelligence-platform"
+        },
+        {
+          "text": "Domain API Services",
+          "link": "/domains/domain-api-services"
+        },
+        {
+          "text": "Domain Intelligence API",
+          "link": "/domains/domain-intelligence-api"
+        },
+        {
+          "text": "Domain Intelligence Engine",
+          "link": "/domains/domain-intelligence-engine"
+        },
+        {
+          "text": "Domain Intelligence Platform",
+          "link": "/domains/domain-intelligence-platform"
+        },
+        {
+          "text": "Domain Knowledge API",
+          "link": "/domains/domain-knowledge-api"
+        },
+        {
+          "text": "Domain Knowledge API Backend",
+          "link": "/domains/domain-knowledge-api-backend"
+        },
+        {
+          "text": "Domain Knowledge Engine",
+          "link": "/domains/domain-knowledge-engine"
+        },
+        {
+          "text": "Domain Knowledge Intelligence",
+          "link": "/domains/domain-knowledge-intelligence"
+        },
+        {
+          "text": "Domain Knowledge Service",
+          "link": "/domains/domain-knowledge-service"
+        },
+        {
+          "text": "Educational Fintech Backend API",
+          "link": "/domains/educational-fintech-backend-api"
+        },
+        {
+          "text": "Enterprise Analytics and Change Infrastructure",
+          "link": "/domains/enterprise-analytics-and-change-infrastructure"
+        },
+        {
+          "text": "Enterprise Data and Change Architecture",
+          "link": "/domains/enterprise-data-and-change-architecture"
+        },
+        {
+          "text": "Enterprise Data and Change Management",
+          "link": "/domains/enterprise-data-and-change-management"
+        },
+        {
+          "text": "Enterprise Data and Management Core",
+          "link": "/domains/enterprise-data-and-management-core"
+        },
+        {
+          "text": "Enterprise Data and Management Systems",
+          "link": "/domains/enterprise-data-and-management-systems"
+        },
+        {
+          "text": "Enterprise Knowledge and Analytics Architecture",
+          "link": "/domains/enterprise-knowledge-and-analytics-architecture"
+        },
+        {
+          "text": "Enterprise Knowledge and Analytics Infrastructure",
+          "link": "/domains/enterprise-knowledge-and-analytics-infrastructure"
+        },
+        {
+          "text": "Finance AI API Core",
+          "link": "/domains/finance-ai-api-core"
+        },
+        {
+          "text": "Financial AI Service Back-end",
+          "link": "/domains/financial-ai-service-back-end"
+        },
+        {
+          "text": "Financial API & Analytics Core",
+          "link": "/domains/financial-api-analytics-core"
+        },
+        {
+          "text": "Financial API Backend Module",
+          "link": "/domains/financial-api-backend-module"
+        },
+        {
+          "text": "Financial API Backend Services",
+          "link": "/domains/financial-api-backend-services"
+        },
+        {
+          "text": "Financial Data API Backend",
+          "link": "/domains/financial-data-api-backend"
+        },
+        {
+          "text": "Financial Service Backend API",
+          "link": "/domains/financial-service-backend-api"
+        },
+        {
+          "text": "Foundational Development Infrastructure",
+          "link": "/domains/foundational-development-infrastructure"
+        },
+        {
+          "text": "general",
+          "link": "/domains/general"
+        },
+        {
+          "text": "Generative AI Backend Core",
+          "link": "/domains/generative-ai-backend-core"
+        },
+        {
+          "text": "Generative AI Backend Infrastructure",
+          "link": "/domains/generative-ai-backend-infrastructure"
+        },
+        {
+          "text": "Generative AI Development Platform",
+          "link": "/domains/generative-ai-development-platform"
+        },
+        {
+          "text": "Generative AI Infrastructure",
+          "link": "/domains/generative-ai-infrastructure"
+        },
+        {
+          "text": "Integrated AI Backend Platform",
+          "link": "/domains/integrated-ai-backend-platform"
+        },
+        {
+          "text": "Integrated AI Content Engine",
+          "link": "/domains/integrated-ai-content-engine"
+        },
+        {
+          "text": "Integrated AI Development API",
+          "link": "/domains/integrated-ai-development-api"
+        },
+        {
+          "text": "Intelligent Agent Development Platform",
+          "link": "/domains/intelligent-agent-development-platform"
+        },
+        {
+          "text": "Intelligent Agent Framework",
+          "link": "/domains/intelligent-agent-framework"
+        },
+        {
+          "text": "Intelligent Agent Platform Wiki",
+          "link": "/domains/intelligent-agent-platform"
+        },
+        {
+          "text": "Intelligent Agent System API",
+          "link": "/domains/intelligent-agent-system-api"
+        },
+        {
+          "text": "Intelligent AI Agent Platform",
+          "link": "/domains/intelligent-ai-agent-platform"
+        },
+        {
+          "text": "Intelligent AI Developer Platform",
+          "link": "/domains/intelligent-ai-developer-platform"
+        },
+        {
+          "text": "Intelligent AI Development Domains",
+          "link": "/domains/intelligent-ai-development-domains"
+        },
+        {
+          "text": "Intelligent AI Development Ecosystem",
+          "link": "/domains/intelligent-ai-development-ecosystem"
+        },
+        {
+          "text": "Intelligent AI Development Framework",
+          "link": "/domains/intelligent-ai-development-framework"
+        },
+        {
+          "text": "Intelligent AI Development Platform",
+          "link": "/domains/intelligent-ai-development-platform"
+        },
+        {
+          "text": "Intelligent AI Development Platforms",
+          "link": "/domains/intelligent-ai-development-platforms"
+        },
+        {
+          "text": "Intelligent AI Domain Platform",
+          "link": "/domains/intelligent-ai-domain-platform"
+        },
+        {
+          "text": "Intelligent AI Ecosystem",
+          "link": "/domains/intelligent-ai-ecosystem"
+        },
+        {
+          "text": "Intelligent AI Services API",
+          "link": "/domains/intelligent-ai-services-api"
+        },
+        {
+          "text": "Intelligent AI Workflow Engine",
+          "link": "/domains/intelligent-ai-workflow-engine"
+        },
+        {
+          "text": "Intelligent API Core",
+          "link": "/domains/intelligent-api-core"
+        },
+        {
+          "text": "Intelligent API Platform",
+          "link": "/domains/intelligent-api-platform"
+        },
+        {
+          "text": "Intelligent Code Engine",
+          "link": "/domains/intelligent-code-engine"
+        },
+        {
+          "text": "Intelligent Code Generation Backend",
+          "link": "/domains/intelligent-code-generation-backend"
+        },
+        {
+          "text": "Intelligent Codebase Assistant",
+          "link": "/domains/intelligent-codebase-assistant"
+        },
+        {
+          "text": "Intelligent Coding Agent Platform",
+          "link": "/domains/intelligent-coding-agent-platform"
+        },
+        {
+          "text": "Intelligent Coding Agent System",
+          "link": "/domains/intelligent-coding-agent-system"
+        },
+        {
+          "text": "Intelligent Coding Assistant API",
+          "link": "/domains/intelligent-coding-assistant-api"
+        },
+        {
+          "text": "Intelligent Content API Core",
+          "link": "/domains/intelligent-content-api-core"
+        },
+        {
+          "text": "Intelligent Dev Agent Platform",
+          "link": "/domains/intelligent-dev-agent-platform"
+        },
+        {
+          "text": "Intelligent Dev Assistant API",
+          "link": "/domains/intelligent-dev-assistant-api"
+        },
+        {
+          "text": "Intelligent Dev Platform",
+          "link": "/domains/intelligent-dev-platform"
+        },
+        {
+          "text": "Intelligent Dev Workflow Engine",
+          "link": "/domains/intelligent-dev-workflow-engine"
+        },
+        {
+          "text": "Intelligent Developer Backend",
+          "link": "/domains/intelligent-developer-backend"
+        },
+        {
+          "text": "Intelligent Developer Platform",
+          "link": "/domains/intelligent-developer-platform"
+        },
+        {
+          "text": "Intelligent Development Agent",
+          "link": "/domains/intelligent-development-agent"
+        },
+        {
+          "text": "Intelligent Development Agent API",
+          "link": "/domains/intelligent-development-agent-api"
+        },
+        {
+          "text": "Intelligent Development Agent Framework",
+          "link": "/domains/intelligent-development-agent-framework"
+        },
+        {
+          "text": "Intelligent Development Agent Platform",
+          "link": "/domains/intelligent-development-agent-platform"
+        },
+        {
+          "text": "Intelligent Development API",
+          "link": "/domains/intelligent-development-api"
+        },
+        {
+          "text": "Intelligent Development Assistant",
+          "link": "/domains/intelligent-development-assistant"
+        },
+        {
+          "text": "Intelligent Development Domains",
+          "link": "/domains/intelligent-development-domains"
+        },
+        {
+          "text": "Intelligent Development Ecosystem",
+          "link": "/domains/intelligent-development-ecosystem"
+        },
+        {
+          "text": "Intelligent Development Platform",
+          "link": "/domains/intelligent-development-platform"
+        },
+        {
+          "text": "Intelligent Development Platforms",
+          "link": "/domains/intelligent-development-platforms"
+        },
+        {
+          "text": "Intelligent Domain & AI Platform",
+          "link": "/domains/intelligent-domain-ai-platform"
+        },
+        {
+          "text": "Intelligent Domain Development Platform",
+          "link": "/domains/intelligent-domain-development-platform"
+        },
+        {
+          "text": "Intelligent Domain Processor",
+          "link": "/domains/intelligent-domain-processor"
+        },
+        {
+          "text": "Intelligent Domain Services",
+          "link": "/domains/intelligent-domain-services"
+        },
+        {
+          "text": "Intelligent Generative API Backend Infrastructure",
+          "link": "/domains/intelligent-generative-api-backend"
+        },
+        {
+          "text": "Intelligent Knowledge API",
+          "link": "/domains/intelligent-knowledge-api"
+        },
+        {
+          "text": "Intelligent Knowledge API Module",
+          "link": "/domains/intelligent-knowledge-api-module"
+        },
+        {
+          "text": "Intelligent Knowledge Backend",
+          "link": "/domains/intelligent-knowledge-backend"
+        },
+        {
+          "text": "Intelligent Knowledge Core",
+          "link": "/domains/intelligent-knowledge-core"
+        },
+        {
+          "text": "Intelligent Knowledge Engine",
+          "link": "/domains/intelligent-knowledge-engine"
+        },
+        {
+          "text": "Intelligent Knowledge Hub",
+          "link": "/domains/intelligent-knowledge-hub"
+        },
+        {
+          "text": "Intelligent Knowledge Platform",
+          "link": "/domains/intelligent-knowledge-platform"
+        },
+        {
+          "text": "Intelligent Knowledge Processing",
+          "link": "/domains/intelligent-knowledge-processing"
+        },
+        {
+          "text": "Intelligent Knowledge Service",
+          "link": "/domains/intelligent-knowledge-service"
+        },
+        {
+          "text": "Intelligent Knowledge Services",
+          "link": "/domains/intelligent-knowledge-services"
+        },
+        {
+          "text": "Intelligent Knowledge System",
+          "link": "/domains/intelligent-knowledge-system"
+        },
+        {
+          "text": "Intelligent Project Platform",
+          "link": "/domains/intelligent-project-platform"
+        },
+        {
+          "text": "Intelligent Software Assistant",
+          "link": "/domains/intelligent-software-assistant"
+        },
+        {
+          "text": "Intelligent Workflow & AI Core",
+          "link": "/domains/intelligent-workflow-ai-core"
+        },
+        {
+          "text": "Intelligent Workflow Automation Platform",
+          "link": "/domains/intelligent-workflow-automation-platform"
+        },
+        {
+          "text": "Intelligent Workflow Core",
+          "link": "/domains/intelligent-workflow-core"
+        },
+        {
+          "text": "Junior AI Analytics",
+          "link": "/domains/junior-ai-analytics"
+        },
+        {
+          "text": "Junior AI API Backend Service",
+          "link": "/domains/junior-ai-api-backend-service"
+        },
+        {
+          "text": "Junior AI Backend API",
+          "link": "/domains/junior-ai-backend-api"
+        },
+        {
+          "text": "Junior AI Backend Service",
+          "link": "/domains/junior-ai-backend-service"
+        },
+        {
+          "text": "Junior AI Backend Services",
+          "link": "/domains/junior-ai-backend-services"
+        },
+        {
+          "text": "Junior AI Services API",
+          "link": "/domains/junior-ai-services-api"
+        },
+        {
+          "text": "Junior Analytics and Configuration",
+          "link": "/domains/junior-analytics-and-configuration"
+        },
+        {
+          "text": "Junior Analytics and Configuration Management",
+          "link": "/domains/junior-analytics-and-configuration-management"
+        },
+        {
+          "text": "Junior Analytics and Governance",
+          "link": "/domains/junior-analytics-and-governance"
+        },
+        {
+          "text": "Junior Analytics Engine",
+          "link": "/domains/junior-analytics-engine"
+        },
+        {
+          "text": "Junior Analytics System",
+          "link": "/domains/junior-analytics-system"
+        },
+        {
+          "text": "Junior API & Business Logic",
+          "link": "/domains/junior-api-business-logic"
+        },
+        {
+          "text": "Junior API Analytics Backend",
+          "link": "/domains/junior-api-analytics-backend"
+        },
+        {
+          "text": "Junior API and AI Services",
+          "link": "/domains/junior-api-and-ai-services"
+        },
+        {
+          "text": "Junior API Backbone",
+          "link": "/domains/junior-api-backbone"
+        },
+        {
+          "text": "Junior API Backend Core",
+          "link": "/domains/junior-api-backend-core"
+        },
+        {
+          "text": "Junior API Backend Development",
+          "link": "/domains/junior-api-backend-development"
+        },
+        {
+          "text": "Junior API Backend Engine",
+          "link": "/domains/junior-api-backend-engine"
+        },
+        {
+          "text": "Junior API Backend Environment",
+          "link": "/domains/junior-api-backend-environment"
+        },
+        {
+          "text": "Junior API Backend Service",
+          "link": "/domains/junior-api-backend-service"
+        },
+        {
+          "text": "Junior API Backend Services",
+          "link": "/domains/junior-api-backend-services"
+        },
+        {
+          "text": "Junior API Backend System",
+          "link": "/domains/junior-api-backend-system"
+        },
+        {
+          "text": "Junior API Module",
+          "link": "/domains/junior-api-module"
+        },
+        {
+          "text": "Junior API Persistence and Change Management",
+          "link": "/domains/junior-api-persistence-and-change-management"
+        },
+        {
+          "text": "Junior API Platform Core",
+          "link": "/domains/junior-api-platform-core"
+        },
+        {
+          "text": "Junior API Service",
+          "link": "/domains/junior-api-service"
+        },
+        {
+          "text": "Junior API Service Backend",
+          "link": "/domains/junior-api-service-backend"
+        },
+        {
+          "text": "Junior API Service Core",
+          "link": "/domains/junior-api-service-core"
+        },
+        {
+          "text": "Junior API Service Logic",
+          "link": "/domains/junior-api-service-logic"
+        },
+        {
+          "text": "Junior API Service Setup",
+          "link": "/domains/junior-api-service-setup"
+        },
+        {
+          "text": "Junior API Services Backend",
+          "link": "/domains/junior-api-services-backend"
+        },
+        {
+          "text": "Junior API Services Core",
+          "link": "/domains/junior-api-services-core"
+        },
+        {
+          "text": "Junior Backend API Development",
+          "link": "/domains/junior-backend-api-development"
+        },
+        {
+          "text": "Junior Backend API Engine",
+          "link": "/domains/junior-backend-api-engine"
+        },
+        {
+          "text": "Junior Backend API Modules",
+          "link": "/domains/junior-backend-api-modules"
+        },
+        {
+          "text": "Junior Backend API Platform",
+          "link": "/domains/junior-backend-api-platform"
+        },
+        {
+          "text": "Junior Backend API Service",
+          "link": "/domains/junior-backend-api-service"
+        },
+        {
+          "text": "Junior Backend API Services",
+          "link": "/domains/junior-backend-api-services"
+        },
+        {
+          "text": "Junior Backend API System",
+          "link": "/domains/junior-backend-api-system"
+        },
+        {
+          "text": "Junior Backend Deployment System",
+          "link": "/domains/junior-backend-deployment-system"
+        },
+        {
+          "text": "Junior Backend Development Setup",
+          "link": "/domains/python-backend-development-setup"
+        },
+        {
+          "text": "Junior Backend Services API",
+          "link": "/domains/junior-backend-services-api"
+        },
+        {
+          "text": "Junior Background Management",
+          "link": "/domains/junior-background-management"
+        },
+        {
+          "text": "Junior Background Orchestrator",
+          "link": "/domains/junior-background-orchestrator"
+        },
+        {
+          "text": "Junior Background Services",
+          "link": "/domains/junior-background-services"
+        },
+        {
+          "text": "Junior Background Sync",
+          "link": "/domains/junior-background-sync"
+        },
+        {
+          "text": "Junior Change Management",
+          "link": "/domains/junior-change-management"
+        },
+        {
+          "text": "Junior Coaching API Backend",
+          "link": "/domains/junior-coaching-api-backend"
+        },
+        {
+          "text": "Junior Coding Platform Backend",
+          "link": "/domains/junior-coding-platform-backend"
+        },
+        {
+          "text": "Junior Coding Service Backend",
+          "link": "/domains/junior-coding-service-backend"
+        },
+        {
+          "text": "Junior Codx API Backend",
+          "link": "/domains/junior-codx-api-backend"
+        },
+        {
+          "text": "Junior CodX Backend Core",
+          "link": "/domains/junior-codx-backend-core"
+        },
+        {
+          "text": "Junior Data Management",
+          "link": "/domains/junior-data-management"
+        },
+        {
+          "text": "Junior Data Synchronization",
+          "link": "/domains/junior-data-synchronization"
+        },
+        {
+          "text": "Junior Dev Backend Services",
+          "link": "/domains/junior-dev-backend-services"
+        },
+        {
+          "text": "Junior Developer API Framework",
+          "link": "/domains/junior-developer-api-framework"
+        },
+        {
+          "text": "Junior Developer Learning API",
+          "link": "/domains/junior-developer-learning-api"
+        },
+        {
+          "text": "Junior Developer Learning Curriculum",
+          "link": "/domains/junior-developer-learning-curriculum"
+        },
+        {
+          "text": "Junior Feature API Module",
+          "link": "/domains/junior-feature-api-module"
+        },
+        {
+          "text": "Junior Finance API Gateway",
+          "link": "/domains/junior-finance-api-gateway"
+        },
+        {
+          "text": "Junior Finance API System",
+          "link": "/domains/junior-finance-api-system"
+        },
+        {
+          "text": "Junior Financial Service API",
+          "link": "/domains/junior-financial-service-api"
+        },
+        {
+          "text": "Junior Financial Services API",
+          "link": "/domains/junior-financial-services-api"
+        },
+        {
+          "text": "Junior Fintech API Backend",
+          "link": "/domains/junior-fintech-api-backend"
+        },
+        {
+          "text": "Junior Intelligence Engine",
+          "link": "/domains/junior-intelligence-engine"
+        },
+        {
+          "text": "Junior Knowledge Service API",
+          "link": "/domains/junior-knowledge-service-api"
+        },
+        {
+          "text": "Junior Knowledge Services API",
+          "link": "/domains/junior-knowledge-services-api"
+        },
+        {
+          "text": "Junior Learning API Backend",
+          "link": "/domains/junior-learning-api-backend"
+        },
+        {
+          "text": "Junior Learning API Core",
+          "link": "/domains/junior-learning-api-core"
+        },
+        {
+          "text": "Junior Learning Platform API",
+          "link": "/domains/junior-learning-platform-api"
+        },
+        {
+          "text": "Junior Microservice Backend",
+          "link": "/domains/junior-microservice-backend"
+        },
+        {
+          "text": "Junior Platform API Backend",
+          "link": "/domains/junior-platform-api-backend"
+        },
+        {
+          "text": "Junior Platform API Core",
+          "link": "/domains/junior-platform-api-core"
+        },
+        {
+          "text": "Junior Platform Backend Services",
+          "link": "/domains/junior-platform-backend-services"
+        },
+        {
+          "text": "Junior Portfolio API Backend",
+          "link": "/domains/junior-portfolio-api-backend"
+        },
+        {
+          "text": "Junior Project API Backend",
+          "link": "/domains/junior-project-api-backend"
+        },
+        {
+          "text": "Junior Project API Core",
+          "link": "/domains/junior-project-api-core"
+        },
+        {
+          "text": "Junior Project API Engine",
+          "link": "/domains/junior-project-api-engine"
+        },
+        {
+          "text": "Junior Project API Suite",
+          "link": "/domains/junior-project-api-suite"
+        },
+        {
+          "text": "Junior Project Backend Development",
+          "link": "/domains/junior-project-backend-development"
+        },
+        {
+          "text": "Junior Project Core API",
+          "link": "/domains/junior-project-core-api"
+        },
+        {
+          "text": "Junior Project Module",
+          "link": "/domains/junior-project-module"
+        },
+        {
+          "text": "Junior Tier API Backend",
+          "link": "/domains/junior-tier-api-backend"
+        },
+        {
+          "text": "Junior Web API Backend",
+          "link": "/domains/junior-web-api-backend"
+        },
+        {
+          "text": "Knowledge & Agent Framework",
+          "link": "/domains/knowledge-agent-framework"
+        },
+        {
+          "text": "Knowledge & AI Core",
+          "link": "/domains/knowledge-ai-core"
+        },
+        {
+          "text": "Knowledge & AI Services",
+          "link": "/domains/knowledge-ai-services"
+        },
+        {
+          "text": "Knowledge & API Layer",
+          "link": "/domains/knowledge-api-layer"
+        },
+        {
+          "text": "Knowledge & Intelligence Backend",
+          "link": "/domains/knowledge-intelligence-backend"
+        },
+        {
+          "text": "Knowledge & Intelligence Engine",
+          "link": "/domains/knowledge-intelligence-engine"
+        },
+        {
+          "text": "Knowledge & Intelligence Module",
+          "link": "/domains/knowledge-intelligence-module"
+        },
+        {
+          "text": "Knowledge & Intelligence Platform Domains",
+          "link": "/domains/knowledge-intelligence-platform-domains"
+        },
+        {
+          "text": "Knowledge & Intelligence Service",
+          "link": "/domains/knowledge-intelligence-service"
+        },
+        {
+          "text": "Knowledge Agent Orchestration System",
+          "link": "/domains/knowledge-agent-orchestration-system"
+        },
+        {
+          "text": "Knowledge AI Backend",
+          "link": "/domains/knowledge-ai-backend"
+        },
+        {
+          "text": "Knowledge and AI API",
+          "link": "/domains/knowledge-and-ai-api"
+        },
+        {
+          "text": "Knowledge and AI Backend Services",
+          "link": "/domains/knowledge-and-ai-backend-services"
+        },
+        {
+          "text": "Knowledge and AI Engine",
+          "link": "/domains/knowledge-and-ai-engine"
+        },
+        {
+          "text": "Knowledge and AI Service Core",
+          "link": "/domains/knowledge-and-ai-service-core"
+        },
+        {
+          "text": "Knowledge and AI Services",
+          "link": "/domains/knowledge-and-ai-services"
+        },
+        {
+          "text": "Knowledge and Data Architecture",
+          "link": "/domains/knowledge-and-data-architecture"
+        },
+        {
+          "text": "Knowledge and Data Infrastructure",
+          "link": "/domains/knowledge-and-data-infrastructure"
+        },
+        {
+          "text": "Knowledge and Data Management",
+          "link": "/domains/knowledge-and-data-management"
+        },
+        {
+          "text": "Knowledge and Domain Engine",
+          "link": "/domains/knowledge-and-domain-engine"
+        },
+        {
+          "text": "Knowledge and Domain Modeling",
+          "link": "/domains/knowledge-and-domain-modeling"
+        },
+        {
+          "text": "Knowledge and Storage Architecture",
+          "link": "/domains/knowledge-and-storage-architecture"
+        },
+        {
+          "text": "Knowledge and Storage Infrastructure",
+          "link": "/domains/knowledge-and-storage-infrastructure"
+        },
+        {
+          "text": "Knowledge API & Content Intelligence",
+          "link": "/domains/knowledge-api-content-intelligence"
+        },
+        {
+          "text": "Knowledge API Infrastructure",
+          "link": "/domains/knowledge-api-infrastructure"
+        },
+        {
+          "text": "Knowledge API Services",
+          "link": "/domains/knowledge-api-services"
+        },
+        {
+          "text": "Knowledge Architecture and Storage",
+          "link": "/domains/knowledge-architecture-and-storage"
+        },
+        {
+          "text": "Knowledge Base & Data Layer",
+          "link": "/domains/knowledge-base-data-layer"
+        },
+        {
+          "text": "Knowledge Base API Services",
+          "link": "/domains/knowledge-base-api-services"
+        },
+        {
+          "text": "Knowledge Base Data API",
+          "link": "/domains/knowledge-base-data-api"
+        },
+        {
+          "text": "Knowledge Base Data Persistence",
+          "link": "/domains/knowledge-base-data-persistence"
+        },
+        {
+          "text": "Knowledge Base Data Storage",
+          "link": "/domains/knowledge-base-data-storage"
+        },
+        {
+          "text": "Knowledge Base Persistence Layer",
+          "link": "/domains/knowledge-base-persistence-layer"
+        },
+        {
+          "text": "Knowledge Base Storage API",
+          "link": "/domains/knowledge-base-storage-api"
+        },
+        {
+          "text": "Knowledge Content Engine",
+          "link": "/domains/knowledge-content-engine"
+        },
+        {
+          "text": "Knowledge Core",
+          "link": "/domains/structured-knowledge-core"
+        },
+        {
+          "text": "Knowledge Database Service",
+          "link": "/domains/knowledge-database-service"
+        },
+        {
+          "text": "Knowledge Domain API",
+          "link": "/domains/knowledge-domain-api"
+        },
+        {
+          "text": "Knowledge Domain API Backend",
+          "link": "/domains/knowledge-domain-api-backend"
+        },
+        {
+          "text": "Knowledge Domain Intelligence",
+          "link": "/domains/knowledge-domain-intelligence"
+        },
+        {
+          "text": "Knowledge Domain Processor",
+          "link": "/domains/knowledge-domain-processor"
+        },
+        {
+          "text": "Knowledge Domain Service",
+          "link": "/domains/knowledge-domain-service"
+        },
+        {
+          "text": "Knowledge Domain Services",
+          "link": "/domains/knowledge-domain-services"
+        },
+        {
+          "text": "Knowledge Graph & AI Core",
+          "link": "/domains/knowledge-graph-ai-core"
+        },
+        {
+          "text": "Knowledge Graph & AI Services",
+          "link": "/domains/knowledge-graph-ai-services"
+        },
+        {
+          "text": "Knowledge Graph AI Module",
+          "link": "/domains/knowledge-graph-ai-module"
+        },
+        {
+          "text": "Knowledge Graph API Backend",
+          "link": "/domains/knowledge-graph-api-backend"
+        },
+        {
+          "text": "Knowledge Graph API Core",
+          "link": "/domains/knowledge-graph-api-core"
+        },
+        {
+          "text": "Knowledge Graph API Layer",
+          "link": "/domains/knowledge-graph-api-layer"
+        },
+        {
+          "text": "Knowledge Graph API Module",
+          "link": "/domains/knowledge-graph-api-module"
+        },
+        {
+          "text": "Knowledge Graph API Services",
+          "link": "/domains/knowledge-graph-api-services"
+        },
+        {
+          "text": "Knowledge Graph Backend",
+          "link": "/domains/knowledge-graph-backend"
+        },
+        {
+          "text": "Knowledge Graph Engine",
+          "link": "/domains/knowledge-graph-engine"
+        },
+        {
+          "text": "Knowledge Graph Integration",
+          "link": "/domains/knowledge-graph-integration"
+        },
+        {
+          "text": "Knowledge Graphing & Domain API",
+          "link": "/domains/knowledge-graphing-domain-api"
+        },
+        {
+          "text": "Knowledge Graphing API Backend",
+          "link": "/domains/knowledge-graphing-api-backend"
+        },
+        {
+          "text": "Knowledge Infrastructure and Storage",
+          "link": "/domains/knowledge-infrastructure-and-storage"
+        },
+        {
+          "text": "Knowledge Infrastructure Services",
+          "link": "/domains/knowledge-infrastructure-services"
+        },
+        {
+          "text": "Knowledge Integration Service",
+          "link": "/domains/knowledge-integration-service"
+        },
+        {
+          "text": "Knowledge Intelligence API",
+          "link": "/domains/knowledge-intelligence-api"
+        },
+        {
+          "text": "Knowledge Intelligence Infrastructure",
+          "link": "/domains/knowledge-intelligence-infrastructure"
+        },
+        {
+          "text": "Knowledge Intelligence Platform",
+          "link": "/domains/knowledge-intelligence-platform"
+        },
+        {
+          "text": "Knowledge Intelligence System",
+          "link": "/domains/knowledge-intelligence-system"
+        },
+        {
+          "text": "Knowledge Management and Persistence",
+          "link": "/domains/knowledge-management-and-persistence"
+        },
+        {
+          "text": "Knowledge Management and Storage",
+          "link": "/domains/knowledge-management-and-storage"
+        },
+        {
+          "text": "Knowledge Management API",
+          "link": "/domains/knowledge-management-api"
+        },
+        {
+          "text": "Knowledge Management Infrastructure",
+          "link": "/domains/knowledge-management-infrastructure"
+        },
+        {
+          "text": "Knowledge Management System",
+          "link": "/domains/knowledge-management-system"
+        },
+        {
+          "text": "Knowledge Retrieval Core Module",
+          "link": "/domains/knowledge-retrieval-core-module"
+        },
+        {
+          "text": "Knowledge Retrieval Engine",
+          "link": "/domains/knowledge-retrieval-engine"
+        },
+        {
+          "text": "Knowledge Storage and AI",
+          "link": "/domains/knowledge-storage-and-ai"
+        },
+        {
+          "text": "Knowledge Storage and Embeddings",
+          "link": "/domains/knowledge-storage-and-embeddings"
+        },
+        {
+          "text": "Knowledge Storage and Intelligence",
+          "link": "/domains/knowledge-storage-and-intelligence"
+        },
+        {
+          "text": "Knowledge Storage Infrastructure",
+          "link": "/domains/knowledge-storage-infrastructure"
+        },
+        {
+          "text": "Knowledge Structuring & Intelligence",
+          "link": "/domains/knowledge-structuring-intelligence"
+        },
+        {
+          "text": "Knowledge-Driven Agent System",
+          "link": "/domains/knowledge-driven-agent-system"
+        },
+        {
+          "text": "Knowledge-Driven AI Ecosystem",
+          "link": "/domains/knowledge-driven-ai-ecosystem"
+        },
+        {
+          "text": "Knowledge-Driven AI Platform",
+          "link": "/domains/knowledge-driven-ai-platform"
+        },
+        {
+          "text": "Knowledge-Driven API Services",
+          "link": "/domains/knowledge-driven-api-services"
+        },
+        {
+          "text": "Knowledge-Driven Automation Core",
+          "link": "/domains/knowledge-driven-automation-core"
+        },
+        {
+          "text": "Knowledge-Driven Service APIs",
+          "link": "/domains/knowledge-driven-service-apis"
+        },
+        {
+          "text": "Knowledge-Powered API Services",
+          "link": "/domains/knowledge-powered-api-services"
+        },
+        {
+          "text": "Legal & Copyright Details",
+          "link": "/domains/legal-copyright-details"
+        },
+        {
+          "text": "LLM-Powered Development Suite",
+          "link": "/domains/llm-powered-development-suite"
+        },
+        {
+          "text": "Modern Domain Infrastructure Services",
+          "link": "/domains/modern-domain-infrastructure-services"
+        },
+        {
+          "text": "Persistent Data Services",
+          "link": "/domains/persistent-data-services"
+        },
+        {
+          "text": "Platform AI Backend",
+          "link": "/domains/platform-ai-backend"
+        },
+        {
+          "text": "Project Documentation and Licensing",
+          "link": "/domains/project-documentation-and-licensing"
+        },
+        {
+          "text": "Project Foundation and Licensing",
+          "link": "/domains/project-foundation-and-licensing"
+        },
+        {
+          "text": "Project Foundation Assets",
+          "link": "/domains/project-foundation-assets"
+        },
+        {
+          "text": "Project Infrastructure Module",
+          "link": "/domains/project-infrastructure-module"
+        },
+        {
+          "text": "Project Legal Licensing",
+          "link": "/domains/project-legal-licensing"
+        },
+        {
+          "text": "Project License Documentation",
+          "link": "/domains/project-license-documentation"
+        },
+        {
+          "text": "Project Licensing Agreement",
+          "link": "/domains/project-licensing-agreement"
+        },
+        {
+          "text": "Project Licensing and Documentation",
+          "link": "/domains/project-licensing-and-documentation"
+        },
+        {
+          "text": "Project Licensing and Legal Information",
+          "link": "/domains/project-licensing-and-legal-information"
+        },
+        {
+          "text": "Project Licensing and Metadata",
+          "link": "/domains/project-licensing-and-metadata"
+        },
+        {
+          "text": "Project Licensing and Rules",
+          "link": "/domains/project-licensing-and-rules"
+        },
+        {
+          "text": "Project Licensing and Wiki Content",
+          "link": "/domains/project-licensing-and-wiki-content"
+        },
+        {
+          "text": "Project Licensing Details",
+          "link": "/domains/project-licensing-details"
+        },
+        {
+          "text": "Project Licensing Documentation",
+          "link": "/domains/project-licensing-documentation"
+        },
+        {
+          "text": "Project Licensing Framework",
+          "link": "/domains/project-licensing-framework"
+        },
+        {
+          "text": "Project Licensing Information",
+          "link": "/domains/project-licensing-information"
+        },
+        {
+          "text": "Project Licensing Metadata",
+          "link": "/domains/project-licensing-metadata"
+        },
+        {
+          "text": "Project Licensing Structure",
+          "link": "/domains/project-licensing-structure"
+        },
+        {
+          "text": "Project Metadata and Licensing",
+          "link": "/domains/project-metadata-and-licensing"
+        },
+        {
+          "text": "project-management",
+          "link": "/domains/project-management"
+        },
+        {
+          "text": "Service Background Processing",
+          "link": "/domains/service-background-processing"
+        },
+        {
+          "text": "Smart Knowledge Graph API",
+          "link": "/domains/smart-knowledge-graph-api"
+        },
+        {
+          "text": "Software Domain Wiki: Licensing & Intellectual Property Foundation",
+          "link": "/domains/project-metadata-licensing"
+        },
+        {
+          "text": "Software License Management",
+          "link": "/domains/software-license-management"
+        },
+        {
+          "text": "Software Licensing Documentation",
+          "link": "/domains/software-licensing-documentation"
+        },
+        {
+          "text": "Software Licensing Information",
+          "link": "/domains/software-licensing-information"
+        },
+        {
+          "text": "State Transition & Background Services",
+          "link": "/domains/state-transition-background-services"
+        },
+        {
+          "text": "Structured Data Persistence",
+          "link": "/domains/structured-data-persistence"
+        },
+        {
+          "text": "Structured Knowledge & AI API",
+          "link": "/domains/structured-knowledge-ai-api"
+        },
+        {
+          "text": "Structured Knowledge API",
+          "link": "/domains/structured-knowledge-api"
+        },
+        {
+          "text": "Structured Knowledge Backend",
+          "link": "/domains/structured-knowledge-backend"
+        },
+        {
+          "text": "Structured Knowledge Intelligence",
+          "link": "/domains/structured-knowledge-intelligence"
+        },
+        {
+          "text": "Structured Knowledge Service",
+          "link": "/domains/structured-knowledge-service"
+        },
+        {
+          "text": "Structured Knowledge Services",
+          "link": "/domains/structured-knowledge-services"
+        },
+        {
+          "text": "Structured Knowledge System",
+          "link": "/domains/structured-knowledge-system"
+        },
+        {
+          "text": "Task & Change Management",
+          "link": "/domains/task-change-management"
+        },
+        {
+          "text": "Task and Change Management Services",
+          "link": "/domains/task-and-change-management-services"
+        },
+        {
+          "text": "uncategorized",
+          "link": "/domains/uncategorized"
+        },
+        {
+          "text": "wiki",
+          "link": "/domains/wiki"
+        },
+        {
+          "text": "Wiki and Documentation Framework",
+          "link": "/domains/wiki-and-documentation-framework"
+        },
+        {
+          "text": "Wiki and Knowledge Management",
+          "link": "/domains/wiki-and-knowledge-management"
+        },
+        {
+          "text": "Wiki Backend Data Management",
+          "link": "/domains/wiki-backend-data-management"
+        },
+        {
+          "text": "Wiki Content and Data Storage",
+          "link": "/domains/wiki-content-and-data-storage"
+        },
+        {
+          "text": "Wiki Data Infrastructure",
+          "link": "/domains/wiki-data-infrastructure"
+        },
+        {
+          "text": "Wiki Data Management",
+          "link": "/domains/wiki-data-management"
+        },
+        {
+          "text": "Wiki Data Management API",
+          "link": "/domains/wiki-data-management-api"
+        },
+        {
+          "text": "Wiki Data Persistence API",
+          "link": "/domains/wiki-data-persistence-api"
+        },
+        {
+          "text": "Wiki Data Storage API",
+          "link": "/domains/wiki-data-storage-api"
+        },
+        {
+          "text": "Wiki Data Storage APIs",
+          "link": "/domains/wiki-data-storage-apis"
+        },
+        {
+          "text": "Wiki Data Storage Backend",
+          "link": "/domains/wiki-data-storage-backend"
+        },
+        {
+          "text": "Wiki Database Management",
+          "link": "/domains/wiki-database-management"
+        },
+        {
+          "text": "Wiki Database Storage Layer",
+          "link": "/domains/wiki-database-storage-layer"
+        },
+        {
+          "text": "Wiki Database Storage Module",
+          "link": "/domains/wiki-database-storage-module"
+        },
+        {
+          "text": "Wiki Documentation System",
+          "link": "/domains/wiki-documentation-system"
+        },
+        {
+          "text": "Wiki Knowledge Base",
+          "link": "/domains/wiki-knowledge-base"
+        },
+        {
+          "text": "Wiki Knowledge Infrastructure",
+          "link": "/domains/wiki-knowledge-infrastructure"
+        },
+        {
+          "text": "Workflow and Background Processing",
+          "link": "/domains/workflow-and-background-processing"
+        },
+        {
+          "text": "Workflow and Background Services",
+          "link": "/domains/workflow-and-background-services"
+        },
+        {
+          "text": "Workflow and Service Coordination",
+          "link": "/domains/workflow-and-service-coordination"
+        },
+        {
+          "text": "Workflow and State Management",
+          "link": "/domains/workflow-and-state-management"
+        },
+        {
+          "text": "Workflow and Task Processing",
+          "link": "/domains/workflow-and-task-processing"
+        },
+        {
+          "text": "Workflow Background Processing",
+          "link": "/domains/workflow-background-processing"
+        },
+        {
+          "text": "\ud83e\udde0 Knowledge AI Service Layer",
+          "link": "/domains/knowledge-ai-service-layer"
+        }
+      ]
+    }
+  ],
+  "last_update": 1794305157
+}

@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "boards": [
+    {
+      "id": "cb1e14b2-5e2c-5e18-8397-02f1dece1f4a",
+      "title": "Azure DevOps",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Azure DevOps",
+      "order": 0
+    },
+    {
+      "id": "503e970a-0753-505a-893e-5940b3b46ef7",
+      "title": "Plugins",
+      "type": "kanban",
+      "parent_id": null,
+      "folder": "Plugins",
+      "order": 1
+    }
+  ],
+  "tags": {}
+}

@@ -1,0 +1,28 @@
+{
+  "title": "Pull Request",
+  "columns": [
+    {
+      "id": "72439b90-61e5-4378-ab65-b99c9b393d24",
+      "title": "Doing",
+      "color": "#F39C19",
+      "folder": "Doing",
+      "order": 0
+    },
+    {
+      "id": "dffd4db1-1143-4ea6-a9f0-239616300bce",
+      "title": "Ok",
+      "color": "#27AF60",
+      "folder": "Ok",
+      "order": 1
+    }
+  ],
+  "background": "",
+  "active": false,
+  "last_update": "2025-09-24T11:22:48.454Z",
+  "id": "7fadab5e-f709-5080-888b-60a048bc64ef",
+  "description": "",
+  "type": "kanban",
+  "parent_id": null,
+  "folder": "Pull Request",
+  "order": 22
+}

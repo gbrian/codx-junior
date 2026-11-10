@@ -26,6 +26,17 @@ import moment from 'moment'
           </button>
         </div>
 
+        <!-- Project-wide task search (all boards) -->
+        <button
+          class="btn btn-sm btn-ghost shrink-0 gap-1.5 tooltip tooltip-bottom"
+          title="Search every task in the project"
+          aria-label="Search every task"
+          @click="$emit('find-tasks')"
+        >
+          <i class="fa-solid fa-magnifying-glass-chart text-xs"></i>
+          <span class="hidden sm:inline">Find</span>
+        </button>
+
         <!-- Task filters: keep only the boards holding matching tasks -->
         <button
           class="btn btn-sm shrink-0 gap-1.5"
@@ -243,6 +254,13 @@ import moment from 'moment'
                 title="Sprint board"
               >
                 <i class="fa-solid fa-layer-group text-[8px]"></i> sprint
+              </span>
+              <span
+                v-if="board.manager?.enabled"
+                class="badge badge-xs badge-success badge-outline gap-0.5 shrink-0 mt-0.5"
+                :title="`Board manager: ${board.manager.profile || board.assignee || 'ProjectManager'}`"
+              >
+                <i class="fa-solid fa-user-tie text-[8px]"></i> manager
               </span>
             </div>
 
