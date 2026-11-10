@@ -7,14 +7,15 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
     <!-- Mobile backdrop -->
     <div
       v-if="sidebarOpen"
-      class="fixed inset-0 z-30 bg-black/50 sm:hidden"
+      class="fixed inset-0 z-30 bg-black/50"
       @click="sidebarOpen = false"
     ></div>
 
     <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
     <aside
+      v-if="sidebarVisible"
       class="wiki-sidebar z-40 flex w-64 shrink-0 flex-col border-r border-base-content/10 bg-base-200/60 backdrop-blur xl:w-72"
-      :class="sidebarOpen ? 'fixed inset-y-0 left-0 shadow-2xl sm:static sm:shadow-none' : 'hidden sm:flex'"
+      :class="isPhone ? 'fixed inset-y-0 left-0 shadow-2xl' : 'relative'"
     >
       <div class="flex items-center gap-2 border-b border-base-content/10 px-4 py-3">
         <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/80 to-secondary/80 text-primary-content shadow-sm">
@@ -25,7 +26,7 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
           <div class="text-[0.65rem] font-bold uppercase tracking-[0.18em] opacity-50">Documentation</div>
           <div class="truncate text-sm font-bold">{{ site.project.title || site.project.name || 'Wiki' }}</div>
         </div>
-        <button class="btn btn-ghost btn-xs btn-circle sm:hidden" aria-label="Close menu" @click="sidebarOpen = false">
+        <button v-if="isPhone" class="btn btn-ghost btn-xs btn-circle" aria-label="Close menu" @click="sidebarOpen = false">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -153,7 +154,7 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
     <div class="flex min-w-0 flex-1 flex-col">
       <!-- Top bar -->
       <header class="flex h-14 shrink-0 items-center gap-2 border-b border-base-content/10 bg-base-100/80 px-3 backdrop-blur lg:px-5">
-        <button class="btn btn-ghost btn-sm gap-2 sm:hidden" aria-label="Open documentation menu" @click="sidebarOpen = true">
+        <button v-if="isPhone" class="btn btn-ghost btn-sm gap-2" aria-label="Open documentation menu" @click="sidebarOpen = true">
           <i class="fa-solid fa-bars"></i>
           <span>Docs</span>
         </button>
@@ -425,7 +426,10 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
         <!-- ── Assistant panel ────────────────────────────────────────── -->
         <aside
           v-if="assistantOpen"
-          class="absolute inset-y-0 right-0 z-30 flex w-full max-w-md shrink-0 flex-col border-l border-base-content/10 bg-base-100 shadow-2xl sm:static sm:z-auto sm:w-[24rem] sm:shadow-none"
+          class="flex shrink-0 flex-col border-l border-base-content/10 bg-base-100"
+          :class="isPhone
+            ? 'absolute inset-y-0 right-0 z-30 w-full max-w-md shadow-2xl'
+            : 'relative w-[24rem]'"
         >
           <div class="flex items-center gap-2 border-b border-base-content/10 px-4 py-3">
             <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-primary-content">
@@ -577,6 +581,8 @@ export default {
       loadingSite: true,
       error: null,
       sidebarOpen: false,
+      isPhone: typeof window !== 'undefined'
+        && window.matchMedia('(max-width: 479px)').matches,
       collapsedSections: [],
       activeHeading: '',
       searchOpen: false,
@@ -604,6 +610,9 @@ export default {
     }
   },
   computed: {
+    sidebarVisible() {
+      return !this.isPhone || this.sidebarOpen
+    },
     homeTagline() {
       return this.cleanText(this.site.home?.tagline)
         || this.cleanText(this.site.home?.description)
@@ -699,10 +708,14 @@ export default {
   },
   mounted() {
     window.addEventListener('keydown', this.onGlobalKeydown)
+    this.phoneMedia = window.matchMedia('(max-width: 479px)')
+    this.phoneMedia.addEventListener('change', this.onPhoneMediaChange)
+    this.isPhone = this.phoneMedia.matches
     this.updateTimer = setInterval(() => this.pollUpdates(), 15000)
   },
   beforeUnmount() {
     window.removeEventListener('keydown', this.onGlobalKeydown)
+    this.phoneMedia?.removeEventListener('change', this.onPhoneMediaChange)
     clearInterval(this.updateTimer)
     clearTimeout(this.toastTimer)
     clearTimeout(this.scrollTimer)
@@ -796,6 +809,10 @@ export default {
       window.history.replaceState({}, '', url)
     },
 
+    onPhoneMediaChange(event) {
+      this.isPhone = event.matches
+      if (!this.isPhone) this.sidebarOpen = false
+    },
     closeProjectMenu() {
       if (this.$refs.projectMenu) this.$refs.projectMenu.open = false
     },
