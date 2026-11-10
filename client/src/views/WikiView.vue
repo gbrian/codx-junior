@@ -664,9 +664,11 @@ export default {
     updateLabel() {
       if (this.updateStatus.running) return 'Updating docs…'
       if (this.updateStatus.pending) {
+        if (this.updateStatus.stalled) return 'Docs update stalled — refresh'
         const next = this.updateStatus.next_run_at ? Math.max(0, this.updateStatus.next_run_at - Math.floor(Date.now() / 1000)) : null
         return next !== null ? `Docs update queued · ${next}s` : 'Docs update queued'
       }
+      if (this.updateStatus.manifest?.stale) return 'Docs changed — manifest refreshing'
       if (this.updateStatus.last_error) return 'Last update failed'
       return 'Docs up to date'
     },

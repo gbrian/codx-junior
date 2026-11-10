@@ -64,7 +64,7 @@ class WikiUpdateSchedulerTest(unittest.TestCase):
         self.scheduler.schedule(
             self.settings,
             files=["a.py"],
-            debounce_seconds=0.15,
+            debounce_seconds=1,
         )
         status = self.scheduler.status(self.settings)
         self.assertTrue(status["pending"])

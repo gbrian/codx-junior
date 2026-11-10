@@ -3,6 +3,7 @@
 import json
 import os
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -101,6 +102,26 @@ class WikiSiteBuilderTest(unittest.TestCase):
         self.assertNotIn("---", page["content"][:20])
         self.assertGreaterEqual(page["reading_time"], 1)
         self.assertTrue(page["headings"])
+
+    def test_manifest_is_rebuilt_when_a_page_is_newer(self):
+        self.build()
+        self.assertFalse(self.builder.is_stale())
+        path = os.path.join(self.wiki, "guides", "auth.md")
+        write(path, "# Authentication\n\nUpdated content.\n")
+        # Force a timestamp clearly after the manifest regardless of filesystem
+        # granularity (the production check uses mtimes).
+        future = time.time() + 5
+        os.utime(path, (future, future))
+        self.assertTrue(self.builder.is_stale())
+        site = self.builder.build_if_stale()
+        self.assertIn("guides/auth", site["pages"])
+        past = time.time() - 1
+        os.utime(path, (past, past))
+        self.assertFalse(self.builder.is_stale())
+        status = self.builder.manifest_status()
+        self.assertTrue(status["exists"])
+        self.assertFalse(status["stale"])
+        self.assertGreaterEqual(status["pages"], 3)
 
     def test_page_blocks_traversal(self):
         self.build()

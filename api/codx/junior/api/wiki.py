@@ -14,6 +14,7 @@ a parent wiki able to navigate the wikis of the projects inside it.
 import asyncio
 import logging
 import os
+import time
 from typing import Any, Dict, Optional
 from urllib.parse import unquote
 
@@ -123,14 +124,29 @@ def _site_payload(settings: Any, site: Dict[str, Any]) -> Dict[str, Any]:
 
 def _update_payload(settings: Any) -> Dict[str, Any]:
     status = read_update_status(settings)
+    scheduler = get_wiki_scheduler()
     try:
-        status.update(get_wiki_scheduler().status(settings))
+        status.update(scheduler.status(settings))
     except Exception as ex:  # pragma: no cover - status is never critical
         logger.debug("Cannot read live wiki scheduler status: %s", ex)
     status.setdefault("pending", False)
     status.setdefault("running", False)
     status["auto_update"] = bool(getattr(settings, "wiki_auto_update", True))
     status["debounce_seconds"] = getattr(settings, "wiki_update_debounce_seconds", 60)
+    status["scheduler_alive"] = scheduler.is_running()
+    now = int(time.time())
+    next_run = int(status.get("next_run_at") or 0)
+    status["overdue_seconds"] = max(0, now - next_run) if status.get("pending") and next_run else 0
+    status["stalled"] = bool(
+        status.get("pending")
+        and not status.get("running")
+        and status["overdue_seconds"] > 60
+    )
+    try:
+        status["manifest"] = WikiSiteBuilder(settings=settings).manifest_status()
+    except Exception as ex:  # pragma: no cover - diagnostics only
+        logger.debug("Cannot inspect wiki manifest freshness: %s", ex)
+        status["manifest"] = {}
     return status
 
 
@@ -161,6 +177,10 @@ async def wiki_site(request: Request, project: Optional[str] = Query(default=Non
             site = await asyncio.to_thread(lambda: builder.build(write=True))
         else:
             site = await asyncio.to_thread(lambda: builder.build(write=False))
+    elif builder.is_stale(site):
+        # Another process (or a restart) wrote pages after the manifest: rebuild
+        # the cheap, AI-free navigation/index on read.
+        site = await asyncio.to_thread(lambda: builder.build(write=True))
     return _site_payload(settings, site)
 
 

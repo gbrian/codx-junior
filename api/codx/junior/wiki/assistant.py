@@ -146,9 +146,10 @@ class WikiAssistant:
             if message.get("content")
         ]
 
-        site = self.site_builder.load()
-        if not site:
-            site = self.site_builder.build(write=False)
+        # Always work from a fresh manifest. The scheduler normally rebuilds it,
+        # but this makes the assistant see pages written by another process (or
+        # a restarted background worker) without waiting for the next batch.
+        site = self.site_builder.build_if_stale(write=True)
         pages = list(site.get("pages", {}).values())
         selected = self._select_pages(question, pages, page_path)
         context_pages = self._load_page_context(selected) if selected else []
@@ -178,6 +179,11 @@ class WikiAssistant:
             "citations": citations,
             "suggestions": self._followups(question, selected, citations),
             "pages_used": [page["path"] for page in context_pages],
+            "context": {
+                "wiki_pages": len(context_pages),
+                "knowledge_documents": len(knowledge),
+                "codebase_search": bool(use_knowledge),
+            },
             "generated_at": int(time.time()),
         }
 

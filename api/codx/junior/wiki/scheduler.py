@@ -168,6 +168,10 @@ class WikiUpdateScheduler:
             self._thread.start()
             logger.info("Wiki update scheduler started")
 
+    def is_running(self) -> bool:
+        """Return whether this process has a live scheduler thread."""
+        return bool(self._thread and self._thread.is_alive())
+
     def stop(self) -> None:
         """Stop the polling thread and wait for in-flight work to drain."""
         self._stop_event.set()

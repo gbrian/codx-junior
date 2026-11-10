@@ -87,14 +87,26 @@ quiet period and maximum delay there.
 
 The assistant answers questions about the current project (and summarizes
 related child projects). It retrieves the most relevant wiki pages, optionally
-enriches them with knowledge-base snippets, and asks the configured model for an
-answer with citations.
+enriches them with **knowledge-base snippets**, and asks the configured model
+for an answer with citations.
 
-* Every answer returns `citations` and `pages_used`, so the UI can show source
-  chips and deep-link into the site.
+* **Wiki first:** the generated pages are the primary source. The manifest is
+  rebuilt automatically when a page is newer than `docs.json`.
+* **Codebase second:** with `use_knowledge` enabled it also runs the question
+  through `KnowledgeDB.search`, so indexed source files, symbols and guides can
+  appear as `source` citations. This is the project's knowledge index, not a
+  live filesystem walk.
+* Every answer returns `citations`, `pages_used` and a `context` summary
+  (`wiki_pages`, `knowledge_documents`, `codebase_search`).
 * If the model is unavailable, the assistant degrades to a deterministic
   "closest pages" answer instead of failing.
 * Disable it per project with `wiki_assistant_enabled`.
+
+> [!NOTE]
+> A parent project only searches what its own knowledge index contains. If its
+> `knowledge_file_ignore` excludes a child folder (for example `api/`), open that
+> child project's wiki and use its assistant, or add the folder to the parent's
+> knowledge scope.
 
 ## Child project wikis
 

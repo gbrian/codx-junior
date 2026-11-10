@@ -321,6 +321,69 @@ class WikiSiteBuilder:
             logger.warning("Cannot read wiki site manifest %s: %s", self.docs_path, ex)
             return {}
 
+    def latest_page_mtime(self) -> float:
+        """Return the newest markdown page mtime in the wiki folder."""
+        latest = 0.0
+        if not os.path.isdir(self.wiki_path):
+            return latest
+        for root, dirs, files in os.walk(self.wiki_path):
+            dirs[:] = [d for d in dirs if d not in _WIKI_IGNORED_DIRS and not d.startswith(".")]
+            for filename in files:
+                if not filename.lower().endswith(".md") or filename in _WIKI_IGNORED_FILES:
+                    continue
+                try:
+                    latest = max(latest, os.path.getmtime(os.path.join(root, filename)))
+                except OSError:
+                    continue
+        return latest
+
+    def is_stale(self, site: Optional[Dict[str, Any]] = None) -> bool:
+        """
+        Return True when pages changed after the manifest was generated.
+
+        The scheduler rebuilds the manifest after each batch, but the UI and the
+        assistant must also handle a manifest that is behind (for example when a
+        background process was restarted). Rebuilding it is cheap and AI-free.
+        """
+        site = site if site is not None else self.load()
+        if not site:
+            return True
+        latest = self.latest_page_mtime()
+        try:
+            docs_mtime = os.path.getmtime(self.docs_path)
+        except OSError:
+            return True
+        # A page written after the manifest means the manifest is behind. The
+        # small margin tolerates filesystem timestamp granularity.
+        return latest > docs_mtime + 0.5
+
+    def build_if_stale(self, write: bool = True) -> Dict[str, Any]:
+        """Load the manifest and rebuild it only when a page is newer."""
+        site = self.load()
+        if self.is_stale(site):
+            return self.build(write=write)
+        return site
+
+    def manifest_status(self) -> Dict[str, Any]:
+        """Return a compact freshness report used by the update-status API."""
+        site = self.load()
+        latest = self.latest_page_mtime()
+        generated = int((site or {}).get("generated_at") or 0)
+        docs_mtime = 0.0
+        try:
+            docs_mtime = os.path.getmtime(self.docs_path)
+        except OSError:
+            pass
+        return {
+            "path": self.docs_path,
+            "exists": bool(site),
+            "generated_at": generated,
+            "docs_mtime": int(docs_mtime),
+            "latest_page_at": int(latest),
+            "stale": (not site) or latest > docs_mtime + 0.5,
+            "pages": len((site or {}).get("pages", {})),
+        }
+
     def build(self, wiki_settings: Optional[Dict[str, Any]] = None, write: bool = True) -> Dict[str, Any]:
         """
         Build the complete docs-site manifest.
