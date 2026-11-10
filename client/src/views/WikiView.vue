@@ -7,14 +7,14 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
     <!-- Mobile backdrop -->
     <div
       v-if="sidebarOpen"
-      class="fixed inset-0 z-30 bg-black/50 md:hidden"
+      class="fixed inset-0 z-30 bg-black/50 sm:hidden"
       @click="sidebarOpen = false"
     ></div>
 
     <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
     <aside
-      class="wiki-sidebar z-40 flex w-72 shrink-0 flex-col border-r border-base-content/10 bg-base-200/60 backdrop-blur"
-      :class="sidebarOpen ? 'fixed inset-y-0 left-0 shadow-2xl md:static md:shadow-none' : 'hidden md:flex'"
+      class="wiki-sidebar z-40 flex w-64 shrink-0 flex-col border-r border-base-content/10 bg-base-200/60 backdrop-blur xl:w-72"
+      :class="sidebarOpen ? 'fixed inset-y-0 left-0 shadow-2xl sm:static sm:shadow-none' : 'hidden sm:flex'"
     >
       <div class="flex items-center gap-2 border-b border-base-content/10 px-4 py-3">
         <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/80 to-secondary/80 text-primary-content shadow-sm">
@@ -25,7 +25,7 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
           <div class="text-[0.65rem] font-bold uppercase tracking-[0.18em] opacity-50">Documentation</div>
           <div class="truncate text-sm font-bold">{{ site.project.title || site.project.name || 'Wiki' }}</div>
         </div>
-        <button class="btn btn-ghost btn-xs btn-circle md:hidden" aria-label="Close menu" @click="sidebarOpen = false">
+        <button class="btn btn-ghost btn-xs btn-circle sm:hidden" aria-label="Close menu" @click="sidebarOpen = false">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -153,8 +153,9 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
     <div class="flex min-w-0 flex-1 flex-col">
       <!-- Top bar -->
       <header class="flex h-14 shrink-0 items-center gap-2 border-b border-base-content/10 bg-base-100/80 px-3 backdrop-blur lg:px-5">
-        <button class="btn btn-ghost btn-sm btn-square md:hidden" aria-label="Open menu" @click="sidebarOpen = true">
+        <button class="btn btn-ghost btn-sm gap-2 sm:hidden" aria-label="Open documentation menu" @click="sidebarOpen = true">
           <i class="fa-solid fa-bars"></i>
+          <span>Docs</span>
         </button>
 
         <div class="hidden min-w-0 items-center gap-1.5 text-xs text-base-content/55 sm:flex">
@@ -242,8 +243,8 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
                   </div>
                   <div class="min-w-0">
                     <h1 class="text-3xl font-black tracking-tight lg:text-5xl">{{ site.home.title }}</h1>
-                    <p class="mt-2 max-w-2xl text-lg text-base-content/70">{{ site.home.tagline }}</p>
-                    <p class="mt-3 max-w-3xl text-sm leading-relaxed text-base-content/60">{{ site.home.description }}</p>
+                    <p class="mt-2 max-w-2xl text-lg text-base-content/70">{{ homeTagline }}</p>
+                    <p class="mt-3 max-w-3xl text-sm leading-relaxed text-base-content/60">{{ homeDescription }}</p>
                   </div>
                 </div>
 
@@ -603,6 +604,16 @@ export default {
     }
   },
   computed: {
+    homeTagline() {
+      return this.cleanText(this.site.home?.tagline)
+        || this.cleanText(this.site.home?.description)
+        || 'Project documentation'
+    },
+    homeDescription() {
+      return this.cleanText(this.site.home?.description)
+        || this.cleanText(this.site.project?.description)
+        || ''
+    },
     landingPage() {
       const homePath = this.site.home?.page
       return homePath && this.page?.path === homePath ? this.page : null
@@ -965,6 +976,13 @@ export default {
         month: 'short',
         day: 'numeric'
       })
+    },
+    cleanText(value) {
+      return String(value || '')
+        .replace(/\{\{\s*\w+\s*\}\}/g, ' ')
+        .replace(/project'?s path is:\s*['"]?\s*['"]?/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
     },
     openSource(source) {
       if (!this.$ui?.openFile) return
