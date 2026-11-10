@@ -15,7 +15,6 @@ from codx.junior.project.project_discover import (
     find_all_projects
 )
 from codx.junior.global_settings import read_global_settings
-from codx.junior.wiki.wiki_manager import WikiManager
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -33,13 +32,6 @@ PROJECT_CHECK_INTERVAL_SECONDS: int = 3
 
 # Maximum number of concurrent project-check threads in the pool
 MAX_PROJECT_WORKERS: int = 10
-
-# Wiki full-pipeline rebuild interval (seconds) — runs every 10 minutes
-WIKI_CHECK_INTERVAL_SECONDS: int = 600
-
-# Tracks last successful wiki build time per project
-WIKI_LAST_BUILD: Dict[str, datetime] = {}
-
 
 def start_background_services(stop_event) -> None:
     """
@@ -60,8 +52,17 @@ def start_background_services(stop_event) -> None:
 
     # Start the project checking loop in a dedicated background thread
     Thread(target=check_projects, name="ProjectCheckLoop", daemon=True).start()
-    # TODO: Disabled until analyzing high AI consumption. Do not reanable unless you are authorized to
-    # Thread(target=check_projects_wiki, name="WikiCheckLoop", daemon=True).start()
+
+    # Wiki updates are debounced per project: changes are collected by the
+    # change manager and applied only after the project is quiet. This replaces
+    # the old 10-minute full pipeline loop, which kept rebuilding every wiki
+    # (and consuming AI) regardless of whether anything had changed.
+    try:
+        from codx.junior.wiki.scheduler import start_wiki_scheduler
+
+        start_wiki_scheduler()
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.exception("Failed to start the wiki update scheduler: %s", ex)
 
     # Durable orchestration runs (board-native multi-step work). The worker
     # lives only in the background process; the API process writes intent and
@@ -108,6 +109,13 @@ async def stop_background_services() -> None:
         stop_company_autopilot()
     except Exception as ex:  # pragma: no cover - defensive
         logger.exception("Failed to stop the company autopilot: %s", ex)
+
+    try:
+        from codx.junior.wiki.scheduler import stop_wiki_scheduler
+
+        stop_wiki_scheduler()
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.exception("Failed to stop the wiki update scheduler: %s", ex)
 
 
 def reload_models() -> None:
@@ -270,73 +278,5 @@ def check_projects() -> None:
             logger.exception("Error during project check cycle: %s", ex)
 
         time.sleep(PROJECT_CHECK_INTERVAL_SECONDS)
-
-async def process_project_wiki(project) -> None:
-    """
-    Run the full wiki pipeline for a project:
-      1. Build dependency graph
-      2. Detect and build domain pages
-      3. Build and index the wiki index
-    Only runs when project_wiki is enabled.
-    """
-    if not getattr(project, "project_wiki", False):
-        return
-    try:
-        logger.info("Wiki pipeline starting for: %s", project.project_name)
-        wiki_manager = WikiManager(settings=project)
-        graph = await asyncio.get_event_loop().run_in_executor(
-            None, wiki_manager.build_dependency_graph
-        )
-        domains = await asyncio.get_event_loop().run_in_executor(
-            None, wiki_manager.build_domains, graph
-        )
-        await asyncio.get_event_loop().run_in_executor(
-            None, wiki_manager.build_wiki_index, graph, domains
-        )
-        WIKI_LAST_BUILD[project.project_name] = datetime.now()
-        logger.info("Wiki pipeline completed for: %s", project.project_name)
-    except Exception as ex:
-        logger.exception("Wiki pipeline failed for %s: %s", project.project_name, ex)
-
-
-def run_project_wiki_thread(project) -> None:
-    try:
-        asyncio.run(process_project_wiki(project=project))
-    except RuntimeError as ex:
-        logger.error("Wiki thread error for %s: %s", project.project_name, ex)
-
-
-def check_projects_wiki() -> None:
-    """
-    Slow background loop that rebuilds the full wiki pipeline for each
-    wiki-enabled project once every WIKI_CHECK_INTERVAL_SECONDS (10 min).
-    """
-    while RUN_BACKGROUND_PROCESSES:
-        try:
-            projects = find_all_projects()
-            now = datetime.now()
-            eligible = [
-                p for p in projects.values()
-                if getattr(p, "project_wiki", False)
-                and (
-                    p.project_name not in WIKI_LAST_BUILD
-                    or (now - WIKI_LAST_BUILD[p.project_name]).total_seconds() >= WIKI_CHECK_INTERVAL_SECONDS
-                )
-            ]
-            if eligible:
-                logger.info("Wiki pipeline: %d project(s) due for rebuild.", len(eligible))
-                with ThreadPoolExecutor(max_workers=MAX_PROJECT_WORKERS, thread_name_prefix="WikiCheck") as pool:
-                    futures = {pool.submit(run_project_wiki_thread, p): p for p in eligible}
-                    for future in as_completed(futures):
-                        p = futures[future]
-                        try:
-                            future.result()
-                        except Exception as ex:
-                            logger.error("Wiki pipeline error for %s: %s", p.project_name, ex)
-        except Exception as ex:
-            logger.exception("Error in wiki check cycle: %s", ex)
-
-        time.sleep(PROJECT_CHECK_INTERVAL_SECONDS)
-
 
 # Made with ❤️ by codx-junior

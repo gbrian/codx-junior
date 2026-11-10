@@ -119,10 +119,22 @@ class ChangeManager:
         
         if self.settings.project_wiki:
             try:
-                loop = asyncio.get_event_loop()
-                await loop.run_in_executor(None, self.wiki_manager.build_file, file_path)
+                # Do not regenerate documentation on every save. The scheduler
+                # waits for a quiet period (60s by default) and then updates only
+                # the files that changed. See wiki/scheduler.py.
+                from codx.junior.wiki.scheduler import schedule_wiki_update
+
+                scheduled = schedule_wiki_update(
+                    self.settings,
+                    files=[file_path],
+                    reason="file-change",
+                )
+                if not scheduled:
+                    logger.debug(
+                        "Wiki auto-update disabled for %s", self.settings.project_name
+                    )
             except Exception as ex:
-                logger.exception(f"Error processing wiki changes for file {file_path}", ex)
+                logger.exception(f"Error scheduling wiki changes for file {file_path}", ex)
 
     def update_project_metrics(self):
         metrics_manager = CODXJuniorMetrics(settings=self.settings)

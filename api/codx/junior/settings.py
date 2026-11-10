@@ -67,6 +67,26 @@ class CODXJuniorSettings(BaseModel):
     project_wiki_path: Optional[str] = Field(default=None)
     project_dependencies: Optional[str] = Field(default=None)
 
+    # Wiki maintenance. Updates are queued and applied only after the project
+    # has been quiet for `wiki_update_debounce_seconds`, capped by
+    # `wiki_update_max_delay_seconds` so a long editing session still refreshes.
+    wiki_auto_update: Optional[bool] = Field(
+        default=True,
+        description="Update the project wiki in the background when files change",
+    )
+    wiki_update_debounce_seconds: Optional[int] = Field(
+        default=60,
+        description="Seconds of quiet before a queued wiki update runs",
+    )
+    wiki_update_max_delay_seconds: Optional[int] = Field(
+        default=600,
+        description="Maximum seconds a queued wiki update may wait while changes keep arriving",
+    )
+    wiki_assistant_enabled: Optional[bool] = Field(
+        default=True,
+        description="Enable the documentation AI assistant for this project",
+    )
+
     project_preview_url: Optional[str] = Field(default=None)
 
     knowledge_extract_document_tags: Optional[bool] = Field(default=False)
