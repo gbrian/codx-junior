@@ -68,6 +68,12 @@ MKDOCS_YAML_FILE_NAME = 'mkdocs.yml'
 INVALID_FILENAME_CHARS = re.compile(r'[\[\]<>:"|?*\x00-\x1f]')
 MAX_FILENAME_LENGTH = 200
 WIKI_BUILD_WORKERS = 3
+WIKI_PROFILE_GUARD = """The <wiki_profile> block is the highest-priority specification for this page.
+It defines the goal, audience, tone, structure, image policy and boundaries of
+the wiki. It overrides the current page content and any one-off instruction when
+they conflict. Keep the spirit of the profile across updates: when the document
+changes, realign the page to the profile instead of preserving off-brand text.
+Do not copy the profile into the page or change the profile itself."""
 
 
 class WikiCategory(BaseModel):
@@ -106,6 +112,7 @@ class WikiManager:
         self._ai_instance: Optional[AI] = None
         self._ai_lock = threading.RLock()
         self._wiki_profile_text: Optional[str] = None
+        self._wiki_profile_signature: Optional[tuple] = None
 
     # ─────────────────────────────────────────────────────────────
     # AI accessor  (cached – one instance per WikiManager lifetime)
@@ -146,13 +153,25 @@ class WikiManager:
         return messages
 
     def _get_wiki_profile_text(self) -> str:
-        """Return the rendered `wiki` profile that guides documentation style."""
-        if self._wiki_profile_text is None:
-            try:
-                profile = self.profile_manager.read_profile("wiki")
-                self._wiki_profile_text = profile_text(profile, self.settings).strip()
-            except Exception as ex:
-                logger.debug("Cannot read wiki profile: %s", ex)
+        """
+        Return the rendered ``wiki`` profile that guides documentation style.
+
+        The profile is re-read when its file changes, so a long generation batch
+        does not keep using an old goal/tone after the profile is edited.
+        """
+        try:
+            profile = self.profile_manager.read_profile("wiki")
+            path = getattr(profile, "path", None)
+            signature = None
+            if path and os.path.isfile(path):
+                signature = (path, os.path.getmtime(path))
+            if signature and signature == self._wiki_profile_signature and self._wiki_profile_text is not None:
+                return self._wiki_profile_text
+            self._wiki_profile_text = profile_text(profile, self.settings).strip()
+            self._wiki_profile_signature = signature
+        except Exception as ex:
+            logger.debug("Cannot read wiki profile: %s", ex)
+            if self._wiki_profile_text is None:
                 self._wiki_profile_text = ""
         return self._wiki_profile_text
 
@@ -619,6 +638,9 @@ class WikiManager:
             <wiki_profile>
             {self._get_wiki_profile_text()}
             </wiki_profile>
+            <wiki_profile_guard>
+            {WIKI_PROFILE_GUARD}
+            </wiki_profile_guard>
             <user_instructions>
             {user_instructions}
             </user_instructions>
@@ -960,6 +982,9 @@ class WikiManager:
 <wiki_profile>
 {self._get_wiki_profile_text()}
 </wiki_profile>
+<wiki_profile_guard>
+{WIKI_PROFILE_GUARD}
+</wiki_profile_guard>
 <user_instructions>
 {user_instructions}
 </user_instructions>
@@ -1220,6 +1245,9 @@ Rules:
 <wiki_profile>
 {self._get_wiki_profile_text()}
 </wiki_profile>
+<wiki_profile_guard>
+{WIKI_PROFILE_GUARD}
+</wiki_profile_guard>
 
 Generate a modern reference page for this module in the same format used by the
 rest of the wiki. Use YAML frontmatter then:
@@ -1554,6 +1582,9 @@ Return only the markdown document, no enclosing fences.
 <wiki_profile>
 {wiki_profile}
 </wiki_profile>
+<wiki_profile_guard>
+{WIKI_PROFILE_GUARD}
+</wiki_profile_guard>
 
 You are documenting the project "{project_name}" for developers who are new to
 this file. Write like a senior engineer: concrete, skimmable and honest about
@@ -1623,9 +1654,11 @@ Rules:
 
 {style}
 
-Update the existing page with the new information. Preserve accurate details,
-remove duplicates and restructure to the format above. The result must be a
-complete document without enclosing marks.
+Update the existing page with the new information. Preserve accurate facts,
+remove duplicates and restructure to the format above. If parts of the current
+page conflict with the wiki profile (tone, audience, structure, boundaries),
+rewrite those parts to match the profile. The result must be a complete document
+without enclosing marks.
 """
         return f"""
 <document project="{project_name}" file="{rel_source}" category="{title}" keywords="{keywords}">

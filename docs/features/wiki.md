@@ -123,6 +123,22 @@ flowchart LR
     ChildB --> Parent
 ```
 
+## Wiki profiles keep the docs on-message
+
+Each project has a **`wiki` profile**:
+
+- `codx-junior`: public landing page, install and usage, app tour and DSH.
+- `codx-junior-ui`: screens, sections, workflows and screenshots.
+- `codx-junior-api`: internal architecture, setup and operations.
+
+The profile is read on every generation (and re-read when it changes) and is
+injected into category-tree, page, landing, domain and module prompts as the
+**highest-priority specification** for goal, audience, tone, structure and image
+policy. Page updates realign existing content to the profile when they conflict.
+
+Changing the profile applies to the next generated pages. Use **Rebuild** to
+realign the whole wiki immediately.
+
 ## Every project gets a wiki
 
 Projects are not left without documentation. When a project is discovered, the

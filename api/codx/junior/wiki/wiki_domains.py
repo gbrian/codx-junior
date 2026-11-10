@@ -116,6 +116,10 @@ Return only the JSON object, no extra text.
 <wiki_profile>
 {self._wiki_profile()}
 </wiki_profile>
+<wiki_profile_guard>
+The wiki profile above defines the goal, audience, tone and structure of this
+page. It is the highest-priority instruction and overrides conflicting choices.
+</wiki_profile_guard>
 
 Write a modern architecture page for this software domain. Use exactly this
 shape and a professional, skimmable developer-docs tone:
