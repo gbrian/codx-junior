@@ -296,6 +296,34 @@ def test_mark_resolved_stages_a_file_edited_outside_the_view(repo):
     assert result["remaining"] == 0
 
 
+def test_conflicted_merge_defers_worktree_removal_until_continue(repo, tmp_path):
+    """A delete-worktree merge keeps the checkout until the merge is finished."""
+    create_merge_conflict(repo)
+    worktree_path = str(tmp_path / "wt-feature")
+    run_git(repo, "worktree", "add", worktree_path, "feature")
+
+    engine = make_engine(repo)
+    result = engine.merge_branches(
+        "feature", "main", keep_conflicts=True, delete_worktree=True
+    )
+
+    assert result["conflicted"] is True
+    assert os.path.exists(worktree_path)
+    state = engine.get_conflicts()
+    assert state["pending_cleanup"]["source_branch"] == "feature"
+    assert state["pending_cleanup"]["delete_worktree"] is True
+
+    engine.resolve_conflict("app.py", "line 1\nmerged\nline 3\n")
+    continued = engine.continue_operation()
+
+    assert continued["success"] is True
+    assert continued["worktree_removed"] is True
+    assert not os.path.exists(worktree_path)
+    assert engine.get_conflicts()["pending_cleanup"] == {}
+    branches = run_git(repo, "branch", "--format=%(refname:short)").stdout.split()
+    assert "feature" in branches
+
+
 def test_abort_restores_the_repository(repo):
     """Aborting a kept merge removes MERGE_HEAD and the unmerged entries."""
     create_merge_conflict(repo)

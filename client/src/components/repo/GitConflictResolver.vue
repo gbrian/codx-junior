@@ -67,6 +67,12 @@ export default {
     pendingOnly() {
       return !!this.state?.in_progress && this.unresolvedCount === 0
     },
+    cleanupLabel() {
+      const cleanup = this.state?.pending_cleanup || {}
+      if (!cleanup.delete_worktree && !cleanup.delete_branch) return ''
+      if (cleanup.delete_branch) return 'source worktree and branch will be removed when the merge finishes'
+      return 'source worktree will be removed when the merge finishes'
+    },
     operationHint() {
       if (!this.state?.in_progress) return 'There is no operation in progress.'
       if (this.state?.squash) {
@@ -126,16 +132,41 @@ export default {
       this.content = entry.content || ''
     },
     initialState(value) {
-      if (value && Object.keys(value).length) {
-        this.state = value
-        this.ensureSelection()
+      if (!value || !Object.keys(value).length) return
+      // The parent also carries a lightweight conflict summary loaded with
+      // `include_content=false` (repository info). A late summary update used
+      // to overwrite the full state fetched by this modal, leaving the editor
+      // empty. Keep the full state when it describes the same files.
+      const incomingHasContent = this.hasConflictContent(value)
+      const currentHasContent = this.hasConflictContent(this.state)
+      if (
+        !incomingHasContent
+        && currentHasContent
+        && this.sameConflictPaths(value, this.state)
+      ) {
+        return
       }
+      this.state = value
+      this.ensureSelection()
     }
   },
   created() {
     this.load()
   },
   methods: {
+    /** Whether a conflict state carries working-tree file contents. */
+    hasConflictContent(state) {
+      return (state?.conflicts || []).some(
+        entry => typeof entry.content === 'string'
+      )
+    },
+
+    /** Whether two states describe exactly the same conflicted paths. */
+    sameConflictPaths(first, second) {
+      const paths = state => (state?.conflicts || []).map(entry => entry.path).sort()
+      return paths(first).join('\n') === paths(second).join('\n')
+    },
+
     /** Reload the conflict state from the backend. */
     async load({ silent = false } = {}) {
       if (!this.api) return
@@ -564,6 +595,13 @@ export default {
             :title="state.stash_message || 'Local changes were stashed before the operation'"
           >
             <i class="fa-solid fa-box-archive"></i> local changes in stash
+          </span>
+          <span
+            v-if="cleanupLabel"
+            class="text-[10px] text-info"
+            :title="cleanupLabel"
+          >
+            <i class="fa-solid fa-folder-minus"></i> {{ cleanupLabel }}
           </span>
           <button
             v-if="canContinue"

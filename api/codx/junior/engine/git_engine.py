@@ -66,6 +66,10 @@ INDEX_LOCK_FILE = "index.lock"
 # Ignore file at the root of the checkout the view is working on
 GITIGNORE_FILE = ".gitignore"
 
+# Cleanup requested with a merge that stopped on conflicts (delete the source
+# worktree/branch only once the merge is actually finished).
+PENDING_MERGE_CLEANUP_FILE = "codx-junior-pending-merge.json"
+
 # Porcelain status code -> semantic status name
 PORCELAIN_STATUS = {
     "A": "added",
@@ -2120,6 +2124,95 @@ class GitEngine:
         flush_worktree()
         return worktrees
 
+    def get_pending_merge_cleanup(self) -> Optional[dict]:
+        """
+        Return the cleanup requested for a merge stopped on conflicts.
+
+        Returns:
+            Dict with 'source_branch', 'delete_worktree' and 'delete_branch',
+            or None when there is nothing pending.
+        """
+        path = os.path.join(self._git_dir(), PENDING_MERGE_CLEANUP_FILE)
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
+        except (OSError, ValueError):
+            return None
+        if not isinstance(data, dict) or not data.get("source_branch"):
+            return None
+        return data
+
+    def set_pending_merge_cleanup(self, data: dict) -> None:
+        """Persist the cleanup requested for a merge stopped on conflicts."""
+        if not data or not data.get("source_branch"):
+            return
+        path = os.path.join(self._git_dir(), PENDING_MERGE_CLEANUP_FILE)
+        try:
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(data, handle)
+        except OSError as ex:
+            logger.warning("Could not persist the pending merge cleanup: %s", ex)
+
+    def clear_pending_merge_cleanup(self) -> None:
+        """Forget the pending cleanup (operation finished or aborted)."""
+        path = os.path.join(self._git_dir(), PENDING_MERGE_CLEANUP_FILE)
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+        except OSError as ex:
+            logger.warning("Could not clear the pending merge cleanup: %s", ex)
+
+    def apply_pending_merge_cleanup(self) -> dict:
+        """
+        Apply the worktree/branch deletion requested by a conflicted merge.
+
+        The deletion is deferred until the merge is finished, so the source
+        worktree is still available while the user resolves conflicts. A failure
+        keeps the request for a later retry.
+
+        Returns:
+            Dict with 'applied', 'source_branch', 'path', 'worktree_removed',
+            'branch_deleted' and 'errors'.
+        """
+        data = self.get_pending_merge_cleanup() or {}
+        source = self._sanitize_branch_name(data.get("source_branch", ""))
+        result = {
+            "applied": False,
+            "source_branch": source,
+            "path": "",
+            "worktree_removed": False,
+            "branch_deleted": False,
+            "errors": [],
+        }
+        if not source:
+            self.clear_pending_merge_cleanup()
+            return result
+
+        repo_path = self._get_repo_root()
+        if data.get("delete_worktree") or data.get("delete_branch"):
+            worktree = self._remove_worktree(source, cwd=repo_path)
+            result["path"] = worktree.get("path", "")
+            result["worktree_removed"] = bool(worktree.get("removed"))
+            if not worktree.get("ok"):
+                result["errors"].append(
+                    f"Could not remove worktree '{worktree.get('path', '')}': "
+                    f"{worktree.get('error', '')}"
+                )
+                return result
+
+        if data.get("delete_branch"):
+            deleted = self._delete_branch(source, cwd=repo_path, force=True)
+            result["branch_deleted"] = bool(deleted.get("deleted"))
+            if not deleted.get("ok"):
+                result["errors"].append(
+                    f"Could not delete branch '{source}': {deleted.get('error', '')}"
+                )
+                return result
+
+        self.clear_pending_merge_cleanup()
+        result["applied"] = True
+        return result
+
     def get_worktree_merge_status(
         self, source_branch: str, target_branch: Optional[str] = None
     ) -> dict:
@@ -3830,6 +3923,15 @@ class GitEngine:
             response["commit"] = head["output"]
             response["short_commit"] = head["output"][:8]
 
+        # A conflicted merge may have deferred the source worktree/branch
+        # cleanup until the merge commit exists.
+        cleanup = self.apply_pending_merge_cleanup()
+        response["worktree_removed"] = cleanup.get("worktree_removed", False)
+        response["branch_deleted"] = cleanup.get("branch_deleted", False)
+        if cleanup.get("errors"):
+            response["errors"].extend(cleanup["errors"])
+            response["cleanup_errors"] = cleanup["errors"]
+
         return response
 
     def merge_branches(
@@ -4052,6 +4154,15 @@ class GitEngine:
                     result["conflicted"] = True
                     keep_stash = stashed
                     result["stash_kept"] = stashed
+                    # The source worktree/branch can only be removed once the
+                    # merge is finished: remember the request for
+                    # `continue_operation` / the composer commit.
+                    if delete_worktree or delete_branch:
+                        self.set_pending_merge_cleanup({
+                            "source_branch": source,
+                            "delete_worktree": bool(delete_worktree),
+                            "delete_branch": bool(delete_branch)
+                        })
                     get_conflicts = getattr(self, "get_conflicts", None)
                     if callable(get_conflicts):
                         result["conflict_state"] = get_conflicts(

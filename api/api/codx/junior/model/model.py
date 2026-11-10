@@ -1,0 +1,377 @@
+import os
+import regex
+
+from pydantic import BaseModel, Field, constr, validator
+from enum import Enum
+from datetime import datetime
+
+from typing import List, Dict, Union, Optional, Any
+
+# ---------------------------------------------------------------------------
+# Import user models from dedicated module
+# ---------------------------------------------------------------------------
+from codx.junior.model.user import (
+    CodxUserLogin,
+    CodxUserProjectProfile,
+    CodxUser,
+)
+
+# ---------------------------------------------------------------------------
+# Import AI models from dedicated module
+# ---------------------------------------------------------------------------
+from codx.junior.model.ai_model import (
+    AIProvider,
+    AILLMModelSettings,
+    AIEmbeddingModelSettings,
+    AIModelType,
+    AIModel,
+    AISettings,
+    OLLAMA_PROVIDER,
+    OLLAMA_EMBEDDINGS_MODEL,
+    OLLAMA_KNOWLEDGE_MODEL,
+    KNOWLEDGE_MODEL,
+    EMBEDDINGS_MODEL,
+)
+
+# ---------------------------------------------------------------------------
+# Import profile models from dedicated module
+# ---------------------------------------------------------------------------
+from codx.junior.model.profile import (
+    Profile,
+    ProfileApiSettings,
+)
+
+# ---------------------------------------------------------------------------
+# Import workspace models from dedicated module
+# ---------------------------------------------------------------------------
+from codx.junior.model.workspace import (
+    Workspace,
+    WorkspaceApp,
+    DEFAULT_WORKSPACE,
+)
+
+# ---------------------------------------------------------------------------
+# Import image models from dedicated module
+# ---------------------------------------------------------------------------
+from codx.junior.model.image_model import (
+    ImageGenerationRequest,
+    ImageAnalysisRequest,
+    ImageMetadata,
+    ImageGenerationResponse,
+    ImageAnalysisResponse,
+)
+
+# ---------------------------------------------------------------------------
+# Traefik custom rules (global settings live here; project rules live in
+# CODXJuniorSettings). The storage location is the rule scope.
+# ---------------------------------------------------------------------------
+from codx.junior.traefik.model import TraefikRule
+
+
+class ImageUrl(BaseModel):
+    url: str = Field(default="")
+
+class Content(BaseModel):
+    type: str = Field(default='text')
+    text: str = Field(default=None)
+    image_url: ImageUrl = Field(default=None)
+
+class ChatMessage(BaseModel):
+    role: str = Field(default='')
+    content: List[Content] = Field(default=[])
+
+class Column(BaseModel):
+    name: str = Field(default='')
+    chat_ids: List[str] = Field(default=[])
+    project_id: str = Field(default='')
+
+class Board(BaseModel):
+    name: str = Field(default='')
+    description: str = Field(default='')
+    remote_url: str = Field(default='')
+    bookmark: Optional[bool] = Field(default=False)
+    columns: List[Column] = Field(default=[])
+    project_id: str = Field(default='')
+
+class Logprobs(BaseModel):
+    tokens: List[str]
+    token_logprobs: List[float]
+    top_logprobs: List[Dict[str, float]]
+    text_offset: List[int]
+
+class KnowledgeReloadPath(BaseModel):
+    path: str
+
+class KnowledgeDeleteSources(BaseModel):
+    sources: List[str]
+
+class KnowledgeSearch(BaseModel):
+    search_term: str
+    search_type: str = Field(default=None)
+    document_search_type: str = Field(default=None)
+    document_count: int = Field(default=None)
+    document_cutoff_score: float = Field(default=None)
+    document_cutoff_rag: float = Field(default=None)
+
+class Tool(BaseModel):
+    name: str = Field(default="")
+    description: str = Field(default="")
+
+class CodxJuniorBaseTools(BaseModel):
+    knowledge: Tool = Tool(name="knowledge", description="Project's knowledge search")
+
+class CommandTool(Tool):
+    command: Optional[str] = Field(description="Command", default=None)
+
+class PRView(BaseModel):
+    from_branch: Optional[str] = Field(default="")
+    to_branch: Optional[str] = Field(default="")
+
+class Document(BaseModel):
+    id: int = Field(default=None)
+    page_content: str
+    metadata: dict
+
+class LiveEdit(BaseModel):
+    chat_name: str
+    html: str
+    url: str
+    message: str
+
+class OpenAISettings(BaseModel):
+    openai_api_url: Optional[str] = Field(default="")
+    openai_api_key: Optional[str] = Field(default="")
+    openai_model: Optional[str] = Field(default="gpt-4o")
+    
+class AnthropicAISettings(BaseModel):
+    anthropic_api_url: Optional[str] = Field(default="")
+    anthropic_api_key: Optional[str] = Field(default="")
+    anthropic_model: Optional[str] = Field(default="claude-3-5-sonnet-20240620")
+
+class MistralAISettings(BaseModel):
+    mistral_api_url: Optional[str] = Field(default="")
+    mistral_api_key: Optional[str] = Field(default="")
+    mistral_model: Optional[str] = Field(default="codestral-latest")
+
+class GitSettings(BaseModel):
+    username: Optional[str] = Field(default="")
+    email: Optional[str] = Field(default="")
+
+class ProjectScript(BaseModel):
+    name: str = Field(description="Script name")
+    description: str = Field(description="Script name", default="")
+    script: str = Field(description="Bash script", default="")
+    status: str = Field(description="Script status: running, stopped, error", default="stopped")
+    background: bool = Field(description="Script runs in background", default=False)
+    restart: bool = Field(description="Script must be restarted if stopped", default=False)
+    pid_file_path: str = Field(default="")
+    engine: str = Field(default="bash")
+
+class Bookmark(BaseModel):
+    name: str
+    icon: Optional[str] = Field(default="")
+    title: Optional[str] = Field(default="")
+    url: Optional[str] = Field(default="")
+    port: Optional[int] = Field(default=None)
+
+class AgentSettings(BaseModel):
+    max_agent_iteractions: int = 4
+
+class OAuthProvider(BaseModel):
+    name: str = Field(default="")
+    client_id: str = Field(default="")
+    secret: str = Field(default="")
+    token_url: str = Field(default="")
+
+class MCPServer(BaseModel):
+    """Model representing a Model Context Protocol (MCP) server configuration."""
+    name: str = Field(description="Name of the MCP server")
+    url: str = Field(description="URL/endpoint of the MCP server")
+    api_key: Optional[str] = Field(default="", description="API key for authentication")
+    active: bool = Field(default=True, description="Whether the MCP server is active")
+
+class Integration(BaseModel):
+    """Generic external service configuration.
+
+    One entry per provider (``searxng``, ``brave``, ``tavily``, ``jina``,
+    ``firecrawl``, ``lightpanda``, ``obscura``, ``slack``, ...). The web tools
+    read ``url``/``api_key``/``options`` through
+    :mod:`codx.junior.web.settings`, so adding a provider never needs a schema
+    change: only its name and options.
+    """
+
+    name: str = Field(description="Integration id, e.g. 'searxng', 'jina', 'slack'")
+    enabled: bool = Field(default=True, description="Disabled entries are ignored")
+    url: str = Field(default="", description="Base URL, endpoint or binary path")
+    api_key: str = Field(default="", description="Token/secret for the provider")
+    options: Dict[str, Any] = Field(
+        default_factory=dict, description="Provider specific options"
+    )
+
+# Define the PluginArgument model
+class PluginArgument(BaseModel):
+    name: str
+    description: str
+    default_value: str
+
+# Define the Plugin model with an async property
+class Plugin(BaseModel):
+    plugin_id: str
+    name: str
+    description: str
+    module_path: str
+    plugin_path: str
+    method: str
+    arguments: List[PluginArgument]
+    roles: List[str]
+    extends: List[str]
+    image: Optional[str] = Field(default=None)
+    async_: bool = Field(default=False, alias="async")  # Use alias for async
+
+
+class DshSettings(BaseModel):
+    """Settings for the outbound DSH agent channel and its board mirror.
+
+    DSH connects to codx-junior (never the reverse). ``agent_token`` is the
+    credential the DSH plugin presents on registration, heartbeat, command and
+    event requests. ``url``/``secret`` remain for the legacy direct bridge.
+    """
+
+    enabled: bool = Field(default=True, description="Enable DSH task mirroring")
+    agent_token: str = Field(
+        default="",
+        description="Token the DSH plugin uses to register and poll commands",
+    )
+    default_instance_id: str = Field(
+        default="",
+        description="Preferred DSH instance for new tasks and syncs",
+    )
+    board: str = Field(default="DSH", description="codx-junior board that mirrors DSH tasks")
+    only_project: bool = Field(
+        default=True,
+        description="Ignore DSH sessions whose cwd is outside this project",
+    )
+
+    # Legacy direct-DSH bridge configuration. Kept so existing installations do
+    # not lose their values; the dashboard uses the outbound agent channel.
+    url: str = Field(
+        default="http://127.0.0.1:3080",
+        description="Legacy direct DSH web origin",
+    )
+    secret: str = Field(
+        default="",
+        description="Legacy direct bridge secret",
+    )
+
+
+class GlobalSettings(BaseModel):
+    log_ai: bool = Field(default=True)
+    
+    embeddings_model: str = Field(default=OLLAMA_EMBEDDINGS_MODEL.name)
+    llm_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
+    rag_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
+    wiki_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
+    guardrail_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
+
+    # Image models. The names are the SAME in the global and the project
+    # settings: here they are the installation default, in
+    # CODXJuniorSettings they override it per project.
+    #
+    # Generating an image (text -> image) and analysing one (image -> text) are
+    # two different capabilities, so each one has its own setting and neither
+    # ever falls back to the other's model.
+    #
+    # Both default to "" (disabled) unlike the text models above: an image
+    # capability cannot fall back to a text model, and a non-empty default
+    # would make is_image_generation_enabled() always true.
+    image_generation_model: str = Field(
+        default="",
+        description=(
+            "Default image generation model (text -> image). A project overrides "
+            "it with its own image_generation_model"
+        )
+    )
+    image_vision_model: str = Field(
+        default="",
+        description=(
+            "Default image vision model (image -> text). A project overrides it "
+            "with its own image_vision_model"
+        )
+    )
+
+    git: GitSettings = Field(default=GitSettings())
+
+    agent_settings: AgentSettings = Field(description="Agent settings", default=AgentSettings())
+
+    projects_root_path: Optional[str] = Field(default=None)
+    
+    log_ignore: List[str] = Field(default=[])
+
+    codx_junior_avatar: Optional[str] = Field(default="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp")
+
+    enable_file_manager: Optional[bool] = Field(default=False)
+
+    project_scripts: Optional[List[ProjectScript]] = Field(default=[])
+
+    bookmarks: List[Bookmark] = Field(default=[
+    ])
+
+    ai_providers: List[AIProvider] = [
+        OLLAMA_PROVIDER
+    ]
+
+    ai_models: List[AIModel] = [
+      OLLAMA_KNOWLEDGE_MODEL,
+      OLLAMA_EMBEDDINGS_MODEL
+    ]
+
+    users: Optional[List[CodxUser]] = Field(default=[CodxUser(username="admin", role="admin", avatar="/only_icon.png")])
+    user_logins: Optional[List[CodxUserLogin]] = Field(default=[])
+    secret: Optional[str] = Field(description="Encription secret", default="codx-junior-rules")
+
+    workspaces: Optional[List[Workspace]] = Field(default=[DEFAULT_WORKSPACE])
+    workspace_start_port: Optional[int] = Field(default=16000)
+    workspace_end_port: Optional[int] = Field(default=17000)
+    workspace_docker_settings: Optional[dict] = Field(default={})
+
+    # Custom Traefik routers defined by an admin. Project rules live in each
+    # project's `.codx/project.json` instead, so the same UI component can
+    # target either storage.
+    traefik_rules: List[TraefikRule] = Field(default_factory=list)
+
+    # DSH Harness task bridge. The DSH plugin owns the conversation; these are
+    # connection settings only, so they can be changed from Global Settings
+    # without restarting the API or editing environment variables.
+    dsh: DshSettings = Field(default_factory=DshSettings)
+
+    oauth_providers: Optional[List[OAuthProvider]] = Field(default=[])
+
+    # Generic external services (search backends, managed fetch providers, lite
+    # browsers, messaging channels). Secrets belong here and never in the
+    # project JSON or in git.
+    integrations: List[Integration] = Field(default_factory=list)
+
+    env: Optional[dict] = Field(default={})
+
+    plugins: List[Plugin] = Field(default=[])
+
+    chat_global_instructions: str = Field(default="")
+    
+    
+class Screen(BaseModel):
+    resolution: str = Field(default='')
+    resolutions: List[str] = Field(default=[
+      "1920x1080",
+      "1920x1200",
+      "1600x1200",
+      "1680x1050",
+      "1400x1050",
+      "1360x768",
+      "1280x1024",
+      "1280x960",
+      "1280x800",
+      "1280x720",
+      "1024x768",
+      "800x600",
+      "640x480"
+    ])

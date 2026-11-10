@@ -1533,7 +1533,13 @@ export default {
         this.notice = 'Conflicts resolved: review the staged changes and commit them'
         this.$nextTick(() => this.$refs.commitBox?.focus())
       } else {
-        this.notice = `Operation continued (${label})`
+        const cleanup = []
+        if (result?.worktree_removed) cleanup.push('worktree removed')
+        if (result?.branch_deleted) cleanup.push('branch deleted')
+        this.notice = `Operation continued (${label})${cleanup.length ? ` · ${cleanup.join(' · ')}` : ''}`
+      }
+      if (result?.cleanup_errors?.length) {
+        this.error = result.cleanup_errors.join('; ')
       }
     },
 
@@ -2968,6 +2974,9 @@ export default {
                   v-if="mergeSourceWorktreeChangeCount"
                   class="block text-warning leading-tight"
                 >{{ mergeSourceWorktreeChangeCount }} uncommitted change(s) in this worktree will be discarded.</span>
+                <span class="block text-[10px] opacity-60 leading-tight">
+                  If the merge stops on conflicts, the worktree is removed once the merge is finished.
+                </span>
               </span>
             </label>
 

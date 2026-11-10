@@ -732,9 +732,10 @@ class GitConflictEngine(GitValidatorEngine):
             Dict with 'success', 'in_progress', 'has_conflicts', 'operation',
             'operation_label', 'squash', 'branch', 'merge_head', 'source_branch',
             'conflicts', 'conflict_count', 'unresolved_count', 'can_continue',
-            'can_abort', 'stash_kept' and 'errors'. ``in_progress`` is True for
-            a pending operation even when every file is already resolved, so
-            the UI can distinguish it from unresolved conflicts.
+            'can_abort', 'stash_kept', 'pending_cleanup' and 'errors'.
+            ``in_progress`` is True for a pending operation even when every file
+            is already resolved. ``pending_cleanup`` carries the worktree/branch
+            removal deferred until a conflicted merge is finished.
 
         Example:
             >>> state = engine.get_conflicts()
@@ -774,10 +775,12 @@ class GitConflictEngine(GitValidatorEngine):
         # simply committed from the composer.
         can_commit = bool(operation["squash"] and not conflicts)
         stash = self._pending_stash()
+        pending_cleanup = self.get_pending_merge_cleanup() or {}
 
         return {
             "success": True,
             "in_progress": in_progress,
+            "pending_cleanup": pending_cleanup,
             "operation": operation["operation"],
             "operation_label": operation["label"],
             "squash": operation["squash"],
@@ -1415,6 +1418,16 @@ Return the complete resolved file content now.
             result["commit"] = head["output"]
         result["success"] = bool(response["ok"] and not result["conflicted"])
 
+        # A merge that stopped on conflicts defers deleting its source
+        # worktree/branch until the merge commit exists.
+        if result["success"]:
+            cleanup = self.apply_pending_merge_cleanup()
+            result["worktree_removed"] = cleanup.get("worktree_removed", False)
+            result["branch_deleted"] = cleanup.get("branch_deleted", False)
+            if cleanup.get("errors"):
+                result["cleanup_errors"] = cleanup["errors"]
+                result["errors"].extend(cleanup["errors"])
+
         # The local changes stashed before the operation could not be restored
         # while the conflict was pending: restore them now that it finished.
         if result["success"] and state.get("stash_kept"):
@@ -1502,6 +1515,11 @@ Return the complete resolved file content now.
         refreshed = self.get_conflicts(include_content=False)
         result["state"] = refreshed
         result["success"] = bool(response["ok"] and not refreshed["in_progress"])
+        if result["success"]:
+            # Aborting discards the merge: the worktree/branch the user asked
+            # to delete after a *successful* merge must be kept.
+            self.clear_pending_merge_cleanup()
+            result["state"] = self.get_conflicts(include_content=False)
 
         # Restore the local changes stashed before the operation, mirroring the
         # success path: aborting must not make them disappear.
