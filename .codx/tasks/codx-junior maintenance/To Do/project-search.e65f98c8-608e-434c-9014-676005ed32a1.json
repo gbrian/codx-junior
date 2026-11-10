@@ -4,6 +4,7 @@
   "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
   "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "parent_id": null,
+  "root_id": "e65f98c8-608e-434c-9014-676005ed32a1",
   "linked_chat_ids": [],
   "parent_owner_project_id": null,
   "parent_project_id": null,
@@ -33,6 +34,7 @@
   "pinned": false,
   "is_template": false,
   "description": "## 5-Line Summary\n\n1. **Problem:** `project_search` was extremely slow, taking far too long to return results.\n2. **Root cause 1:** Synchronous `ai.chat(...)` calls were made per matched document (up to ~50 sequential LLM round-trips per request).\n3. **Root cause 2:** `Knowledge`/`KnowledgeDB` was rebuilt inside the query loop, reloading the `all-MiniLM-L6-v2` embedding model and reconnecting to Milvus each time.\n4. **Fix:** Reuse a single `knowledge_db` across all queries, remove per-document AI filtering, and cap returned content at `MAX_SEARCH_DOC_CHARS` (8000) \u2014 `validation` retained for backward compatibility.\n5. **Result:** Search is now pure retrieval (Milvus hybrid search + `git ls-files` path matching), eliminating the unbounded AI latency.",
+  "meta_data": null,
   "messages": [
     {
       "doc_id": "6b9d306f-2c8e-4c02-b3a2-d3134281f7c9",
@@ -238,10 +240,45 @@
       ],
       "error": null,
       "linked_chat_ids": []
+    },
+    {
+      "doc_id": "ea32277b-d71f-4480-8ea4-ce4bf2787a7b",
+      "role": "assistant",
+      "task_item": "",
+      "content": "Four open cards cover the same `project_search` / file-mention slowness: this one, `e73c67e3` (chat intellisense search), `71a230d7` (tool result cache) and `e6abc323` (safe mode, which pivoted into the search defect). All four have sat at 0 % since 2026-10-23 \u2014 that is duplicated work, not progress.\n\nProposal: this card owns the retrieval fix (one `KnowledgeDB` per query, no per-document LLM call, 8 000-char content cap) and is the only one demoed. The other three become dependents or are closed once their findings are merged here.\n\nDemo to close it: same query on this multi-sub-project workspace, timing before/after, one screen.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-10 14:36:51.486689",
+      "updated_at": "2026-11-10T14:36:51.486740",
+      "attachments": [],
+      "files": [],
+      "project_id": null,
+      "meta_data": {
+        "board_manager": {
+          "profile": "ProjectManager"
+        }
+      },
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "ProjectManager"
+      ],
+      "user": "ProjectManager",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
     }
   ],
   "created_at": "2026-10-23 16:24:03.405825",
-  "updated_at": "2026-10-23T17:42:37.890507",
+  "updated_at": "2026-11-10T14:36:51.487589",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",
@@ -263,6 +300,9 @@
   "llm_model": null,
   "estimation_cost": null,
   "cost": 0.054760949999999996,
+  "run_id": null,
+  "run_status": null,
+  "run_step_id": null,
   "visibility": "",
   "remote_url": "",
   "attachments": [],
@@ -282,5 +322,22 @@
   "session_id": null,
   "auto_initialize": false,
   "ignore_parent_knowledge": false,
-  "ignore_parent_files": false
+  "ignore_parent_files": false,
+  "external_source": null,
+  "external_id": null,
+  "external_parent_id": null,
+  "external_instance_id": null,
+  "external_status": null,
+  "external_url": null,
+  "external_updated_at": null,
+  "harness": null,
+  "harness_instance_id": null,
+  "harness_task_id": null,
+  "harness_parent_task_id": null,
+  "harness_mode": null,
+  "harness_status": null,
+  "harness_model": null,
+  "harness_usage": {},
+  "harness_cost": null,
+  "harness_metadata": {}
 }

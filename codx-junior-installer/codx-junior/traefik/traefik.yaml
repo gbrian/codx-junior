@@ -5,6 +5,7 @@ entrypoints:
       accessLogs: true
       metrics: true
       tracing: true
+
   websecure:
     address: :443
     observability:
