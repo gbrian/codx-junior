@@ -210,7 +210,12 @@ def first_paragraph(text: str) -> str:
                 if clean:
                     return clean[:240]
             continue
-        if line.startswith(("#", "|", "-", "*", ":::", "<!--")):
+        if line.startswith("<"):
+            # Raw HTML (badges, screenshots) is never a description.
+            line = re.sub(r"<[^>]+>", "", line).strip()
+            if not line:
+                continue
+        if line.startswith(("#", "|", "-", "*", ":::", "<!--", "//", "/*", "*/", "--")):
             continue
         if re.match(r"^\d+[.)]\s+", line):
             continue
@@ -229,6 +234,35 @@ def humanize(value: str) -> str:
     if not text:
         return "Page"
     return text[:1].upper() + text[1:]
+
+
+_PROFILE_PLACEHOLDER_RE = re.compile(r"\{\{\s*(\w+)\s*\}\}")
+
+
+def render_profile_placeholders(text: str, settings: Any) -> str:
+    """
+    Render the small template used by project profiles.
+
+    Profiles are composed/rendered by ``ProfileManager`` for chats, but the
+    wiki reads them from the management API. This helper makes the wiki safe
+    even when a profile is read without rendering (or when an older generated
+    document still contains ``{{ project_path }}`` / ``{{ projectpath }}``).
+    """
+    values = {
+        "project_name": getattr(settings, "project_name", "") or "",
+        "project_path": getattr(settings, "abs_project_path", "") or "",
+        "projectpath": getattr(settings, "abs_project_path", "") or "",
+    }
+    return _PROFILE_PLACEHOLDER_RE.sub(
+        lambda match: str(values.get(match.group(1), "")),
+        text or "",
+    )
+
+
+def profile_text(profile: Any, settings: Any) -> str:
+    """Return rendered profile content (parsed content preferred)."""
+    content = getattr(profile, "parsed_content", None) or getattr(profile, "content", "") or ""
+    return render_profile_placeholders(str(content), settings)
 
 
 def icon_for(text: str) -> str:
@@ -661,20 +695,31 @@ class WikiSiteBuilder:
         }
 
     def _project_description(self, fallback: str) -> str:
+        """Return a useful project description without leaking template markers."""
         try:
             from codx.junior.profiles.profile_manager import ProfileManager
 
             profile = ProfileManager(settings=self.settings).read_profile("project")
-            content = (getattr(profile, "content", "") or "").strip()
+            content = profile_text(profile, self.settings).strip()
             if content:
                 description = first_paragraph(content)
-                if description:
+                lowered = (description or "").lower()
+                if description and not lowered.startswith(("project's path is", "project path is", "about ")):
                     return description
-                first_line = next((line.strip(" #\t") for line in content.splitlines() if line.strip()), "")
-                if first_line:
-                    return first_line[:240]
         except Exception as ex:  # pragma: no cover - profile is optional
             logger.debug("Cannot read project profile for wiki: %s", ex)
+
+        # The profile may only contain boilerplate (or placeholders). Prefer a
+        # real project summary from the README before falling back to a generic
+        # sentence.
+        root = getattr(self.settings, "abs_project_path", "") or ""
+        for filename in ("README.md", "PROJECT_OVERVIEW.md", "readme.md"):
+            path = os.path.join(root, filename)
+            if not os.path.isfile(path):
+                continue
+            description = first_paragraph(_read_text(path))
+            if description:
+                return description[:240]
         return f"Documentation for {fallback}."
 
     @staticmethod

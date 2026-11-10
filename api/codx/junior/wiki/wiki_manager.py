@@ -47,6 +47,7 @@ from codx.junior.wiki.site import (
     first_paragraph,
     humanize,
     parse_frontmatter,
+    profile_text,
     reading_time,
 )
 
@@ -386,7 +387,9 @@ class WikiManager:
         user_instructions = wiki_settings.get("prompt", "")
 
         try:
-            project_info = self.profile_manager.read_profile("project").content
+            project_info = profile_text(
+                self.profile_manager.read_profile("project"), self.settings
+            )
         except Exception:
             project_info = ""
 
@@ -716,7 +719,9 @@ class WikiManager:
         project_name = self.settings.project_name or "Project"
         project_info = ""
         try:
-            project_info = self.profile_manager.read_profile("project").content or ""
+            project_info = profile_text(
+                self.profile_manager.read_profile("project"), self.settings
+            )
         except Exception:
             project_info = ""
 

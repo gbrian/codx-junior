@@ -7,7 +7,13 @@ import time
 import unittest
 from unittest.mock import patch
 
-from codx.junior.wiki.site import WikiSiteBuilder, parse_frontmatter
+from codx.junior.wiki.site import (
+    WikiSiteBuilder,
+    first_paragraph,
+    parse_frontmatter,
+    profile_text,
+    render_profile_placeholders,
+)
 
 
 class FakeSettings:
@@ -161,6 +167,26 @@ class WikiSiteBuilderTest(unittest.TestCase):
         self.assertEqual(card["page_count"], 1)
         self.assertEqual(card["status"], "ready")
         self.assertTrue(card["wiki_url"].startswith("?project="))
+
+    def test_profile_placeholders_are_rendered(self):
+        class Profile:
+            content = "# About {{ project_name }}\nProject's path is: '{{ project_path }}' / {{ projectpath }}\n"
+            parsed_content = None
+
+        text = profile_text(Profile(), self.settings)
+        self.assertIn("demo", text)
+        self.assertIn(self.root, text)
+        self.assertNotIn("{{", text)
+        self.assertEqual(
+            render_profile_placeholders("{{ unknown }}", self.settings),
+            "",
+        )
+
+    def test_first_paragraph_skips_html_and_comments(self):
+        self.assertEqual(
+            first_paragraph("<img src=\"x\" />\n// generated\n\nThe real summary is here."),
+            "The real summary is here.",
+        )
 
     def test_frontmatter_parser_is_defensive(self):
         frontmatter, body = parse_frontmatter("no frontmatter here")

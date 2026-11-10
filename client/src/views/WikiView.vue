@@ -7,14 +7,14 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
     <!-- Mobile backdrop -->
     <div
       v-if="sidebarOpen"
-      class="fixed inset-0 z-30 bg-black/50 lg:hidden"
+      class="fixed inset-0 z-30 bg-black/50 md:hidden"
       @click="sidebarOpen = false"
     ></div>
 
     <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
     <aside
       class="wiki-sidebar z-40 flex w-72 shrink-0 flex-col border-r border-base-content/10 bg-base-200/60 backdrop-blur"
-      :class="sidebarOpen ? 'fixed inset-y-0 left-0 shadow-2xl lg:static lg:shadow-none' : 'hidden lg:flex'"
+      :class="sidebarOpen ? 'fixed inset-y-0 left-0 shadow-2xl md:static md:shadow-none' : 'hidden md:flex'"
     >
       <div class="flex items-center gap-2 border-b border-base-content/10 px-4 py-3">
         <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/80 to-secondary/80 text-primary-content shadow-sm">
@@ -25,7 +25,7 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
           <div class="text-[0.65rem] font-bold uppercase tracking-[0.18em] opacity-50">Documentation</div>
           <div class="truncate text-sm font-bold">{{ site.project.title || site.project.name || 'Wiki' }}</div>
         </div>
-        <button class="btn btn-ghost btn-xs btn-circle lg:hidden" aria-label="Close menu" @click="sidebarOpen = false">
+        <button class="btn btn-ghost btn-xs btn-circle md:hidden" aria-label="Close menu" @click="sidebarOpen = false">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -153,7 +153,7 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
     <div class="flex min-w-0 flex-1 flex-col">
       <!-- Top bar -->
       <header class="flex h-14 shrink-0 items-center gap-2 border-b border-base-content/10 bg-base-100/80 px-3 backdrop-blur lg:px-5">
-        <button class="btn btn-ghost btn-sm btn-square lg:hidden" aria-label="Open menu" @click="sidebarOpen = true">
+        <button class="btn btn-ghost btn-sm btn-square md:hidden" aria-label="Open menu" @click="sidebarOpen = true">
           <i class="fa-solid fa-bars"></i>
         </button>
 
