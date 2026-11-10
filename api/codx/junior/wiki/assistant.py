@@ -271,7 +271,7 @@ class WikiAssistant:
                     continue
                 if len(os.path.relpath(path, current).split(os.sep)) <= depth:
                     children.append(project)
-            return sorted(children, key=lambda project: project.abs_project_path or "")
+            return sorted(children, key=lambda project: project.abs_project_path or "")[:8]
         except Exception as ex:  # pragma: no cover - discovery is optional
             logger.debug("Cannot resolve child projects for assistant: %s", ex)
             return []

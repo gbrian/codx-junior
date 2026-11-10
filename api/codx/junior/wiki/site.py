@@ -237,6 +237,7 @@ def humanize(value: str) -> str:
 
 
 _PROFILE_PLACEHOLDER_RE = re.compile(r"\{\{\s*(\w+)\s*\}\}")
+_PAGE_CACHE: Dict[str, Tuple[float, int, Dict[str, Any]]] = {}
 
 
 def render_profile_placeholders(text: str, settings: Any) -> str:
@@ -490,10 +491,17 @@ class WikiSiteBuilder:
         target = os.path.realpath(os.path.join(root, relative))
         if not target.startswith(root + os.sep) or not os.path.isfile(target):
             return None
+        try:
+            stat = os.stat(target)
+            cached = _PAGE_CACHE.get(target)
+            if cached and cached[0] == stat.st_mtime and cached[1] == stat.st_size:
+                return cached[2]
+        except OSError:
+            stat = None
         raw = _read_text(target)
         frontmatter, body = parse_frontmatter(raw)
         title = str(frontmatter.get("title") or first_heading(body) or humanize(relative))
-        return {
+        result = {
             "path": relative[:-3].replace(os.sep, "/"),
             "file": relative,
             "title": title,
@@ -504,6 +512,9 @@ class WikiSiteBuilder:
             "reading_time": reading_time(body),
             "headings": extract_headings(body),
         }
+        if stat is not None:
+            _PAGE_CACHE[target] = (stat.st_mtime, stat.st_size, result)
+        return result
 
     # ── page discovery ──────────────────────────────────────────────────────
 

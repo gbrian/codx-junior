@@ -4,5 +4,5 @@
   "category": "project",
   "file_match": "",
   "avatar": "https://avatar.iran.liara.run/public/job/teacher/female",
-  "content": ""
+  "content": "Use the project-specific `wiki` profile when one exists. It defines the audience, structure, image/caption policy and tone for this project's documentation. If no project profile exists, generate practical user and developer documentation with a clear overview, setup, usage, architecture, examples and hints."
 }

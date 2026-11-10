@@ -105,6 +105,7 @@ class WikiManager:
         self.site_builder = WikiSiteBuilder(settings=settings)
         self._ai_instance: Optional[AI] = None
         self._ai_lock = threading.RLock()
+        self._wiki_profile_text: Optional[str] = None
 
     # ─────────────────────────────────────────────────────────────
     # AI accessor  (cached – one instance per WikiManager lifetime)
@@ -143,6 +144,17 @@ class WikiManager:
             content = "\n".join(content.split("\n")[1:-1])
             messages[-1].content = content
         return messages
+
+    def _get_wiki_profile_text(self) -> str:
+        """Return the rendered `wiki` profile that guides documentation style."""
+        if self._wiki_profile_text is None:
+            try:
+                profile = self.profile_manager.read_profile("wiki")
+                self._wiki_profile_text = profile_text(profile, self.settings).strip()
+            except Exception as ex:
+                logger.debug("Cannot read wiki profile: %s", ex)
+                self._wiki_profile_text = ""
+        return self._wiki_profile_text
 
     # ─────────────────────────────────────────────────────────────
     # Settings persistence
@@ -604,6 +616,9 @@ class WikiManager:
             <wiki_settings>
             {json.dumps(wiki_settings, indent=2)}
             </wiki_settings>
+            <wiki_profile>
+            {self._get_wiki_profile_text()}
+            </wiki_profile>
             <user_instructions>
             {user_instructions}
             </user_instructions>
@@ -942,6 +957,9 @@ class WikiManager:
 <categories>
 {json.dumps(categories_without_files, indent=2)}
 </categories>
+<wiki_profile>
+{self._get_wiki_profile_text()}
+</wiki_profile>
 <user_instructions>
 {user_instructions}
 </user_instructions>
@@ -1198,6 +1216,10 @@ Rules:
 {imported_by_str}
 </imported_by>
 <external_deps>{external_str}</external_deps>
+
+<wiki_profile>
+{self._get_wiki_profile_text()}
+</wiki_profile>
 
 Generate a modern reference page for this module in the same format used by the
 rest of the wiki. Use YAML frontmatter then:
@@ -1527,7 +1549,12 @@ Return only the markdown document, no enclosing fences.
             if project_kind == "code"
             else "Include a concrete example or a short template when it helps the reader act."
         )
+        wiki_profile = self._get_wiki_profile_text()
         style = f"""
+<wiki_profile>
+{wiki_profile}
+</wiki_profile>
+
 You are documenting the project "{project_name}" for developers who are new to
 this file. Write like a senior engineer: concrete, skimmable and honest about
 trade-offs. Never invent APIs, options or behaviour.

@@ -1,0 +1,10 @@
+{
+  "name": "wiki",
+  "description": "codx-junior-ui docs: screens, sections and user workflows",
+  "category": "project",
+  "file_match": "",
+  "content": "# codx-junior-ui — interface documentation profile\n\n## Purpose\nThis project is the **codx-junior web UI**. Its wiki documents the product from\nthe screen inward: every section, screen and workflow a user can reach.\n\n## What to document\nFor each UI area:\n- what the screen is for and when a user needs it,\n- the route and entry point (tab, menu, shortcut),\n- the main components and the store/service it talks to,\n- the primary actions and the resulting state changes,\n- permissions, empty states, loading states and error states,\n- links to related screens.\n\nCover at least:\n- application shell, tab bar, desktop/dock and project switcher,\n- chats, agents, profiles and the chat input,\n- Kanban boards, cards, sprints and planning,\n- workspaces, dev containers and previews,\n- teams, company, messenger and meetings,\n- Git view, code review and conflict resolver,\n- browsers, computers and live sessions,\n- knowledge, wiki, settings and account screens.\n\n## Images\nEvery major screen should have a screenshot placeholder with a caption:\n\n![Figure 2: Kanban board with a task opened in chat](/wiki/images/figure-02-kanban-board.png)\n\n*Figure 2 — The Kanban board, showing a task card opened in the chat panel.*\n\nUse numbered, descriptive filenames. Keep the caption immediately below the\nimage and describe the screen, the action and the outcome. Leave blank space for\nimages that will be added later.\n\n## Style\n- Write for a user learning the app, not for a frontend compiler.\n- Explain the visible workflow first; mention components and stores after.\n- Use Mermaid for navigation and state flows.\n- Use tables for tabs, shortcuts, settings and permissions.\n- Prefer short pages with links over one giant UI page.\n- Do not include backend implementation details; link to `codx-junior-api`.\n",
+  "avatar": "https://api.dicebear.com/10.x/glyphs/svg?seed=wiki",
+  "profiles": [],
+  "use_knowledge": true
+}

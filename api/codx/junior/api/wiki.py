@@ -129,12 +129,35 @@ def _wiki_manager(settings: Any) -> WikiManager:
 
 
 def _site_payload(settings: Any, site: Dict[str, Any]) -> Dict[str, Any]:
-    """Add navigation conveniences the UI needs to the manifest."""
-    site.setdefault("project", {})
-    site["project"].setdefault("name", settings.project_name)
-    site["project"]["active"] = True
-    site["updates"] = _update_payload(settings)
-    return site
+    """Return the browser-facing site manifest.
+
+    The on-disk manifest keeps full page metadata for the assistant and the
+    server. The docs UI only needs navigation, search, hierarchy and landing
+    data, so the page map (often hundreds of entries with headings) is removed
+    from the HTTP response. This keeps navigation and search fast.
+    """
+    public = dict(site)
+    public.pop("pages", None)
+    public.pop("updates", None)
+    # Navigation only needs presentation fields. Descriptions/tags/reading times
+    # live in the search index; sending them twice makes large wikis heavy.
+    public["navigation"] = [
+        {
+            **section,
+            "items": [
+                {key: item.get(key) for key in ("title", "path", "icon", "kind")}
+                for item in section.get("items", [])
+            ],
+        }
+        for section in site.get("navigation", [])
+    ]
+    search = dict(site.get("search", {}))
+    search["items"] = (search.get("items") or [])[:600]
+    public["search"] = search
+    public.setdefault("project", {})
+    public["project"].setdefault("name", settings.project_name)
+    public["project"]["active"] = True
+    return public
 
 
 def _update_payload(settings: Any) -> Dict[str, Any]:

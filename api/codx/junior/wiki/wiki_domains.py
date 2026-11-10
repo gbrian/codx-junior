@@ -19,6 +19,7 @@ class WikiDomains:
         self.db = db
         self.ai = ai
         self.domain_map_file = os.path.join(settings.codx_path, "domain_map.json")
+        self._wiki_profile_text = None
 
     def detect_domains(self, graph: DependencyGraph, source_map: Dict) -> List[Dict]:
         # Group files by existing category from source_map
@@ -112,6 +113,10 @@ Return only the JSON object, no extra text.
 {', '.join(domain.get('keywords', []))}
 </keywords>
 
+<wiki_profile>
+{self._wiki_profile()}
+</wiki_profile>
+
 Write a modern architecture page for this software domain. Use exactly this
 shape and a professional, skimmable developer-docs tone:
 
@@ -165,6 +170,20 @@ Return only the markdown document, without enclosing code fences.
         except Exception as ex:
             logger.error("Error building domain page for %s: %s", domain['name'], ex)
             return f"# {domain['name']}\n\n{domain.get('description', '')}\n"
+
+    def _wiki_profile(self) -> str:
+        """Read the project's wiki profile so architecture pages follow it."""
+        if self._wiki_profile_text is None:
+            try:
+                from codx.junior.profiles.profile_manager import ProfileManager
+                from codx.junior.wiki.site import profile_text
+
+                profile = ProfileManager(settings=self.settings).read_profile("wiki")
+                self._wiki_profile_text = profile_text(profile, self.settings).strip()
+            except Exception as ex:
+                logger.debug("Cannot read wiki profile for domains: %s", ex)
+                self._wiki_profile_text = ""
+        return self._wiki_profile_text
 
     def save_domain_map(self, domains: List[Dict]) -> None:
         try:

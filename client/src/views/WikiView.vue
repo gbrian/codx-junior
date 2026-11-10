@@ -1,6 +1,7 @@
 <script setup>
 import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
 import WikiProjectTree from '@/components/wiki/WikiProjectTree.vue'
+import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 </script>
 
 <template>
@@ -15,10 +16,24 @@ import WikiProjectTree from '@/components/wiki/WikiProjectTree.vue'
     <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
     <aside
       v-if="sidebarVisible"
-      class="wiki-sidebar z-40 flex w-64 shrink-0 flex-col border-r border-base-content/10 bg-base-200/60 backdrop-blur xl:w-72"
-      :class="isPhone ? 'fixed inset-y-0 left-0 shadow-2xl' : 'relative'"
+      class="wiki-sidebar z-40 flex shrink-0 flex-col border-r border-base-content/10 bg-base-200/60 backdrop-blur transition-all duration-200"
+      :class="isPhone
+        ? 'fixed inset-y-0 left-0 w-64 shadow-2xl xl:w-72'
+        : ['relative', sidebarRail ? 'w-12' : 'w-64 xl:w-72']"
     >
-      <div class="flex items-center gap-2 border-b border-base-content/10 px-4 py-3">
+      <!-- Collapsed rail (desktop): only the expand affordance remains -->
+      <div v-if="sidebarRail" class="flex flex-col items-center gap-2 py-3">
+        <button
+          class="flex h-8 w-8 items-center justify-center rounded-lg text-base-content/50 transition-colors hover:bg-base-content/10 hover:text-base-content"
+          title="Expand sidebar"
+          aria-label="Expand sidebar"
+          @click="toggleSidebarCollapse"
+        >
+          <i class="fa-solid fa-angle-right text-xs"></i>
+        </button>
+      </div>
+
+      <div v-if="!sidebarRail" class="flex items-center gap-2 border-b border-base-content/10 px-4 py-3">
         <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg">
           <img v-if="site.project.icon" :src="site.project.icon" class="h-full w-full object-contain" alt="" />
           <i v-else class="fa-solid fa-book-open text-primary"></i>
@@ -30,10 +45,19 @@ import WikiProjectTree from '@/components/wiki/WikiProjectTree.vue'
         <button v-if="isPhone" class="btn btn-ghost btn-xs btn-circle" aria-label="Close menu" @click="sidebarOpen = false">
           <i class="fa-solid fa-xmark"></i>
         </button>
+        <button
+          v-else
+          class="btn btn-ghost btn-xs btn-circle"
+          title="Collapse sidebar"
+          aria-label="Collapse sidebar"
+          @click="toggleSidebarCollapse"
+        >
+          <i class="fa-solid fa-angle-left text-xs"></i>
+        </button>
       </div>
 
       <!-- Project switcher -->
-      <div class="relative px-3 pt-3">
+      <div v-if="!sidebarRail" class="relative px-3 pt-3">
         <details class="dropdown w-full" ref="projectMenu">
           <summary class="btn btn-sm w-full justify-between gap-2 border-base-content/10 bg-base-100/70 font-normal">
             <span class="flex min-w-0 items-center gap-2">
@@ -74,7 +98,7 @@ import WikiProjectTree from '@/components/wiki/WikiProjectTree.vue'
       </div>
 
       <!-- Search -->
-      <div class="px-3 pt-2">
+      <div v-if="!sidebarRail" class="px-3 pt-2">
         <button
           class="btn btn-sm w-full justify-start gap-2 border-base-content/10 bg-base-100/50 font-normal text-base-content/60"
           @click="openSearch"
@@ -86,7 +110,7 @@ import WikiProjectTree from '@/components/wiki/WikiProjectTree.vue'
       </div>
 
       <!-- Navigation -->
-      <nav class="mt-3 flex-1 overflow-y-auto px-2 pb-4">
+      <nav v-if="!sidebarRail" class="mt-3 flex-1 overflow-y-auto px-2 pb-4">
         <div v-for="section in site.navigation" :key="section.title" class="mb-1">
           <button
             class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[0.68rem] font-bold uppercase tracking-[0.12em] opacity-60 hover:bg-base-300/60 hover:opacity-100"
@@ -129,7 +153,7 @@ import WikiProjectTree from '@/components/wiki/WikiProjectTree.vue'
       </nav>
 
       <!-- Sidebar footer -->
-      <div class="border-t border-base-content/10 px-3 py-3">
+      <div v-if="!sidebarRail" class="border-t border-base-content/10 px-3 py-3">
         <div class="flex items-center gap-2 text-[0.7rem] text-base-content/60">
           <span class="status-dot" :class="updateStatus.running || updateStatus.pending ? 'is-busy' : 'is-ok'"></span>
           <span class="min-w-0 flex-1 truncate">{{ updateLabel }}</span>
@@ -151,6 +175,15 @@ import WikiProjectTree from '@/components/wiki/WikiProjectTree.vue'
         <button v-if="isPhone" class="btn btn-ghost btn-sm gap-2" aria-label="Open documentation menu" @click="sidebarOpen = true">
           <i class="fa-solid fa-bars"></i>
           <span>Docs</span>
+        </button>
+        <button
+          v-else-if="sidebarCollapsed"
+          class="btn btn-ghost btn-sm btn-square"
+          title="Expand sidebar"
+          aria-label="Expand sidebar"
+          @click="toggleSidebarCollapse"
+        >
+          <i class="fa-solid fa-bars"></i>
         </button>
 
         <div class="hidden min-w-0 items-center gap-1.5 text-xs text-base-content/55 sm:flex">
@@ -184,345 +217,358 @@ import WikiProjectTree from '@/components/wiki/WikiProjectTree.vue'
         </div>
       </header>
 
-      <div class="relative flex min-h-0 flex-1">
-        <main ref="scroller" class="min-w-0 flex-1 overflow-y-auto scroll-smooth" @scroll="onScroll">
-          <div v-if="error && !loadingSite" class="mx-auto mt-4 max-w-5xl px-5">
-            <div class="alert alert-error shadow-sm">
-              <i class="fa-solid fa-circle-exclamation"></i>
-              <span class="text-sm">{{ error }}</span>
-              <button class="btn btn-ghost btn-xs" @click="loadSite(projectName)">Retry</button>
-            </div>
-          </div>
-
-          <!-- Loading -->
-          <div v-if="loadingSite" class="mx-auto flex max-w-5xl flex-col gap-4 p-6 lg:p-10">
-            <div class="skeleton h-8 w-1/3 rounded-lg"></div>
-            <div class="skeleton h-4 w-2/3 rounded"></div>
-            <div class="skeleton h-4 w-1/2 rounded"></div>
-            <div class="skeleton h-64 w-full rounded-2xl"></div>
-          </div>
-
-          <!-- Empty / disabled -->
-          <div v-else-if="!site.navigation.length" class="mx-auto max-w-2xl p-8 text-center lg:p-16">
-            <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center text-3xl text-primary">
-              <i class="fa-solid fa-book-open-reader"></i>
-            </div>
-            <h2 class="text-2xl font-bold">This project has no wiki yet</h2>
-            <p class="mt-2 text-sm opacity-60">
-              Create a documentation site from the project layout. The first overview pages
-              appear immediately; detailed pages are generated in the background.
-            </p>
-            <div class="mt-5 flex flex-wrap justify-center gap-2">
-              <button class="btn btn-primary btn-sm gap-2" :disabled="creatingWiki" @click="createWiki">
-                <span v-if="creatingWiki" class="loading loading-spinner loading-xs"></span>
-                <i v-else class="fa-solid fa-wand-magic-sparkles"></i>
-                {{ creatingWiki ? 'Creating wiki…' : 'Create wiki' }}
-              </button>
-              <button class="btn btn-ghost btn-sm gap-2" :disabled="creatingWiki" @click="requestRefresh">
-                <i class="fa-solid fa-rotate"></i> Check again
-              </button>
-              <button class="btn btn-ghost btn-sm gap-2" @click="openWikiSettings">
-                <i class="fa-solid fa-sliders"></i> Wiki settings
-              </button>
-            </div>
-          </div>
-
-          <!-- Landing -->
-          <div v-else-if="isHome" class="pb-16">
-            <section class="relative overflow-hidden border-b border-base-content/10">
-              <div class="relative mx-auto max-w-5xl px-6 py-10 lg:px-10 lg:py-14">
-                <div class="inline-flex items-center gap-2 rounded-full border border-base-content/15 px-3 py-1 text-[0.68rem] font-semibold text-base-content/70">
-                  <i class="fa-solid fa-sparkles"></i>
-                  {{ site.home.badge || 'Living documentation' }}
-                </div>
-                <div class="mt-5 flex items-start gap-4">
-                  <div v-if="site.project.icon" class="hidden h-14 w-14 shrink-0 sm:block">
-                    <img :src="site.project.icon" class="h-full w-full object-contain" alt="" />
-                  </div>
-                  <div class="min-w-0">
-                    <h1 class="text-3xl font-black tracking-tight lg:text-5xl">{{ site.home.title }}</h1>
-                    <p class="mt-2 max-w-2xl text-lg text-base-content/70">{{ homeTagline }}</p>
-                    <p class="mt-3 max-w-3xl text-sm leading-relaxed text-base-content/60">{{ homeDescription }}</p>
-                  </div>
-                </div>
-
-                <div class="mt-6 flex flex-wrap gap-2">
-                  <button class="btn btn-primary gap-2" @click="openPage(site.home.page)">
-                    <i class="fa-solid fa-book-open"></i> Start reading
-                  </button>
-                  <button v-if="assistantEnabled" class="btn btn-outline gap-2" @click="toggleAssistant(true)">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> Ask the assistant
-                  </button>
-                  <a v-if="site.project.repository" :href="site.project.repository" target="_blank" rel="noopener" class="btn btn-ghost gap-2">
-                    <i class="fa-brands fa-github"></i> Repository
-                  </a>
-                </div>
-
-                <div class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <div v-for="stat in landingStats" :key="stat.label" class="rounded-xl border border-base-content/10 bg-base-100/60 px-3 py-3">
-                    <div class="text-xl font-black">{{ stat.value }}</div>
-                    <div class="text-[0.65rem] font-semibold uppercase tracking-[0.14em] opacity-50">{{ stat.label }}</div>
-                  </div>
-                </div>
+      <!-- Document + assistant live in a resizable splitter so the chat side
+           can be widened/narrowed and the split is remembered. On phones the
+           splitter falls back to a plain container: the assistant takes the
+           full width while it is open. -->
+      <VerticalSplitter
+        class="relative flex min-h-0 flex-1"
+        :split="!isPhone"
+        :show-left="!isPhone || !assistantOpen"
+        :show-right="assistantOpen"
+        :show-handle="true"
+        persist-key="wiki-assistant"
+        :panels="{
+          left: { minSize: 40, defaultSize: 70, collapsible: false },
+          right: { minSize: 22, defaultSize: 30, collapsible: false }
+        }"
+      >
+        <template #left>
+          <main ref="scroller" class="h-full min-w-0 overflow-y-auto scroll-smooth" @scroll="onScroll">
+            <div v-if="error && !loadingSite" class="mx-auto mt-4 max-w-5xl px-5">
+              <div class="alert alert-error shadow-sm">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span class="text-sm">{{ error }}</span>
+                <button class="btn btn-ghost btn-xs" @click="loadSite(projectName)">Retry</button>
               </div>
-            </section>
+            </div>
 
-            <section class="mx-auto max-w-5xl px-6 py-10 lg:px-10">
-              <div class="flex items-end justify-between gap-4">
-                <div>
-                  <h2 class="text-xl font-bold">Explore the docs</h2>
-                  <p class="text-sm opacity-55">Curated entry points, not a folder listing.</p>
-                </div>
-                <button class="btn btn-ghost btn-sm gap-1" @click="openSearch">
-                  Browse all <i class="fa-solid fa-arrow-right"></i>
+            <!-- Loading -->
+            <div v-if="loadingSite" class="mx-auto flex max-w-5xl flex-col gap-4 p-6 lg:p-10">
+              <div class="skeleton h-8 w-1/3 rounded-lg"></div>
+              <div class="skeleton h-4 w-2/3 rounded"></div>
+              <div class="skeleton h-4 w-1/2 rounded"></div>
+              <div class="skeleton h-64 w-full rounded-2xl"></div>
+            </div>
+
+            <!-- Empty / disabled -->
+            <div v-else-if="!site.navigation.length" class="mx-auto max-w-2xl p-8 text-center lg:p-16">
+              <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center text-3xl text-primary">
+                <i class="fa-solid fa-book-open-reader"></i>
+              </div>
+              <h2 class="text-2xl font-bold">This project has no wiki yet</h2>
+              <p class="mt-2 text-sm opacity-60">
+                Create a documentation site from the project layout. The first overview pages
+                appear immediately; detailed pages are generated in the background.
+              </p>
+              <div class="mt-5 flex flex-wrap justify-center gap-2">
+                <button class="btn btn-primary btn-sm gap-2" :disabled="creatingWiki" @click="createWiki">
+                  <span v-if="creatingWiki" class="loading loading-spinner loading-xs"></span>
+                  <i v-else class="fa-solid fa-wand-magic-sparkles"></i>
+                  {{ creatingWiki ? 'Creating wiki…' : 'Create wiki' }}
+                </button>
+                <button class="btn btn-ghost btn-sm gap-2" :disabled="creatingWiki" @click="requestRefresh">
+                  <i class="fa-solid fa-rotate"></i> Check again
+                </button>
+                <button class="btn btn-ghost btn-sm gap-2" @click="openWikiSettings">
+                  <i class="fa-solid fa-sliders"></i> Wiki settings
                 </button>
               </div>
-              <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <button
-                  v-for="feature in site.home.features"
-                  :key="feature.title"
-                  class="group rounded-2xl border border-base-content/10 bg-base-200/40 p-4 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
-                  @click="openPage(feature.path)"
-                >
-                  <span class="flex h-9 w-9 items-center justify-center text-primary/80">
-                    <i :class="feature.icon || 'fa-regular fa-file-lines'"></i>
-                  </span>
-                  <span class="mt-3 block text-sm font-bold">{{ feature.title }}</span>
-                  <span class="mt-1 block text-xs leading-relaxed opacity-60">{{ feature.details }}</span>
-                  <span class="mt-3 flex items-center gap-1 text-[0.68rem] font-semibold text-primary opacity-0 transition group-hover:opacity-100">
-                    Read page <i class="fa-solid fa-arrow-right text-[0.6rem]"></i>
-                  </span>
-                </button>
-              </div>
+            </div>
 
-              <div v-if="site.home.quick_links.length" class="mt-8">
-                <h2 class="text-xl font-bold">Quick links</h2>
-                <div class="mt-3 divide-y divide-base-content/10 rounded-2xl border border-base-content/10 bg-base-100">
+            <!-- Landing -->
+            <div v-else-if="isHome" class="pb-16">
+              <section class="relative overflow-hidden border-b border-base-content/10">
+                <div class="relative mx-auto max-w-5xl px-6 py-10 lg:px-10 lg:py-14">
+                  <div class="inline-flex items-center gap-2 rounded-full border border-base-content/15 px-3 py-1 text-[0.68rem] font-semibold text-base-content/70">
+                    <i class="fa-solid fa-sparkles"></i>
+                    {{ site.home.badge || 'Living documentation' }}
+                  </div>
+                  <div class="mt-5 flex items-start gap-4">
+                    <div v-if="site.project.icon" class="hidden h-14 w-14 shrink-0 sm:block">
+                      <img :src="site.project.icon" class="h-full w-full object-contain" alt="" />
+                    </div>
+                    <div class="min-w-0">
+                      <h1 class="text-3xl font-black tracking-tight lg:text-5xl">{{ site.home.title }}</h1>
+                      <p class="mt-2 max-w-2xl text-lg text-base-content/70">{{ homeTagline }}</p>
+                      <p class="mt-3 max-w-3xl text-sm leading-relaxed text-base-content/60">{{ homeDescription }}</p>
+                    </div>
+                  </div>
+
+                  <div class="mt-6 flex flex-wrap gap-2">
+                    <button class="btn btn-primary gap-2" @click="openPage(site.home.page)">
+                      <i class="fa-solid fa-book-open"></i> Start reading
+                    </button>
+                    <button v-if="assistantEnabled" class="btn btn-outline gap-2" @click="toggleAssistant(true)">
+                      <i class="fa-solid fa-wand-magic-sparkles"></i> Ask the assistant
+                    </button>
+                    <a v-if="site.project.repository" :href="site.project.repository" target="_blank" rel="noopener" class="btn btn-ghost gap-2">
+                      <i class="fa-brands fa-github"></i> Repository
+                    </a>
+                  </div>
+
+                  <div class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div v-for="stat in landingStats" :key="stat.label" class="rounded-xl border border-base-content/10 bg-base-100/60 px-3 py-3">
+                      <div class="text-xl font-black">{{ stat.value }}</div>
+                      <div class="text-[0.65rem] font-semibold uppercase tracking-[0.14em] opacity-50">{{ stat.label }}</div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="mx-auto max-w-5xl px-6 py-10 lg:px-10">
+                <div class="flex items-end justify-between gap-4">
+                  <div>
+                    <h2 class="text-xl font-bold">Explore the docs</h2>
+                    <p class="text-sm opacity-55">Curated entry points, not a folder listing.</p>
+                  </div>
+                  <button class="btn btn-ghost btn-sm gap-1" @click="openSearch">
+                    Browse all <i class="fa-solid fa-arrow-right"></i>
+                  </button>
+                </div>
+                <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <button
-                    v-for="link in site.home.quick_links"
-                    :key="link.path"
-                    class="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-base-200/60"
-                    @click="openPage(link.path)"
+                    v-for="feature in site.home.features"
+                    :key="feature.title"
+                    class="group rounded-2xl border border-base-content/10 bg-base-200/40 p-4 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
+                    @click="openPage(feature.path)"
                   >
-                    <i :class="link.icon" class="w-5 text-center text-primary/70"></i>
-                    <span class="min-w-0 flex-1">
-                      <span class="block truncate text-sm font-semibold">{{ link.title }}</span>
-                      <span class="block truncate text-xs opacity-50">{{ link.description }}</span>
+                    <span class="flex h-9 w-9 items-center justify-center text-primary/80">
+                      <i :class="feature.icon || 'fa-regular fa-file-lines'"></i>
                     </span>
-                    <i class="fa-solid fa-arrow-right text-[0.65rem] opacity-30"></i>
+                    <span class="mt-3 block text-sm font-bold">{{ feature.title }}</span>
+                    <span class="mt-1 block text-xs leading-relaxed opacity-60">{{ feature.details }}</span>
+                    <span class="mt-3 flex items-center gap-1 text-[0.68rem] font-semibold text-primary opacity-0 transition group-hover:opacity-100">
+                      Read page <i class="fa-solid fa-arrow-right text-[0.6rem]"></i>
+                    </span>
                   </button>
                 </div>
-              </div>
 
-              <div v-if="landingPage" class="wiki-overview mt-10 rounded-2xl border border-base-content/10 bg-base-100 p-5 lg:p-7">
-                <div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] opacity-45">
-                  <i class="fa-regular fa-map"></i> Project overview
+                <div v-if="site.home.quick_links.length" class="mt-8">
+                  <h2 class="text-xl font-bold">Quick links</h2>
+                  <div class="mt-3 divide-y divide-base-content/10 rounded-2xl border border-base-content/10 bg-base-100">
+                    <button
+                      v-for="link in site.home.quick_links"
+                      :key="link.path"
+                      class="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-base-200/60"
+                      @click="openPage(link.path)"
+                    >
+                      <i :class="link.icon" class="w-5 text-center text-primary/70"></i>
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-sm font-semibold">{{ link.title }}</span>
+                        <span class="block truncate text-xs opacity-50">{{ link.description }}</span>
+                      </span>
+                      <i class="fa-solid fa-arrow-right text-[0.65rem] opacity-30"></i>
+                    </button>
+                  </div>
                 </div>
-                <WikiMarkdown :text="landingPage.content" hide-title @open-page="openPage" />
-              </div>
-            </section>
-          </div>
 
-          <!-- Document -->
-          <article v-else-if="page" class="mx-auto flex max-w-6xl gap-8 px-5 py-8 lg:px-10">
-            <div class="min-w-0 flex-1">
-              <div class="mb-6">
-                <div class="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-base-content/45">
-                  <span class="rounded-md bg-base-200 px-2 py-0.5">{{ page.section }}</span>
-                  <span>{{ page.reading_time }} min read</span>
-                  <span v-if="page.updated_at">Updated {{ formatDate(page.updated_at) }}</span>
-                  <span v-if="page.has_diagram" class="flex items-center gap-1"><i class="fa-solid fa-diagram-project"></i> diagrams</span>
+                <div v-if="landingPage" class="wiki-overview mt-10 rounded-2xl border border-base-content/10 bg-base-100 p-5 lg:p-7">
+                  <div class="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] opacity-45">
+                    <i class="fa-regular fa-map"></i> Project overview
+                  </div>
+                  <WikiMarkdown :text="landingPage.content" hide-title @open-page="openPage" />
                 </div>
-                <h1 class="mt-3 text-3xl font-black tracking-tight lg:text-4xl">{{ page.title }}</h1>
-                <p v-if="page.description" class="mt-2 max-w-3xl text-base text-base-content/60">{{ page.description }}</p>
-                <div class="mt-3 flex flex-wrap items-center gap-2">
-                  <span v-for="tag in page.tags" :key="tag" class="badge badge-ghost badge-sm">#{{ tag }}</span>
-                  <button v-if="page.source" class="badge badge-outline badge-sm gap-1 hover:border-primary hover:text-primary" :title="page.source" @click="openSource(page.source)">
-                    <i class="fa-solid fa-code"></i> source
-                  </button>
-                  <button class="badge badge-outline badge-sm gap-1 hover:border-primary hover:text-primary" @click="copyLink">
-                    <i class="fa-regular fa-copy"></i> copy link
-                  </button>
-                  <button v-if="assistantEnabled" class="badge badge-outline badge-sm gap-1 hover:border-primary hover:text-primary" @click="askAboutPage">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> ask about this page
-                  </button>
-                </div>
-              </div>
-
-              <div v-if="pageLoading" class="space-y-3">
-                <div class="skeleton h-4 w-full rounded"></div>
-                <div class="skeleton h-4 w-11/12 rounded"></div>
-                <div class="skeleton h-4 w-4/5 rounded"></div>
-                <div class="skeleton h-40 w-full rounded-xl"></div>
-              </div>
-              <WikiMarkdown v-else :text="page.content" @open-page="openPage" />
-
-              <div class="mt-10 flex flex-col gap-3 border-t border-base-content/10 pt-5 sm:flex-row sm:items-center">
-                <button v-if="previousPage" class="btn btn-ghost h-auto justify-start gap-3 py-2 text-left" @click="openPage(previousPage.path)">
-                  <i class="fa-solid fa-arrow-left text-xs opacity-50"></i>
-                  <span>
-                    <span class="block text-[0.62rem] uppercase tracking-wider opacity-40">Previous</span>
-                    <span class="block text-sm font-semibold">{{ previousPage.title }}</span>
-                  </span>
-                </button>
-                <div class="grow"></div>
-                <button v-if="nextPage" class="btn btn-ghost h-auto justify-end gap-3 py-2 text-right" @click="openPage(nextPage.path)">
-                  <span>
-                    <span class="block text-[0.62rem] uppercase tracking-wider opacity-40">Next</span>
-                    <span class="block text-sm font-semibold">{{ nextPage.title }}</span>
-                  </span>
-                  <i class="fa-solid fa-arrow-right text-xs opacity-50"></i>
-                </button>
-              </div>
-
-              <div class="mt-5 flex items-center justify-between rounded-xl border border-base-content/10 bg-base-200/30 px-4 py-3 text-xs">
-                <span class="opacity-55">Was this page helpful?</span>
-                <div class="flex gap-1">
-                  <button class="btn btn-ghost btn-xs gap-1" :class="{ 'text-success': feedback === 'yes' }" @click="sendFeedback('yes')">
-                    <i class="fa-regular fa-thumbs-up"></i> Yes
-                  </button>
-                  <button class="btn btn-ghost btn-xs gap-1" :class="{ 'text-error': feedback === 'no' }" @click="sendFeedback('no')">
-                    <i class="fa-regular fa-thumbs-down"></i> No
-                  </button>
-                </div>
-              </div>
+              </section>
             </div>
 
-            <!-- On this page -->
-            <aside class="hidden w-56 shrink-0 xl:block">
-              <div class="sticky top-6">
-                <div class="mb-2 text-[0.65rem] font-bold uppercase tracking-[0.14em] opacity-40">On this page</div>
-                <nav class="space-y-1 border-l border-base-content/10">
-                  <button
-                    v-for="heading in page.headings"
-                    :key="heading.id"
-                    class="block w-full border-l-2 py-1 pl-3 text-left text-xs transition-colors"
-                    :class="[
-                      heading.level === 3 ? 'ml-3' : '',
-                      activeHeading === heading.id
-                        ? 'border-primary font-semibold text-primary'
-                        : 'border-transparent opacity-55 hover:border-base-content/30 hover:opacity-90'
-                    ]"
-                    @click="scrollToHeading(heading.id)"
-                  >
-                    {{ heading.text }}
+            <!-- Document -->
+            <article v-else-if="page" class="mx-auto flex max-w-6xl gap-8 px-5 py-8 lg:px-10">
+              <div class="min-w-0 flex-1">
+                <div class="mb-6">
+                  <div class="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-base-content/45">
+                    <span class="rounded-md bg-base-200 px-2 py-0.5">{{ page.section }}</span>
+                    <span>{{ page.reading_time }} min read</span>
+                    <span v-if="page.updated_at">Updated {{ formatDate(page.updated_at) }}</span>
+                    <span v-if="page.has_diagram" class="flex items-center gap-1"><i class="fa-solid fa-diagram-project"></i> diagrams</span>
+                  </div>
+                  <h1 class="mt-3 text-3xl font-black tracking-tight lg:text-4xl">{{ page.title }}</h1>
+                  <p v-if="page.description" class="mt-2 max-w-3xl text-base text-base-content/60">{{ page.description }}</p>
+                  <div class="mt-3 flex flex-wrap items-center gap-2">
+                    <span v-for="tag in page.tags" :key="tag" class="badge badge-ghost badge-sm">#{{ tag }}</span>
+                    <button v-if="page.source" class="badge badge-outline badge-sm gap-1 hover:border-primary hover:text-primary" :title="page.source" @click="openSource(page.source)">
+                      <i class="fa-solid fa-code"></i> source
+                    </button>
+                    <button class="badge badge-outline badge-sm gap-1 hover:border-primary hover:text-primary" @click="copyLink">
+                      <i class="fa-regular fa-copy"></i> copy link
+                    </button>
+                    <button v-if="assistantEnabled" class="badge badge-outline badge-sm gap-1 hover:border-primary hover:text-primary" @click="askAboutPage">
+                      <i class="fa-solid fa-wand-magic-sparkles"></i> ask about this page
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="pageLoading" class="space-y-3">
+                  <div class="skeleton h-4 w-full rounded"></div>
+                  <div class="skeleton h-4 w-11/12 rounded"></div>
+                  <div class="skeleton h-4 w-4/5 rounded"></div>
+                  <div class="skeleton h-40 w-full rounded-xl"></div>
+                </div>
+                <WikiMarkdown v-else :text="page.content" @open-page="openPage" />
+
+                <div class="mt-10 flex flex-col gap-3 border-t border-base-content/10 pt-5 sm:flex-row sm:items-center">
+                  <button v-if="previousPage" class="btn btn-ghost h-auto justify-start gap-3 py-2 text-left" @click="openPage(previousPage.path)">
+                    <i class="fa-solid fa-arrow-left text-xs opacity-50"></i>
+                    <span>
+                      <span class="block text-[0.62rem] uppercase tracking-wider opacity-40">Previous</span>
+                      <span class="block text-sm font-semibold">{{ previousPage.title }}</span>
+                    </span>
                   </button>
-                </nav>
-                <div v-if="assistantEnabled" class="mt-5 rounded-xl border border-base-content/10 bg-base-200/40 p-3">
-                  <div class="text-[0.65rem] font-bold uppercase tracking-wider opacity-40">Need help?</div>
-                  <p class="mt-1 text-xs opacity-60">Ask the assistant about this page.</p>
-                  <button class="btn btn-primary btn-xs mt-2 w-full" @click="askAboutPage">Ask AI</button>
+                  <div class="grow"></div>
+                  <button v-if="nextPage" class="btn btn-ghost h-auto justify-end gap-3 py-2 text-right" @click="openPage(nextPage.path)">
+                    <span>
+                      <span class="block text-[0.62rem] uppercase tracking-wider opacity-40">Next</span>
+                      <span class="block text-sm font-semibold">{{ nextPage.title }}</span>
+                    </span>
+                    <i class="fa-solid fa-arrow-right text-xs opacity-50"></i>
+                  </button>
+                </div>
+
+                <div class="mt-5 flex items-center justify-between rounded-xl border border-base-content/10 bg-base-200/30 px-4 py-3 text-xs">
+                  <span class="opacity-55">Was this page helpful?</span>
+                  <div class="flex gap-1">
+                    <button class="btn btn-ghost btn-xs gap-1" :class="{ 'text-success': feedback === 'yes' }" @click="sendFeedback('yes')">
+                      <i class="fa-regular fa-thumbs-up"></i> Yes
+                    </button>
+                    <button class="btn btn-ghost btn-xs gap-1" :class="{ 'text-error': feedback === 'no' }" @click="sendFeedback('no')">
+                      <i class="fa-regular fa-thumbs-down"></i> No
+                    </button>
+                  </div>
                 </div>
               </div>
-            </aside>
-          </article>
 
-          <div v-else class="p-10 text-center text-sm opacity-50">Select a page from the sidebar.</div>
-        </main>
+              <!-- On this page -->
+              <aside class="hidden w-56 shrink-0 xl:block">
+                <div class="sticky top-6">
+                  <div class="mb-2 text-[0.65rem] font-bold uppercase tracking-[0.14em] opacity-40">On this page</div>
+                  <nav class="space-y-1 border-l border-base-content/10">
+                    <button
+                      v-for="heading in page.headings"
+                      :key="heading.id"
+                      class="block w-full border-l-2 py-1 pl-3 text-left text-xs transition-colors"
+                      :class="[
+                        heading.level === 3 ? 'ml-3' : '',
+                        activeHeading === heading.id
+                          ? 'border-primary font-semibold text-primary'
+                          : 'border-transparent opacity-55 hover:border-base-content/30 hover:opacity-90'
+                      ]"
+                      @click="scrollToHeading(heading.id)"
+                    >
+                      {{ heading.text }}
+                    </button>
+                  </nav>
+                  <div v-if="assistantEnabled" class="mt-5 rounded-xl border border-base-content/10 bg-base-200/40 p-3">
+                    <div class="text-[0.65rem] font-bold uppercase tracking-wider opacity-40">Need help?</div>
+                    <p class="mt-1 text-xs opacity-60">Ask the assistant about this page.</p>
+                    <button class="btn btn-primary btn-xs mt-2 w-full" @click="askAboutPage">Ask AI</button>
+                  </div>
+                </div>
+              </aside>
+            </article>
+
+            <div v-else class="p-10 text-center text-sm opacity-50">Select a page from the sidebar.</div>
+          </main>
+        </template>
 
         <!-- ── Assistant panel ────────────────────────────────────────── -->
-        <aside
-          v-if="assistantOpen"
-          class="flex shrink-0 flex-col border-l border-base-content/10 bg-base-100"
-          :class="isPhone
-            ? 'absolute inset-y-0 right-0 z-30 w-full max-w-md shadow-2xl'
-            : 'relative w-[24rem]'"
-        >
-          <div class="flex items-center gap-2 border-b border-base-content/10 px-4 py-3">
-            <div class="flex h-8 w-8 items-center justify-center text-primary">
-              <i class="fa-solid fa-robot text-sm"></i>
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="text-sm font-bold">{{ site.assistant.name || 'Docs assistant' }}</div>
-              <div class="text-[0.65rem] opacity-50">Answers from this project's docs</div>
-            </div>
-            <button class="btn btn-ghost btn-xs btn-circle" aria-label="Close assistant" @click="assistantOpen = false">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-
-          <div class="flex items-center gap-2 border-b border-base-content/10 px-3 py-1.5 text-[0.65rem] text-base-content/60">
-            <label class="flex cursor-pointer items-center gap-1.5">
-              <input v-model="assistantIncludeChildren" type="checkbox" class="checkbox checkbox-xs" />
-              Child projects
-            </label>
-            <span>Depth</span>
-            <select v-model.number="assistantChildDepth" class="select select-xs select-bordered h-6 min-h-0 py-0">
-              <option :value="1">1</option>
-              <option :value="2">2</option>
-              <option :value="3">3</option>
-              <option :value="4">4</option>
-            </select>
-          </div>
-
-          <div ref="assistantScroll" class="flex-1 space-y-4 overflow-y-auto px-3 py-4">
-            <div v-for="(message, index) in assistantMessages" :key="index" class="flex gap-2" :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
-              <div v-if="message.role === 'assistant'" class="mt-1 flex h-7 w-7 shrink-0 items-center justify-center text-primary/70">
-                <i class="fa-solid fa-robot text-[0.7rem]"></i>
+        <template #right>
+          <aside class="flex h-full min-w-0 flex-col border-l border-base-content/10 bg-base-100">
+            <div class="flex items-center gap-2 border-b border-base-content/10 px-4 py-3">
+              <div class="flex h-8 w-8 items-center justify-center text-primary">
+                <i class="fa-solid fa-robot text-sm"></i>
               </div>
-              <div class="min-w-0 max-w-[85%]" :class="message.role === 'user' ? 'order-first' : ''">
-                <div
-                  class="rounded-2xl px-3 py-2 text-sm"
-                  :class="message.role === 'user' ? 'rounded-br-sm bg-primary text-primary-content' : 'rounded-bl-sm bg-base-200'"
-                >
-                  <WikiMarkdown v-if="message.role === 'assistant'" :text="message.content" compact @open-page="openPage" />
-                  <span v-else class="whitespace-pre-wrap">{{ message.content }}</span>
+              <div class="min-w-0 flex-1">
+                <div class="text-sm font-bold">{{ site.assistant.name || 'Docs assistant' }}</div>
+                <div class="text-[0.65rem] opacity-50">Answers from this project's docs</div>
+              </div>
+              <button class="btn btn-ghost btn-xs btn-circle" aria-label="Close assistant" @click="assistantOpen = false">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2 border-b border-base-content/10 px-3 py-1.5 text-[0.65rem] text-base-content/60">
+              <label class="flex cursor-pointer items-center gap-1.5">
+                <input v-model="assistantIncludeChildren" type="checkbox" class="checkbox checkbox-xs" />
+                Child projects
+              </label>
+              <span>Depth</span>
+              <select v-model.number="assistantChildDepth" class="select select-xs select-bordered h-6 min-h-0 py-0">
+                <option :value="1">1</option>
+                <option :value="2">2</option>
+                <option :value="3">3</option>
+                <option :value="4">4</option>
+              </select>
+            </div>
+
+            <div ref="assistantScroll" class="flex-1 space-y-4 overflow-y-auto px-3 py-4">
+              <div v-for="(message, index) in assistantMessages" :key="index" class="flex gap-2" :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
+                <div v-if="message.role === 'assistant'" class="mt-1 flex h-7 w-7 shrink-0 items-center justify-center text-primary/70">
+                  <i class="fa-solid fa-robot text-[0.7rem]"></i>
                 </div>
-                <div v-if="message.citations?.length" class="mt-2 flex flex-wrap gap-1">
-                  <button
-                    v-for="citation in message.citations"
-                    :key="citation.type + citation.path"
-                    class="badge badge-outline badge-sm max-w-full gap-1 hover:border-primary hover:text-primary"
-                    :title="citation.description"
-                    @click="openCitation(citation)"
+                <div class="min-w-0 max-w-[85%]" :class="message.role === 'user' ? 'order-first' : ''">
+                  <div
+                    class="rounded-2xl px-3 py-2 text-sm"
+                    :class="message.role === 'user' ? 'rounded-br-sm bg-primary text-primary-content' : 'rounded-bl-sm bg-base-200'"
                   >
-                    <i :class="citation.icon || 'fa-regular fa-file-lines'" class="text-[0.6rem]"></i>
-                    <span class="max-w-[11rem] truncate">{{ citation.title }}</span>
-                  </button>
+                    <WikiMarkdown v-if="message.role === 'assistant'" :text="message.content" compact @open-page="openPage" />
+                    <span v-else class="whitespace-pre-wrap">{{ message.content }}</span>
+                  </div>
+                  <div v-if="message.citations?.length" class="mt-2 flex flex-wrap gap-1">
+                    <button
+                      v-for="citation in message.citations"
+                      :key="citation.type + citation.path"
+                      class="badge badge-outline badge-sm max-w-full gap-1 hover:border-primary hover:text-primary"
+                      :title="citation.description"
+                      @click="openCitation(citation)"
+                    >
+                      <i :class="citation.icon || 'fa-regular fa-file-lines'" class="text-[0.6rem]"></i>
+                      <span class="max-w-[11rem] truncate">{{ citation.title }}</span>
+                    </button>
+                  </div>
                 </div>
+              </div>
+
+              <div v-if="assistantLoading" class="flex items-center gap-2 text-xs opacity-60">
+                <span class="loading loading-dots loading-sm"></span>
+                Searching the docs…
+              </div>
+
+              <div v-if="assistantMessages.length === 1 && !assistantLoading" class="space-y-1.5">
+                <div class="px-1 text-[0.65rem] font-bold uppercase tracking-wider opacity-40">Try asking</div>
+                <button
+                  v-for="suggestion in assistantSuggestions"
+                  :key="suggestion"
+                  class="block w-full rounded-xl border border-base-content/10 bg-base-200/40 px-3 py-2 text-left text-xs transition hover:border-primary/40 hover:bg-base-200"
+                  @click="askAssistant(suggestion)"
+                >
+                  {{ suggestion }}
+                </button>
               </div>
             </div>
 
-            <div v-if="assistantLoading" class="flex items-center gap-2 text-xs opacity-60">
-              <span class="loading loading-dots loading-sm"></span>
-              Searching the docs…
+            <div class="border-t border-base-content/10 p-3">
+              <div class="flex items-end gap-2 rounded-xl border border-base-content/15 bg-base-200/40 p-2 focus-within:border-primary/50">
+                <textarea
+                  ref="assistantInput"
+                  v-model="assistantInput"
+                  rows="1"
+                  class="max-h-28 min-h-[2rem] flex-1 resize-none bg-transparent px-1 py-1 text-sm outline-none"
+                  placeholder="Ask about the architecture, a module…"
+                  @keydown.enter.exact.prevent="askAssistant()"
+                  @input="resizeAssistantInput"
+                ></textarea>
+                <button class="btn btn-primary btn-sm btn-square" :disabled="assistantLoading || !assistantInput.trim()" @click="askAssistant()">
+                  <i class="fa-solid fa-paper-plane text-xs"></i>
+                </button>
+              </div>
+              <div class="mt-1.5 flex items-center justify-between text-[0.62rem] opacity-40">
+                <span>Grounded in this project's wiki</span>
+                <span>Enter to send · Shift+Enter for newline</span>
+              </div>
             </div>
-
-            <div v-if="assistantMessages.length === 1 && !assistantLoading" class="space-y-1.5">
-              <div class="px-1 text-[0.65rem] font-bold uppercase tracking-wider opacity-40">Try asking</div>
-              <button
-                v-for="suggestion in assistantSuggestions"
-                :key="suggestion"
-                class="block w-full rounded-xl border border-base-content/10 bg-base-200/40 px-3 py-2 text-left text-xs transition hover:border-primary/40 hover:bg-base-200"
-                @click="askAssistant(suggestion)"
-              >
-                {{ suggestion }}
-              </button>
-            </div>
-          </div>
-
-          <div class="border-t border-base-content/10 p-3">
-            <div class="flex items-end gap-2 rounded-xl border border-base-content/15 bg-base-200/40 p-2 focus-within:border-primary/50">
-              <textarea
-                ref="assistantInput"
-                v-model="assistantInput"
-                rows="1"
-                class="max-h-28 min-h-[2rem] flex-1 resize-none bg-transparent px-1 py-1 text-sm outline-none"
-                placeholder="Ask about the architecture, a module…"
-                @keydown.enter.exact.prevent="askAssistant()"
-                @input="resizeAssistantInput"
-              ></textarea>
-              <button class="btn btn-primary btn-sm btn-square" :disabled="assistantLoading || !assistantInput.trim()" @click="askAssistant()">
-                <i class="fa-solid fa-paper-plane text-xs"></i>
-              </button>
-            </div>
-            <div class="mt-1.5 flex items-center justify-between text-[0.62rem] opacity-40">
-              <span>Grounded in this project's wiki</span>
-              <span>Enter to send · Shift+Enter for newline</span>
-            </div>
-          </div>
-        </aside>
-      </div>
+          </aside>
+        </template>
+      </VerticalSplitter>
     </div>
 
     <!-- ── Search palette ──────────────────────────────────────────────── -->
@@ -590,17 +636,31 @@ const EMPTY_SITE = {
   search: { items: [] }
 }
 
+// Remember whether the documentation sidebar is collapsed (desktop only)
+const SIDEBAR_COLLAPSED_KEY = 'wiki:sidebar-collapsed'
+
+function readSidebarCollapsed() {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1'
+  } catch (e) {
+    return false
+  }
+}
+
 export default {
-  components: { WikiMarkdown, WikiProjectTree },
+  components: { WikiMarkdown, WikiProjectTree, VerticalSplitter },
   data() {
     return {
       site: { ...EMPTY_SITE },
       projectName: null,
       page: null,
       pageLoading: false,
+      pageCache: {},
+      prefetchTimer: null,
       loadingSite: true,
       error: null,
       sidebarOpen: false,
+      sidebarCollapsed: readSidebarCollapsed(),
       creatingWiki: false,
       isPhone: typeof window !== 'undefined'
         && window.matchMedia('(max-width: 479px)').matches,
@@ -635,7 +695,12 @@ export default {
   },
   computed: {
     sidebarVisible() {
-      return !this.isPhone || this.sidebarOpen
+      // Phones keep the off-canvas behaviour; desktop just hides the panel.
+      return this.isPhone ? this.sidebarOpen : !this.sidebarCollapsed
+    },
+    // Desktop collapsed state: the sidebar shrinks to a narrow rail.
+    sidebarRail() {
+      return !this.isPhone && this.sidebarCollapsed
     },
     homeTagline() {
       return this.cleanText(this.site.home?.tagline)
@@ -725,7 +790,7 @@ export default {
         const next = this.updateStatus.next_run_at ? Math.max(0, this.updateStatus.next_run_at - Math.floor(Date.now() / 1000)) : null
         return next !== null ? `Docs update queued · ${next}s` : 'Docs update queued'
       }
-      if (this.updateStatus.manifest?.stale) return 'Docs changed — manifest refreshing'
+      if (this.updateStatus.manifest?.stale) return 'Docs manifest refreshing'
       if (this.updateStatus.last_error) return 'Last update failed'
       return 'Docs up to date'
     },
@@ -756,6 +821,7 @@ export default {
     clearInterval(this.updateTimer)
     clearTimeout(this.toastTimer)
     clearTimeout(this.scrollTimer)
+    clearTimeout(this.prefetchTimer)
   },
   methods: {
     api() {
@@ -804,23 +870,67 @@ export default {
 
     async loadPage(path, options = {}) {
       if (!path) return
+      const cacheKey = `${this.projectName}:${path}`
+      if (!options.force) {
+        const cached = this.pageCache[cacheKey]
+        if (cached) {
+          this.pageLoading = false
+          this.applyPage(cached, options)
+          this.schedulePrefetch()
+          return
+        }
+      }
       this.pageLoading = true
       this.error = null
       try {
         const page = await this.api().wiki.page(path, this.projectName)
-        this.page = page
-        this.activeHeading = ''
-        if (!options.skipHistory) this.syncUrl()
-        this.$nextTick(() => {
-          if (this.$refs.scroller) this.$refs.scroller.scrollTop = 0
-        })
-        this.feedback = localStorage.getItem(this.feedbackKey)
+        this.cachePage(cacheKey, page)
+        this.applyPage(page, options)
+        this.schedulePrefetch()
       } catch (error) {
         console.error('Wiki page load failed', error)
         this.error = error?.message || 'Could not load this page'
         this.page = null
       } finally {
         this.pageLoading = false
+      }
+    },
+
+    applyPage(page, options = {}) {
+      this.page = page
+      this.activeHeading = ''
+      if (!options.skipHistory) this.syncUrl()
+      this.$nextTick(() => {
+        if (this.$refs.scroller) this.$refs.scroller.scrollTop = 0
+      })
+      this.feedback = localStorage.getItem(this.feedbackKey)
+    },
+
+    cachePage(key, page) {
+      if (!page) return
+      this.pageCache[key] = page
+      const keys = Object.keys(this.pageCache)
+      if (keys.length > 40) delete this.pageCache[keys[0]]
+    },
+
+    schedulePrefetch() {
+      clearTimeout(this.prefetchTimer)
+      this.prefetchTimer = setTimeout(() => {
+        for (const candidate of [this.previousPage, this.nextPage]) {
+          if (candidate) this.prefetchPage(candidate.path)
+        }
+      }, 350)
+    },
+
+    async prefetchPage(path) {
+      if (!path) return
+      const key = `${this.projectName}:${path}`
+      if (this.pageCache[key]) return
+      try {
+        const page = await this.api().wiki.page(path, this.projectName)
+        this.cachePage(key, page)
+      } catch {
+        // Prefetch is best effort.
       }
     },
 
@@ -852,6 +962,15 @@ export default {
     onPhoneMediaChange(event) {
       this.isPhone = event.matches
       if (!this.isPhone) this.sidebarOpen = false
+    },
+    // Collapse/expand the documentation sidebar (desktop) and remember it.
+    toggleSidebarCollapse() {
+      this.sidebarCollapsed = !this.sidebarCollapsed
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, this.sidebarCollapsed ? '1' : '0')
+      } catch (e) {
+        // Storage may be unavailable (private mode) — ignore
+      }
     },
     closeProjectMenu() {
       if (this.$refs.projectMenu) this.$refs.projectMenu.open = false
@@ -1036,6 +1155,9 @@ export default {
         this.updateStatus = status || {}
         this.lastSuccessAt = status?.last_success_at || null
         if (previousSuccess && this.lastSuccessAt && this.lastSuccessAt !== previousSuccess) {
+          // Pages were regenerated: drop cached copies so navigation shows the
+          // new content, then reload the current page.
+          this.pageCache = {}
           const current = this.page?.path
           await this.loadSite(this.projectName, current)
         }
