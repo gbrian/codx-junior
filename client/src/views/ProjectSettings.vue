@@ -95,6 +95,31 @@ import TraefikRulesPanel from '@/components/traefik/TraefikRulesPanel.vue'
                   </label>
                 </div>
                 <div>
+                  <label class="label-text flex items-center gap-2">
+                    <input v-model="settings.wiki_auto_update" type="checkbox" class="toggle" />
+                    <span>Update wiki in the background</span>
+                  </label>
+                  <div class="text-xs text-base-content/60 mt-1">
+                    Changes are queued and applied after the project stays quiet, so editing does not refresh the docs constantly.
+                  </div>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label class="label-text block mb-2">Quiet period (seconds)</label>
+                    <input v-model.number="settings.wiki_update_debounce_seconds" type="number" min="5" class="input input-bordered w-full" />
+                  </div>
+                  <div>
+                    <label class="label-text block mb-2">Maximum delay (seconds)</label>
+                    <input v-model.number="settings.wiki_update_max_delay_seconds" type="number" min="30" class="input input-bordered w-full" />
+                  </div>
+                </div>
+                <div>
+                  <label class="label-text flex items-center gap-2">
+                    <input v-model="settings.wiki_assistant_enabled" type="checkbox" class="toggle" />
+                    <span>Enable the documentation AI assistant</span>
+                  </label>
+                </div>
+                <div>
                   <label class="label-text block mb-2">Wiki path</label>
                   <input v-model="settings.project_wiki_path" type="text" class="input input-bordered w-full" />
                   <div class="text-xs text-base-content/60 mt-1">Project's wiki folder.</div>

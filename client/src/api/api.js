@@ -866,6 +866,25 @@ const initializeAPI = ({ project, user } = {}) => {
       read(path) {
         return API.get(`/api/wiki?file_path=${path}`)
       },
+      site(project) {
+        const query = project ? `?project=${encodeURIComponent(project)}` : ''
+        return API.get(`/api/wiki/site${query}`)
+      },
+      page(path, project) {
+        const params = new URLSearchParams({ path: path || '' })
+        if (project) params.set('project', project)
+        return API.get(`/api/wiki/page?${params.toString()}`)
+      },
+      assistant(payload) {
+        return API.post('/api/wiki/assistant', payload)
+      },
+      updates(project) {
+        const query = project ? `?project=${encodeURIComponent(project)}` : ''
+        return API.get(`/api/wiki/updates${query}`)
+      },
+      update(payload) {
+        return API.post('/api/wiki/updates', payload)
+      },
       rebuild() {
         return API.get('/api/wiki-engine/rebuild')
       },

@@ -87,6 +87,38 @@ class WikiIndex:
 
     def index_to_milvus(self, index: Dict) -> None:
         documents = []
+        indexed_sources = set()
+
+        # Every page in the modern docs manifest is searchable. This includes
+        # guides and overview pages that are not attached to a domain/file.
+        site_path = os.path.join(self.wiki_path, "docs.json")
+        if os.path.isfile(site_path):
+            try:
+                with open(site_path, "r", encoding="utf-8") as handle:
+                    site = json.load(handle)
+                for page in site.get("pages", {}).values():
+                    page_file = os.path.join(self.wiki_path, page.get("file", ""))
+                    if not page.get("file") or not os.path.isfile(page_file):
+                        continue
+                    try:
+                        with open(page_file, "r", encoding="utf-8") as handle:
+                            page_content = handle.read()
+                    except OSError:
+                        continue
+                    indexed_sources.add(page_file)
+                    documents.append(Document(
+                        page_content=page_content,
+                        metadata={
+                            "source": page_file,
+                            "category": "wiki",
+                            "wiki_page": page.get("path", ""),
+                            "wiki_title": page.get("title", ""),
+                            "summary": page.get("description", ""),
+                            "keywords": page.get("tags", []),
+                        },
+                    ))
+            except (OSError, ValueError) as ex:
+                logger.debug("Cannot index docs manifest pages: %s", ex)
 
         for slug, domain in index.get("domains", {}).items():
             wiki_file = os.path.join(self.wiki_path, domain.get("wiki_path", ""))
@@ -98,10 +130,14 @@ class WikiIndex:
                 except Exception:
                     pass
 
+            page_source = os.path.join(self.wiki_path, domain.get("wiki_path", ""))
+            if page_source in indexed_sources:
+                continue
+            indexed_sources.add(page_source)
             documents.append(Document(
                 page_content=page_content,
                 metadata={
-                    "source": domain.get("wiki_path", f"domains/{slug}.md"),
+                    "source": page_source,
                     "category": "wiki",
                     "keywords": domain.get("keywords", []),
                     "summary": domain.get("description", ""),
@@ -112,6 +148,9 @@ class WikiIndex:
             wiki_file_path = entry.get("wiki_file", "")
             if not wiki_file_path or not os.path.isfile(wiki_file_path):
                 continue
+            if wiki_file_path in indexed_sources:
+                continue
+            indexed_sources.add(wiki_file_path)
             try:
                 with open(wiki_file_path, "r", encoding="utf-8") as fh:
                     page_content = fh.read()

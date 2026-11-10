@@ -442,7 +442,14 @@ class KnowledgeEngine:
         knowledge.reload_path(path=file_path)
         self.event_manager.send_knowled_event(type="loaded", file_path=file_path)
 
-        self.session.get_wiki().process_file_change(file_path=file_path)
+        if self.settings.project_wiki:
+            from codx.junior.wiki.scheduler import schedule_wiki_update
+
+            schedule_wiki_update(
+                self.settings,
+                files=[file_path],
+                reason="knowledge-file-change",
+            )
 
     async def process_project_mentions(self) -> None:
         """

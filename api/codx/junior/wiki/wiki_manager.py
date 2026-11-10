@@ -3,6 +3,8 @@ import shutil
 import json
 import logging
 import datetime
+import threading
+from collections import Counter
 import yaml
 import re
 
@@ -39,6 +41,14 @@ from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
 from codx.junior.knowledge.knowledge_graph import DependencyGraph
 from codx.junior.wiki.wiki_domains import WikiDomains
 from codx.junior.wiki.wiki_index import WikiIndex
+from codx.junior.wiki.site import (
+    WikiSiteBuilder,
+    first_heading,
+    first_paragraph,
+    humanize,
+    parse_frontmatter,
+    reading_time,
+)
 
 from codx.junior.utils.utils import write_file
 
@@ -55,6 +65,7 @@ WIKI_TREE_FILE_NAME = 'wiki_tree.json'
 MKDOCS_YAML_FILE_NAME = 'mkdocs.yml'
 INVALID_FILENAME_CHARS = re.compile(r'[\[\]<>:"|?*\x00-\x1f]')
 MAX_FILENAME_LENGTH = 200
+WIKI_BUILD_WORKERS = 3
 
 
 class WikiCategory(BaseModel):
@@ -89,7 +100,9 @@ class WikiManager:
         self.is_wiki_active = self.settings.project_wiki or False
         self.wiki_home_path = os.path.join(self.wiki_path, "home.md")
         self.wiki_settings_path = os.path.join(self.settings.codx_path, "wiki_settings.json")
+        self.site_builder = WikiSiteBuilder(settings=settings)
         self._ai_instance: Optional[AI] = None
+        self._ai_lock = threading.RLock()
 
     # ─────────────────────────────────────────────────────────────
     # AI accessor  (cached – one instance per WikiManager lifetime)
@@ -119,7 +132,10 @@ class WikiManager:
         """
         tags = f"{tags},wiki" if tags else "wiki"
         headers = {"tags": tags}
-        messages = self._get_ai().chat(prompt=prompt, headers=headers)
+        # The AI client is shared by the category worker threads; serialise
+        # requests through it instead of relying on provider thread-safety.
+        with self._ai_lock:
+            messages = self._get_ai().chat(prompt=prompt, headers=headers)
         content = messages[-1].content.strip()
         if clean and content.startswith("```"):
             content = "\n".join(content.split("\n")[1:-1])
@@ -139,24 +155,196 @@ class WikiManager:
         logger.info("Wiki settings saved to %s", file_path)
         return self.load_wiki_settings()
 
+    def _default_wiki_settings(self) -> Dict[str, Any]:
+        """Default settings shared by new wikis."""
+        return {
+            "language": "English",
+            "mode": "codx-junior",
+            "prompt": "",
+            "categories": [],
+            "assistant": {"enabled": True},
+        }
+
     def load_wiki_settings(self, with_files: bool = False) -> Any:
         """Read and deserialize wiki_settings from JSON."""
+        file_path = self._get_settings_path()
         try:
-            file_path = self._get_settings_path()
             with open(file_path, 'r', encoding='utf-8') as f:
                 wiki_settings = json.load(f)
+            if not isinstance(wiki_settings, dict):
+                wiki_settings = self._default_wiki_settings()
+            for key, value in self._default_wiki_settings().items():
+                wiki_settings.setdefault(key, value)
             logger.info("Wiki settings loaded from %s", file_path)
             self._fix_wiki_categories(wiki_settings)
             return wiki_settings
         except FileNotFoundError:
-            logger.warning("Wiki settings file not found: %s", file_path)
-            return {"categories": []}
+            logger.info("Wiki settings file not found, using defaults: %s", file_path)
+            return self._default_wiki_settings()
         except Exception as e:
             logger.exception("Error loading wiki settings: %s", e)
-            return {"categories": [], "error": str(e)}
+            return {**self._default_wiki_settings(), "error": str(e)}
 
     def _get_settings_path(self) -> str:
         return self.wiki_settings_path
+
+    # ─────────────────────────────────────────────────────────────
+    # Modern docs site
+    # ─────────────────────────────────────────────────────────────
+
+    def ensure_wiki_structure(self) -> str:
+        """
+        Create the wiki folder and seed the optional VitePress shell.
+
+        The integrated docs UI only needs the markdown pages, but keeping the
+        VitePress template means a project can still build a standalone static
+        site. Existing files are never overwritten.
+
+        Returns:
+            Absolute path of the wiki folder.
+        """
+        os.makedirs(self.wiki_path, exist_ok=True)
+        template = os.path.join(os.path.dirname(__file__), "wiki_template")
+        if os.path.isdir(template):
+            for root, _dirs, files in os.walk(template):
+                relative = os.path.relpath(root, template)
+                target_dir = self.wiki_path if relative == "." else os.path.join(self.wiki_path, relative)
+                os.makedirs(target_dir, exist_ok=True)
+                for filename in files:
+                    # index.md is generated from docs.json so it stays in sync.
+                    if relative == "." and filename in ("index.md",):
+                        continue
+                    source = os.path.join(root, filename)
+                    target = os.path.join(target_dir, filename)
+                    if not os.path.exists(target):
+                        shutil.copy2(source, target)
+        if not os.path.isfile(self.wiki_home_path):
+            write_file(self.wiki_home_path, self._default_home_page())
+        return self.wiki_path
+
+    def _default_home_page(self) -> str:
+        """Create a useful landing page without calling the AI."""
+        project = self.settings.project_name or "Project"
+        try:
+            description = self.site_builder._project_description(project)
+        except Exception:
+            description = f"Documentation for {project}."
+        _kind, languages = self.site_builder.project_kind()
+        language_hint = f" Built with {', '.join(languages)}." if languages else ""
+        header = yaml.safe_dump(
+            {"title": project, "description": description, "tags": ["overview"]},
+            sort_keys=False,
+            allow_unicode=True,
+        ).strip()
+        return (
+            f"---\n{header}\n---\n\n"
+            f"# {project}\n\n"
+            f"{description}\n\n"
+            "> [!TIP]\n"
+            "> This documentation is generated and kept up to date while the project "
+            "changes. Use the navigation or ask the built-in assistant a question.\n\n"
+            "## Start here\n\n"
+            "- Browse the sections in the sidebar.\n"
+            "- Use **Ask AI** for a guided answer with sources.\n"
+            "- Every page is generated from the source code, so diagrams and examples "
+            "reflect the current project.\n"
+            f"{language_hint}\n"
+        )
+
+    def create_config(self) -> Dict[str, Any]:
+        """Initialise the wiki folder and return its settings."""
+        self.ensure_wiki_structure()
+        if not os.path.isfile(self.wiki_settings_path):
+            write_file(
+                self.wiki_settings_path,
+                json.dumps(self._default_wiki_settings(), indent=2),
+            )
+        return self.load_wiki_settings()
+
+    def build_site(self, write: bool = True) -> Dict[str, Any]:
+        """
+        Rebuild ``docs.json`` (navigation, landing page, child projects).
+
+        This is cheap and AI-free; it is called after every page update and by
+        the parent-project refresh path.
+        """
+        site = self.site_builder.build(
+            wiki_settings=self.load_wiki_settings(),
+            write=write,
+        )
+        return site
+
+    def build_home(self) -> None:
+        """Regenerate the landing/overview page and the site manifest."""
+        self.ensure_wiki_structure()
+        existing = self._read_file(self.wiki_home_path) or ""
+        self.build_wiki_home(existing)
+        self.build_site()
+
+    def build_wiki(self) -> None:
+        """Backward-compatible alias used by older API clients."""
+        self.rebuild_wiki()
+
+    def update_files(self, files: List[str], reason: str = "change") -> int:
+        """
+        Update the wiki pages for a batch of changed files.
+
+        Called by the debounced background scheduler. Only the changed files
+        are regenerated; the site manifest is rebuilt once for the whole batch.
+
+        Args:
+            files: Absolute paths of changed project files.
+            reason: Why the update runs (``change``, ``refresh``, …).
+
+        Returns:
+            Number of pages successfully regenerated.
+        """
+        if not self.is_wiki_active:
+            logger.debug("Wiki is not active, skipping batch update")
+            return 0
+        self.ensure_wiki_structure()
+        unique_files = []
+        seen = set()
+        for file_path in files or []:
+            if not file_path:
+                continue
+            absolute = os.path.abspath(file_path)
+            if absolute in seen:
+                continue
+            if absolute.startswith(os.path.abspath(self.wiki_path)):
+                continue
+            if not os.path.isfile(absolute):
+                continue
+            seen.add(absolute)
+            unique_files.append(absolute)
+
+        built = 0
+        for file_path in unique_files:
+            try:
+                document = self.create_wiki_document(
+                    source=file_path,
+                    update_wiki_conf=False,
+                )
+                if document:
+                    built += 1
+            except Exception as ex:
+                logger.exception("Cannot update wiki page for %s: %s", file_path, ex)
+
+        self._update_wiki_conf()
+        self.event_manager.send_event("wiki_updated", {
+            "project": self.settings.project_name,
+            "reason": reason,
+            "files": len(unique_files),
+            "pages": built,
+        })
+        if unique_files:
+            logger.info(
+                "Wiki batch updated for %s: %d/%d page(s)",
+                self.settings.project_name,
+                built,
+                len(unique_files),
+            )
+        return built
 
     # ─────────────────────────────────────────────────────────────
     # Wiki tree creation
@@ -202,11 +390,14 @@ class WikiManager:
         except Exception:
             project_info = ""
 
+        project_kind, languages = self.site_builder.project_kind()
         try:
             summary_prompt = f"""
             <project_info>
             {project_info}
             </project_info>
+            <project_kind>{project_kind}</project_kind>
+            <languages>{', '.join(languages)}</languages>
             <project_files>
             {repository_files_str}
             </project_files>
@@ -221,35 +412,42 @@ class WikiManager:
             {user_language}
             </user_language>
 
-            We are defining the project's documentation wiki to help new users understand and manage the project.
-            Update the wiki structure based on the project's information that can assist users with onboarding, learning and (if apply) executing the project.
-            Use domain_hints (if provided) to group files into coherent categories that reflect actual code dependencies.
-            Detect which kind of project is and choose and structure it wisely into categories and subcategories.
-            Update wiki tree definition from given updated information about the project and its folders.
-            A wiki tree will split the project into 6 top-level categories for the main project's sections/functionalities.
-            Top-level categories can have "children" categories.
-            A category entry is defined in a json with fields:
-                * "title": Unique category title. Can't be repeated in by any other category or subcategory.
-                * "description": An 8 lines category description
-                * "keywords": List of keyword to check if a file belongs to the category
-                * "children": An array of category entries
-                * "files": (Mandatory) The list of WikiFile matching this category.
-            WikiFile object has this properties:
-                * "name": A short user friendly name fo this file in {user_language} that gives some hint about the file. Can contain 2 or 3 words, no more.
-                * "path": File path
-            Remove all WikiFiles that are not present in project_files.
-            Make sure all project_files has been assigned to a category.
-            Return updated wiki_settings JSON object.
-            Generated content must be in user_language: {user_language}
+            Design the navigation of a modern documentation site for this project.
+            Think like a senior engineer writing the docs a new teammate needs on day one:
+            onboarding, architecture, guides, API/reference and operations.
+
+            Return a wiki_settings JSON object with the updated "categories" tree and
+            keep the existing top-level keys (language, mode, prompt, assistant).
+
+            Category rules:
+            - 5 to 8 top-level categories, each with a clear purpose.
+            - Use children only when it genuinely helps (do not create one-child groups).
+            - Every category has:
+                * "title": unique, 2-4 words, sentence case, in {user_language}
+                * "description": one or two sentences explaining what the reader learns
+                * "icon": one Font Awesome class, e.g. "fa-solid fa-rocket"
+                * "order": integer used to sort the sidebar (10, 20, 30…)
+                * "keywords": list of keywords used to match files
+                * "children": array of optional child categories
+                * "files": list of WikiFile entries (mandatory)
+            - WikiFile: {{"name": 2-4 word friendly title in {user_language}, "path": project-relative path}}.
+            - Prefer a "Get started" category first, then "Guides", "Architecture",
+              "API reference" (or equivalents for the project kind), then operations.
+            - For non-code projects, use sections that make sense (e.g. Policies,
+              Research, Processes) instead of forcing code structure.
+            - Remove files that are no longer present; assign every project file to a category.
+
+            Return ONLY the JSON object. Generated content must be in {user_language}.
             """
             messages = self._ai_chat(prompt=summary_prompt, clean=False)
             new_settings = next(extract_json_blocks(messages[-1].content))
-            # Preserve top-level metadata (language, mode, prompt, …) from existing settings
-            for key in ("language", "mode", "prompt"):
+            # Preserve top-level metadata (language, mode, prompt, assistant…)
+            for key in ("language", "mode", "prompt", "assistant"):
                 if key in wiki_settings and key not in new_settings:
                     new_settings[key] = wiki_settings[key]
-            # Persist and return
-            return self.save_wiki_settings(new_settings)
+            saved = self.save_wiki_settings(new_settings)
+            self.build_site()
+            return saved
 
         except Exception as ex:
             logger.exception("Error creating wiki tree: %s", ex)
@@ -260,10 +458,22 @@ class WikiManager:
     # ─────────────────────────────────────────────────────────────
 
     def create_wiki_document(self, source: str, update_wiki_conf: bool = True) -> Optional[Document]:
-        """Generate (or refresh) the wiki page for a single source file."""
+        """
+        Generate (or refresh) the wiki page for a single source file.
+
+        The generated page uses the modern documentation format: YAML
+        frontmatter, a skimmable summary, Mermaid diagrams, runnable examples
+        and callout hints. The AI is free to omit a section when it does not
+        apply; the page is normalised afterwards so every page always has valid
+        metadata and an H1.
+        """
         if not self.is_wiki_active:
             logger.debug("Wiki is not active, skipping document creation for %s", source)
             return None
+
+        if source and not os.path.isabs(source):
+            source = os.path.join(self.settings.abs_project_path, source)
+        source = os.path.abspath(source)
 
         # Validate source path to prevent malformed filenames
         if not self._is_valid_source_path(source):
@@ -275,6 +485,7 @@ class WikiManager:
             logger.warning("Empty or unreadable file, skipping: %s", source)
             return None
 
+        self.ensure_wiki_structure()
         wiki_settings = self.load_wiki_settings()
         category = self._assign_category_to_file(source, wiki_settings)
         if not category:
@@ -282,7 +493,7 @@ class WikiManager:
             return None
 
         title = category['title']
-        keywords = category['keywords']
+        keywords = category.get('keywords') or []
         project_name = self.settings.project_name
         wiki_path = category["path"]
         wiki_file_path = self._determine_wiki_file_path(category, source)
@@ -292,11 +503,13 @@ class WikiManager:
             logger.error("Invalid wiki file path generated: %s", wiki_file_path)
             return None
 
-        current_wiki_content = (
-            self._read_file(wiki_file_path)
-            if os.path.isfile(wiki_file_path)
-            else ""
-        )
+        current_wiki_content = ""
+        if os.path.isfile(wiki_file_path):
+            try:
+                with open(wiki_file_path, "r", encoding="utf-8", errors="replace") as handle:
+                    current_wiki_content = handle.read()
+            except OSError as ex:
+                logger.debug("Cannot read current wiki page %s: %s", wiki_file_path, ex)
 
         summary_prompt = self._prepare_summary_prompt(
             current_wiki_content, category, file_content,
@@ -304,15 +517,24 @@ class WikiManager:
         )
 
         messages = self._ai_chat(prompt=summary_prompt)
-        page_content = messages[-1].content
+        page_content = self._normalize_generated_page(
+            messages[-1].content,
+            category=category,
+            source=source,
+            wiki_settings=wiki_settings,
+        )
 
-        # Append dependency section from graph
-        graph = DependencyGraph(settings=self.settings)
-        if graph.load():
-            deps = graph.get_file_deps(source)
-            dep_section = self._build_dependency_section(deps, source)
-            if dep_section:
-                page_content = f"{page_content}\n\n{dep_section}"
+        # Append a related-pages / dependency section from the graph. This is
+        # deterministic (no AI) and helps the reader jump to connected code.
+        try:
+            graph = DependencyGraph(settings=self.settings)
+            if graph.load():
+                deps = graph.get_file_deps(source)
+                dep_section = self._build_dependency_section(deps, source)
+                if dep_section:
+                    page_content = f"{page_content.rstrip()}\n\n{dep_section}\n"
+        except Exception as ex:
+            logger.debug("Cannot append dependency section for %s: %s", source, ex)
 
         logger.info("Writing wiki document to %s", wiki_file_path)
         os.makedirs(os.path.dirname(wiki_file_path), exist_ok=True)
@@ -324,23 +546,76 @@ class WikiManager:
             "source": source,
             "language": "md",
             "wiki_path": wiki_path,
+            "page_path": os.path.splitext(os.path.relpath(wiki_file_path, self.wiki_path))[0].replace(os.sep, "/"),
+            "updated_at": int(datetime.datetime.now().timestamp()),
         }
-
-        # Build changeset summary for home-page update
-        if current_wiki_content:
-            home_update_content = self._create_changeset_document(
-                current_wiki_content, page_content, source
-            )
-        else:
-            # New page – feed the full content to home so it can decide relevance
-            home_update_content = page_content
-
-        self.build_wiki_home(home_update_content)
 
         if update_wiki_conf:
             self._update_wiki_conf()
 
         return Document(page_content, metadata=metadata)
+
+    def _normalize_generated_page(
+        self,
+        content: str,
+        category: Dict[str, Any],
+        source: str,
+        wiki_settings: Dict[str, Any],
+    ) -> str:
+        """
+        Make an AI answer a valid, self-describing wiki page.
+
+        * strips accidental outer code fences,
+        * guarantees YAML frontmatter (title, description, tags, category, source),
+        * guarantees an H1 heading,
+        * keeps the body intact.
+        """
+        text = (content or "").strip()
+        if text.startswith("```"):
+            lines = text.splitlines()
+            if len(lines) >= 2 and lines[-1].strip().startswith("```"):
+                text = "\n".join(lines[1:-1]).strip()
+        if not text:
+            text = f"# {humanize(category.get('title') or source)}"
+
+        frontmatter, body = parse_frontmatter(text)
+        body = body.strip()
+        title = str(
+            frontmatter.get("title")
+            or first_heading(body)
+            or humanize(os.path.basename(source))
+        )
+        description = str(
+            frontmatter.get("description")
+            or first_paragraph(body)
+            or f"Documentation for {os.path.relpath(source, self.settings.abs_project_path)}."
+        )
+        tags = frontmatter.get("tags") or frontmatter.get("keywords") or category.get("keywords") or []
+        if isinstance(tags, str):
+            tags = [tag.strip() for tag in tags.split(",") if tag.strip()]
+        updated = datetime.date.today().isoformat()
+        rel_source = os.path.relpath(source, self.settings.abs_project_path).replace(os.sep, "/")
+        meta = {
+            "title": title,
+            "description": description[:300],
+            "tags": list(tags),
+            "category": category.get("title", ""),
+            "source": rel_source,
+            "updated": updated,
+        }
+        if not first_heading(body):
+            body = f"# {title}\n\n{body}".strip()
+        try:
+            header = yaml.safe_dump(meta, sort_keys=False, allow_unicode=True).strip()
+        except Exception:
+            header = (
+                f"title: {json.dumps(title)}\n"
+                f"description: {json.dumps(description[:300])}\n"
+                f"category: {json.dumps(category.get('title', ''))}\n"
+                f"source: {json.dumps(rel_source)}\n"
+                f"updated: {updated}"
+            )
+        return f"---\n{header}\n---\n\n{body.strip()}\n"
 
     # ─────────────────────────────────────────────────────────────
     # Category / bulk build
@@ -362,11 +637,14 @@ class WikiManager:
             return
 
         logger.info("Building wiki category '%s' (%d files)", path, len(files))
+        # Warm the repository scan before the worker threads start so parallel
+        # page generation does not repeat it.
+        self.site_builder.project_kind()
         self.event_manager.send_event(
             "wiki_category_start", {"path": path, "total": len(files)}
         )
 
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=WIKI_BUILD_WORKERS) as executor:
             future_to_file = {
                 executor.submit(self.create_wiki_document, f["path"], False): f["path"]
                 for f in files
@@ -384,6 +662,7 @@ class WikiManager:
 
     def rebuild_wiki(self) -> None:
         """Rebuild all wiki documents for every category."""
+        self.ensure_wiki_structure()
         wiki_settings = self.load_wiki_settings()
         categories = self._get_all_categories(wiki_settings["categories"])
         logger.info("Rebuilding entire wiki (%d categories)", len(categories))
@@ -391,9 +670,9 @@ class WikiManager:
         for category in categories:
             self.build_wiki_category(category["path"])
 
-        # Final home + config update after all categories are done
+        # Final home + manifest update after all categories are done.
         self.build_wiki_home(self._read_file(self.wiki_home_path) or "")
-        self._update_wiki_conf()
+        self.build_site()
         logger.info("Wiki rebuild complete.")
 
     # ─────────────────────────────────────────────────────────────
@@ -402,16 +681,18 @@ class WikiManager:
 
     def build_wiki_home(self, markdown_content: str) -> None:
         """
-        Decide whether *markdown_content* contains information worth showing on the
-        wiki landing page and, if so, update home.md accordingly.
-        """
-        if not markdown_content or not markdown_content.strip():
-            logger.debug("build_wiki_home called with empty content – skipping.")
-            return
+        Regenerate the landing page from the project overview and categories.
 
+        The home page is the front door of the docs site: a short pitch, a
+        visual map of the project, quick-start steps and links into the main
+        sections. It is regenerated explicitly (settings / refresh), not on
+        every single file change.
+        """
+        self.ensure_wiki_structure()
         wiki_settings = self.load_wiki_settings()
         user_language = wiki_settings.get("language", "English")
         user_instructions = wiki_settings.get("prompt", "")
+        project_kind, languages = self.site_builder.project_kind()
 
         categories_without_files = [
             {k: v for k, v in cat.items() if k != "files"}
@@ -420,37 +701,108 @@ class WikiManager:
 
         existing_home = ""
         if os.path.isfile(self.wiki_home_path):
-            existing_home = self._read_file(self.wiki_home_path) or ""
+            try:
+                with open(self.wiki_home_path, "r", encoding="utf-8", errors="replace") as handle:
+                    existing_home = handle.read()
+            except OSError:
+                existing_home = ""
 
+        if not markdown_content or not markdown_content.strip():
+            markdown_content = existing_home or self._default_home_page()
+        if not categories_without_files and not existing_home:
+            write_file(self.wiki_home_path, self._default_home_page())
+            return
+
+        project_name = self.settings.project_name or "Project"
+        project_info = ""
+        try:
+            project_info = self.profile_manager.read_profile("project").content or ""
+        except Exception:
+            project_info = ""
+
+        diagram_rule = (
+            "Include a high-level `flowchart TD` Mermaid diagram that shows the "
+            "main subsystems and how a request/flow moves through them."
+            if project_kind == "code"
+            else "Include a Mermaid diagram only if it clarifies the project structure."
+        )
         relevance_prompt = f"""
-        <markdown_content>
-        {markdown_content}
-        </markdown_content>
-        <home_page_content>
-        {existing_home}
-        </home_page_content>
-        <categories>
-        {json.dumps(categories_without_files, indent=2)}
-        </categories>
-        <user_instructions>
-        {user_instructions}
-        </user_instructions>
-        <user_language>
-        {user_language}
-        </user_language>
+<project_info>
+{project_info}
+</project_info>
+<project_kind>{project_kind}</project_kind>
+<languages>{', '.join(languages)}</languages>
+<markdown_content>
+{markdown_content}
+</markdown_content>
+<home_page_content>
+{existing_home}
+</home_page_content>
+<categories>
+{json.dumps(categories_without_files, indent=2)}
+</categories>
+<user_instructions>
+{user_instructions}
+</user_instructions>
 
-        Analyze the provided markdown content and decide if it contains important information
-        that should be included in the front page of the wiki. If relevant, update the home page
-        content with this information. Ensure that content is coherent and well-structured.
-        The home page must show a high-level overview – do not go into implementation details;
-        users will navigate the wiki for that.
-        Generated content must be in user_language: {user_language}.
-        Generate ONLY the final home document content without any extra comments or code fences.
-        """
+Write the landing page for the {project_name} documentation site in {user_language}.
+Make it feel like a modern developer portal: welcoming, skimmable and useful on
+first contact. Do not repeat page contents; link to them.
 
+Use this shape:
+
+---
+title: "{project_name}"
+description: <one sentence>
+tags: [overview]
+---
+
+# {project_name}
+
+> **<One-line pitch that explains the value.>**
+
+<2 short paragraphs: what it is, who it is for and the problem it solves.>
+
+## What you can do here
+- 3-5 outcomes the reader can achieve, each linking to a page as [Title](wiki:path).
+
+## Architecture at a glance
+{diagram_rule}
+A short explanation of the main parts. Keep it high level.
+
+## Quick start
+1. 3-5 concrete first steps with commands in fenced ```bash blocks.
+
+## Explore the docs
+A compact table or list of the main sections with one-line descriptions.
+
+## Hints
+> [!TIP]
+> The best reading order for a new contributor.
+
+> [!NOTE]
+> Anything to install or configure before starting.
+
+Rules:
+- Only use information present in the sources; do not invent features.
+- Use links in the form [Page title](wiki:relative/path) when referencing a page.
+- Keep it under ~450 words. No raw file paths as headings.
+- Return only the final markdown document, without enclosing code fences.
+"""
         try:
             messages = self._ai_chat(prompt=relevance_prompt)
             updated_home = messages[-1].content
+            frontmatter, body = parse_frontmatter(updated_home)
+            if not first_heading(body):
+                body = f"# {project_name}\n\n{body}"
+            if not frontmatter:
+                meta = {
+                    "title": project_name,
+                    "description": self.site_builder._project_description(project_name),
+                    "tags": ["overview"],
+                }
+                header = yaml.safe_dump(meta, sort_keys=False, allow_unicode=True).strip()
+                updated_home = f"---\n{header}\n---\n\n{body.strip()}\n"
             os.makedirs(os.path.dirname(self.wiki_home_path), exist_ok=True)
             write_file(self.wiki_home_path, updated_home)
             logger.info("Wiki home page updated at %s", self.wiki_home_path)
@@ -462,77 +814,56 @@ class WikiManager:
     # ─────────────────────────────────────────────────────────────
 
     def compile_wiki(self) -> None:
-        """Compile the wiki based on its configuration."""
+        """Compile the wiki: refresh the docs manifest and optional static site."""
+        site = self.build_site()
         wiki_settings = self.load_wiki_settings()
         if wiki_settings.get("mode") == "mkdocs":
-            self._update_mkdocs()
+            self._update_mkdocs(site)
 
     def _update_wiki_conf(self) -> None:
-        """Update wiki configuration files."""
+        """Update the docs manifest and any optional static-site configuration."""
+        site = self.build_site()
         wiki_settings = self.load_wiki_settings()
         if wiki_settings.get("mode") == "mkdocs":
-            self._update_mkdocs()
+            self._update_mkdocs(site)
 
-    def _update_mkdocs(self) -> None:
-        """Use AI to regenerate the nav section of mkdocs.yml."""
-        mkdocs_file_path = Path(self.settings.abs_project_path) / MKDOCS_YAML_FILE_NAME
-
-        wiki_settings = self.load_wiki_settings()
-        user_language = wiki_settings.get("language", "English")
-        user_instructions = wiki_settings.get("prompt", "")
-
-        current_mkdocs_content: Dict[str, Any] = {"nav": []}
-        if mkdocs_file_path.exists():
-            with open(mkdocs_file_path, 'r', encoding='utf-8') as f:
-                loaded = yaml.safe_load(f)
-                if isinstance(loaded, dict):
-                    current_mkdocs_content = loaded
-
-        wiki_files: List[str] = []
-        for root, _dirs, files in os.walk(self.wiki_path):
-            for file in files:
-                if file != MKDOCS_YAML_FILE_NAME:
-                    wiki_files.append(
-                        os.path.relpath(os.path.join(root, file), self.wiki_path)
-                    )
-        wiki_files.sort()
-
-        update_prompt = f"""
-        <current_nav_section>
-        {yaml.dump(current_mkdocs_content.get('nav', []), default_flow_style=False)}
-        </current_nav_section>
-        <wiki_files>
-        {chr(10).join(wiki_files)}
-        </wiki_files>
-        <user_instructions>
-        {user_instructions}
-        </user_instructions>
-        <user_language>
-        {user_language}
-        </user_language>
-
-        Update the 'nav' section of the mkdocs.yaml to reflect all current wiki files.
-        Ensure the navigation structure remains clear and logical, grouping pages sensibly.
-        Return ONLY the updated 'nav' section as a raw YAML list (no enclosing dict, no code fences).
-        Generated content must be in user_language: {user_language}
+    def _update_mkdocs(self, site: Optional[Dict[str, Any]] = None) -> None:
         """
+        Keep the MkDocs navigation in sync with the docs-site manifest.
 
+        The old implementation asked the AI to rewrite the nav on every update.
+        Navigation is deterministic data, so this is now cheap and correct.
+        """
+        mkdocs_file_path = Path(self.settings.abs_project_path) / MKDOCS_YAML_FILE_NAME
+        site = site or self.site_builder.load() or self.build_site(write=False)
+        nav: List[Any] = []
+        for section in site.get("navigation", []):
+            items = section.get("items", [])
+            if not items:
+                continue
+            entries = []
+            for item in items:
+                title = item.get("title", "")
+                path = item.get("path", "")
+                if path:
+                    entries.append({title: f"{path}.md"})
+            if entries:
+                nav.append({section.get("title", "Docs"): entries})
+
+        current: Dict[str, Any] = {}
+        if mkdocs_file_path.exists():
+            try:
+                with open(mkdocs_file_path, "r", encoding="utf-8") as handle:
+                    loaded = yaml.safe_load(handle)
+                if isinstance(loaded, dict):
+                    current = loaded
+            except Exception as ex:
+                logger.warning("Cannot read existing mkdocs.yml: %s", ex)
+        current.setdefault("site_name", self.settings.project_name)
+        current["nav"] = nav
         try:
-            messages = self._ai_chat(prompt=update_prompt)
-            raw = messages[-1].content.strip()
-            # AI may return bare list OR {"nav": [...]}
-            parsed = yaml.safe_load(raw)
-            if isinstance(parsed, dict) and "nav" in parsed:
-                updated_nav = parsed["nav"]
-            elif isinstance(parsed, list):
-                updated_nav = parsed
-            else:
-                logger.warning("Unexpected mkdocs nav format from AI, skipping update.")
-                return
-
-            current_mkdocs_content["nav"] = updated_nav
-            with open(mkdocs_file_path, 'w', encoding='utf-8') as f:
-                yaml.dump(current_mkdocs_content, f, default_flow_style=False, allow_unicode=True)
+            with open(mkdocs_file_path, "w", encoding="utf-8") as handle:
+                yaml.dump(current, handle, default_flow_style=False, allow_unicode=True)
             logger.info("mkdocs.yml updated at %s", mkdocs_file_path)
         except Exception as e:
             logger.exception("Error updating mkdocs.yml: %s", e)
@@ -565,10 +896,11 @@ class WikiManager:
         domains_dir = os.path.join(self.wiki_path, "domains")
         os.makedirs(domains_dir, exist_ok=True)
 
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=WIKI_BUILD_WORKERS) as executor:
             def _build_page(domain: Dict) -> None:
                 try:
                     content = wiki_domains.build_domain_page(domain=domain, graph=graph)
+                    content = self._ensure_domain_frontmatter(content, domain)
                     page_path = os.path.join(domains_dir, f"{domain['slug']}.md")
                     write_file(page_path, content)
                 except Exception as ex:
@@ -582,6 +914,7 @@ class WikiManager:
                     logger.exception("build_domains future error: %s", ex)
 
         wiki_domains.save_domain_map(domains)
+        self.build_site()
         return domains
 
     def build_wiki_index(self, graph: DependencyGraph = None, domains: List[Dict] = None) -> Dict:
@@ -595,14 +928,47 @@ class WikiManager:
             domains = wiki_domains.load_domain_map()
 
         wiki_settings = self.load_wiki_settings()
+        self.build_site()
         wiki_index = WikiIndex(settings=self.settings, db=self.db)
         index = wiki_index.build(wiki_settings=wiki_settings, domain_map=domains, graph=graph)
         wiki_index.save(index)
         wiki_index.index_to_milvus(index)
         return index
 
+    def _ensure_domain_frontmatter(self, content: str, domain: Dict[str, Any]) -> str:
+        """Guarantee frontmatter/description on an AI-generated domain page."""
+        text = (content or "").strip()
+        frontmatter, body = parse_frontmatter(text)
+        title = str(frontmatter.get("title") or first_heading(body) or domain.get("name") or "Domain")
+        description = str(
+            frontmatter.get("description")
+            or domain.get("description")
+            or first_paragraph(body)
+        )
+        if not first_heading(body):
+            body = f"# {title}\n\n{body}".strip()
+        if not frontmatter:
+            meta = {
+                "title": title,
+                "description": description[:300],
+                "tags": ["architecture", "domain"],
+                "category": "Architecture",
+            }
+            header = yaml.safe_dump(meta, sort_keys=False, allow_unicode=True).strip()
+            return f"---\n{header}\n---\n\n{body.strip()}\n"
+        return f"---\n{yaml.safe_dump(frontmatter, sort_keys=False, allow_unicode=True).strip()}\n---\n\n{body.strip()}\n"
+
     def build_module_page(self, file_path: str, graph: DependencyGraph = None) -> str:
-        """Generate a module documentation page."""
+        """
+        Generate a reference page for one source file.
+
+        The page is written to ``wiki/modules/<slug>.md`` and uses the same
+        modern format as the rest of the site: summary, diagram, dependencies,
+        example and hints.
+        """
+        if not os.path.isabs(file_path):
+            file_path = os.path.join(self.settings.abs_project_path, file_path)
+        file_path = os.path.abspath(file_path)
         if graph is None:
             graph = DependencyGraph(settings=self.settings)
             if not graph.load():
@@ -610,7 +976,10 @@ class WikiManager:
 
         deps = graph.get_file_deps(file_path)
         file_content = self._read_file(file_path)
-        rel_path = file_path.replace(self.settings.abs_project_path, "")
+        if not file_content:
+            logger.warning("Cannot build module page for empty file: %s", file_path)
+            return ""
+        rel_path = os.path.relpath(file_path, self.settings.abs_project_path).replace(os.sep, "/")
 
         imports_str = "\n".join(deps.get("imports", [])) or "none"
         imported_by_str = "\n".join(deps.get("imported_by", [])) or "none"
@@ -629,27 +998,60 @@ class WikiManager:
 </imported_by>
 <external_deps>{external_str}</external_deps>
 
-Generate a markdown L2 module page for this file.
-Include these sections:
-# Module: {rel_path}
-## Overview
-## Exported Symbols
-## Dependencies
-**Imports from:** (list internal imports)
-**Imported by:** (list files that import this)
-**External dependencies:** (list external packages)
-## Usage Examples
+Generate a modern reference page for this module in the same format used by the
+rest of the wiki. Use YAML frontmatter then:
 
-Do not add code fences around the entire document.
+---
+title: <module title>
+description: <one sentence>
+tags: [reference, module]
+category: "API Reference"
+source: "{rel_path}"
+---
+
+# <title>
+
+> **TL;DR** — what this module is responsible for.
+
+## Overview
+## API / Exported symbols
+Use a table for public functions, classes or commands with parameters and
+return values when the code exposes them.
+
+## How it works
+Include a Mermaid `flowchart TD` or `sequenceDiagram` for the main flow.
+
+## Example
+A realistic runnable example with a language-tagged code fence.
+
+## Dependencies
+**Imports from:** {imports_str}
+**Imported by:** {imported_by_str}
+**External dependencies:** {external_str}
+
+## Hints
+> [!TIP]
+> A useful usage detail.
+
+> [!WARNING]
+> An edge case or common mistake.
+
+Return only the markdown document, no enclosing fences.
 """
         try:
             messages = self._ai_chat(prompt=prompt)
-            page_content = messages[-1].content
+            page_content = self._normalize_generated_page(
+                messages[-1].content,
+                category={"title": "API Reference", "keywords": ["reference", "module"]},
+                source=file_path,
+                wiki_settings=self.load_wiki_settings(),
+            )
             slug = slugify(rel_path)
             module_dir = os.path.join(self.wiki_path, "modules")
             os.makedirs(module_dir, exist_ok=True)
             page_path = os.path.join(module_dir, f"{slug}.md")
             write_file(page_path, page_content)
+            self.build_site()
             return page_content
         except Exception as ex:
             logger.exception("Error building module page for %s: %s", file_path, ex)
@@ -856,7 +1258,10 @@ Do not add code fences around the entire document.
                     category["files"] = []
                 rel_source = source.replace(self.settings.abs_project_path, '')
                 if not any(f.get("path") == rel_source for f in category["files"]):
-                    category["files"].append({"path": rel_source})
+                    category["files"].append({
+                        "path": rel_source,
+                        "name": humanize(os.path.basename(rel_source)),
+                    })
                     self.save_wiki_settings(wiki_settings)
 
         return category
@@ -874,7 +1279,15 @@ Do not add code fences around the entire document.
         """
         if category.get("single_file", False):
             return path_join(self.wiki_path, f"{category['path']}.md")
-        return path_join(self.wiki_path, category["path"], self._get_file_wiki_name(source))
+        rel_source = os.path.relpath(source, self.settings.abs_project_path).replace(os.sep, "/")
+        self._assign_category_file_slugs(category)
+        entry = next(
+            (file for file in category.get("files", [])
+             if str(file.get("path", "")).lstrip("/") == rel_source),
+            None,
+        )
+        filename = entry.get("slug") if entry else self._get_file_wiki_name(source)
+        return path_join(self.wiki_path, category["path"], filename)
 
     def _prepare_summary_prompt(
         self,
@@ -888,64 +1301,117 @@ Do not add code fences around the entire document.
         wiki_settings: Dict[str, Any],
     ) -> str:
         """
-        Prepare the AI prompt for generating wiki documentation.
+        Build the prompt that turns one source file into a modern wiki page.
 
-        Args:
-            current_wiki_content: Existing wiki content (if any).
-            category: The target category.
-            file_content: The source file content.
-            project_name: Name of the project.
-            source: Path to the source file.
-            title: Category title.
-            keywords: Category keywords.
-            wiki_settings: Wiki configuration.
-
-        Returns:
-            The formatted prompt for the AI.
+        The format is deliberately opinionated: a skimmable summary, a
+        diagram when the content is structural, a runnable example and short
+        callout hints. This is what makes the generated docs feel like a
+        hand-written developer portal instead of a wall of text.
         """
         user_language = wiki_settings.get("language", "English")
         user_instructions = wiki_settings.get("prompt", "")
+        project_kind, languages = self.site_builder.project_kind()
+        rel_source = os.path.relpath(source, self.settings.abs_project_path).replace(os.sep, "/")
+        language_text = ", ".join(languages) or "n/a"
+        diagram_rule = (
+            "Include at least one Mermaid diagram that explains the control flow, "
+            "module relationships or data flow. Use `flowchart TD` for flows, "
+            "`sequenceDiagram` for interactions and `classDiagram` only when it adds clarity."
+            if project_kind == "code"
+            else "Use a Mermaid diagram only when it genuinely clarifies a process or relationship."
+        )
+        example_rule = (
+            "Include at least one realistic, runnable example (imports + call + expected result) "
+            "taken from the code. Label the language in the fence."
+            if project_kind == "code"
+            else "Include a concrete example or a short template when it helps the reader act."
+        )
+        style = f"""
+You are documenting the project "{project_name}" for developers who are new to
+this file. Write like a senior engineer: concrete, skimmable and honest about
+trade-offs. Never invent APIs, options or behaviour.
 
+Return ONE markdown document in {user_language} using exactly this shape (omit
+a section only when it truly does not apply):
+
+---
+title: <2-5 word page title, sentence case>
+description: <one sentence a reader could use to decide whether to open the page>
+tags: [<3-6 short lowercase tags>]
+category: "{title}"
+source: "{rel_source}"
+---
+
+# <title>
+
+> **TL;DR** — one or two sentences explaining what this is and why it matters.
+
+## What you'll learn
+- 2-4 concrete takeaways.
+
+## Overview
+Short contextual explanation. Link related concepts as [Page title](wiki:page/path).
+
+## How it works
+{diagram_rule}
+Explain the flow in short paragraphs or numbered steps. Reference real symbols
+and files with inline code, never a raw file path as a heading.
+
+## Example
+{example_rule}
+
+## Hints
+> [!TIP]
+> A practical tip that saves time.
+
+> [!WARNING]
+> A common mistake, edge case or requirement to watch out for.
+
+## Related
+- [Related page](wiki:relative/path) — why it matters.
+
+Rules:
+- Project kind: {project_kind}; languages: {language_text}.
+- Use sentence case headings, short paragraphs, lists and tables where useful.
+- Code fences must include a language (```python, ```bash, ```json…).
+- Keep the page under ~700 words. Prefer linking to another page over repeating it.
+- Do not wrap the whole document in ``` fences and do not repeat the file path as a title.
+- Use callouts (`> [!TIP]`, `> [!WARNING]`, `> [!NOTE]`) for hints, pitfalls and requirements.
+- Stay grounded in the provided document; if something is unknown, say so.
+"""
         if current_wiki_content and category.get("single_file", False):
             return f"""
-            <current_wiki_content>
-            {current_wiki_content}
-            </current_wiki_content>
-            <new_document_content>
-            {file_content}
-            </new_document_content>
-            <user_instructions>
-            {user_instructions}
-            </user_instructions>
-            <user_language>
-            {user_language}
-            </user_language>
+<current_wiki_content>
+{current_wiki_content}
+</current_wiki_content>
 
-            Update the current wiki content with the new information coming from the document.
-            Resulting document must be in markdown syntax without further decoration or enclosing marks.
-            Ensure the updated content is coherent and well-structured.
-            Important: Use only information from the document; add references to relevant sections.
-            Generated content must be in user_language: {user_language}
-            """
+<new_document_content>
+{file_content}
+</new_document_content>
 
-        rel_source = source.replace(self.settings.abs_project_path, '')
+<user_instructions>
+{user_instructions}
+</user_instructions>
+
+{style}
+
+Update the existing page with the new information. Preserve accurate details,
+remove duplicates and restructure to the format above. The result must be a
+complete document without enclosing marks.
+"""
         return f"""
-            <document project="{project_name}" file="{rel_source}" category="{title}" keywords="{keywords}">
-            {file_content}
-            </document>
-            <user_instructions>
-            {user_instructions}
-            </user_instructions>
-            <user_language>
-            {user_language}
-            </user_language>
+<document project="{project_name}" file="{rel_source}" category="{title}" keywords="{keywords}">
+{file_content}
+</document>
 
-            Given this document generate the wiki documentation based on user_instructions.
-            Resulting document must be in markdown syntax without further decoration or enclosing marks.
-            Do not include the raw file name/path as a heading in the document.
-            Important: Use only information from the document; add references to relevant sections.
-            Generated content must be in user_language: {user_language}
-            """
+<user_instructions>
+{user_instructions}
+</user_instructions>
+
+{style}
+
+Generate the page for this document.
+"""
 
     def _create_changeset_document(
         self, current_wiki_content: str, page_content: str, source: str
@@ -1043,11 +1509,21 @@ Do not add code fences around the entire document.
         for category in categories:
             if not category.get("path"):
                 category["path"] = slugify(category.get("title", "unknown"))
-            for file in category.get("files", []):
-                file["slug"] = self._get_file_wiki_name(file["path"])
-                file["wiki_file"] = path_join(
-                    self.wiki_path, category["path"], file["slug"]
-                )
+            category.setdefault("keywords", [])
+            if not isinstance(category.get("keywords"), list):
+                category["keywords"] = [
+                    keyword.strip()
+                    for keyword in str(category.get("keywords", "")).split(",")
+                    if keyword.strip()
+                ]
+            category["files"] = [
+                {"path": file} if isinstance(file, str) else file
+                for file in (category.get("files") or [])
+                if (file.get("path") if isinstance(file, dict) else file)
+            ]
+            for file in category["files"]:
+                file["name"] = file.get("name") or humanize(os.path.basename(file["path"]))
+            self._assign_category_file_slugs(category)
 
     def _read_file(self, file_path: str) -> str:
         """
@@ -1061,21 +1537,42 @@ Do not add code fences around the entire document.
         """
         return read_file(file_path, self.settings.abs_project_path)
 
+    def _assign_category_file_slugs(self, category: Dict[str, Any]) -> None:
+        """
+        Give every file in a category a stable, unique wiki filename.
+
+        Basenames are used when unique. When two files in the same category
+        share a basename (``src/api/index.ts`` and ``src/web/index.ts``), the
+        project-relative path is slugified instead, and a numeric suffix is
+        appended as a last resort. This prevents one page silently overwriting
+        another.
+        """
+        files = [file for file in (category.get("files") or []) if file.get("path")]
+        base_counts = Counter(
+            slugify(os.path.splitext(os.path.basename(str(file["path"])))[0]) or "document"
+            for file in files
+        )
+        used = set()
+        for file in files:
+            path = str(file["path"]).replace(os.sep, "/")
+            base = slugify(os.path.splitext(os.path.basename(path))[0]) or "document"
+            if base_counts[base] > 1:
+                base = slugify(os.path.splitext(path)[0]) or base
+            candidate = base
+            suffix = 2
+            while candidate in used:
+                candidate = f"{base}-{suffix}"
+                suffix += 1
+            used.add(candidate)
+            file["slug"] = f"{candidate}.md"
+            file["wiki_file"] = path_join(
+                self.wiki_path, category["path"], file["slug"]
+            )
+
     def _get_file_wiki_name(self, source: str) -> str:
-        """
-        Generate a safe wiki filename from a source file path.
-
-        Args:
-            source: The source file path.
-
-        Returns:
-            A slugified markdown filename.
-        """
-        # Extract filename without path
+        """Generate a safe wiki filename from a source file path."""
         filename = os.path.basename(source)
-        # Remove extension if present
         name_without_ext = os.path.splitext(filename)[0]
-        # Slugify and ensure it's valid
         safe_slug = slugify(name_without_ext)
         if not safe_slug:
             safe_slug = "document"

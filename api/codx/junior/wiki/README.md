@@ -1,62 +1,78 @@
-# Wiki Manager
+# Wiki
 
-```mermaid document_mindmap /document.mermaid
-mindmap
-  root((Wiki Manager))
-    The_Project
-      Overview
-      Objectives
-      Issues_Needs
-      Flowchart
-    Project_Modules
-      Module_List
-      Documentation
-      Class_Diagram
-      Details
-        Functionalities
-        Goals
-      Classes
-    Visual_Documentation
-      Flowchart_Diagrams
-      Class_Diagrams
-      Sequence_Diagrams
-    Testing_Requirements
-      Functional_Tests
-      Integration_Tests
-      Unit_Tests
-      User_Acceptance_Tests
+The wiki is a per-project documentation site generated from the repository and
+kept fresh in the background.
+
+```mermaid
+flowchart TD
+    CM[Change manager] --> S[Debounced scheduler]
+    S --> WM[WikiManager]
+    WM --> Pages[Markdown pages]
+    Pages --> Site[WikiSiteBuilder]
+    Site --> Manifest[docs.json]
+    Site --> Static[optional VitePress shell]
+    Manifest --> UI[WikiView docs site]
+    Manifest --> Assistant[WikiAssistant]
+    Assistant --> Knowledge[Knowledge search]
 ```
 
-The Wiki Manager is responsible for maintaining project documentation and producing resources that will help users understand the project's goals, modules, and components.
+## Components
 
-The wiki will be structured from a bird's-eye view down to methods and details.
+| File | Responsibility |
+| --- | --- |
+| `wiki_manager.py` | Prompts, page generation, category tree, batch updates, compile. |
+| `site.py` | Docs manifest: navigation, page metadata, landing page, child projects, `llms.txt`, VitePress config. |
+| `scheduler.py` | Coalesces file changes per project and applies them after a quiet period. |
+| `assistant.py` | Retrieval + AI answer with citations for the current project. |
+| `wiki_domains.py` | Architecture/domain pages from the dependency graph. |
+| `wiki_index.py` | Searchable index (including docs-manifest pages) in Milvus. |
 
-## Structure of a Wiki
+## Page format
 
-### The Project
-This section explains the project and its motivations. Begin with an overview of the project's purpose, followed by its broader objectives and how it addresses specific issues or needs. Use a flowchart diagram to depict the project’s vision and main components.
+Generated pages use frontmatter plus a skimmable structure:
 
-#### Project Modules
-List all the modules defined in the project. For each module, provide concise documentation about their responsibilities and the value they contribute to the project. Use a class diagram to show the relationship between different modules and their interaction.
+````markdown
+---
+title: Authentication
+description: How signed tokens work
+tags: [auth, security]
+category: Guides
+source: src/auth/service.py
+---
 
-- Details of each module, including functionalities and goals.
-- Description of classes and methods involved in the module.
+# Authentication
 
-#### Classes
-Provide detailed information about the classes and methods within the module, including documentation for each. Use a sequence diagram to illustrate how methods interact with each other within a class.
+> **TL;DR** — short summary.
 
-### Visual Documentation
-Each section should include diagrams to visually represent the project structure and components:
+## How it works
+```mermaid
+sequenceDiagram
+    Client->>API: POST /login
+```
+````
 
-- **Flowchart Diagrams**: To represent the project overview.
-- **Class Diagrams**: To detail the interaction between modules.
-- **Sequence Diagrams**: To explain the interactions between methods in the classes.
+For code projects the prompt requires at least one Mermaid diagram and a
+runnable example. Every project asks for callout hints (`> [!TIP]`,
+`> [!WARNING]`).
 
-## Testing Requirements
+## Background updates
 
-At the end of the document, a detailed list of tests that the module must pass should be included:
+`ChangeManager` (and the legacy wiki engine) enqueue changed files. The
+scheduler waits for `wiki_update_debounce_seconds` of quiet, caps the wait at
+`wiki_update_max_delay_seconds`, regenerates only the changed pages and rebuilds
+the manifest once. Parent projects refresh their manifest when a child wiki
+changes.
 
-1. **Functional Tests**: Ensure all project functionalities are working as expected.
-2. **Integration Tests**: Verify that all modules interact seamlessly.
-3. **Unit Tests**: Check individual components, classes, and methods.
-4. **User Acceptance Tests (UAT)**: Ensure the project meets user requirements and expectations.
+## Layout
+
+```text
+<project>/.codx/wiki/
+  home.md
+  docs.json              # generated manifest (gitignored)
+  llms.txt               # generated LLM-friendly page list
+  update_status.json     # generated scheduler status (gitignored)
+  .vitepress/            # optional standalone VitePress shell
+  <category>/<page>.md
+  domains/<domain>.md
+  modules/<module>.md
+```

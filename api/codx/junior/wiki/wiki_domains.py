@@ -112,16 +112,52 @@ Return only the JSON object, no extra text.
 {', '.join(domain.get('keywords', []))}
 </keywords>
 
-Generate a comprehensive markdown wiki page for this software domain.
-Include these sections:
-# {domain['name']}
-## Overview
-## Files in Domain
-## Dependencies
-## Used By
-## Entry Points
+Write a modern architecture page for this software domain. Use exactly this
+shape and a professional, skimmable developer-docs tone:
 
-Use markdown formatting. Do not add code fences around the entire document.
+---
+title: "{domain['name']}"
+description: <one sentence explaining the domain's responsibility>
+tags: [architecture, domain]
+category: "Architecture"
+---
+
+# {domain['name']}
+
+> **TL;DR** — the responsibility of this domain in one or two sentences.
+
+## What you'll learn
+- 2-4 takeaways.
+
+## Responsibilities
+Explain what this domain owns and what it explicitly does not own.
+
+## How it works
+Include a Mermaid `flowchart TD` (or `sequenceDiagram`) showing the main flow
+inside the domain and its entry points.
+Explain the flow in numbered steps and reference real symbols.
+
+## Key files
+A table with file, role and why a reader should open it.
+
+## Dependencies
+**Depends on:** {', '.join(cross_imports) or 'nothing outside the domain'}
+**Used by:** {', '.join(cross_imported_by) or 'nothing outside the domain'}
+
+## Example
+A short realistic usage example with a language-tagged code fence.
+
+## Hints
+> [!TIP]
+> Where to start reading and what to change safely.
+
+> [!WARNING]
+> A coupling, side effect or invariant to preserve.
+
+## Related
+- Links to related pages as [Title](wiki:path).
+
+Return only the markdown document, without enclosing code fences.
 """
         try:
             messages = self._ai_chat(prompt)
@@ -153,10 +189,16 @@ Use markdown formatting. Do not add code fences around the entire document.
     # ── helpers ───────────────────────────────────────────────────────────────
 
     def _ai_chat(self, prompt: str):
-        from codx.junior.model.model import CodxUser
-        from codx.junior.ai import AI
-        ai = AI(settings=self.settings, llm_model=self.settings.get_wiki_model(), user=CodxUser(username=__name__))
-        return ai.chat(prompt=prompt, headers={"tags": "wiki,domains"})
+        if self.ai is None:
+            from codx.junior.model.model import CodxUser
+            from codx.junior.ai import AI
+
+            self.ai = AI(
+                settings=self.settings,
+                llm_model=self.settings.get_wiki_model(),
+                user=CodxUser(username=__name__),
+            )
+        return self.ai.chat(prompt=prompt, headers={"tags": "wiki,domains"})
 
     def _merge_connected_categories(
         self,

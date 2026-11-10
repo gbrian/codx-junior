@@ -135,6 +135,16 @@ import WikiTree from './WikiTree.vue'
               Build tree <i class="fa-solid fa-wand-magic-sparkles"></i>
             </button>
             <button class="btn btn-xs ml-2  tooltip"
+              data-tip="Rebuild the docs-site navigation and landing page"
+              @click.stop="buildSite()">
+              Docs site
+            </button>
+            <button class="btn btn-xs ml-2  tooltip"
+              data-tip="Open the documentation site"
+              @click.stop="$ui.setActiveTab('wiki')">
+              Open docs <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            </button>
+            <button class="btn btn-xs ml-2  tooltip"
               data-tip="Compile wiki"
               @click.stop="compileWiki()">
               Compile
@@ -239,6 +249,9 @@ export default {
     async buildTree() {
       await this.saveSettings()
       this.wikiTree = await this.project.$api.wiki.build({ step: "create_wiki_tree" })
+    },
+    async buildSite() {
+      await this.project.$api.wiki.build({ step: "build_site" })
     },
     async compileWiki() {
       await this.$projects.codxWiki({ step: "compile_wiki"})
