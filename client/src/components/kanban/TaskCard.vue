@@ -42,6 +42,19 @@ import ChatIcon from '../chat/ChatIcon.vue'
         </div>
       </div>
 
+      <!-- Harness association -->
+      <div v-if="task.harness" class="flex items-center gap-1">
+        <span
+          class="badge badge-xs badge-outline gap-1"
+          :class="harnessStatusClass"
+          :title="harnessTitle"
+        >
+          <i class="fa-solid fa-diagram-project text-[9px]"></i>
+          {{ harnessLabel }}
+          <span v-if="task.harness_status" class="opacity-70">· {{ task.harness_status }}</span>
+        </span>
+      </div>
+
       <!-- Cross-project label -->
       <div v-if="chatProject?.project_id !== $project.project_id"
         class="flex items-center gap-1">
@@ -125,6 +138,23 @@ export default {
     }
   },
   computed: {
+    harnessLabel() {
+      const labels = { dsh: 'DSH', 'claude-code': 'Claude', codex: 'Codex' }
+      return labels[this.task.harness] || this.task.harness
+    },
+    harnessStatusClass() {
+      const status = this.task.harness_status
+      if (status === 'running') return 'border-primary/40 text-primary'
+      if (status === 'failed' || status === 'stale') return 'border-error/40 text-error'
+      if (status === 'waiting_input') return 'border-warning/40 text-warning'
+      if (status === 'completed') return 'border-success/40 text-success'
+      return 'border-base-content/20 text-base-content/60'
+    },
+    harnessTitle() {
+      const instance = this.task.harness_instance_id || 'no instance'
+      const session = this.task.harness_task_id || 'no session'
+      return `${this.harnessLabel} · ${instance} · ${session}`
+    },
     image() {
       const image = this.task.messages?.find(m => m.images?.length)?.images[0]
       return image ? JSON.parse(image) : null

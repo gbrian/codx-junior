@@ -44,6 +44,13 @@ from urllib.request import Request, urlopen
 
 from codx.junior.db import Chat, Message
 from codx.junior.identity import attach_root_id
+from codx.junior.integrations.harness_models import harness_model_payload
+from codx.junior.integrations.harness_sandbox import (
+    ensure_project_cwd,
+    is_path_within,
+    project_root,
+)
+from codx.junior.integrations.harness_usage import log_usage
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +119,7 @@ class DshConfig:
     timeout: float = 15.0
     enabled: bool = True
     only_project: bool = True
+    sandbox_enabled: bool = True
     secret_source: str = "missing"
     agent_token: Optional[str] = None
     agent_token_source: str = "missing"
@@ -202,6 +210,10 @@ class DshConfig:
                 "CODX_JUNIOR_DSH_ONLY_PROJECT",
                 bool(getattr(dsh, "only_project", True)),
             ),
+            sandbox_enabled=_env_bool(
+                "CODX_JUNIOR_DSH_SANDBOX",
+                bool(getattr(dsh, "sandbox_enabled", True)),
+            ),
             secret_source=secret_source,
             agent_token=agent_token,
             agent_token_source=agent_token_source,
@@ -236,6 +248,9 @@ class DshTask:
     created_at: Optional[int] = None
     running: bool = False
     blank: bool = False
+    model: Optional[str] = None
+    usage: Dict[str, Any] = field(default_factory=dict)
+    cost: Optional[float] = None
     raw: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -261,6 +276,9 @@ class DshTask:
             created_at=_as_ms(data.get("createdAt")),
             running=bool(data.get("running") or data.get("status") == "running"),
             blank=bool(data.get("blank")),
+            model=(str(data["model"]) if data.get("model") else None),
+            usage=(dict(data.get("usage") or {}) if isinstance(data.get("usage"), dict) else {}),
+            cost=(data.get("cost") if isinstance(data.get("cost"), (int, float)) else None),
             raw=data,
         )
 
@@ -283,12 +301,10 @@ def _iso(ms: Optional[int]) -> Optional[str]:
 
 
 def _is_under(path: Optional[str], root: Optional[str]) -> bool:
+    """Return True when *path* resolves inside *root* (symlinks included)."""
     if not path or not root:
         return True
-    try:
-        return os.path.commonpath([os.path.abspath(path), os.path.abspath(root)]) == os.path.abspath(root)
-    except ValueError:
-        return False
+    return is_path_within(path, root)
 
 
 def _chat_id_for(session_id: str) -> str:
@@ -395,18 +411,21 @@ class DshClient:
         cwd: Optional[str] = None,
         agent_preset: Optional[str] = None,
         codx_task_id: Optional[str] = None,
+        model: Optional[Mapping[str, Any]] = None,
+        workspace_root: Optional[str] = None,
     ) -> Dict[str, Any]:
-        return self._request(
-            "POST",
-            "/codx-junior/tasks",
-            body={
-                "title": title,
-                "prompt": prompt,
-                "cwd": cwd,
-                "agentPreset": agent_preset,
-                "codxTaskId": codx_task_id,
-            },
-        )
+        body: Dict[str, Any] = {
+            "title": title,
+            "prompt": prompt,
+            "cwd": cwd,
+            "agentPreset": agent_preset,
+            "codxTaskId": codx_task_id,
+        }
+        if model:
+            body["model"] = dict(model)
+        if workspace_root:
+            body["workspaceRoot"] = workspace_root
+        return self._request("POST", "/codx-junior/tasks", body=body)
 
     def prompt(self, session_id: str, text: str, mode: str = "queue") -> Dict[str, Any]:
         return self._request(
@@ -469,14 +488,19 @@ class DshSync:
         return manager
 
     def _project_root(self) -> Optional[str]:
-        return self.config.project_root or self.config.codx_path
+        root = self.config.project_root or project_root(self.settings)
+        return os.path.realpath(root) if root else None
 
     def _accepts(self, task: DshTask) -> bool:
         if not task.id:
             return False
-        if self.config.only_project and task.cwd and not _is_under(task.cwd, self._project_root()):
-            logger.debug("dsh: ignoring session %s outside project (%s)", task.id, task.cwd)
-            return False
+        # The sandbox check is independent from the "only this project" sync
+        # preference: even when a project opts into seeing other sessions, a
+        # harness event may never attach a path outside its workspace.
+        if task.cwd and (self.config.sandbox_enabled or self.config.only_project):
+            if not _is_under(task.cwd, self._project_root()):
+                logger.debug("dsh: ignoring session %s outside project (%s)", task.id, task.cwd)
+                return False
         return True
 
     # -- board --------------------------------------------------------------
@@ -519,10 +543,15 @@ class DshSync:
         # Backward/defensive lookup: an older mirror may have another id.
         try:
             for candidate in manager.list_chats():
-                if (
-                    getattr(candidate, "external_source", None) == DSH_SOURCE
-                    and getattr(candidate, "external_id", None) == session_id
-                ):
+                same_source = (
+                    getattr(candidate, "harness", None) == DSH_SOURCE
+                    or getattr(candidate, "external_source", None) == DSH_SOURCE
+                )
+                same_id = (
+                    getattr(candidate, "harness_task_id", None) == session_id
+                    or getattr(candidate, "external_id", None) == session_id
+                )
+                if same_source and same_id:
                     return candidate
         except Exception:  # pragma: no cover - list errors must not block events
             logger.debug("dsh: external-id fallback lookup failed", exc_info=True)
@@ -539,6 +568,7 @@ class DshSync:
         force_column: Optional[str] = None,
         allow_create: bool = True,
         instance_id: Optional[str] = None,
+        harness_mode: str = "mirror",
     ) -> Tuple[Optional[Chat], bool]:
         """Create or update the linked chat for one DSH task."""
         manager = self._manager(chat_manager)
@@ -575,6 +605,20 @@ class DshSync:
                 column=column,
                 status=self._status_for(task, None),
                 tags=[DSH_SOURCE],
+                harness=DSH_SOURCE,
+                harness_instance_id=instance,
+                harness_task_id=task.id,
+                harness_parent_task_id=task.parent_id,
+                harness_mode=harness_mode,
+                harness_status=self._harness_status_for(task),
+                harness_model=task.model,
+                harness_usage=dict(task.usage or {}),
+                harness_cost=task.cost,
+                harness_metadata={
+                    "origin": task.origin,
+                    "cwd": task.cwd,
+                    "is_subagent": bool(getattr(task, "raw", {}).get("isSubagent")),
+                },
                 external_source=DSH_SOURCE,
                 external_id=task.id,
                 external_parent_id=task.parent_id,
@@ -587,14 +631,28 @@ class DshSync:
                 chat.parent_id = parent.id
             attach_root_id(chat=chat, parent_chat=parent)
             saved = manager.save_chat(chat=chat)
+            log_usage(
+                project_root=self._project_root(),
+                project_name=getattr(self.settings, "project_name", None),
+                chat=saved,
+                task=task,
+                instance_id=instance,
+                source="created",
+            )
             logger.info("dsh: mirrored new session %s as chat %s", task.id, saved.id)
             return saved, True
 
         changed = False
+        usage_changed = False
         if task.title and existing.name != task.title:
             existing.name = task.title
             changed = True
         for attr, value in (
+            ("harness", DSH_SOURCE),
+            ("harness_instance_id", instance or existing.harness_instance_id),
+            ("harness_task_id", task.id),
+            ("harness_parent_task_id", task.parent_id),
+            ("harness_status", self._harness_status_for(task)),
             ("external_source", DSH_SOURCE),
             ("external_id", task.id),
             ("external_parent_id", task.parent_id),
@@ -606,6 +664,31 @@ class DshSync:
             if getattr(existing, attr, None) != value:
                 setattr(existing, attr, value)
                 changed = True
+        if not existing.harness_mode:
+            existing.harness_mode = harness_mode
+            changed = True
+        # The model reported in later session events is the harness-side id;
+        # keep the codx-junior model name selected at creation when one exists.
+        if task.model and not existing.harness_model:
+            existing.harness_model = task.model
+            changed = True
+        if task.usage and existing.harness_usage != task.usage:
+            existing.harness_usage = dict(task.usage)
+            changed = True
+            usage_changed = True
+        if task.cost is not None and existing.harness_cost != task.cost:
+            existing.harness_cost = task.cost
+            changed = True
+            usage_changed = True
+        metadata = dict(existing.harness_metadata or {})
+        metadata.update({
+            "origin": task.origin,
+            "cwd": task.cwd,
+            "is_subagent": bool(getattr(task, "raw", {}).get("isSubagent")),
+        })
+        if metadata != (existing.harness_metadata or {}):
+            existing.harness_metadata = metadata
+            changed = True
         status = self._status_for(task, existing.status)
         if status != existing.status:
             existing.status = status
@@ -627,6 +710,15 @@ class DshSync:
             changed = True
         if changed:
             saved = manager.save_chat(chat=existing, chat_only=True)
+            if usage_changed:
+                log_usage(
+                    project_root=self._project_root(),
+                    project_name=getattr(self.settings, "project_name", None),
+                    chat=saved,
+                    task=task,
+                    instance_id=instance,
+                    source="updated",
+                )
             logger.info("dsh: updated mirrored session %s as chat %s", task.id, saved.id)
             return saved, False
         return existing, False
@@ -648,6 +740,16 @@ class DshSync:
         if task.status == "closed":
             return "done"
         return previous or "todo"
+
+    def _harness_status_for(self, task: DshTask) -> str:
+        """Execution status shown next to the workflow status."""
+        if task.status == "running":
+            return "running"
+        if task.status == "error":
+            return "failed"
+        if task.status == "closed":
+            return "completed"
+        return "idle"
 
     def _load_parent(self, parent_id: str, chat_manager: Any) -> Optional[Chat]:
         existing = self.find_chat(parent_id, chat_manager)
@@ -720,7 +822,8 @@ class DshSync:
         manager = self._manager()
         # Make the destination visible even when DSH has no tasks yet.
         self.ensure_board(manager)
-        tasks = self.client.list_tasks(cwd=cwd or self._project_root(), limit=1000)
+        project_cwd = ensure_project_cwd(cwd or self._project_root(), self.settings)
+        tasks = self.client.list_tasks(cwd=project_cwd, limit=1000)
         created = updated = skipped = 0
         for task in tasks:
             chat, was_created = self.upsert_task(
@@ -747,6 +850,8 @@ class DshSync:
         column: Optional[str] = None,
         parent_id: Optional[str] = None,
         agent_preset: Optional[str] = None,
+        model: Optional[str] = None,
+        cwd: Optional[str] = None,
     ) -> Chat:
         """Create a DSH Session from codx-junior and mirror it back."""
         manager = self._manager(chat_manager)
@@ -756,13 +861,22 @@ class DshSync:
         parent_chat = manager.find_by_id(parent_id) if parent_id else None
         if parent_id and parent_chat is None:
             raise ValueError(f"parent chat '{parent_id}' was not found")
+
+        # The session may only start inside this project's workspace. The
+        # plugin repeats this check; keeping it here fails fast with a clear
+        # error before a command is queued.
+        project_cwd = ensure_project_cwd(cwd or self._project_root(), self.settings)
+        model_payload = harness_model_payload(model, kind="dsh") if model else None
+
         codx_task_id = str(uuid.uuid4())
         payload = self.client.create_task(
             title=name,
             prompt=(prompt or "").strip(),
-            cwd=self._project_root(),
+            cwd=project_cwd,
             agent_preset=agent_preset,
             codx_task_id=codx_task_id,
+            model=model_payload,
+            workspace_root=self._project_root(),
         )
         task = DshTask.from_payload(payload.get("task") or {})
         if not task.id:
@@ -771,6 +885,16 @@ class DshSync:
                 raise DshError("DSH did not return a session id")
             task.id = str(session_id)
         task.title = task.title or name
+        model_selection = payload.get("modelSelection") if isinstance(payload, Mapping) else None
+        model_applied = bool(payload.get("modelApplied")) if isinstance(payload, Mapping) else False
+        if model_payload and not isinstance(model_selection, Mapping):
+            model_selection = {
+                "requested": model_payload,
+                "applied": None,
+                "error": "the DSH plugin did not report a model selection",
+            }
+        if model_payload and model_applied:
+            task.model = str(model_payload.get("name") or "")
         # The caller explicitly asked for this task, so it must be visible even
         # before the first prompt is consumed.
         task.blank = False
@@ -781,12 +905,25 @@ class DshSync:
             force_board=board,
             force_column=column,
             instance_id=self.instance_id,
+            harness_mode="managed",
         )
         if chat is None:
             raise DshError(f"DSH created session {task.id} but it was not mirrored")
         # A webhook may have created the mirror before this endpoint returned.
         # The explicit placement requested by the caller wins over the default.
         placement_changed = False
+        if chat.harness_mode != "managed":
+            chat.harness_mode = "managed"
+            placement_changed = True
+        if isinstance(model_selection, Mapping):
+            metadata = dict(chat.harness_metadata or {})
+            metadata["model_selection"] = dict(model_selection)
+            if metadata != (chat.harness_metadata or {}):
+                chat.harness_metadata = metadata
+                placement_changed = True
+        if model_payload and model_applied and chat.harness_model != model_payload.get("name"):
+            chat.harness_model = str(model_payload.get("name"))
+            placement_changed = True
         if board and chat.board != board:
             chat.board = board
             placement_changed = True
@@ -836,6 +973,16 @@ class DshSync:
         ]
         if task.title:
             chat.name = task.title
+        chat.harness = DSH_SOURCE
+        chat.harness_task_id = task.id
+        chat.harness_instance_id = getattr(chat, "harness_instance_id", None) or self.instance_id
+        chat.harness_status = self._harness_status_for(task)
+        if task.model:
+            chat.harness_model = task.model
+        if task.usage:
+            chat.harness_usage = dict(task.usage)
+        if task.cost is not None:
+            chat.harness_cost = task.cost
         chat.external_status = task.status
         chat.external_url = task.web_url or chat.external_url
         chat.external_updated_at = _iso(task.updated_at or task.created_at)
@@ -865,5 +1012,8 @@ def verify_webhook(headers: Mapping[str, str], body: bytes, config: DshConfig) -
 def dsh_chats(chat_manager: Any) -> Iterable[Chat]:
     """Yield mirrored DSH chats in a project (used by diagnostics)."""
     for chat in chat_manager.list_chats():
-        if getattr(chat, "external_source", None) == DSH_SOURCE:
+        if (
+            getattr(chat, "harness", None) == DSH_SOURCE
+            or getattr(chat, "external_source", None) == DSH_SOURCE
+        ):
             yield chat

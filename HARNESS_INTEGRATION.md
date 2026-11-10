@@ -1,6 +1,9 @@
 # Harness engines in codx-junior: boards, tasks and headless execution
 
-> **Status.** Analysis and implementation specification. **No production code was changed.**
+> **Status.** Analysis and implementation specification. The first vertical
+> slice (harness association, DSH model selection, usage logging and project
+> sandbox) is implemented on `feat/harness-integration`; the rest of this
+> document remains the target design.
 >
 > **Codebase snapshot.** `7589999a` (`v1.3-demo-site`), 2026-11-09.
 >
@@ -2926,6 +2929,50 @@ Open questions that need product input, not just engineering:
 
 ---
 
+## 15.1 First implementation (this branch)
+
+The first vertical slice is implemented in
+`.worktrees/harness-integration` on branch `feat/harness-integration`:
+
+- `Chat` now carries generic harness fields (`harness`,
+  `harness_instance_id`, `harness_task_id`, `harness_status`,
+  `harness_model`, `harness_usage`, `harness_cost`, `harness_metadata`); DSH
+  mirror rows populate them alongside the legacy `external_*` aliases.
+- DSH task creation can select a model from codx-junior's `ai_models`
+  catalogue (`GET /api/dsh/models`). The model is translated through
+  `AIModel.metadata.dsh` and applied with DSH's `selectModel`; failures are
+  recorded as `model_selection` metadata and shown in the panel.
+- Task summaries carry usage/model counters. The server mirrors them on the
+  task and appends `.codx/harness/usage.jsonl`; `GET /api/dsh/status` returns an
+  aggregate.
+- Project sandbox checks use `realpath` on the server and in the DSH plugin.
+  A cwd outside the project (including a symlink escape) is rejected before a
+  session is created. `sandbox_enabled` is configurable.
+- The DSH plugin accepts `workspaceRoot`, reports `sandbox`/`model-selection`/
+  `usage` capabilities, and sends usage/model summaries.
+- `/api/dsh/agent/*` now rejects an instance/token from another project.
+- The DSH panel exposes the model selector, the sandbox toggle and usage cost.
+
+Still required for the full design in this document: durable SQLite
+registry/outbox/journal, managed task creation from any board, generic adapter
+package, approvals/questions, artifacts, worktrees and the Claude/Codex
+adapters. The current slice intentionally keeps the existing DSH mirror and
+in-process registry so it can be merged independently.
+
+Tests used for this slice:
+
+```sh
+# plugin (Node)
+TMPDIR="$PWD/.tmp-test" node --test dsh-codx-junior/test/*.test.mjs
+
+# Python DSH tests (run with the project's Python environment)
+python -m pytest api/tests/test_dsh_integration.py api/tests/test_dsh_agent.py
+```
+
+The sandbox test also covers a symlink escape. The model test uses a fake
+selection payload; a real DSH Host must still be checked for its
+`selectModel`/provider mapping.
+
 ## 16. Appendices
 
 ### Appendix A — Current DSH payload examples
@@ -3083,5 +3130,6 @@ Open questions that need product input, not just engineering:
 
 ---
 
-*End of document. No production code was changed; this is the implementation
-contract for the work described above.*
+*End of document. The analysis above remains the implementation contract; the
+first vertical slice is implemented on `feat/harness-integration` as described
+in §15.1.*

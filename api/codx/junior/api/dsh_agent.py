@@ -105,6 +105,23 @@ def _instance_id(request: Request, payload: Optional[Dict[str, Any]] = None) -> 
     return value
 
 
+def _require_instance_project(request: Request, instance_id: str) -> Any:
+    """
+    Reject a token/instance that belongs to another codx-junior project.
+
+    The agent token is project-scoped; the query ``codx_path`` alone must never
+    let an instance read or write another project's tasks.
+    """
+    session = _session(request)
+    instance = get_dsh_agent_registry().get(instance_id)
+    if instance is None:
+        raise HTTPException(status_code=404, detail=f"DSH instance {instance_id} is not registered")
+    project_id = getattr(session.settings, "project_id", None)
+    if project_id and instance.project_id and instance.project_id != project_id:
+        raise HTTPException(status_code=403, detail="instance belongs to another project")
+    return instance
+
+
 @router.post("/dsh/agent/register")
 async def dsh_agent_register(request: Request):
     """Register (or refresh) one running DSH Host and return its channel config."""
@@ -189,6 +206,7 @@ def dsh_agent_commands(
     session = _session(request)
     config = _config(session.settings)
     _verify_agent(request, config)
+    _require_instance_project(request, instance_id)
     commands = get_dsh_agent_registry().take_commands(
         instance_id,
         wait_seconds=wait,
@@ -213,6 +231,7 @@ async def dsh_agent_command_result(command_id: str, request: Request):
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="body must be a JSON object")
     instance_id = _instance_id(request, payload)
+    _require_instance_project(request, instance_id)
     ok = bool(payload.get("ok"))
     error = payload.get("error")
     result = payload.get("result")
@@ -239,6 +258,7 @@ async def dsh_agent_events(request: Request):
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="body must be a JSON object")
     instance_id = _instance_id(request, payload)
+    _require_instance_project(request, instance_id)
     sync = _sync_for_instance(request, instance_id)
     try:
         result = await run_in_threadpool(sync.handle_event, payload, instance_id)

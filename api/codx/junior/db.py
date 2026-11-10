@@ -537,5 +537,55 @@ class Chat(BaseModel):
         description="ISO timestamp of the last external update."
     )
 
+    # ── Harness association ────────────────────────────────────────────────
+    # A task may be executed by an external harness (DSH, Claude Code, Codex).
+    # The harness fields are the generic association; the external_* fields
+    # above remain as compatibility aliases for the original DSH mirror.
+    # `status` is the workflow status and `harness_status` is the execution
+    # status; they must not be conflated.
+    harness: Optional[str] = Field(
+        default=None,
+        description="Execution harness kind (e.g. 'dsh', 'claude-code', 'codex')."
+    )
+    harness_instance_id: Optional[str] = Field(
+        default=None,
+        description="Harness instance that currently owns the task."
+    )
+    harness_task_id: Optional[str] = Field(
+        default=None,
+        description="Task/session/thread id in the harness."
+    )
+    harness_parent_task_id: Optional[str] = Field(
+        default=None,
+        description="Parent task id in the harness namespace, when it is known there."
+    )
+    harness_mode: Optional[str] = Field(
+        default=None,
+        description="Association mode: 'managed', 'mirror' or 'attached'."
+    )
+    harness_status: Optional[str] = Field(
+        default=None,
+        description=(
+            "Execution status reported by the harness "
+            "(queued/running/waiting_input/completed/failed/cancelled/stale)."
+        )
+    )
+    harness_model: Optional[str] = Field(
+        default=None,
+        description="Model selected for the harness run, from codx-junior's model catalogue."
+    )
+    harness_usage: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Last usage counters reported by the harness (tokens, cost, model...)."
+    )
+    harness_cost: Optional[float] = Field(
+        default=None,
+        description="Last harness-native cost reported by the harness. Kept separate from Chat.cost."
+    )
+    harness_metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Free-form harness metadata (session url, selection errors, labels...)."
+    )
+
 
 # Made with ❤️ by codx-junior

@@ -22,6 +22,8 @@ export const DEFAULT_CONFIG = {
   sharedSecret: "",
   secretFile: "",
   workspaceDir: "",
+  workspaceRoot: "",
+  allowOutsideWorkspace: false,
   projectPath: "",
   board: "DSH",
   defaultColumn: "Todo",
@@ -68,6 +70,8 @@ export function normalizeConfig(raw = {}) {
     sharedSecret: trimmed(raw.sharedSecret),
     secretFile: trimmed(raw.secretFile),
     workspaceDir,
+    workspaceRoot: trimmed(raw.workspaceRoot) || workspaceDir,
+    allowOutsideWorkspace: raw.allowOutsideWorkspace === true,
     projectPath: trimmed(raw.projectPath),
     board: trimmed(raw.board, DEFAULT_CONFIG.board),
     defaultColumn: trimmed(raw.defaultColumn, DEFAULT_CONFIG.defaultColumn),
@@ -170,6 +174,38 @@ export function messagesFromEvents(sessionId, events = []) {
   return messages;
 }
 
+/**
+ * Return the latest assistant usage record from a session event list.
+ *
+ * DSH records usage on the assistant message event (`data.usage` or
+ * `data.message.usage`). The latest record is enough for task accounting; the
+ * plugin does not need to copy the whole conversation.
+ */
+export function usageFromEvents(events = []) {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    const usage = event?.data?.usage ?? event?.data?.message?.usage;
+    if (!usage || typeof usage !== "object") continue;
+    const source = event?.data?.message?.source ?? event?.data?.source ?? {};
+    return {
+      ...usage,
+      ...(source.provider ? { provider: source.provider } : {}),
+      ...(source.model ? { model: source.model } : {}),
+    };
+  }
+  return null;
+}
+
+/** Return the latest model id seen in a session event list. */
+export function modelFromEvents(events = []) {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    const source = event?.data?.message?.source ?? event?.data?.source ?? {};
+    if (source.model) return String(source.model);
+  }
+  return null;
+}
+
 /** First non-empty user text, used for fallback titles and descriptions. */
 export function firstUserText(messages = []) {
   const message = messages.find((entry) => entry.role === "user" && entry.content);
@@ -213,6 +249,10 @@ export function summarizeTask(input = {}) {
   const updatedAt = Number(summary.updatedAt ?? input.updatedAt ?? createdAt ?? 0) || null;
   const running = Boolean(input.running ?? summary.running);
   const origin = summary.origin ?? header.origin ?? "session";
+  const usage = input.usage && typeof input.usage === "object" ? input.usage : null;
+  const model = input.model ?? usage?.model ?? header.model ?? null;
+  const rawCost = input.cost ?? usage?.cost ?? usage?.totalCost ?? usage?.costUsd;
+  const cost = Number(rawCost);
   return {
     id,
     title: shortText(input.title, 200) || `DSH ${id.slice(-8)}`,
@@ -222,12 +262,15 @@ export function summarizeTask(input = {}) {
     depth: Number(header.delegationDepth ?? 0) || 0,
     cwd: summary.cwd ?? header.cwd ?? null,
     agentPreset: header.agentPreset ?? null,
+    model: model ? String(model) : null,
     createdAt,
     updatedAt,
     running,
     blank: Boolean(summary.blank),
     status: running ? "running" : "idle",
     webUrl: String(input.webUrl ?? ""),
+    ...(usage ? { usage } : {}),
+    ...(Number.isFinite(cost) && cost > 0 ? { cost } : {}),
   };
 }
 

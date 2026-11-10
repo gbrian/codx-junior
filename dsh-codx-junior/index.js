@@ -15,9 +15,16 @@
  * returns is derived from `sessionQuery`/`sessionController` at request time.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { randomBytes, randomUUID } from "node:crypto";
-import { basename, dirname, isAbsolute, join } from "node:path";
+import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import { hostname } from "node:os";
 import { fileURLToPath } from "node:url";
 import {
@@ -26,12 +33,14 @@ import {
   firstUserText,
   lastAssistantText,
   messagesFromEvents,
+  modelFromEvents,
   normalizeConfig,
   presentedSecret,
   shortText,
   signBody,
   summarizeTask,
   taskWebUrl,
+  usageFromEvents,
   webhookPayload,
 } from "./lib/core.js";
 
@@ -55,6 +64,88 @@ function service(ctx, key) {
     return ctx.get(key) ?? null;
   } catch {
     return null;
+  }
+}
+
+/** Latest events, without materializing a long session log for every update. */
+function recentSessionEvents(session, limit = 100) {
+  const events = [];
+  const start = Math.max(0, Number(session.seq || 0) - limit);
+  for (let seq = start; seq < Number(session.seq || 0); seq += 1) {
+    try {
+      const event = session.eventAt(seq);
+      if (event) events.push(event);
+    } catch {
+      // A projection/read failure must not hide the task update.
+    }
+  }
+  return events;
+}
+
+function isPathInside(root, target) {
+  const rel = relative(root, target);
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+/**
+ * Resolve a session cwd and enforce the project workspace boundary.
+ *
+ * The codx-junior server performs the same check before queueing the command;
+ * repeating it here means a manually-posted bridge request or a stale command
+ * cannot start a session in another project's folder.
+ */
+function resolveWorkspaceCwd(rawCwd, config) {
+  const root = realpathSync(config.workspaceRoot || config.workspaceDir);
+  const wanted = rawCwd ? String(rawCwd) : root;
+  if (!isAbsolute(wanted)) throw new Error("cwd must be absolute");
+  let target;
+  try {
+    target = realpathSync(wanted);
+  } catch (error) {
+    throw new Error(`cwd does not exist: ${wanted}`);
+  }
+  if (!config.allowOutsideWorkspace && !isPathInside(root, target)) {
+    throw new Error(`cwd is outside the configured workspace: ${target}`);
+  }
+  if (!statSync(target).isDirectory()) throw new Error(`cwd is not a directory: ${target}`);
+  return target;
+}
+
+/**
+ * Apply a codx-junior model selection to a freshly created DSH session.
+ *
+ * Model selection is best effort: an older DSH Host may not expose
+ * `selectModel`, and a mapping error must not leave the newly created Session
+ * unusable. The outcome is returned to codx-junior and recorded on the task.
+ */
+async function selectSessionModel(controller, sessionId, requested, log) {
+  if (!requested || typeof requested !== "object") return null;
+  const provider = String(requested.provider || "").trim();
+  const model = String(requested.model || "").trim();
+  if (!provider || !model) {
+    return {
+      requested,
+      applied: false,
+      error: "model selection requires provider and model",
+    };
+  }
+  if (typeof controller.selectModel !== "function") {
+    const error = "this DSH Host does not expose model selection";
+    log.warn(`codx-junior-sync: ${error}; using the DSH default model`);
+    return { requested, applied: false, error };
+  }
+  const request = { sessionId, provider, model };
+  if (requested.reasoning_effort) {
+    request.reasoningEffort = String(requested.reasoning_effort);
+  }
+  try {
+    await controller.selectModel(request);
+    return { requested, applied: true };
+  } catch (error) {
+    log.warn(
+      `codx-junior-sync: could not select model ${provider}/${model} for ${sessionId}: ${String(error)}`,
+    );
+    return { requested, applied: false, error: shortText(String(error), 500) };
   }
 }
 
@@ -183,6 +274,7 @@ function taskFromLiveSession(ctx, session, extras = {}) {
     }
   }
   let messages = [];
+  const recent = recentSessionEvents(session);
   if (!title) {
     try {
       messages = messagesFromEvents(id, session.snapshotEvents());
@@ -191,7 +283,9 @@ function taskFromLiveSession(ctx, session, extras = {}) {
     }
     title = fallbackTitle(id, messages);
   }
-  const last = session.seq > 0 ? session.eventAt(session.seq - 1) : undefined;
+  const last = recent.at(-1);
+  const usage = usageFromEvents(recent);
+  const model = modelFromEvents(recent);
   const running = service(ctx, "agents")?.get(id)?.status === "running";
   const task = summarizeTask({
     header: session.header,
@@ -199,6 +293,8 @@ function taskFromLiveSession(ctx, session, extras = {}) {
     running,
     updatedAt: last?.time,
     webUrl: taskWebUrl(extras.uiUrlTemplate, id),
+    usage,
+    model,
   });
   task.blank = messages.length === 0 && !hasTitle;
   if (messages.length) {
@@ -226,6 +322,8 @@ async function taskFromStoredSession(ctx, sessionId, signal) {
     title: title || fallbackTitle(sessionId, messages),
     running: service(ctx, "agents")?.get(sessionId)?.status === "running",
     updatedAt: inspection.events.at(-1)?.time,
+    usage: usageFromEvents(inspection.events),
+    model: modelFromEvents(inspection.events),
   });
   task.eventCount = inspection.events.length;
   task.blank = messages.length === 0;
@@ -506,14 +604,25 @@ export function apply(ctx, rawConfig = {}) {
           body: {
             instance_id: agent.instanceId,
             name: agent.instanceName,
-            cwd: config.workspaceDir,
+            cwd: config.workspaceRoot,
             version: "1",
-            capabilities: ["sessions", "subagents", "commands", "live-context"],
+            protocol_version: 2,
+            capabilities: [
+              "sessions",
+              "subagents",
+              "commands",
+              "live-context",
+              "sandbox",
+              "model-selection",
+              "usage",
+            ],
             meta: {
               pid: process.pid,
               platform: process.platform,
               node: process.version,
-              workspace: config.workspaceDir,
+              workspace: config.workspaceRoot,
+              workspace_root: config.workspaceRoot,
+              allow_outside_workspace: config.allowOutsideWorkspace,
             },
           },
         });
@@ -622,10 +731,9 @@ export function apply(ctx, rawConfig = {}) {
         const title = shortText(payload.title || payload.name || "", 200)
           || shortText(prompt, 80)
           || "DSH task";
-        const cwd = String(payload.cwd || config.projectPath || "").trim();
-        if (cwd && !isAbsolute(cwd)) throw new Error("cwd must be absolute");
+        const cwd = resolveWorkspaceCwd(payload.cwd || config.workspaceRoot, config);
         const created = await controller.create({
-          cwd: cwd || undefined,
+          cwd,
           agentPreset: payload.agent_preset ? String(payload.agent_preset) : undefined,
         });
         const sessionId = String(created.sessionId);
@@ -634,6 +742,7 @@ export function apply(ctx, rawConfig = {}) {
         } catch (error) {
           log.warn(`codx-junior-sync: created ${sessionId} but could not rename it: ${String(error)}`);
         }
+        const modelSelection = await selectSessionModel(controller, sessionId, payload.model, log);
         let promptAccepted = false;
         if (prompt) {
           await controller.prompt({
@@ -653,7 +762,12 @@ export function apply(ctx, rawConfig = {}) {
         task.webUrl = taskWebUrl(config.uiUrlTemplate, sessionId);
         task.blank = false;
         if (payload.codx_task_id) task.codxTaskId = String(payload.codx_task_id);
-        return { sessionId, promptAccepted, task };
+        if (modelSelection?.applied && modelSelection.requested?.name) {
+          task.model = String(modelSelection.requested.name);
+        }
+        task.modelApplied = modelSelection?.applied ?? null;
+        task.modelSelection = modelSelection;
+        return { sessionId, promptAccepted, task, modelSelection };
       }
       case "prompt": {
         if (!controller) throw new Error("sessionController is unavailable");
@@ -856,11 +970,14 @@ export function apply(ctx, rawConfig = {}) {
     sendJson(res, 200, {
       ok: true,
       name,
-      version: 1,
+      version: 2,
+      protocolVersion: 2,
       codxApiUrl: config.codxApiUrl,
       codxPath: config.codxPath,
       board: config.board,
       webhookEnabled: config.webhookEnabled,
+      workspaceRoot: config.workspaceRoot,
+      allowOutsideWorkspace: config.allowOutsideWorkspace,
       sessionServices: { controller: Boolean(controller), query: Boolean(query) },
     });
   }
@@ -889,11 +1006,15 @@ export function apply(ctx, rawConfig = {}) {
     const body = await readJson(req);
     const prompt = String(body.prompt ?? body.text ?? "").trim();
     const title = shortText(body.title ?? body.name ?? "", 200) || shortText(prompt, 80) || "DSH task";
-    const cwd = String(body.cwd ?? config.projectPath ?? "").trim();
-    if (cwd && !isAbsolute(cwd)) return sendError(res, 400, "bad-request", "cwd must be absolute");
+    let cwd;
+    try {
+      cwd = resolveWorkspaceCwd(body.cwd ?? config.workspaceRoot, config);
+    } catch (error) {
+      return sendError(res, 400, "bad-request", String(error?.message ?? error));
+    }
     const agentPreset = body.agentPreset ? String(body.agentPreset) : undefined;
     const created = await controller.create({
-      cwd: cwd || undefined,
+      cwd,
       agentPreset,
     });
     const sessionId = String(created.sessionId);
@@ -902,6 +1023,7 @@ export function apply(ctx, rawConfig = {}) {
     } catch (error) {
       log.warn(`codx-junior-sync: created ${sessionId} but could not rename it: ${String(error)}`);
     }
+    const modelSelection = await selectSessionModel(controller, sessionId, body.model, log);
     let promptAccepted = false;
     if (prompt) {
       await controller.prompt({
@@ -919,7 +1041,12 @@ export function apply(ctx, rawConfig = {}) {
     task.blank = false;
     if (body.codxTaskId) task.codxTaskId = String(body.codxTaskId);
     if (body.parentSessionId) task.requestedParentSessionId = String(body.parentSessionId);
-    sendJson(res, 201, { ok: true, sessionId, promptAccepted, task });
+    if (modelSelection?.applied && modelSelection.requested?.name) {
+      task.model = String(modelSelection.requested.name);
+    }
+    task.modelApplied = modelSelection?.applied ?? null;
+    task.modelSelection = modelSelection;
+    sendJson(res, 201, { ok: true, sessionId, promptAccepted, task, modelSelection });
   }
 
   async function handlePrompt(req, res, sessionId) {

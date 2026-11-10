@@ -290,3 +290,34 @@ def test_token_endpoint_writes_agent_token_file(project, monkeypatch):
     assert os.path.isfile(token_file)
     with open(token_file, encoding="utf-8") as handle:
         assert handle.read().strip() == token
+
+
+def test_agent_events_reject_instance_from_another_project(project, agent_env):
+    root, settings, manager, registry = project
+    registry.register("project-1", f"{root}/.codx", {"instance_id": "inst-other", "name": "Host"})
+    dsh_api = _import_agent_router()
+    app = FastAPI()
+    app.include_router(dsh_api.router, prefix="/api")
+
+    class OtherSettings:
+        codx_path = settings.codx_path
+        abs_project_path = settings.abs_project_path
+        project_id = "project-2"
+        project_name = "other-project"
+
+    @app.middleware("http")
+    async def attach_session(request: Request, call_next):
+        request.state.codx_junior_session = FakeSession(OtherSettings(), manager)
+        return await call_next(request)
+
+    client = TestClient(app)
+    response = client.post(
+        "/api/dsh/agent/events",
+        json={
+            "instance_id": "inst-other",
+            "event": "session.created",
+            "task": {"id": "s", "title": "Nope", "status": "idle", "description": "x"},
+        },
+        headers={"authorization": f"Bearer {agent_env}"},
+    )
+    assert response.status_code == 403

@@ -36,6 +36,30 @@ SUBTASKS_DEPRECATED_MESSAGE = (
 router = APIRouter()
 
 
+def _is_harness_chat(chat) -> bool:
+    """True when the task is executed by an external harness."""
+    if chat is None:
+        return False
+    return bool(getattr(chat, "harness", None) or getattr(chat, "external_source", None))
+
+
+def _is_dsh_chat(chat) -> bool:
+    """True for DSH tasks, including legacy rows without the harness field."""
+    if chat is None:
+        return False
+    return (
+        getattr(chat, "harness", None) == "dsh"
+        or getattr(chat, "external_source", None) == "dsh"
+    )
+
+
+def _harness_task_id(chat) -> Optional[str]:
+    return (
+        getattr(chat, "harness_task_id", None)
+        or getattr(chat, "external_id", None)
+    )
+
+
 def _resolve_chat_manager(request: Request, data: Optional[dict] = None):
     """
     Resolve a ``ChatManager``/settings pair for a project for chat control.
@@ -636,13 +660,13 @@ async def api_add_message(request: Request):
         if not chat:
             logger.error("api_add_message: chat not found: %s", chat_id)
             return {"error": f"chat '{chat_id}' not found"}
-        if getattr(chat, "external_source", None):
+        if _is_harness_chat(chat):
             raise HTTPException(
                 status_code=409,
                 detail=(
-                    "This task is a live mirror of an external DSH session: "
-                    "its messages are read-only. Reply in DSH or use "
-                    f"POST /api/dsh/tasks/{chat.external_id}/prompt."
+                    "This task is executed by an external harness: its "
+                    f"transcript is read-only. Use the task harness prompt "
+                    f"endpoint for session {_harness_task_id(chat)}."
                 ),
             )
 
@@ -697,10 +721,10 @@ async def api_update_message(request: Request):
             logger.error("api_update_message: chat not found: %s", chat_id)
             return {"error": f"chat '{chat_id}' not found"}
         
-        if getattr(chat, "external_source", None):
+        if _is_harness_chat(chat):
             raise HTTPException(
                 status_code=409,
-                detail="Messages of a live external DSH task are read-only.",
+                detail="Messages of a live external harness task are read-only.",
             )
 
         message = Message(**message_data)
@@ -841,7 +865,7 @@ def api_list_chats(request: Request):
             chat = chat_manager.find_by_id(chat_id=chat_id)
             if not chat:
                 logger.error('Chat not found. chat_id: %s, project: %s', chat_id, codx_junior_session.settings.project_name)
-            elif getattr(chat, "external_source", None) == "dsh":
+            elif _is_dsh_chat(chat):
                 # The DSH Session log remains the only copy of the
                 # conversation. Hydration is an in-memory read: nothing is
                 # written back to the task JSON.
@@ -1036,13 +1060,12 @@ async def api_chat(request: Request):
         codx_junior_session = request.state.codx_junior_session
         if chat.id:
             existing = codx_junior_session.get_chat_manager().find_by_id(chat.id)
-            if getattr(existing, "external_source", None):
+            if _is_harness_chat(existing):
                 raise HTTPException(
                     status_code=409,
                     detail=(
-                        "This is a live DSH mirror task. Use "
-                        f"POST /api/dsh/tasks/{existing.external_id}/prompt "
-                        "to continue the conversation in DSH."
+                        "This task is executed by an external harness. Use the "
+                        "task harness prompt endpoint to continue it."
                     ),
                 )
         
@@ -1208,13 +1231,17 @@ async def api_save_chat(request: Request):
         
         chat_only = request.query_params.get("chat_only") == "1"
         existing = chat_manager.find_by_id(chat.id) if chat.id else None
-        if getattr(existing, "external_source", None):
+        if _is_harness_chat(existing):
             # The mirror must never persist a conversation copy: keep the
             # stored (empty) message list and only accept metadata edits.
             chat.messages = existing.messages
             for field in (
-                "external_source", "external_id", "external_parent_id",
-                "external_status", "external_url", "external_updated_at",
+                "harness", "harness_instance_id", "harness_task_id",
+                "harness_parent_task_id", "harness_mode", "harness_status",
+                "harness_model", "harness_usage", "harness_cost",
+                "harness_metadata", "external_source", "external_id",
+                "external_parent_id", "external_instance_id", "external_status",
+                "external_url", "external_updated_at",
             ):
                 if not getattr(chat, field, None):
                     setattr(chat, field, getattr(existing, field, None))

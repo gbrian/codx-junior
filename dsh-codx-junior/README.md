@@ -17,7 +17,8 @@ persisted by codx-junior.
 - `GET /api/dsh/agent/commands` long-poll; executes `create_task`, `prompt`,
   `cancel`, `rename`, `get_task`, `list_tasks` and posts each result.
 - `POST /api/dsh/agent/events` for `session.created`, `session.updated` and
-  `session.disposed`, including subagent sessions.
+  `session.disposed`, including subagent sessions. Task summaries carry the
+  latest usage/model counters when the Host exposes them.
 - Registers once per Host; the `instance_id` is persisted in
   `.dsh-codx-junior/instance.json`.
 
@@ -34,6 +35,8 @@ The plugin row accepts:
 | `heartbeatMs` | `5000` | Heartbeat interval |
 | `pollWaitMs` | `25000` | Command long-poll window |
 | `syncOnStart` | `true` | Send an initial task snapshot after registration |
+| `workspaceRoot` | `workspaceDir` | Physical project root a session cwd must stay inside |
+| `allowOutsideWorkspace` | `false` | Disable the plugin's cwd boundary (trusted deployments only) |
 | `instanceName` | host + project | Display name in the codx-junior dashboard |
 | `instanceId` | generated | Stable instance identity |
 
@@ -69,6 +72,19 @@ the token into the plugin row.
 
 Every call carries `Authorization: Bearer <agent-token>` and the project
 `codx_path` query. codx-junior verifies the token before touching the registry.
+
+## Models, usage and sandbox
+
+- `create_task` may receive `model: {name, provider, model,
+  reasoning_effort}` from codx-junior. The plugin calls the Host's
+  `selectModel` after creating the Session; if the Host cannot apply it, the
+  command result records `modelSelection.applied = false` and codx-junior
+  shows the mapping error instead of silently using another model.
+- Task summaries include `usage`/`cost` when the Host reports assistant usage;
+  codx-junior persists them and appends `.codx/harness/usage.jsonl`.
+- `workspaceRoot` is enforced with `realpath`: a cwd outside it is rejected
+  before the Session is created. This is an application-level guard; mount only
+  the project workspace in the DSH container for OS isolation.
 
 ## Legacy direct bridge
 

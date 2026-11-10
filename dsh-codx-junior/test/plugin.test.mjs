@@ -78,6 +78,7 @@ function fakeContext({ controller, query, sessionTitle, agents } = {}) {
 
 function fakeServices() {
   const promptCalls = [];
+  const selectedModels = [];
   const controller = {
     async list() {
       return {
@@ -111,6 +112,10 @@ function fakeServices() {
     async create() {
       return { sessionId: "session-new" };
     },
+    async selectModel(request) {
+      selectedModels.push(request);
+      return { selected: request };
+    },
     async rename() {
       return { title: "New task", seq: 2 };
     },
@@ -140,7 +145,7 @@ function fakeServices() {
       return { title: "Live task" };
     },
   };
-  return { controller, query, sessionTitle, promptCalls };
+  return { controller, query, sessionTitle, promptCalls, selectedModels };
 }
 
 function routeOf(ctx) {
@@ -414,6 +419,80 @@ test("agent mode registers, heartbeats, executes a command and posts events", as
     for (const dispose of ctx.disposers) dispose();
   } finally {
     await new Promise((resolve) => server.close(resolve));
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("create applies a codx-junior model selection", async () => {
+  const workspace = mkdtempSync(join(process.cwd(), ".tmp-plugin-model-"));
+  try {
+    const services = fakeServices();
+    const ctx = fakeContext(services);
+    apply(ctx, {
+      bridgeEnabled: true,
+      agentEnabled: false,
+      sharedSecret: "test-secret",
+      codxApiUrl: "http://127.0.0.1:1",
+      workspaceDir: workspace,
+      workspaceRoot: workspace,
+      webhookEnabled: false,
+      syncOnStart: false,
+    });
+    const created = await callRoute(ctx, fakeRequest({
+      method: "POST",
+      url: "/codx-junior/tasks",
+      headers: { authorization: "Bearer test-secret" },
+      body: JSON.stringify({
+        title: "Model task",
+        prompt: "Run",
+        cwd: workspace,
+        model: {
+          name: "codx-fast",
+          provider: "deepseek-official",
+          model: "deepseek-flash",
+        },
+      }),
+    }));
+    assert.equal(created.statusCode, 201, created.body);
+    assert.deepEqual(services.selectedModels[0], {
+      sessionId: "session-new",
+      provider: "deepseek-official",
+      model: "deepseek-flash",
+    });
+    const payload = JSON.parse(created.body);
+    assert.equal(payload.modelSelection.applied, true);
+    assert.equal(payload.task.model, "codx-fast");
+    for (const dispose of ctx.disposers) dispose();
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("create rejects a cwd outside the configured workspace", async () => {
+  const workspace = mkdtempSync(join(process.cwd(), ".tmp-plugin-sandbox-"));
+  try {
+    const services = fakeServices();
+    const ctx = fakeContext(services);
+    apply(ctx, {
+      bridgeEnabled: true,
+      agentEnabled: false,
+      sharedSecret: "test-secret",
+      codxApiUrl: "http://127.0.0.1:1",
+      workspaceDir: workspace,
+      workspaceRoot: workspace,
+      webhookEnabled: false,
+      syncOnStart: false,
+    });
+    const denied = await callRoute(ctx, fakeRequest({
+      method: "POST",
+      url: "/codx-junior/tasks",
+      headers: { authorization: "Bearer test-secret" },
+      body: JSON.stringify({ title: "Escape", prompt: "Run", cwd: "/" }),
+    }));
+    assert.equal(denied.statusCode, 400, denied.body);
+    assert.match(denied.body, /outside the configured workspace/);
+    for (const dispose of ctx.disposers) dispose();
+  } finally {
     rmSync(workspace, { recursive: true, force: true });
   }
 });

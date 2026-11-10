@@ -69,7 +69,16 @@ class FakeClient:
                 return {"task": task, "messages": []}
         raise AssertionError(f"unexpected get_task({session_id})")
 
-    def create_task(self, title, prompt="", cwd=None, agent_preset=None, codx_task_id=None):
+    def create_task(
+        self,
+        title,
+        prompt="",
+        cwd=None,
+        agent_preset=None,
+        codx_task_id=None,
+        model=None,
+        workspace_root=None,
+    ):
         task = {
             "id": "session-created",
             "title": title,
@@ -77,9 +86,26 @@ class FakeClient:
             "running": True,
             "description": prompt,
             "webUrl": "http://dsh/?session=session-created",
+            "model": (model or {}).get("name") if model else None,
         }
-        self.created.append({"title": title, "prompt": prompt, "cwd": cwd, "codx_task_id": codx_task_id})
-        return {"ok": True, "sessionId": "session-created", "task": task}
+        self.created.append({
+            "title": title,
+            "prompt": prompt,
+            "cwd": cwd,
+            "codx_task_id": codx_task_id,
+            "model": model,
+            "workspace_root": workspace_root,
+        })
+        return {
+            "ok": True,
+            "sessionId": "session-created",
+            "task": task,
+            "modelApplied": bool(model),
+            "modelSelection": {
+                "requested": model,
+                "applied": bool(model),
+            } if model else None,
+        }
 
     def prompt(self, session_id, text, mode="queue"):
         self.prompts.append((session_id, text, mode))
@@ -226,6 +252,9 @@ def test_create_task_triggers_dsh_and_mirrors_it(project):
     assert client.created[0]["title"] == "New DSH task"
     assert client.created[0]["prompt"] == "Do the work"
     assert chat.external_id == "session-created"
+    assert chat.harness == "dsh"
+    assert chat.harness_mode == "managed"
+    assert chat.harness_task_id == "session-created"
     assert chat.column == "Doing"
     assert chat.status == "doing"
 
@@ -549,3 +578,118 @@ def test_router_settings_requires_admin(project, monkeypatch):
     client = TestClient(app)
     response = client.put("/api/dsh/settings", json={"url": "http://dsh:3080"})
     assert response.status_code == 403
+
+
+def test_create_task_passes_codx_model_and_workspace(project, monkeypatch):
+    root, settings, manager = project
+    client = FakeClient()
+    sync = make_sync(root, manager, client)
+
+    monkeypatch.setattr(
+        "codx.junior.integrations.dsh.harness_model_payload",
+        lambda name, kind="dsh": {
+            "name": name,
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoning_effort": None,
+            "mapped": True,
+        },
+    )
+    chat = sync.create_task(
+        name="Model task",
+        prompt="Use the selected model",
+        model="codx-fast",
+    )
+    assert client.created[0]["model"]["name"] == "codx-fast"
+    assert client.created[0]["model"]["model"] == "deepseek-flash"
+    assert client.created[0]["workspace_root"] == os.path.realpath(root)
+    assert chat.harness_model == "codx-fast"
+    assert chat.harness_metadata["model_selection"]["applied"] is True
+
+
+def test_create_task_rejects_cwd_outside_project(project):
+    root, settings, manager = project
+    sync = make_sync(root, manager, FakeClient())
+    with pytest.raises(ValueError):
+        sync.create_task(
+            name="Escaping task",
+            prompt="Do not run outside",
+            cwd="/some/other/project",
+        )
+
+
+def test_usage_is_mirrored_and_logged(project):
+    root, settings, manager = project
+    sync = make_sync(root, manager, FakeClient())
+    chat, _ = sync.upsert_task(
+        DshTask(
+            id="session-usage",
+            title="Measured task",
+            description="usage",
+            status="running",
+            model="deepseek-flash",
+            usage={"input_tokens": 120, "output_tokens": 30},
+            cost=0.0042,
+        )
+    )
+    assert chat.harness_usage == {"input_tokens": 120, "output_tokens": 30}
+    assert chat.harness_cost == 0.0042
+    assert chat.harness_model == "deepseek-flash"
+
+    log_path = os.path.join(root, ".codx", "harness", "usage.jsonl")
+    assert os.path.isfile(log_path)
+    with open(log_path, encoding="utf-8") as handle:
+        records = [json.loads(line) for line in handle if line.strip()]
+    assert records[-1]["task_id"] == chat.id
+    assert records[-1]["usage"]["input_tokens"] == 120
+
+
+def test_create_task_rejects_symlink_escape(project):
+    root, settings, manager = project
+    link = os.path.join(root, "escape")
+    try:
+        os.symlink("/", link)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks are not available")
+    sync = make_sync(root, manager, FakeClient())
+    with pytest.raises(ValueError):
+        sync.create_task(name="Symlink escape", prompt="No", cwd=link)
+
+
+def test_router_lists_codx_models(project, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from codx.junior.model.model import CodxUser
+
+    root, settings, manager = project
+    dsh_api = _import_dsh_router()
+    monkeypatch.setattr(
+        dsh_api,
+        "list_llm_models",
+        lambda kind="dsh": [
+            {
+                "name": "codx-fast",
+                "ai_provider": "deepseek",
+                "ai_model": "deepseek-flash",
+                "model_type": "llm",
+                "harness": {"dsh": {"provider": "deepseek-official", "model": "deepseek-flash", "mapped": True}},
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        dsh_api,
+        "read_global_settings",
+        lambda: type("Global", (), {"llm_model": "codx-fast"})(),
+    )
+
+    app = FastAPI()
+    app.include_router(dsh_api.router, prefix="/api")
+    app.dependency_overrides[dsh_api.get_authenticated_user] = lambda: CodxUser(
+        username="admin", role="admin"
+    )
+    client = TestClient(app)
+    response = client.get("/api/dsh/models")
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["models"][0]["name"] == "codx-fast"
+    assert data["default"]["name"] == "codx-fast"

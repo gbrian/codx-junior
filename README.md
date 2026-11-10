@@ -74,6 +74,10 @@ the task identity and board placement.
 5. **Sync and open the board.** Save the board, click **Sync from instance**,
    then open the board. Use **Trigger a DSH task** to create a Session from
    codx-junior.
+6. **Choose a model and keep the sandbox on.** The task composer lists the
+   models defined in codx-junior; map a model with `metadata.dsh` when DSH uses
+   a different provider/model id. Harness cwd paths are confined to the project
+   workspace; the DSH container should mount only that workspace.
 
 Details: [DSH task sync guide](docs/features/dsh-sync.md) and
 [plugin README](dsh-codx-junior/README.md).

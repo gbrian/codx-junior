@@ -7,11 +7,13 @@ import {
   fallbackTitle,
   firstUserText,
   messagesFromEvents,
+  modelFromEvents,
   normalizeConfig,
   shortText,
   signBody,
   summarizeTask,
   taskWebUrl,
+  usageFromEvents,
 } from "../lib/core.js";
 
 test("projects user and assistant text out of a session log", () => {
@@ -65,6 +67,52 @@ test("ignores system events and empty messages", () => {
     { type: "assistant/message", seq: 2, time: 3, data: { message: { role: "assistant", content: [{ type: "tool-call", name: "x" }] } } },
   ]);
   assert.deepEqual(messages, []);
+});
+
+test("extracts the latest usage and model from session events", () => {
+  const events = [
+    {
+      type: "assistant/message",
+      seq: 2,
+      data: {
+        usage: { inputTokens: 10, outputTokens: 3 },
+        message: { source: { provider: "deepseek", model: "deepseek-flash" } },
+      },
+    },
+    {
+      type: "assistant/message",
+      seq: 4,
+      data: {
+        usage: { inputTokens: 20, outputTokens: 5 },
+        message: { source: { provider: "deepseek", model: "deepseek-flash" } },
+      },
+    },
+  ];
+  assert.deepEqual(usageFromEvents(events), {
+    inputTokens: 20,
+    outputTokens: 5,
+    provider: "deepseek",
+    model: "deepseek-flash",
+  });
+  assert.equal(modelFromEvents(events), "deepseek-flash");
+  assert.equal(usageFromEvents([]), null);
+});
+
+test("summarizes usage, model and cost on a task", () => {
+  const task = summarizeTask({
+    header: { id: "session-1", createdAt: 10 },
+    title: "Measured",
+    usage: { inputTokens: 20, outputTokens: 5, provider: "deepseek", model: "deepseek-flash" },
+    cost: 0.01,
+  });
+  assert.equal(task.model, "deepseek-flash");
+  assert.deepEqual(task.usage, {
+    inputTokens: 20,
+    outputTokens: 5,
+    provider: "deepseek",
+    model: "deepseek-flash",
+  });
+  assert.equal(task.cost, 0.01);
 });
 
 test("summarizes a subagent session with its parent and depth", () => {

@@ -21,6 +21,11 @@ export const dshModule = (API) => ({
     return API.post('/api/dsh/token', {})
   },
 
+  /** LLM models defined in codx-junior, with their DSH provider/model mapping. */
+  models() {
+    return API.get('/api/dsh/models')
+  },
+
   /** Pull every DSH task from one connected instance into the mirror board. */
   sync(instanceId) {
     const qs = instanceId ? `?instance_id=${encodeURIComponent(instanceId)}` : ''

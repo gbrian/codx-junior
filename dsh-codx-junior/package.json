@@ -1,6 +1,6 @@
 {
   "name": "@local/codx-junior-outbound",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Bridges DSH sessions and codx-junior tasks without copying conversation content.",
   "type": "module",

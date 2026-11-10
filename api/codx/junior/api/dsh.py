@@ -42,6 +42,9 @@ from codx.junior.integrations.dsh import (
     dsh_chats,
     verify_webhook,
 )
+from codx.junior.integrations.harness_models import HarnessModelError, list_llm_models
+from codx.junior.integrations.harness_sandbox import HarnessSandboxError
+from codx.junior.integrations.harness_usage import aggregate_usage
 from codx.junior.integrations.dsh_agent import (
     DshAgentClient,
     DshCommandTimeout,
@@ -87,6 +90,7 @@ def _public_config(config: DshConfig, include_token: bool = False) -> dict:
         "columns": list(config.columns),
         "enabled": config.enabled,
         "only_project": config.only_project,
+        "sandbox_enabled": config.sandbox_enabled,
         "project_root": config.project_root,
         "has_agent_token": bool(config.agent_token),
         "agent_token_source": config.agent_token_source,
@@ -126,8 +130,16 @@ def _resolve_instance_id(
     if session_id:
         try:
             for chat in dsh_chats(session.get_chat_manager()):
-                if chat.external_id == session_id and getattr(chat, "external_instance_id", None):
-                    return str(chat.external_instance_id)
+                chat_session_id = (
+                    getattr(chat, "harness_task_id", None)
+                    or getattr(chat, "external_id", None)
+                )
+                instance_id = (
+                    getattr(chat, "harness_instance_id", None)
+                    or getattr(chat, "external_instance_id", None)
+                )
+                if chat_session_id == session_id and instance_id:
+                    return str(instance_id)
         except Exception:  # pragma: no cover - lookup must not hide the fallback
             logger.debug("dsh: instance lookup from chat failed", exc_info=True)
     instance = registry.default_instance(
@@ -198,9 +210,12 @@ def dsh_status(
         "error": None,
     }
     try:
-        result["mirrored_tasks"] = len(list(dsh_chats(session.get_chat_manager())))
+        mirrored = list(dsh_chats(session.get_chat_manager()))
+        result["mirrored_tasks"] = len(mirrored)
+        result["usage"] = aggregate_usage(mirrored)
     except Exception:  # pragma: no cover - diagnostics must not fail the panel
         logger.debug("dsh_status: could not count mirrored tasks", exc_info=True)
+        result["usage"] = {"measured_tasks": 0, "cost": 0.0, "input_tokens": 0, "output_tokens": 0}
     if not config.agent_token:
         result["error"] = "Agent token is not configured. Generate one below."
     elif not online:
@@ -209,6 +224,24 @@ def dsh_status(
     if config.project_root:
         result["token_file"] = f"{config.project_root.rstrip('/')}/.dsh-codx-junior/token"
     return result
+
+
+@router.get("/dsh/models")
+def dsh_models(
+    user: CodxUser = Depends(_require_admin),
+):
+    """
+    Return the LLM models defined in codx-junior.
+
+    The DSH plugin cannot invent a model: a task may only ask for one of these
+    names (or a name resolvable through the model catalogue). The optional
+    ``metadata.dsh`` block on an ``AIModel`` maps the codx-junior name to the
+    provider/model ids DSH expects.
+    """
+    models = list_llm_models(kind="dsh")
+    default_name = str(getattr(read_global_settings(), "llm_model", "") or "")
+    default = next((model for model in models if model["name"] == default_name), None)
+    return {"ok": True, "models": models, "default": default}
 
 
 @router.post("/dsh/token")
@@ -252,6 +285,8 @@ async def dsh_save_settings(
         payload["enabled"] = bool(data.get("enabled"))
     if "only_project" in data:
         payload["only_project"] = bool(data.get("only_project"))
+    if "sandbox_enabled" in data:
+        payload["sandbox_enabled"] = bool(data.get("sandbox_enabled"))
     if "default_instance_id" in data:
         payload["default_instance_id"] = str(data.get("default_instance_id") or "").strip()
     # Legacy fields remain editable if a caller still sends them.
@@ -292,6 +327,8 @@ def dsh_sync(
         raise HTTPException(status_code=409, detail=str(error)) from error
     except DshCommandTimeout as error:
         raise HTTPException(status_code=504, detail=str(error)) from error
+    except HarnessSandboxError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     except DshError as error:
         logger.error("dsh_sync: %s", error)
         raise HTTPException(status_code=502, detail=str(error)) from error
@@ -320,11 +357,15 @@ async def dsh_create_task(
             column=data.get("column"),
             parent_id=data.get("parent_id"),
             agent_preset=data.get("agent_preset") or data.get("agentPreset"),
+            model=data.get("model") or data.get("harness_model"),
+            cwd=data.get("cwd"),
         )
     except DshInstanceOffline as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     except DshCommandTimeout as error:
         raise HTTPException(status_code=504, detail=str(error)) from error
+    except (HarnessModelError, HarnessSandboxError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     except DshError as error:
         logger.error("dsh_create_task: %s", error)
         raise HTTPException(status_code=502, detail=str(error)) from error

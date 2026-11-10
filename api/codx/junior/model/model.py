@@ -233,6 +233,14 @@ class DshSettings(BaseModel):
         default=True,
         description="Ignore DSH sessions whose cwd is outside this project",
     )
+    sandbox_enabled: bool = Field(
+        default=True,
+        description=(
+            "Reject harness sessions and paths outside the project workspace. "
+            "OS-level isolation still requires the harness container to mount "
+            "only the project workspace."
+        ),
+    )
 
     # Legacy direct-DSH bridge configuration. Kept so existing installations do
     # not lose their values; the dashboard uses the outbound agent channel.

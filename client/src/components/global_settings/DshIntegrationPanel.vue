@@ -14,6 +14,9 @@
               <span v-if="config.board" class="badge badge-sm badge-ghost">
                 board: {{ config.board }}
               </span>
+              <span v-if="usage.cost" class="badge badge-sm badge-ghost">
+                cost: {{ usage.cost }}
+              </span>
             </h2>
             <p class="text-xs opacity-70 mt-1">
               DSH connects <span class="font-semibold">to</span> codx-junior. It registers,
@@ -152,6 +155,14 @@
                 <span class="block opacity-60">Ignore sessions whose working directory is outside this project.</span>
               </span>
             </label>
+
+            <label class="label cursor-pointer justify-start gap-3 rounded-lg bg-base-100 border border-base-300 px-3 py-2">
+              <input v-model="form.sandbox_enabled" type="checkbox" class="toggle toggle-primary toggle-sm" />
+              <span class="label-text text-xs">
+                <span class="font-semibold">Project sandbox</span>
+                <span class="block opacity-60">Reject cwd/session paths outside the project; mount only this workspace in the harness container.</span>
+              </span>
+            </label>
           </div>
 
           <div class="flex flex-wrap items-center gap-2 pt-1">
@@ -263,6 +274,20 @@
               <option v-for="column in columnOptions" :key="column" :value="column">{{ column }}</option>
             </select>
           </label>
+          <label class="form-control">
+            <div class="label py-1"><span class="label-text text-xs font-semibold">Model</span></div>
+            <select v-model="createForm.model" class="select select-bordered select-sm w-full">
+              <option value="">DSH default</option>
+              <option v-for="model in models" :key="model.name" :value="model.name">
+                {{ model.name }} · {{ model.ai_provider }}
+              </option>
+            </select>
+            <div class="label py-1">
+              <span class="label-text-alt text-[11px] opacity-60">
+                Models come from codx-junior. Map one with <code>metadata.dsh</code> when DSH uses a different id.
+              </span>
+            </div>
+          </label>
           <label class="form-control md:col-span-2">
             <div class="label py-1"><span class="label-text text-xs font-semibold">Prompt</span></div>
             <textarea
@@ -289,6 +314,17 @@
             on {{ instanceName(lastCreated.instance_id) }} ({{ lastCreated.session_id }}).
           </span>
         </div>
+        <div
+          v-if="lastCreated?.chat?.harness_metadata?.model_selection && lastCreated.chat.harness_metadata.model_selection.applied === false"
+          class="alert alert-warning py-2"
+        >
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span class="text-xs">
+            The model could not be applied in DSH:
+            {{ lastCreated.chat.harness_metadata.model_selection.error || 'unknown error' }}.
+            Add a <code>metadata.dsh</code> mapping to the model or configure DSH's default model.
+          </span>
+        </div>
       </div>
     </div>
   </div>
@@ -299,6 +335,7 @@ const DEFAULT_FORM = () => ({
   board: 'DSH',
   enabled: true,
   only_project: true,
+  sandbox_enabled: true,
   default_instance_id: '',
 })
 
@@ -320,7 +357,8 @@ export default {
       error: null,
       lastSavedAt: null,
       lastCreated: null,
-      createForm: { name: '', prompt: '', column: 'Todo' },
+      createForm: { name: '', prompt: '', column: 'Todo', model: '' },
+      models: [],
     }
   },
   computed: {
@@ -357,6 +395,9 @@ export default {
     },
     mirroredTasks() {
       return this.status?.mirrored_tasks ?? 0
+    },
+    usage() {
+      return this.status?.usage || {}
     },
     columnOptions() {
       return this.config.columns?.length ? this.config.columns : ['Todo', 'Doing', 'On hold', 'Done']
@@ -402,6 +443,7 @@ export default {
         board: value?.board || DEFAULT_FORM().board,
         enabled: value?.enabled !== false,
         only_project: value?.only_project !== false,
+        sandbox_enabled: value?.sandbox_enabled !== false,
         default_instance_id: value?.default_instance_id || '',
       }
     },
@@ -417,6 +459,15 @@ export default {
         this.status = await api.dsh.status()
         this.pickInstance()
         if (this.status?.error) this.error = this.status.error
+        try {
+          const modelResponse = await api.dsh.models()
+          this.models = modelResponse?.models || []
+        } catch (modelError) {
+          // The model catalogue is optional; task creation still works with
+          // the DSH default when an older backend does not expose it.
+          console.warn('[DshIntegrationPanel] model catalogue failed', modelError)
+          this.models = []
+        }
       } catch (error) {
         console.error('[DshIntegrationPanel] status failed', error)
         this.error = this.errorText(error)
@@ -453,6 +504,7 @@ export default {
           board: this.form.board.trim() || 'DSH',
           enabled: Boolean(this.form.enabled),
           only_project: Boolean(this.form.only_project),
+          sandbox_enabled: Boolean(this.form.sandbox_enabled),
           default_instance_id: this.form.default_instance_id || '',
         }
         const response = await api.dsh.saveSettings(payload)
@@ -567,9 +619,10 @@ export default {
           prompt: this.createForm.prompt.trim(),
           board: this.form.board.trim() || 'DSH',
           column: this.createForm.column,
+          model: this.createForm.model || null,
         })
         this.lastCreated = result
-        this.createForm = { name: '', prompt: '', column: this.createForm.column }
+        this.createForm = { name: '', prompt: '', column: this.createForm.column, model: this.createForm.model }
         await Promise.allSettled([
           this.$storex?.projects?.loadKanban?.(),
           this.$storex?.chats?.loadChats?.(),

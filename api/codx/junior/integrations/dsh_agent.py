@@ -543,16 +543,23 @@ class DshAgentClient:
         cwd: Optional[str] = None,
         agent_preset: Optional[str] = None,
         codx_task_id: Optional[str] = None,
+        model: Optional[Mapping[str, Any]] = None,
+        workspace_root: Optional[str] = None,
     ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            "title": title,
+            "prompt": prompt,
+            "cwd": cwd,
+            "agent_preset": agent_preset,
+            "codx_task_id": codx_task_id,
+        }
+        if model:
+            payload["model"] = dict(model)
+        if workspace_root:
+            payload["workspace_root"] = workspace_root
         result = self._command(
             "create_task",
-            {
-                "title": title,
-                "prompt": prompt,
-                "cwd": cwd,
-                "agent_preset": agent_preset,
-                "codx_task_id": codx_task_id,
-            },
+            payload,
             timeout=max(self.timeout, 45),
         )
         return result if isinstance(result, Mapping) else {"task": result}
