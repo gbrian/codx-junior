@@ -1,0 +1,4203 @@
+{
+  "language": "English",
+  "mode": "codx-junior",
+  "prompt": "",
+  "categories": [
+    {
+      "title": "Src",
+      "description": "Documentation for the Src area of the project.",
+      "icon": "fa-regular fa-file-lines",
+      "order": 10,
+      "keywords": [
+        "src"
+      ],
+      "children": [],
+      "files": [
+        {
+          "path": "/src/App.vue",
+          "name": "App",
+          "slug": "app.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/app.md"
+        },
+        {
+          "path": "/src/ChatEntrySlack.vue",
+          "name": "ChatEntrySlack",
+          "slug": "src-chatentryslack.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-chatentryslack.md"
+        },
+        {
+          "path": "/src/api/api.js",
+          "name": "Api",
+          "slug": "api.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/api.md"
+        },
+        {
+          "path": "/src/api/chatManager.js",
+          "name": "ChatManager",
+          "slug": "chatmanager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatmanager.md"
+        },
+        {
+          "path": "/src/api/connection.js",
+          "name": "Connection",
+          "slug": "connection.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/connection.md"
+        },
+        {
+          "path": "/src/api/model/ChatAttachment.js",
+          "name": "ChatAttachment",
+          "slug": "chatattachment.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatattachment.md"
+        },
+        {
+          "path": "/src/api/model/ChatSearchRequest.js",
+          "name": "ChatSearchRequest",
+          "slug": "chatsearchrequest.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatsearchrequest.md"
+        },
+        {
+          "path": "/src/api/model/ChatSearchResponse.js",
+          "name": "ChatSearchResponse",
+          "slug": "chatsearchresponse.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatsearchresponse.md"
+        },
+        {
+          "path": "/src/api/model/analytics.ts",
+          "name": "Analytics",
+          "slug": "src-api-model-analytics.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-model-analytics.md"
+        },
+        {
+          "path": "/src/api/model/chatLogs.ts",
+          "name": "ChatLogs",
+          "slug": "chatlogs.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatlogs.md"
+        },
+        {
+          "path": "/src/api/model/traefik.js",
+          "name": "Traefik",
+          "slug": "src-api-model-traefik.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-model-traefik.md"
+        },
+        {
+          "path": "/src/api/model/workspace.js",
+          "name": "Workspace",
+          "slug": "src-api-model-workspace.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-model-workspace.md"
+        },
+        {
+          "path": "/src/api/models/gitGraph.js",
+          "name": "GitGraph",
+          "slug": "src-api-models-gitgraph.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-models-gitgraph.md"
+        },
+        {
+          "path": "/src/api/models/tools.js",
+          "name": "Tools",
+          "slug": "tools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tools.md"
+        },
+        {
+          "path": "/src/api/modules/analytics.js",
+          "name": "Analytics",
+          "slug": "src-api-modules-analytics.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-modules-analytics.md"
+        },
+        {
+          "path": "/src/api/modules/apiLogs.js",
+          "name": "ApiLogs",
+          "slug": "apilogs.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/apilogs.md"
+        },
+        {
+          "path": "/src/api/modules/browsers.js",
+          "name": "Browsers",
+          "slug": "src-api-modules-browsers.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-modules-browsers.md"
+        },
+        {
+          "path": "/src/api/modules/chats.js",
+          "name": "Chats",
+          "slug": "src-api-modules-chats.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-modules-chats.md"
+        },
+        {
+          "path": "/src/api/modules/companies.js",
+          "name": "Companies",
+          "slug": "companies.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companies.md"
+        },
+        {
+          "path": "/src/api/modules/computers.js",
+          "name": "Computers",
+          "slug": "computers.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/computers.md"
+        },
+        {
+          "path": "/src/api/modules/console.js",
+          "name": "Console",
+          "slug": "console.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/console.md"
+        },
+        {
+          "path": "/src/api/modules/dsh.js",
+          "name": "Dsh",
+          "slug": "dsh.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/dsh.md"
+        },
+        {
+          "path": "/src/api/modules/files.js",
+          "name": "Files",
+          "slug": "files.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/files.md"
+        },
+        {
+          "path": "/src/api/modules/globalSettings.js",
+          "name": "GlobalSettings",
+          "slug": "src-api-modules-globalsettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-modules-globalsettings.md"
+        },
+        {
+          "path": "/src/api/modules/infra.js",
+          "name": "Infra",
+          "slug": "infra.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/infra.md"
+        },
+        {
+          "path": "/src/api/modules/logs.js",
+          "name": "Logs",
+          "slug": "src-api-modules-logs.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-modules-logs.md"
+        },
+        {
+          "path": "/src/api/modules/management.js",
+          "name": "Management",
+          "slug": "management.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/management.md"
+        },
+        {
+          "path": "/src/api/modules/meets.js",
+          "name": "Meets",
+          "slug": "src-api-modules-meets.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-modules-meets.md"
+        },
+        {
+          "path": "/src/api/modules/orchestration.js",
+          "name": "Orchestration",
+          "slug": "src-api-modules-orchestration.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-modules-orchestration.md"
+        },
+        {
+          "path": "/src/api/modules/profiles.js",
+          "name": "Profiles",
+          "slug": "src-api-modules-profiles.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-modules-profiles.md"
+        },
+        {
+          "path": "/src/api/modules/repo.js",
+          "name": "Repo",
+          "slug": "repo.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/repo.md"
+        },
+        {
+          "path": "/src/api/modules/teams.js",
+          "name": "Teams",
+          "slug": "src-api-modules-teams.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-modules-teams.md"
+        },
+        {
+          "path": "/src/api/modules/traefik.js",
+          "name": "Traefik",
+          "slug": "src-api-modules-traefik.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-modules-traefik.md"
+        },
+        {
+          "path": "/src/api/modules/views.js",
+          "name": "Views",
+          "slug": "src-api-modules-views.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-modules-views.md"
+        },
+        {
+          "path": "/src/api/modules/workspaces.js",
+          "name": "Workspaces",
+          "slug": "src-api-modules-workspaces.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-api-modules-workspaces.md"
+        },
+        {
+          "path": "/src/api/requestCache.js",
+          "name": "RequestCache",
+          "slug": "requestcache.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/requestcache.md"
+        },
+        {
+          "path": "/src/api/requestQueue.js",
+          "name": "RequestQueue",
+          "slug": "requestqueue.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/requestqueue.md"
+        },
+        {
+          "path": "/src/api/socket.js",
+          "name": "Socket",
+          "slug": "socket.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/socket.md"
+        },
+        {
+          "path": "/src/api/telemetry.js",
+          "name": "Telemetry",
+          "slug": "telemetry.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/telemetry.md"
+        },
+        {
+          "path": "/src/components/BlockEditor.vue",
+          "name": "BlockEditor",
+          "slug": "blockeditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/blockeditor.md"
+        },
+        {
+          "path": "/src/components/ChatAttachmentCard.vue",
+          "name": "ChatAttachmentCard",
+          "slug": "chatattachmentcard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatattachmentcard.md"
+        },
+        {
+          "path": "/src/components/ChatEntry.vue",
+          "name": "ChatEntry",
+          "slug": "chatentry.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatentry.md"
+        },
+        {
+          "path": "/src/components/ChatEntryDrawer.vue",
+          "name": "ChatEntryDrawer",
+          "slug": "chatentrydrawer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatentrydrawer.md"
+        },
+        {
+          "path": "/src/components/ChatEntryEvent.vue",
+          "name": "ChatEntryEvent",
+          "slug": "chatentryevent.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatentryevent.md"
+        },
+        {
+          "path": "/src/components/ChatEntryEventCard.vue",
+          "name": "ChatEntryEventCard",
+          "slug": "chatentryeventcard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatentryeventcard.md"
+        },
+        {
+          "path": "/src/components/ChatEntryMetadata.vue",
+          "name": "ChatEntryMetadata",
+          "slug": "chatentrymetadata.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatentrymetadata.md"
+        },
+        {
+          "path": "/src/components/ChatEntrySelectionMenu.vue",
+          "name": "ChatEntrySelectionMenu",
+          "slug": "chatentryselectionmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatentryselectionmenu.md"
+        },
+        {
+          "path": "/src/components/ChatEntrySlack.vue",
+          "name": "ChatEntrySlack",
+          "slug": "src-components-chatentryslack.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-chatentryslack.md"
+        },
+        {
+          "path": "/src/components/ChatEntryTimeline.vue",
+          "name": "ChatEntryTimeline",
+          "slug": "chatentrytimeline.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatentrytimeline.md"
+        },
+        {
+          "path": "/src/components/ChatEntryToolCard.vue",
+          "name": "ChatEntryToolCard",
+          "slug": "chatentrytoolcard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatentrytoolcard.md"
+        },
+        {
+          "path": "/src/components/ChatEntryTools.vue",
+          "name": "ChatEntryTools",
+          "slug": "chatentrytools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatentrytools.md"
+        },
+        {
+          "path": "/src/components/ChatLogsPanel.vue",
+          "name": "ChatLogsPanel",
+          "slug": "chatlogspanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatlogspanel.md"
+        },
+        {
+          "path": "/src/components/ChatProjectIcon.vue",
+          "name": "ChatProjectIcon",
+          "slug": "chatprojecticon.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatprojecticon.md"
+        },
+        {
+          "path": "/src/components/Code.vue",
+          "name": "Code",
+          "slug": "code.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/code.md"
+        },
+        {
+          "path": "/src/components/CodeEditor.vue",
+          "name": "CodeEditor",
+          "slug": "src-components-codeeditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-codeeditor.md"
+        },
+        {
+          "path": "/src/components/CodeViewer.vue",
+          "name": "CodeViewer",
+          "slug": "codeviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/codeviewer.md"
+        },
+        {
+          "path": "/src/components/CodxJuniorLogo.vue",
+          "name": "CodxJuniorLogo",
+          "slug": "codxjuniorlogo.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/codxjuniorlogo.md"
+        },
+        {
+          "path": "/src/components/CodxMenu.vue",
+          "name": "CodxMenu",
+          "slug": "codxmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/codxmenu.md"
+        },
+        {
+          "path": "/src/components/Collapsible.vue",
+          "name": "Collapsible",
+          "slug": "collapsible.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/collapsible.md"
+        },
+        {
+          "path": "/src/components/ConfirmDialog.vue",
+          "name": "ConfirmDialog",
+          "slug": "confirmdialog.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/confirmdialog.md"
+        },
+        {
+          "path": "/src/components/ConsoleViewer.vue",
+          "name": "ConsoleViewer",
+          "slug": "consoleviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/consoleviewer.md"
+        },
+        {
+          "path": "/src/components/DecisionModelLogs.vue",
+          "name": "DecisionModelLogs",
+          "slug": "decisionmodellogs.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/decisionmodellogs.md"
+        },
+        {
+          "path": "/src/components/DiffViewer.vue",
+          "name": "DiffViewer",
+          "slug": "src-components-diffviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-diffviewer.md"
+        },
+        {
+          "path": "/src/components/EmbeddedCodxJunior.vue",
+          "name": "EmbeddedCodxJunior",
+          "slug": "embeddedcodxjunior.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/embeddedcodxjunior.md"
+        },
+        {
+          "path": "/src/components/EventBar.vue",
+          "name": "EventBar",
+          "slug": "eventbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/eventbar.md"
+        },
+        {
+          "path": "/src/components/ExportImportButton.vue",
+          "name": "ExportImportButton",
+          "slug": "exportimportbutton.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/exportimportbutton.md"
+        },
+        {
+          "path": "/src/components/HTMLPreview.vue",
+          "name": "HTMLPreview",
+          "slug": "htmlpreview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/htmlpreview.md"
+        },
+        {
+          "path": "/src/components/HTMLViewer.vue",
+          "name": "HTMLViewer",
+          "slug": "htmlviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/htmlviewer.md"
+        },
+        {
+          "path": "/src/components/HelloWorld.vue",
+          "name": "HelloWorld",
+          "slug": "helloworld.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/helloworld.md"
+        },
+        {
+          "path": "/src/components/Iframe.vue",
+          "name": "Iframe",
+          "slug": "iframe.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/iframe.md"
+        },
+        {
+          "path": "/src/components/InteractiveTable.vue",
+          "name": "InteractiveTable",
+          "slug": "interactivetable.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/interactivetable.md"
+        },
+        {
+          "path": "/src/components/IssuePreview.vue",
+          "name": "IssuePreview",
+          "slug": "issuepreview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/issuepreview.md"
+        },
+        {
+          "path": "/src/components/LifecycleEventRow.vue",
+          "name": "LifecycleEventRow",
+          "slug": "lifecycleeventrow.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/lifecycleeventrow.md"
+        },
+        {
+          "path": "/src/components/LogAIView.vue",
+          "name": "LogAIView",
+          "slug": "logaiview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/logaiview.md"
+        },
+        {
+          "path": "/src/components/LogViewer.vue",
+          "name": "LogViewer",
+          "slug": "logviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/logviewer.md"
+        },
+        {
+          "path": "/src/components/Logo.vue",
+          "name": "Logo",
+          "slug": "logo.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/logo.md"
+        },
+        {
+          "path": "/src/components/Markdown.vue",
+          "name": "Markdown",
+          "slug": "markdown.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/markdown.md"
+        },
+        {
+          "path": "/src/components/MarkdownViewer.vue",
+          "name": "MarkdownViewer",
+          "slug": "markdownviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/markdownviewer.md"
+        },
+        {
+          "path": "/src/components/Menu.vue",
+          "name": "Menu",
+          "slug": "menu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/menu.md"
+        },
+        {
+          "path": "/src/components/MenuDropDown.vue",
+          "name": "MenuDropDown",
+          "slug": "menudropdown.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/menudropdown.md"
+        },
+        {
+          "path": "/src/components/MermaidViewer.vue",
+          "name": "MermaidViewer",
+          "slug": "mermaidviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mermaidviewer.md"
+        },
+        {
+          "path": "/src/components/MetricRow.vue",
+          "name": "MetricRow",
+          "slug": "metricrow.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/metricrow.md"
+        },
+        {
+          "path": "/src/components/MobileMenu.vue",
+          "name": "MobileMenu",
+          "slug": "src-components-mobilemenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-mobilemenu.md"
+        },
+        {
+          "path": "/src/components/Modal.vue",
+          "name": "Modal",
+          "slug": "modal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/modal.md"
+        },
+        {
+          "path": "/src/components/NavigationBar.vue",
+          "name": "NavigationBar",
+          "slug": "navigationbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/navigationbar.md"
+        },
+        {
+          "path": "/src/components/NoVNC.vue",
+          "name": "NoVNC",
+          "slug": "novnc.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/novnc.md"
+        },
+        {
+          "path": "/src/components/NotificationControl.vue",
+          "name": "NotificationControl",
+          "slug": "notificationcontrol.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/notificationcontrol.md"
+        },
+        {
+          "path": "/src/components/Notifications.vue",
+          "name": "Notifications",
+          "slug": "notifications.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/notifications.md"
+        },
+        {
+          "path": "/src/components/ProfileCard.vue",
+          "name": "ProfileCard",
+          "slug": "profilecard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/profilecard.md"
+        },
+        {
+          "path": "/src/components/ProjectCard.vue",
+          "name": "ProjectCard",
+          "slug": "src-components-projectcard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-projectcard.md"
+        },
+        {
+          "path": "/src/components/ProjectChip.vue",
+          "name": "ProjectChip",
+          "slug": "projectchip.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectchip.md"
+        },
+        {
+          "path": "/src/components/ProjectDetailt.vue",
+          "name": "ProjectDetailt",
+          "slug": "projectdetailt.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectdetailt.md"
+        },
+        {
+          "path": "/src/components/ProjectDropdown.vue",
+          "name": "ProjectDropdown",
+          "slug": "projectdropdown.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectdropdown.md"
+        },
+        {
+          "path": "/src/components/ProjectIcon.vue",
+          "name": "ProjectIcon",
+          "slug": "projecticon.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projecticon.md"
+        },
+        {
+          "path": "/src/components/ProjectList.vue",
+          "name": "ProjectList",
+          "slug": "projectlist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectlist.md"
+        },
+        {
+          "path": "/src/components/ProjectScriptSettings.vue",
+          "name": "ProjectScriptSettings",
+          "slug": "projectscriptsettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectscriptsettings.md"
+        },
+        {
+          "path": "/src/components/ProjectSelector.vue",
+          "name": "ProjectSelector",
+          "slug": "projectselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectselector.md"
+        },
+        {
+          "path": "/src/components/ProjectSelectorContent.vue",
+          "name": "ProjectSelectorContent",
+          "slug": "projectselectorcontent.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectselectorcontent.md"
+        },
+        {
+          "path": "/src/components/ProjectTreeSelect.vue",
+          "name": "ProjectTreeSelect",
+          "slug": "projecttreeselect.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projecttreeselect.md"
+        },
+        {
+          "path": "/src/components/Row.vue",
+          "name": "Row",
+          "slug": "row.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/row.md"
+        },
+        {
+          "path": "/src/components/SelectionMenu.vue",
+          "name": "SelectionMenu",
+          "slug": "selectionmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/selectionmenu.md"
+        },
+        {
+          "path": "/src/components/Splitter.vue",
+          "name": "Splitter",
+          "slug": "splitter.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/splitter.md"
+        },
+        {
+          "path": "/src/components/StatuBar.vue",
+          "name": "StatuBar",
+          "slug": "statubar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/statubar.md"
+        },
+        {
+          "path": "/src/components/TabNavigation.vue",
+          "name": "TabNavigation",
+          "slug": "tabnavigation.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tabnavigation.md"
+        },
+        {
+          "path": "/src/components/TagsComponent.vue",
+          "name": "TagsComponent",
+          "slug": "tagscomponent.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tagscomponent.md"
+        },
+        {
+          "path": "/src/components/ThemeSelector.vue",
+          "name": "ThemeSelector",
+          "slug": "themeselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/themeselector.md"
+        },
+        {
+          "path": "/src/components/TimeSelector.vue",
+          "name": "TimeSelector",
+          "slug": "timeselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/timeselector.md"
+        },
+        {
+          "path": "/src/components/Toast.vue",
+          "name": "Toast",
+          "slug": "src-components-toast.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-toast.md"
+        },
+        {
+          "path": "/src/components/ToolEventRow.vue",
+          "name": "ToolEventRow",
+          "slug": "tooleventrow.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tooleventrow.md"
+        },
+        {
+          "path": "/src/components/Toolbar.vue",
+          "name": "Toolbar",
+          "slug": "toolbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/toolbar.md"
+        },
+        {
+          "path": "/src/components/TopBar.vue",
+          "name": "TopBar",
+          "slug": "topbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/topbar.md"
+        },
+        {
+          "path": "/src/components/TopBarSearch.vue",
+          "name": "TopBarSearch",
+          "slug": "topbarsearch.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/topbarsearch.md"
+        },
+        {
+          "path": "/src/components/TreeItem.vue",
+          "name": "TreeItem",
+          "slug": "treeitem.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/treeitem.md"
+        },
+        {
+          "path": "/src/components/TreeView.vue",
+          "name": "TreeView",
+          "slug": "treeview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/treeview.md"
+        },
+        {
+          "path": "/src/components/UserInfo.vue",
+          "name": "UserInfo",
+          "slug": "userinfo.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/userinfo.md"
+        },
+        {
+          "path": "/src/components/UserInfoPanel.vue",
+          "name": "UserInfoPanel",
+          "slug": "userinfopanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/userinfopanel.md"
+        },
+        {
+          "path": "/src/components/UserList.vue",
+          "name": "UserList",
+          "slug": "userlist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/userlist.md"
+        },
+        {
+          "path": "/src/components/VSwatches.vue",
+          "name": "VSwatches",
+          "slug": "vswatches.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/vswatches.md"
+        },
+        {
+          "path": "/src/components/YoutubeViewer.vue",
+          "name": "YoutubeViewer",
+          "slug": "youtubeviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/youtubeviewer.md"
+        },
+        {
+          "path": "/src/components/ai_settings/AIModelSettings.vue",
+          "name": "AIModelSettings",
+          "slug": "aimodelsettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/aimodelsettings.md"
+        },
+        {
+          "path": "/src/components/ai_settings/AIModels.vue",
+          "name": "AIModels",
+          "slug": "aimodels.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/aimodels.md"
+        },
+        {
+          "path": "/src/components/ai_settings/AIModels2.vue",
+          "name": "AIModels2",
+          "slug": "aimodels2.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/aimodels2.md"
+        },
+        {
+          "path": "/src/components/ai_settings/AIProviderSettings.vue",
+          "name": "AIProviderSettings",
+          "slug": "aiprovidersettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/aiprovidersettings.md"
+        },
+        {
+          "path": "/src/components/ai_settings/AIProviders.vue",
+          "name": "AIProviders",
+          "slug": "aiproviders.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/aiproviders.md"
+        },
+        {
+          "path": "/src/components/ai_settings/AIProvidersAndModels.vue",
+          "name": "AIProvidersAndModels",
+          "slug": "aiprovidersandmodels.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/aiprovidersandmodels.md"
+        },
+        {
+          "path": "/src/components/ai_settings/AIProvidersAndModels_CardGrid.vue",
+          "name": "AIProvidersAndModels CardGrid",
+          "slug": "aiprovidersandmodels-cardgrid.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/aiprovidersandmodels-cardgrid.md"
+        },
+        {
+          "path": "/src/components/ai_settings/AISettingsExportImport.vue",
+          "name": "AISettingsExportImport",
+          "slug": "aisettingsexportimport.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/aisettingsexportimport.md"
+        },
+        {
+          "path": "/src/components/ai_settings/AgentSettings.vue",
+          "name": "AgentSettings",
+          "slug": "agentsettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/agentsettings.md"
+        },
+        {
+          "path": "/src/components/ai_settings/ModelSelector.vue",
+          "name": "ModelSelector",
+          "slug": "modelselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/modelselector.md"
+        },
+        {
+          "path": "/src/components/ai_settings/TagsManager.vue",
+          "name": "TagsManager",
+          "slug": "tagsmanager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tagsmanager.md"
+        },
+        {
+          "path": "/src/components/analytics/DailyChart.vue",
+          "name": "DailyChart",
+          "slug": "dailychart.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/dailychart.md"
+        },
+        {
+          "path": "/src/components/analytics/MetricsDashboard.vue",
+          "name": "MetricsDashboard",
+          "slug": "metricsdashboard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/metricsdashboard.md"
+        },
+        {
+          "path": "/src/components/analytics/PriceEditor.vue",
+          "name": "PriceEditor",
+          "slug": "priceeditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/priceeditor.md"
+        },
+        {
+          "path": "/src/components/apps/AgentStudio.vue",
+          "name": "AgentStudio",
+          "slug": "agentstudio.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/agentstudio.md"
+        },
+        {
+          "path": "/src/components/apps/AppBar.vue",
+          "name": "AppBar",
+          "slug": "appbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/appbar.md"
+        },
+        {
+          "path": "/src/components/apps/AppIcon.vue",
+          "name": "AppIcon",
+          "slug": "appicon.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/appicon.md"
+        },
+        {
+          "path": "/src/components/apps/Coder.vue",
+          "name": "Coder",
+          "slug": "coder.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/coder.md"
+        },
+        {
+          "path": "/src/components/apps/Preview.vue",
+          "name": "Preview",
+          "slug": "preview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/preview.md"
+        },
+        {
+          "path": "/src/components/assistant/codxjunior.vue",
+          "name": "Codxjunior",
+          "slug": "src-components-assistant-codxjunior.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-assistant-codxjunior.md"
+        },
+        {
+          "path": "/src/components/autocomplete/AutoComplete.vue",
+          "name": "AutoComplete",
+          "slug": "autocomplete.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/autocomplete.md"
+        },
+        {
+          "path": "/src/components/autocomplete/Editable.vue",
+          "name": "Editable",
+          "slug": "editable.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/editable.md"
+        },
+        {
+          "path": "/src/components/autocomplete/ProjectResourcesAutoComplete.vue",
+          "name": "ProjectResourcesAutoComplete",
+          "slug": "projectresourcesautocomplete.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectresourcesautocomplete.md"
+        },
+        {
+          "path": "/src/components/bar/SearchBar.vue",
+          "name": "SearchBar",
+          "slug": "searchbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/searchbar.md"
+        },
+        {
+          "path": "/src/components/browser/Browser.vue",
+          "name": "Browser",
+          "slug": "browser.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/browser.md"
+        },
+        {
+          "path": "/src/components/browsers/BrowserAnnotationBoard.vue",
+          "name": "BrowserAnnotationBoard",
+          "slug": "browserannotationboard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/browserannotationboard.md"
+        },
+        {
+          "path": "/src/components/browsers/BrowserFolderPicker.vue",
+          "name": "BrowserFolderPicker",
+          "slug": "browserfolderpicker.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/browserfolderpicker.md"
+        },
+        {
+          "path": "/src/components/browsers/BrowserSessionCreateModal.vue",
+          "name": "BrowserSessionCreateModal",
+          "slug": "browsersessioncreatemodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/browsersessioncreatemodal.md"
+        },
+        {
+          "path": "/src/components/browsers/BrowserSessionList.vue",
+          "name": "BrowserSessionList",
+          "slug": "browsersessionlist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/browsersessionlist.md"
+        },
+        {
+          "path": "/src/components/browsers/BrowserSessionPanel.vue",
+          "name": "BrowserSessionPanel",
+          "slug": "browsersessionpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/browsersessionpanel.md"
+        },
+        {
+          "path": "/src/components/browsers/BrowserViewer.vue",
+          "name": "BrowserViewer",
+          "slug": "browserviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/browserviewer.md"
+        },
+        {
+          "path": "/src/components/browsers/BrowsersSessionManager.vue",
+          "name": "BrowsersSessionManager",
+          "slug": "browserssessionmanager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/browserssessionmanager.md"
+        },
+        {
+          "path": "/src/components/browsers/ComputerImageLibrary.vue",
+          "name": "ComputerImageLibrary",
+          "slug": "computerimagelibrary.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/computerimagelibrary.md"
+        },
+        {
+          "path": "/src/components/browsers/DesktopViewer.vue",
+          "name": "DesktopViewer",
+          "slug": "desktopviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/desktopviewer.md"
+        },
+        {
+          "path": "/src/components/browsers/SaveComputerModal.vue",
+          "name": "SaveComputerModal",
+          "slug": "savecomputermodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/savecomputermodal.md"
+        },
+        {
+          "path": "/src/components/canva/CanvaEditor.vue",
+          "name": "CanvaEditor",
+          "slug": "canvaeditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/canvaeditor.md"
+        },
+        {
+          "path": "/src/components/canva/CanvaViewer.vue",
+          "name": "CanvaViewer",
+          "slug": "canvaviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/canvaviewer.md"
+        },
+        {
+          "path": "/src/components/chat/AddFileDialog.vue",
+          "name": "AddFileDialog",
+          "slug": "addfiledialog.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/addfiledialog.md"
+        },
+        {
+          "path": "/src/components/chat/Chat.vue",
+          "name": "Chat",
+          "slug": "src-components-chat-chat.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-chat-chat.md"
+        },
+        {
+          "path": "/src/components/chat/ChatAttachmentPreview.vue",
+          "name": "ChatAttachmentPreview",
+          "slug": "chatattachmentpreview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatattachmentpreview.md"
+        },
+        {
+          "path": "/src/components/chat/ChatBreadcrumb.vue",
+          "name": "ChatBreadcrumb",
+          "slug": "chatbreadcrumb.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatbreadcrumb.md"
+        },
+        {
+          "path": "/src/components/chat/ChatBrowser.vue",
+          "name": "ChatBrowser",
+          "slug": "chatbrowser.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatbrowser.md"
+        },
+        {
+          "path": "/src/components/chat/ChatCard.vue",
+          "name": "ChatCard",
+          "slug": "chatcard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatcard.md"
+        },
+        {
+          "path": "/src/components/chat/ChatChildrenTree.vue",
+          "name": "ChatChildrenTree",
+          "slug": "chatchildrentree.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatchildrentree.md"
+        },
+        {
+          "path": "/src/components/chat/ChatCostSelector.vue",
+          "name": "ChatCostSelector",
+          "slug": "chatcostselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatcostselector.md"
+        },
+        {
+          "path": "/src/components/chat/ChatDumpDialog.vue",
+          "name": "ChatDumpDialog",
+          "slug": "chatdumpdialog.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatdumpdialog.md"
+        },
+        {
+          "path": "/src/components/chat/ChatEntryToolSummary.vue",
+          "name": "ChatEntryToolSummary",
+          "slug": "chatentrytoolsummary.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatentrytoolsummary.md"
+        },
+        {
+          "path": "/src/components/chat/ChatFileList.vue",
+          "name": "ChatFileList",
+          "slug": "chatfilelist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatfilelist.md"
+        },
+        {
+          "path": "/src/components/chat/ChatFilePreview.vue",
+          "name": "ChatFilePreview",
+          "slug": "chatfilepreview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatfilepreview.md"
+        },
+        {
+          "path": "/src/components/chat/ChatFileSelectorModal.vue",
+          "name": "ChatFileSelectorModal",
+          "slug": "chatfileselectormodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatfileselectormodal.md"
+        },
+        {
+          "path": "/src/components/chat/ChatFileUploadConfirmModal.vue",
+          "name": "ChatFileUploadConfirmModal",
+          "slug": "chatfileuploadconfirmmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatfileuploadconfirmmodal.md"
+        },
+        {
+          "path": "/src/components/chat/ChatHistoryViewer.vue",
+          "name": "ChatHistoryViewer",
+          "slug": "chathistoryviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chathistoryviewer.md"
+        },
+        {
+          "path": "/src/components/chat/ChatIcon.vue",
+          "name": "ChatIcon",
+          "slug": "chaticon.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chaticon.md"
+        },
+        {
+          "path": "/src/components/chat/ChatImageCarousel.vue",
+          "name": "ChatImageCarousel",
+          "slug": "chatimagecarousel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatimagecarousel.md"
+        },
+        {
+          "path": "/src/components/chat/ChatImageConfirmModal.vue",
+          "name": "ChatImageConfirmModal",
+          "slug": "chatimageconfirmmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatimageconfirmmodal.md"
+        },
+        {
+          "path": "/src/components/chat/ChatImageEditorModal.vue",
+          "name": "ChatImageEditorModal",
+          "slug": "chatimageeditormodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatimageeditormodal.md"
+        },
+        {
+          "path": "/src/components/chat/ChatImagePreviewModal.vue",
+          "name": "ChatImagePreviewModal",
+          "slug": "chatimagepreviewmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatimagepreviewmodal.md"
+        },
+        {
+          "path": "/src/components/chat/ChatInputBox.vue",
+          "name": "ChatInputBox",
+          "slug": "chatinputbox.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatinputbox.md"
+        },
+        {
+          "path": "/src/components/chat/ChatInputToolbar.vue",
+          "name": "ChatInputToolbar",
+          "slug": "chatinputtoolbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatinputtoolbar.md"
+        },
+        {
+          "path": "/src/components/chat/ChatIntelliSense.vue",
+          "name": "ChatIntelliSense",
+          "slug": "chatintellisense.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatintellisense.md"
+        },
+        {
+          "path": "/src/components/chat/ChatLLMModelSelector.vue",
+          "name": "ChatLLMModelSelector",
+          "slug": "chatllmmodelselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatllmmodelselector.md"
+        },
+        {
+          "path": "/src/components/chat/ChatListRenderer.vue",
+          "name": "ChatListRenderer",
+          "slug": "chatlistrenderer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatlistrenderer.md"
+        },
+        {
+          "path": "/src/components/chat/ChatMentionBar.vue",
+          "name": "ChatMentionBar",
+          "slug": "chatmentionbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatmentionbar.md"
+        },
+        {
+          "path": "/src/components/chat/ChatMessageEditor.vue",
+          "name": "ChatMessageEditor",
+          "slug": "chatmessageeditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatmessageeditor.md"
+        },
+        {
+          "path": "/src/components/chat/ChatMessageEvents.vue",
+          "name": "ChatMessageEvents",
+          "slug": "chatmessageevents.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatmessageevents.md"
+        },
+        {
+          "path": "/src/components/chat/ChatMessageList.vue",
+          "name": "ChatMessageList",
+          "slug": "chatmessagelist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatmessagelist.md"
+        },
+        {
+          "path": "/src/components/chat/ChatMiniMap.vue",
+          "name": "ChatMiniMap",
+          "slug": "chatminimap.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatminimap.md"
+        },
+        {
+          "path": "/src/components/chat/ChatModeSelector.vue",
+          "name": "ChatModeSelector",
+          "slug": "chatmodeselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatmodeselector.md"
+        },
+        {
+          "path": "/src/components/chat/ChatNavigatorDrawer.vue",
+          "name": "ChatNavigatorDrawer",
+          "slug": "chatnavigatordrawer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatnavigatordrawer.md"
+        },
+        {
+          "path": "/src/components/chat/ChatNavigatorNode.vue",
+          "name": "ChatNavigatorNode",
+          "slug": "chatnavigatornode.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatnavigatornode.md"
+        },
+        {
+          "path": "/src/components/chat/ChatNodeHoverPanel.vue",
+          "name": "ChatNodeHoverPanel",
+          "slug": "chatnodehoverpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatnodehoverpanel.md"
+        },
+        {
+          "path": "/src/components/chat/ChatProfileSelector.vue",
+          "name": "ChatProfileSelector",
+          "slug": "chatprofileselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatprofileselector.md"
+        },
+        {
+          "path": "/src/components/chat/ChatRecentItem.vue",
+          "name": "ChatRecentItem",
+          "slug": "chatrecentitem.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatrecentitem.md"
+        },
+        {
+          "path": "/src/components/chat/ChatRunBar.vue",
+          "name": "ChatRunBar",
+          "slug": "chatrunbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatrunbar.md"
+        },
+        {
+          "path": "/src/components/chat/ChatSearch.vue",
+          "name": "ChatSearch",
+          "slug": "chatsearch.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatsearch.md"
+        },
+        {
+          "path": "/src/components/chat/ChatSelector.vue",
+          "name": "ChatSelector",
+          "slug": "chatselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatselector.md"
+        },
+        {
+          "path": "/src/components/chat/ChatSidebar.vue",
+          "name": "ChatSidebar",
+          "slug": "chatsidebar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatsidebar.md"
+        },
+        {
+          "path": "/src/components/chat/ChatSidebarNode.vue",
+          "name": "ChatSidebarNode",
+          "slug": "chatsidebarnode.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatsidebarnode.md"
+        },
+        {
+          "path": "/src/components/chat/ChatSidebarNodeCompact.vue",
+          "name": "ChatSidebarNodeCompact",
+          "slug": "chatsidebarnodecompact.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatsidebarnodecompact.md"
+        },
+        {
+          "path": "/src/components/chat/ChatSidebarNodeExtended.vue",
+          "name": "ChatSidebarNodeExtended",
+          "slug": "chatsidebarnodeextended.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatsidebarnodeextended.md"
+        },
+        {
+          "path": "/src/components/chat/ChatStatusSelector.vue",
+          "name": "ChatStatusSelector",
+          "slug": "chatstatusselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatstatusselector.md"
+        },
+        {
+          "path": "/src/components/chat/ChatTreeNode.vue",
+          "name": "ChatTreeNode",
+          "slug": "chattreenode.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chattreenode.md"
+        },
+        {
+          "path": "/src/components/chat/ChatViewHeader.vue",
+          "name": "ChatViewHeader",
+          "slug": "chatviewheader.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatviewheader.md"
+        },
+        {
+          "path": "/src/components/chat/CheckLists.vue",
+          "name": "CheckLists",
+          "slug": "checklists.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/checklists.md"
+        },
+        {
+          "path": "/src/components/chat/EmojiPicker.vue",
+          "name": "EmojiPicker",
+          "slug": "emojipicker.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/emojipicker.md"
+        },
+        {
+          "path": "/src/components/chat/ExportChat.vue",
+          "name": "ExportChat",
+          "slug": "exportchat.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/exportchat.md"
+        },
+        {
+          "path": "/src/components/chat/FileActionMenu.vue",
+          "name": "FileActionMenu",
+          "slug": "fileactionmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/fileactionmenu.md"
+        },
+        {
+          "path": "/src/components/chat/FindReplaceBox.vue",
+          "name": "FindReplaceBox",
+          "slug": "findreplacebox.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/findreplacebox.md"
+        },
+        {
+          "path": "/src/components/chat/LLMModelSelector.vue",
+          "name": "LLMModelSelector",
+          "slug": "llmmodelselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/llmmodelselector.md"
+        },
+        {
+          "path": "/src/components/chat/MeetChatPanel.vue",
+          "name": "MeetChatPanel",
+          "slug": "meetchatpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetchatpanel.md"
+        },
+        {
+          "path": "/src/components/chat/MessageFileView.vue",
+          "name": "MessageFileView",
+          "slug": "messagefileview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/messagefileview.md"
+        },
+        {
+          "path": "/src/components/chat/MessagePRView.vue",
+          "name": "MessagePRView",
+          "slug": "messageprview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/messageprview.md"
+        },
+        {
+          "path": "/src/components/chat/ParentContentIndicator.vue",
+          "name": "ParentContentIndicator",
+          "slug": "parentcontentindicator.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/parentcontentindicator.md"
+        },
+        {
+          "path": "/src/components/chat/ProfileDrawer.vue",
+          "name": "ProfileDrawer",
+          "slug": "profiledrawer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/profiledrawer.md"
+        },
+        {
+          "path": "/src/components/chat/QuickChatCreator.vue",
+          "name": "QuickChatCreator",
+          "slug": "quickchatcreator.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/quickchatcreator.md"
+        },
+        {
+          "path": "/src/components/chat/Selector.vue",
+          "name": "Selector",
+          "slug": "selector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/selector.md"
+        },
+        {
+          "path": "/src/components/chat/UserSelector.vue",
+          "name": "UserSelector",
+          "slug": "src-components-chat-userselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-chat-userselector.md"
+        },
+        {
+          "path": "/src/components/chats/RecentChatsQuickAccess.vue",
+          "name": "RecentChatsQuickAccess",
+          "slug": "recentchatsquickaccess.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/recentchatsquickaccess.md"
+        },
+        {
+          "path": "/src/components/code-editor/CodeEditor.jsx",
+          "name": "CodeEditor",
+          "slug": "src-components-code-editor-codeeditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-code-editor-codeeditor.md"
+        },
+        {
+          "path": "/src/components/code/GitDiffViewer.vue",
+          "name": "GitDiffViewer",
+          "slug": "gitdiffviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/gitdiffviewer.md"
+        },
+        {
+          "path": "/src/components/codx-junior/Assistant.vue",
+          "name": "Assistant",
+          "slug": "assistant.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/assistant.md"
+        },
+        {
+          "path": "/src/components/codx-junior/AssistantChat.vue",
+          "name": "AssistantChat",
+          "slug": "assistantchat.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/assistantchat.md"
+        },
+        {
+          "path": "/src/components/company/CompanyActivityPanel.vue",
+          "name": "CompanyActivityPanel",
+          "slug": "companyactivitypanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companyactivitypanel.md"
+        },
+        {
+          "path": "/src/components/company/CompanyAssistant.vue",
+          "name": "CompanyAssistant",
+          "slug": "companyassistant.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companyassistant.md"
+        },
+        {
+          "path": "/src/components/company/CompanyChatPanel.vue",
+          "name": "CompanyChatPanel",
+          "slug": "companychatpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companychatpanel.md"
+        },
+        {
+          "path": "/src/components/company/CompanyMissionsPanel.vue",
+          "name": "CompanyMissionsPanel",
+          "slug": "companymissionspanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companymissionspanel.md"
+        },
+        {
+          "path": "/src/components/company/CompanyOrganizationPanel.vue",
+          "name": "CompanyOrganizationPanel",
+          "slug": "companyorganizationpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companyorganizationpanel.md"
+        },
+        {
+          "path": "/src/components/company/CompanyOverviewPanel.vue",
+          "name": "CompanyOverviewPanel",
+          "slug": "companyoverviewpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companyoverviewpanel.md"
+        },
+        {
+          "path": "/src/components/company/CompanyPeoplePanel.vue",
+          "name": "CompanyPeoplePanel",
+          "slug": "companypeoplepanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companypeoplepanel.md"
+        },
+        {
+          "path": "/src/components/company/CompanyProjectsPanel.vue",
+          "name": "CompanyProjectsPanel",
+          "slug": "companyprojectspanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companyprojectspanel.md"
+        },
+        {
+          "path": "/src/components/company/CompanySimpleHome.vue",
+          "name": "CompanySimpleHome",
+          "slug": "companysimplehome.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companysimplehome.md"
+        },
+        {
+          "path": "/src/components/company/CompanyTeamsPanel.vue",
+          "name": "CompanyTeamsPanel",
+          "slug": "companyteamspanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companyteamspanel.md"
+        },
+        {
+          "path": "/src/components/company/companyMeta.js",
+          "name": "CompanyMeta",
+          "slug": "companymeta.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companymeta.md"
+        },
+        {
+          "path": "/src/components/console/ConsoleScriptConfirm.vue",
+          "name": "ConsoleScriptConfirm",
+          "slug": "consolescriptconfirm.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/consolescriptconfirm.md"
+        },
+        {
+          "path": "/src/components/data/DataDetails.vue",
+          "name": "DataDetails",
+          "slug": "datadetails.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/datadetails.md"
+        },
+        {
+          "path": "/src/components/data/DataExplorer.vue",
+          "name": "DataExplorer",
+          "slug": "dataexplorer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/dataexplorer.md"
+        },
+        {
+          "path": "/src/components/data/DataRow.vue",
+          "name": "DataRow",
+          "slug": "datarow.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/datarow.md"
+        },
+        {
+          "path": "/src/components/desktop/Desktop.vue",
+          "name": "Desktop",
+          "slug": "desktop.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/desktop.md"
+        },
+        {
+          "path": "/src/components/desktop/EmptyStateWelcome.vue",
+          "name": "EmptyStateWelcome",
+          "slug": "emptystatewelcome.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/emptystatewelcome.md"
+        },
+        {
+          "path": "/src/components/desktop/GroupHeaderActions.vue",
+          "name": "GroupHeaderActions",
+          "slug": "groupheaderactions.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/groupheaderactions.md"
+        },
+        {
+          "path": "/src/components/desktop/Tab.vue",
+          "name": "Tab",
+          "slug": "tab.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tab.md"
+        },
+        {
+          "path": "/src/components/desktop/VibeDesktop.vue",
+          "name": "VibeDesktop",
+          "slug": "vibedesktop.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/vibedesktop.md"
+        },
+        {
+          "path": "/src/components/desktop/Window.vue",
+          "name": "Window",
+          "slug": "src-components-desktop-window.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-desktop-window.md"
+        },
+        {
+          "path": "/src/components/document/ChapterBlock.vue",
+          "name": "ChapterBlock",
+          "slug": "chapterblock.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chapterblock.md"
+        },
+        {
+          "path": "/src/components/document/ChapterMenu.vue",
+          "name": "ChapterMenu",
+          "slug": "chaptermenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chaptermenu.md"
+        },
+        {
+          "path": "/src/components/document/Document.vue",
+          "name": "Document",
+          "slug": "document.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/document.md"
+        },
+        {
+          "path": "/src/components/document/DocumentSummary.vue",
+          "name": "DocumentSummary",
+          "slug": "documentsummary.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/documentsummary.md"
+        },
+        {
+          "path": "/src/components/document/EditableBlock.vue",
+          "name": "EditableBlock",
+          "slug": "editableblock.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/editableblock.md"
+        },
+        {
+          "path": "/src/components/document/TipTapDocument.vue",
+          "name": "TipTapDocument",
+          "slug": "tiptapdocument.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tiptapdocument.md"
+        },
+        {
+          "path": "/src/components/document/TuiEditor.vue.delete",
+          "name": "TuiEditor.vue",
+          "slug": "tuieditor-vue.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tuieditor-vue.md"
+        },
+        {
+          "path": "/src/components/document/Word.vue",
+          "name": "Word",
+          "slug": "word.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/word.md"
+        },
+        {
+          "path": "/src/components/dummy.vue",
+          "name": "Dummy",
+          "slug": "dummy.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/dummy.md"
+        },
+        {
+          "path": "/src/components/events/EventList.vue",
+          "name": "EventList",
+          "slug": "eventlist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/eventlist.md"
+        },
+        {
+          "path": "/src/components/filebrowser/ContextMenu.vue",
+          "name": "ContextMenu",
+          "slug": "src-components-filebrowser-contextmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-filebrowser-contextmenu.md"
+        },
+        {
+          "path": "/src/components/filebrowser/CreateFileDialog.vue",
+          "name": "CreateFileDialog",
+          "slug": "createfiledialog.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/createfiledialog.md"
+        },
+        {
+          "path": "/src/components/filebrowser/FileExplorer.vue",
+          "name": "FileExplorer",
+          "slug": "fileexplorer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/fileexplorer.md"
+        },
+        {
+          "path": "/src/components/filebrowser/FileExplorerPanel.vue",
+          "name": "FileExplorerPanel",
+          "slug": "fileexplorerpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/fileexplorerpanel.md"
+        },
+        {
+          "path": "/src/components/filebrowser/FileSlideShow.vue",
+          "name": "FileSlideShow",
+          "slug": "fileslideshow.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/fileslideshow.md"
+        },
+        {
+          "path": "/src/components/filebrowser/FileViewer.vue",
+          "name": "FileViewer",
+          "slug": "fileviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/fileviewer.md"
+        },
+        {
+          "path": "/src/components/filebrowser/MoveDialog.vue",
+          "name": "MoveDialog",
+          "slug": "movedialog.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/movedialog.md"
+        },
+        {
+          "path": "/src/components/filebrowser/TabManager.vue",
+          "name": "TabManager",
+          "slug": "tabmanager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tabmanager.md"
+        },
+        {
+          "path": "/src/components/git/BranchSelector.vue",
+          "name": "BranchSelector",
+          "slug": "src-components-git-branchselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-git-branchselector.md"
+        },
+        {
+          "path": "/src/components/global_settings/ChatGlobalPrompts.vue",
+          "name": "ChatGlobalPrompts",
+          "slug": "chatglobalprompts.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatglobalprompts.md"
+        },
+        {
+          "path": "/src/components/global_settings/DshIntegrationPanel.vue",
+          "name": "DshIntegrationPanel",
+          "slug": "dshintegrationpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/dshintegrationpanel.md"
+        },
+        {
+          "path": "/src/components/global_settings/EnvVariablesEditor.vue",
+          "name": "EnvVariablesEditor",
+          "slug": "envvariableseditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/envvariableseditor.md"
+        },
+        {
+          "path": "/src/components/global_settings/GeneralSettings.vue",
+          "name": "GeneralSettings",
+          "slug": "generalsettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/generalsettings.md"
+        },
+        {
+          "path": "/src/components/global_settings/plugins/LoadPluginModal.vue",
+          "name": "LoadPluginModal",
+          "slug": "loadpluginmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/loadpluginmodal.md"
+        },
+        {
+          "path": "/src/components/global_settings/plugins/PluginCard.vue",
+          "name": "PluginCard",
+          "slug": "plugincard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/plugincard.md"
+        },
+        {
+          "path": "/src/components/global_settings/plugins/PluginModal.vue",
+          "name": "PluginModal",
+          "slug": "pluginmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/pluginmodal.md"
+        },
+        {
+          "path": "/src/components/global_settings/plugins/PluginsEditor.vue",
+          "name": "PluginsEditor",
+          "slug": "pluginseditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/pluginseditor.md"
+        },
+        {
+          "path": "/src/components/global_settings/plugins/PluginsGrid.vue",
+          "name": "PluginsGrid",
+          "slug": "pluginsgrid.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/pluginsgrid.md"
+        },
+        {
+          "path": "/src/components/icons/IconCommunity.vue",
+          "name": "IconCommunity",
+          "slug": "iconcommunity.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/iconcommunity.md"
+        },
+        {
+          "path": "/src/components/icons/IconDocumentation.vue",
+          "name": "IconDocumentation",
+          "slug": "icondocumentation.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/icondocumentation.md"
+        },
+        {
+          "path": "/src/components/icons/IconEcosystem.vue",
+          "name": "IconEcosystem",
+          "slug": "iconecosystem.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/iconecosystem.md"
+        },
+        {
+          "path": "/src/components/icons/IconSupport.vue",
+          "name": "IconSupport",
+          "slug": "iconsupport.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/iconsupport.md"
+        },
+        {
+          "path": "/src/components/icons/IconTooling.vue",
+          "name": "IconTooling",
+          "slug": "icontooling.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/icontooling.md"
+        },
+        {
+          "path": "/src/components/icons/IconZoomIn.vue",
+          "name": "IconZoomIn",
+          "slug": "iconzoomin.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/iconzoomin.md"
+        },
+        {
+          "path": "/src/components/icons/IconZoomOut.vue",
+          "name": "IconZoomOut",
+          "slug": "iconzoomout.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/iconzoomout.md"
+        },
+        {
+          "path": "/src/components/kanban/Badge.vue",
+          "name": "Badge",
+          "slug": "badge.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/badge.md"
+        },
+        {
+          "path": "/src/components/kanban/BoardManagerModal.vue",
+          "name": "BoardManagerModal",
+          "slug": "boardmanagermodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/boardmanagermodal.md"
+        },
+        {
+          "path": "/src/components/kanban/ChatHistory.vue",
+          "name": "ChatHistory",
+          "slug": "chathistory.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chathistory.md"
+        },
+        {
+          "path": "/src/components/kanban/GlobalTaskSearch.vue",
+          "name": "GlobalTaskSearch",
+          "slug": "globaltasksearch.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/globaltasksearch.md"
+        },
+        {
+          "path": "/src/components/kanban/Kanban.vue",
+          "name": "Kanban",
+          "slug": "src-components-kanban-kanban.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-kanban-kanban.md"
+        },
+        {
+          "path": "/src/components/kanban/KanbanBoardModal.vue",
+          "name": "KanbanBoardModal",
+          "slug": "kanbanboardmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbanboardmodal.md"
+        },
+        {
+          "path": "/src/components/kanban/KanbanColumnView.vue",
+          "name": "KanbanColumnView",
+          "slug": "kanbancolumnview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbancolumnview.md"
+        },
+        {
+          "path": "/src/components/kanban/KanbanContainer.vue",
+          "name": "KanbanContainer",
+          "slug": "kanbancontainer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbancontainer.md"
+        },
+        {
+          "path": "/src/components/kanban/KanbanFilesView.vue",
+          "name": "KanbanFilesView",
+          "slug": "kanbanfilesview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbanfilesview.md"
+        },
+        {
+          "path": "/src/components/kanban/KanbanGridView.vue",
+          "name": "KanbanGridView",
+          "slug": "kanbangridview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbangridview.md"
+        },
+        {
+          "path": "/src/components/kanban/KanbanList.vue",
+          "name": "KanbanList",
+          "slug": "kanbanlist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbanlist.md"
+        },
+        {
+          "path": "/src/components/kanban/KanbanSettings.vue",
+          "name": "KanbanSettings",
+          "slug": "kanbansettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbansettings.md"
+        },
+        {
+          "path": "/src/components/kanban/KanbanTreeNode.vue",
+          "name": "KanbanTreeNode",
+          "slug": "kanbantreenode.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbantreenode.md"
+        },
+        {
+          "path": "/src/components/kanban/KanbanView.vue",
+          "name": "KanbanView",
+          "slug": "src-components-kanban-kanbanview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-kanban-kanbanview.md"
+        },
+        {
+          "path": "/src/components/kanban/NewEditBoardModal.vue",
+          "name": "NewEditBoardModal",
+          "slug": "neweditboardmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/neweditboardmodal.md"
+        },
+        {
+          "path": "/src/components/kanban/TaskCard.vue",
+          "name": "TaskCard",
+          "slug": "taskcard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/taskcard.md"
+        },
+        {
+          "path": "/src/components/kanban/TaskCardLite.vue",
+          "name": "TaskCardLite",
+          "slug": "taskcardlite.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/taskcardlite.md"
+        },
+        {
+          "path": "/src/components/kanban/TaskSettings.vue",
+          "name": "TaskSettings",
+          "slug": "tasksettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tasksettings.md"
+        },
+        {
+          "path": "/src/components/kanban/board/AssistantQuickChatButton.vue",
+          "name": "AssistantQuickChatButton",
+          "slug": "assistantquickchatbutton.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/assistantquickchatbutton.md"
+        },
+        {
+          "path": "/src/components/kanban/board/BoardAssistantChat.vue",
+          "name": "BoardAssistantChat",
+          "slug": "boardassistantchat.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/boardassistantchat.md"
+        },
+        {
+          "path": "/src/components/kanban/board/BoardQuickChat.vue",
+          "name": "BoardQuickChat",
+          "slug": "boardquickchat.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/boardquickchat.md"
+        },
+        {
+          "path": "/src/components/kanban/board/BoardTransferModal.vue",
+          "name": "BoardTransferModal",
+          "slug": "boardtransfermodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/boardtransfermodal.md"
+        },
+        {
+          "path": "/src/components/kanban/board/FollowupView.vue",
+          "name": "FollowupView",
+          "slug": "followupview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/followupview.md"
+        },
+        {
+          "path": "/src/components/kanban/board/KanbanBoardCanvas.vue",
+          "name": "KanbanBoardCanvas",
+          "slug": "kanbanboardcanvas.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbanboardcanvas.md"
+        },
+        {
+          "path": "/src/components/kanban/board/KanbanBoardColumn.vue",
+          "name": "KanbanBoardColumn",
+          "slug": "kanbanboardcolumn.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbanboardcolumn.md"
+        },
+        {
+          "path": "/src/components/kanban/board/KanbanBoardSidebar.vue",
+          "name": "KanbanBoardSidebar",
+          "slug": "kanbanboardsidebar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbanboardsidebar.md"
+        },
+        {
+          "path": "/src/components/kanban/board/KanbanBoardTaskRow.vue",
+          "name": "KanbanBoardTaskRow",
+          "slug": "kanbanboardtaskrow.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbanboardtaskrow.md"
+        },
+        {
+          "path": "/src/components/kanban/board/KanbanBoardView.vue",
+          "name": "KanbanBoardView",
+          "slug": "kanbanboardview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/kanbanboardview.md"
+        },
+        {
+          "path": "/src/components/kanban/board/PlanningRangeFilter.vue",
+          "name": "PlanningRangeFilter",
+          "slug": "planningrangefilter.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/planningrangefilter.md"
+        },
+        {
+          "path": "/src/components/kanban/board/PlanningView.vue",
+          "name": "PlanningView",
+          "slug": "planningview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/planningview.md"
+        },
+        {
+          "path": "/src/components/kanban/board/SprintBoardCanvas.vue",
+          "name": "SprintBoardCanvas",
+          "slug": "sprintboardcanvas.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/sprintboardcanvas.md"
+        },
+        {
+          "path": "/src/components/kanban/board/SprintBoardColumn.vue",
+          "name": "SprintBoardColumn",
+          "slug": "sprintboardcolumn.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/sprintboardcolumn.md"
+        },
+        {
+          "path": "/src/components/kanban/board/SprintBoardGantt.vue",
+          "name": "SprintBoardGantt",
+          "slug": "sprintboardgantt.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/sprintboardgantt.md"
+        },
+        {
+          "path": "/src/components/kanban/board/SprintBoardModals.vue",
+          "name": "SprintBoardModals",
+          "slug": "sprintboardmodals.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/sprintboardmodals.md"
+        },
+        {
+          "path": "/src/components/kanban/board/SprintTaskCard.vue",
+          "name": "SprintTaskCard",
+          "slug": "sprinttaskcard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/sprinttaskcard.md"
+        },
+        {
+          "path": "/src/components/kanban/board/TaskTableView.vue",
+          "name": "TaskTableView",
+          "slug": "tasktableview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tasktableview.md"
+        },
+        {
+          "path": "/src/components/knowledge/KnowledgeSearch.vue",
+          "name": "KnowledgeSearch",
+          "slug": "src-components-knowledge-knowledgesearch.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-knowledge-knowledgesearch.md"
+        },
+        {
+          "path": "/src/components/knowledge/settings/KnowledgeFileList.vue",
+          "name": "KnowledgeFileList",
+          "slug": "knowledgefilelist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/knowledgefilelist.md"
+        },
+        {
+          "path": "/src/components/knowledge/settings/KnowledgeIgnorePatterns.vue",
+          "name": "KnowledgeIgnorePatterns",
+          "slug": "knowledgeignorepatterns.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/knowledgeignorepatterns.md"
+        },
+        {
+          "path": "/src/components/knowledge/settings/KnowledgeIndex.vue",
+          "name": "KnowledgeIndex",
+          "slug": "knowledgeindex.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/knowledgeindex.md"
+        },
+        {
+          "path": "/src/components/knowledge/settings/KnowledgeIndexStats.vue",
+          "name": "KnowledgeIndexStats",
+          "slug": "knowledgeindexstats.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/knowledgeindexstats.md"
+        },
+        {
+          "path": "/src/components/knowledge/settings/KnowledgeSearch.vue",
+          "name": "KnowledgeSearch",
+          "slug": "src-components-knowledge-settings-knowledgesearch.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-knowledge-settings-knowledgesearch.md"
+        },
+        {
+          "path": "/src/components/layout/AppsSection.vue",
+          "name": "AppsSection",
+          "slug": "appssection.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/appssection.md"
+        },
+        {
+          "path": "/src/components/layout/DesktopSidebar.vue",
+          "name": "DesktopSidebar",
+          "slug": "desktopsidebar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/desktopsidebar.md"
+        },
+        {
+          "path": "/src/components/layout/MoreSection.vue",
+          "name": "MoreSection",
+          "slug": "moresection.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/moresection.md"
+        },
+        {
+          "path": "/src/components/layout/NavItem.vue",
+          "name": "NavItem",
+          "slug": "navitem.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/navitem.md"
+        },
+        {
+          "path": "/src/components/layout/PinnedProjectsSwitcher.vue",
+          "name": "PinnedProjectsSwitcher",
+          "slug": "pinnedprojectsswitcher.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/pinnedprojectsswitcher.md"
+        },
+        {
+          "path": "/src/components/layout/RecentItem.vue",
+          "name": "RecentItem",
+          "slug": "recentitem.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/recentitem.md"
+        },
+        {
+          "path": "/src/components/layout/RecentsSection.vue",
+          "name": "RecentsSection",
+          "slug": "recentssection.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/recentssection.md"
+        },
+        {
+          "path": "/src/components/layout/VerticalSplitter.vue",
+          "name": "VerticalSplitter",
+          "slug": "verticalsplitter.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/verticalsplitter.md"
+        },
+        {
+          "path": "/src/components/layout/ViewModeToggle.vue",
+          "name": "ViewModeToggle",
+          "slug": "viewmodetoggle.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/viewmodetoggle.md"
+        },
+        {
+          "path": "/src/components/layout/WorkspacesSection.vue",
+          "name": "WorkspacesSection",
+          "slug": "workspacessection.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacessection.md"
+        },
+        {
+          "path": "/src/components/logs/LlmRequestsViewer.vue",
+          "name": "LlmRequestsViewer",
+          "slug": "llmrequestsviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/llmrequestsviewer.md"
+        },
+        {
+          "path": "/src/components/logs/LogEntryDetail.vue",
+          "name": "LogEntryDetail",
+          "slug": "logentrydetail.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/logentrydetail.md"
+        },
+        {
+          "path": "/src/components/logs/LogsAnalytics.vue",
+          "name": "LogsAnalytics",
+          "slug": "logsanalytics.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/logsanalytics.md"
+        },
+        {
+          "path": "/src/components/logs/LogsAnalyzerDashboard.vue",
+          "name": "LogsAnalyzerDashboard",
+          "slug": "logsanalyzerdashboard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/logsanalyzerdashboard.md"
+        },
+        {
+          "path": "/src/components/logs/LogsFilterBar.vue",
+          "name": "LogsFilterBar",
+          "slug": "logsfilterbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/logsfilterbar.md"
+        },
+        {
+          "path": "/src/components/logs/LogsLiveMetrics.vue",
+          "name": "LogsLiveMetrics",
+          "slug": "logslivemetrics.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/logslivemetrics.md"
+        },
+        {
+          "path": "/src/components/logs/LogsTable.vue",
+          "name": "LogsTable",
+          "slug": "logstable.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/logstable.md"
+        },
+        {
+          "path": "/src/components/main-menu/MainMenu.vue",
+          "name": "MainMenu",
+          "slug": "mainmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mainmenu.md"
+        },
+        {
+          "path": "/src/components/main-menu/MainMenuItems.vue",
+          "name": "MainMenuItems",
+          "slug": "mainmenuitems.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mainmenuitems.md"
+        },
+        {
+          "path": "/src/components/main-menu/MenuDivider.vue",
+          "name": "MenuDivider",
+          "slug": "menudivider.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/menudivider.md"
+        },
+        {
+          "path": "/src/components/main-menu/MenubarItem.vue",
+          "name": "MenubarItem",
+          "slug": "menubaritem.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/menubaritem.md"
+        },
+        {
+          "path": "/src/components/main-menu/MenubarSub.vue",
+          "name": "MenubarSub",
+          "slug": "menubarsub.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/menubarsub.md"
+        },
+        {
+          "path": "/src/components/main-menu/ProjectLabel.vue",
+          "name": "ProjectLabel",
+          "slug": "projectlabel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectlabel.md"
+        },
+        {
+          "path": "/src/components/main-menu/ProjectsMenu.vue",
+          "name": "ProjectsMenu",
+          "slug": "projectsmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectsmenu.md"
+        },
+        {
+          "path": "/src/components/main-menu/SettingsMenu.vue",
+          "name": "SettingsMenu",
+          "slug": "settingsmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/settingsmenu.md"
+        },
+        {
+          "path": "/src/components/main-menu/ViewProperties.vue",
+          "name": "ViewProperties",
+          "slug": "viewproperties.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/viewproperties.md"
+        },
+        {
+          "path": "/src/components/main-menu/ViewsMenu.vue",
+          "name": "ViewsMenu",
+          "slug": "viewsmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/viewsmenu.md"
+        },
+        {
+          "path": "/src/components/main-menu/WindowsMenu.vue",
+          "name": "WindowsMenu",
+          "slug": "windowsmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/windowsmenu.md"
+        },
+        {
+          "path": "/src/components/main-menu/WindowsMenuItems.vue",
+          "name": "WindowsMenuItems",
+          "slug": "windowsmenuitems.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/windowsmenuitems.md"
+        },
+        {
+          "path": "/src/components/main-menu/WorkspacesMenu.vue",
+          "name": "WorkspacesMenu",
+          "slug": "workspacesmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacesmenu.md"
+        },
+        {
+          "path": "/src/components/management/AssistantAvatar.vue",
+          "name": "AssistantAvatar",
+          "slug": "assistantavatar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/assistantavatar.md"
+        },
+        {
+          "path": "/src/components/management/AssistantChatButton.vue",
+          "name": "AssistantChatButton",
+          "slug": "assistantchatbutton.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/assistantchatbutton.md"
+        },
+        {
+          "path": "/src/components/management/ManagementQuickChat.vue",
+          "name": "ManagementQuickChat",
+          "slug": "managementquickchat.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/managementquickchat.md"
+        },
+        {
+          "path": "/src/components/management/ProjectFilter.vue",
+          "name": "ProjectFilter",
+          "slug": "projectfilter.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectfilter.md"
+        },
+        {
+          "path": "/src/components/management/ProjectTag.vue",
+          "name": "ProjectTag",
+          "slug": "projecttag.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projecttag.md"
+        },
+        {
+          "path": "/src/components/media/MediaGallery.vue",
+          "name": "MediaGallery",
+          "slug": "mediagallery.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mediagallery.md"
+        },
+        {
+          "path": "/src/components/media/MediaLibrary.vue",
+          "name": "MediaLibrary",
+          "slug": "medialibrary.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/medialibrary.md"
+        },
+        {
+          "path": "/src/components/media/MediaManager.vue",
+          "name": "MediaManager",
+          "slug": "mediamanager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mediamanager.md"
+        },
+        {
+          "path": "/src/components/media/MediaPreview.vue",
+          "name": "MediaPreview",
+          "slug": "mediapreview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mediapreview.md"
+        },
+        {
+          "path": "/src/components/media/MediaUploadDialog.vue",
+          "name": "MediaUploadDialog",
+          "slug": "mediauploaddialog.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mediauploaddialog.md"
+        },
+        {
+          "path": "/src/components/meet/MeetBrowserPanel.vue",
+          "name": "MeetBrowserPanel",
+          "slug": "meetbrowserpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetbrowserpanel.md"
+        },
+        {
+          "path": "/src/components/meet/MeetControls.vue",
+          "name": "MeetControls",
+          "slug": "meetcontrols.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetcontrols.md"
+        },
+        {
+          "path": "/src/components/meet/MeetHeader.vue",
+          "name": "MeetHeader",
+          "slug": "meetheader.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetheader.md"
+        },
+        {
+          "path": "/src/components/meet/MeetInviteModal.vue",
+          "name": "MeetInviteModal",
+          "slug": "meetinvitemodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetinvitemodal.md"
+        },
+        {
+          "path": "/src/components/meet/MeetParticipants.vue",
+          "name": "MeetParticipants",
+          "slug": "meetparticipants.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetparticipants.md"
+        },
+        {
+          "path": "/src/components/meet/MeetSettingsModal.vue",
+          "name": "MeetSettingsModal",
+          "slug": "meetsettingsmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetsettingsmodal.md"
+        },
+        {
+          "path": "/src/components/meet/MicIndicator.vue",
+          "name": "MicIndicator",
+          "slug": "micindicator.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/micindicator.md"
+        },
+        {
+          "path": "/src/components/mentions/MentionSelector.vue",
+          "name": "MentionSelector",
+          "slug": "mentionselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mentionselector.md"
+        },
+        {
+          "path": "/src/components/mermaid/MermaidCanvas.vue",
+          "name": "MermaidCanvas",
+          "slug": "mermaidcanvas.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mermaidcanvas.md"
+        },
+        {
+          "path": "/src/components/mermaid/MermaidToolbar.vue",
+          "name": "MermaidToolbar",
+          "slug": "mermaidtoolbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mermaidtoolbar.md"
+        },
+        {
+          "path": "/src/components/messenger/MessengerChannelList.vue",
+          "name": "MessengerChannelList",
+          "slug": "messengerchannellist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/messengerchannellist.md"
+        },
+        {
+          "path": "/src/components/messenger/MessengerGroupInfo.vue",
+          "name": "MessengerGroupInfo",
+          "slug": "messengergroupinfo.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/messengergroupinfo.md"
+        },
+        {
+          "path": "/src/components/metrics/HeatMap.vue",
+          "name": "HeatMap",
+          "slug": "heatmap.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/heatmap.md"
+        },
+        {
+          "path": "/src/components/metrics/MetricsViewer.vue",
+          "name": "MetricsViewer",
+          "slug": "metricsviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/metricsviewer.md"
+        },
+        {
+          "path": "/src/components/metrics/RequestMetrics.vue",
+          "name": "RequestMetrics",
+          "slug": "requestmetrics.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/requestmetrics.md"
+        },
+        {
+          "path": "/src/components/mobile/MenuBar.vue",
+          "name": "MenuBar",
+          "slug": "menubar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/menubar.md"
+        },
+        {
+          "path": "/src/components/mobile/MobileActionSheet.vue",
+          "name": "MobileActionSheet",
+          "slug": "mobileactionsheet.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mobileactionsheet.md"
+        },
+        {
+          "path": "/src/components/mobile/MobileChatRow.vue",
+          "name": "MobileChatRow",
+          "slug": "mobilechatrow.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mobilechatrow.md"
+        },
+        {
+          "path": "/src/components/mobile/MobileChatsView.vue",
+          "name": "MobileChatsView",
+          "slug": "mobilechatsview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mobilechatsview.md"
+        },
+        {
+          "path": "/src/components/mobile/MobileMenu.vue",
+          "name": "MobileMenu",
+          "slug": "src-components-mobile-mobilemenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-mobile-mobilemenu.md"
+        },
+        {
+          "path": "/src/components/mobile/MobileShell.vue",
+          "name": "MobileShell",
+          "slug": "mobileshell.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mobileshell.md"
+        },
+        {
+          "path": "/src/components/mobile/MobileTabBar.vue",
+          "name": "MobileTabBar",
+          "slug": "mobiletabbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mobiletabbar.md"
+        },
+        {
+          "path": "/src/components/mobile/MobileTopBar.vue",
+          "name": "MobileTopBar",
+          "slug": "mobiletopbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mobiletopbar.md"
+        },
+        {
+          "path": "/src/components/monaco/DiffViewer.vue",
+          "name": "DiffViewer",
+          "slug": "src-components-monaco-diffviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-monaco-diffviewer.md"
+        },
+        {
+          "path": "/src/components/monaco/Editor.vue",
+          "name": "Editor",
+          "slug": "editor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/editor.md"
+        },
+        {
+          "path": "/src/components/monaco/monacoWorkers.js",
+          "name": "MonacoWorkers",
+          "slug": "monacoworkers.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/monacoworkers.md"
+        },
+        {
+          "path": "/src/components/oauth_settings/OAuthSettings.vue",
+          "name": "OAuthSettings",
+          "slug": "oauthsettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/oauthsettings.md"
+        },
+        {
+          "path": "/src/components/profile/ProfileAvatar.vue",
+          "name": "ProfileAvatar",
+          "slug": "profileavatar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/profileavatar.md"
+        },
+        {
+          "path": "/src/components/profile/ProfileSelector.vue",
+          "name": "ProfileSelector",
+          "slug": "profileselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/profileselector.md"
+        },
+        {
+          "path": "/src/components/profiles/ProfileKnowledgeEditor.vue",
+          "name": "ProfileKnowledgeEditor",
+          "slug": "profileknowledgeeditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/profileknowledgeeditor.md"
+        },
+        {
+          "path": "/src/components/profiles/ProfileViewer.vue",
+          "name": "ProfileViewer",
+          "slug": "profileviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/profileviewer.md"
+        },
+        {
+          "path": "/src/components/project/BarButton.vue",
+          "name": "BarButton",
+          "slug": "barbutton.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/barbutton.md"
+        },
+        {
+          "path": "/src/components/project/CodxDropdown.vue",
+          "name": "CodxDropdown",
+          "slug": "codxdropdown.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/codxdropdown.md"
+        },
+        {
+          "path": "/src/components/project/NewProject.vue",
+          "name": "NewProject",
+          "slug": "newproject.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/newproject.md"
+        },
+        {
+          "path": "/src/components/project/ProjectBadge.vue",
+          "name": "ProjectBadge",
+          "slug": "projectbadge.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectbadge.md"
+        },
+        {
+          "path": "/src/components/project/ProjectCard.vue",
+          "name": "ProjectCard",
+          "slug": "src-components-project-projectcard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-project-projectcard.md"
+        },
+        {
+          "path": "/src/components/project/ProjectIconSelector.vue",
+          "name": "ProjectIconSelector",
+          "slug": "projecticonselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projecticonselector.md"
+        },
+        {
+          "path": "/src/components/project/ProjectIconSquare.vue",
+          "name": "ProjectIconSquare",
+          "slug": "projecticonsquare.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projecticonsquare.md"
+        },
+        {
+          "path": "/src/components/project/ProjectInlineNavigator.vue",
+          "name": "ProjectInlineNavigator",
+          "slug": "projectinlinenavigator.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectinlinenavigator.md"
+        },
+        {
+          "path": "/src/components/project/ProjectLoadingOverlay.vue",
+          "name": "ProjectLoadingOverlay",
+          "slug": "projectloadingoverlay.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectloadingoverlay.md"
+        },
+        {
+          "path": "/src/components/project/ProjectOverview.vue",
+          "name": "ProjectOverview",
+          "slug": "projectoverview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectoverview.md"
+        },
+        {
+          "path": "/src/components/project/ProjectScripts.vue",
+          "name": "ProjectScripts",
+          "slug": "src-components-project-projectscripts.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-project-projectscripts.md"
+        },
+        {
+          "path": "/src/components/project/QuickBar.vue",
+          "name": "QuickBar",
+          "slug": "quickbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/quickbar.md"
+        },
+        {
+          "path": "/src/components/project_settings/MCPServerListEditor.vue",
+          "name": "MCPServerListEditor",
+          "slug": "mcpserverlisteditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mcpserverlisteditor.md"
+        },
+        {
+          "path": "/src/components/project_settings/MCPServerSettings.vue",
+          "name": "MCPServerSettings",
+          "slug": "mcpserversettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mcpserversettings.md"
+        },
+        {
+          "path": "/src/components/quick-chat/QuickChatSidebar.vue",
+          "name": "QuickChatSidebar",
+          "slug": "quickchatsidebar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/quickchatsidebar.md"
+        },
+        {
+          "path": "/src/components/quick-chat/WorkspaceAppLoader.vue",
+          "name": "WorkspaceAppLoader",
+          "slug": "workspaceapploader.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspaceapploader.md"
+        },
+        {
+          "path": "/src/components/quick-chat/WorkspaceAppSelector.vue",
+          "name": "WorkspaceAppSelector",
+          "slug": "workspaceappselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspaceappselector.md"
+        },
+        {
+          "path": "/src/components/repo/BranchSelector.vue",
+          "name": "BranchSelector",
+          "slug": "src-components-repo-branchselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-repo-branchselector.md"
+        },
+        {
+          "path": "/src/components/repo/CodeComment.vue",
+          "name": "CodeComment",
+          "slug": "codecomment.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/codecomment.md"
+        },
+        {
+          "path": "/src/components/repo/CommitDetail.vue",
+          "name": "CommitDetail",
+          "slug": "commitdetail.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/commitdetail.md"
+        },
+        {
+          "path": "/src/components/repo/CommitTreeView.vue",
+          "name": "CommitTreeView",
+          "slug": "committreeview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/committreeview.md"
+        },
+        {
+          "path": "/src/components/repo/GitConflictResolver.vue",
+          "name": "GitConflictResolver",
+          "slug": "gitconflictresolver.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/gitconflictresolver.md"
+        },
+        {
+          "path": "/src/components/repo/GitContextMenu.vue",
+          "name": "GitContextMenu",
+          "slug": "gitcontextmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/gitcontextmenu.md"
+        },
+        {
+          "path": "/src/components/repo/GitGraph.vue",
+          "name": "GitGraph",
+          "slug": "src-components-repo-gitgraph.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-repo-gitgraph.md"
+        },
+        {
+          "path": "/src/components/repo/GitValidator.vue",
+          "name": "GitValidator",
+          "slug": "gitvalidator.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/gitvalidator.md"
+        },
+        {
+          "path": "/src/components/repo/GitView.vue",
+          "name": "GitView",
+          "slug": "gitview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/gitview.md"
+        },
+        {
+          "path": "/src/components/repo/PRBranchSelectoor.vue",
+          "name": "PRBranchSelectoor",
+          "slug": "prbranchselectoor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/prbranchselectoor.md"
+        },
+        {
+          "path": "/src/components/repo/PRCommitSelector.vue",
+          "name": "PRCommitSelector",
+          "slug": "prcommitselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/prcommitselector.md"
+        },
+        {
+          "path": "/src/components/repo/PRFile.vue",
+          "name": "PRFile",
+          "slug": "prfile.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/prfile.md"
+        },
+        {
+          "path": "/src/components/repo/PRFileViewModeSelector.vue",
+          "name": "PRFileViewModeSelector",
+          "slug": "prfileviewmodeselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/prfileviewmodeselector.md"
+        },
+        {
+          "path": "/src/components/repo/PRReport.vue",
+          "name": "PRReport",
+          "slug": "prreport.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/prreport.md"
+        },
+        {
+          "path": "/src/components/repo/PRView.vue",
+          "name": "PRView",
+          "slug": "prview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/prview.md"
+        },
+        {
+          "path": "/src/components/repo/PRViewer.vue",
+          "name": "PRViewer",
+          "slug": "prviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/prviewer.md"
+        },
+        {
+          "path": "/src/components/repo/RepoBranchList.vue",
+          "name": "RepoBranchList",
+          "slug": "repobranchlist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/repobranchlist.md"
+        },
+        {
+          "path": "/src/components/repo/RepoFileDiff.vue",
+          "name": "RepoFileDiff",
+          "slug": "repofilediff.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/repofilediff.md"
+        },
+        {
+          "path": "/src/components/repository/RepositoryBar.vue",
+          "name": "RepositoryBar",
+          "slug": "repositorybar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/repositorybar.md"
+        },
+        {
+          "path": "/src/components/roles/RoleSelector.vue",
+          "name": "RoleSelector",
+          "slug": "roleselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/roleselector.md"
+        },
+        {
+          "path": "/src/components/search/ResultViewer.vue",
+          "name": "ResultViewer",
+          "slug": "resultviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/resultviewer.md"
+        },
+        {
+          "path": "/src/components/search/SearchForm.vue",
+          "name": "SearchForm",
+          "slug": "searchform.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/searchform.md"
+        },
+        {
+          "path": "/src/components/security/AccountSettings.vue",
+          "name": "AccountSettings",
+          "slug": "accountsettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/accountsettings.md"
+        },
+        {
+          "path": "/src/components/security/SecurityUserList.vue",
+          "name": "SecurityUserList",
+          "slug": "securityuserlist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/securityuserlist.md"
+        },
+        {
+          "path": "/src/components/security/UserSecuritySettings.vue",
+          "name": "UserSecuritySettings",
+          "slug": "usersecuritysettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/usersecuritysettings.md"
+        },
+        {
+          "path": "/src/components/security/UserWalletSettings.vue",
+          "name": "UserWalletSettings",
+          "slug": "userwalletsettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/userwalletsettings.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurAccount.vue",
+          "name": "SolopreneurAccount",
+          "slug": "solopreneuraccount.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneuraccount.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurAssistant.vue",
+          "name": "SolopreneurAssistant",
+          "slug": "solopreneurassistant.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneurassistant.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurCalendar.vue",
+          "name": "SolopreneurCalendar",
+          "slug": "solopreneurcalendar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneurcalendar.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurMessages.vue",
+          "name": "SolopreneurMessages",
+          "slug": "solopreneurmessages.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneurmessages.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurModal.vue",
+          "name": "SolopreneurModal",
+          "slug": "solopreneurmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneurmodal.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurProjects.vue",
+          "name": "SolopreneurProjects",
+          "slug": "solopreneurprojects.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneurprojects.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurSidebar.vue",
+          "name": "SolopreneurSidebar",
+          "slug": "solopreneursidebar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneursidebar.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurSprints.vue",
+          "name": "SolopreneurSprints",
+          "slug": "solopreneursprints.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneursprints.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurSummary.vue",
+          "name": "SolopreneurSummary",
+          "slug": "solopreneursummary.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneursummary.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurTopbar.vue",
+          "name": "SolopreneurTopbar",
+          "slug": "solopreneurtopbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneurtopbar.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurUpdates.vue",
+          "name": "SolopreneurUpdates",
+          "slug": "solopreneurupdates.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneurupdates.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurWall.vue",
+          "name": "SolopreneurWall",
+          "slug": "solopreneurwall.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneurwall.md"
+        },
+        {
+          "path": "/src/components/solopreneur/SolopreneurWallet.vue",
+          "name": "SolopreneurWallet",
+          "slug": "solopreneurwallet.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneurwallet.md"
+        },
+        {
+          "path": "/src/components/solopreneur/i18n.js",
+          "name": "I18n",
+          "slug": "i18n.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/i18n.md"
+        },
+        {
+          "path": "/src/components/solopreneur/useSolopreneur.js",
+          "name": "UseSolopreneur",
+          "slug": "usesolopreneur.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/usesolopreneur.md"
+        },
+        {
+          "path": "/src/components/solopreneur/useSolopreneurProjects.js",
+          "name": "UseSolopreneurProjects",
+          "slug": "usesolopreneurprojects.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/usesolopreneurprojects.md"
+        },
+        {
+          "path": "/src/components/team-view/AddMembersToTeamDialog.vue",
+          "name": "AddMembersToTeamDialog",
+          "slug": "addmemberstoteamdialog.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/addmemberstoteamdialog.md"
+        },
+        {
+          "path": "/src/components/team-view/AddTeamMemberDialog.vue",
+          "name": "AddTeamMemberDialog",
+          "slug": "addteammemberdialog.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/addteammemberdialog.md"
+        },
+        {
+          "path": "/src/components/team-view/ContentEditorModal.vue",
+          "name": "ContentEditorModal",
+          "slug": "contenteditormodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/contenteditormodal.md"
+        },
+        {
+          "path": "/src/components/team-view/CreateTeamDialog.vue",
+          "name": "CreateTeamDialog",
+          "slug": "src-components-team-view-createteamdialog.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-team-view-createteamdialog.md"
+        },
+        {
+          "path": "/src/components/team-view/TeamMemberCard.vue",
+          "name": "TeamMemberCard",
+          "slug": "teammembercard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/teammembercard.md"
+        },
+        {
+          "path": "/src/components/team-view/TeamMemberDrawer.vue",
+          "name": "TeamMemberDrawer",
+          "slug": "teammemberdrawer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/teammemberdrawer.md"
+        },
+        {
+          "path": "/src/components/team-view/ToolDetailsModal.vue",
+          "name": "ToolDetailsModal",
+          "slug": "tooldetailsmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tooldetailsmodal.md"
+        },
+        {
+          "path": "/src/components/team-view/config.js",
+          "name": "Config",
+          "slug": "config.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/config.md"
+        },
+        {
+          "path": "/src/components/teams/AddMemberDialog.vue",
+          "name": "AddMemberDialog",
+          "slug": "addmemberdialog.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/addmemberdialog.md"
+        },
+        {
+          "path": "/src/components/teams/CategorySettings.vue",
+          "name": "CategorySettings",
+          "slug": "categorysettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/categorysettings.md"
+        },
+        {
+          "path": "/src/components/teams/ChannelSettings.vue",
+          "name": "ChannelSettings",
+          "slug": "channelsettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/channelsettings.md"
+        },
+        {
+          "path": "/src/components/teams/CreateChannelDialog.vue",
+          "name": "CreateChannelDialog",
+          "slug": "createchanneldialog.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/createchanneldialog.md"
+        },
+        {
+          "path": "/src/components/teams/CreateTeamDialog.vue",
+          "name": "CreateTeamDialog",
+          "slug": "src-components-teams-createteamdialog.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-teams-createteamdialog.md"
+        },
+        {
+          "path": "/src/components/teams/MemberAvatar.vue",
+          "name": "MemberAvatar",
+          "slug": "memberavatar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/memberavatar.md"
+        },
+        {
+          "path": "/src/components/teams/MemberSettings.vue",
+          "name": "MemberSettings",
+          "slug": "membersettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/membersettings.md"
+        },
+        {
+          "path": "/src/components/teams/TeamBar.vue",
+          "name": "TeamBar",
+          "slug": "teambar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/teambar.md"
+        },
+        {
+          "path": "/src/components/teams/TeamChannel.vue",
+          "name": "TeamChannel",
+          "slug": "teamchannel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/teamchannel.md"
+        },
+        {
+          "path": "/src/components/teams/TeamChannelsSidebar.vue",
+          "name": "TeamChannelsSidebar",
+          "slug": "teamchannelssidebar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/teamchannelssidebar.md"
+        },
+        {
+          "path": "/src/components/teams/TeamDM.vue",
+          "name": "TeamDM",
+          "slug": "teamdm.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/teamdm.md"
+        },
+        {
+          "path": "/src/components/teams/TeamMediaLibrary.vue",
+          "name": "TeamMediaLibrary",
+          "slug": "teammedialibrary.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/teammedialibrary.md"
+        },
+        {
+          "path": "/src/components/teams/TeamQuickBar.vue",
+          "name": "TeamQuickBar",
+          "slug": "teamquickbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/teamquickbar.md"
+        },
+        {
+          "path": "/src/components/teams/TeamSelector.vue",
+          "name": "TeamSelector",
+          "slug": "teamselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/teamselector.md"
+        },
+        {
+          "path": "/src/components/teams/TeamSettings.vue",
+          "name": "TeamSettings",
+          "slug": "teamsettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/teamsettings.md"
+        },
+        {
+          "path": "/src/components/tiptap/MentionList.vue",
+          "name": "MentionList",
+          "slug": "mentionlist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mentionlist.md"
+        },
+        {
+          "path": "/src/components/tiptap/SimpleEditor.vue",
+          "name": "SimpleEditor",
+          "slug": "simpleeditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/simpleeditor.md"
+        },
+        {
+          "path": "/src/components/tiptap/suggestion.js",
+          "name": "Suggestion",
+          "slug": "suggestion.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/suggestion.md"
+        },
+        {
+          "path": "/src/components/traefik/TraefikRuleEditor.vue",
+          "name": "TraefikRuleEditor",
+          "slug": "traefikruleeditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/traefikruleeditor.md"
+        },
+        {
+          "path": "/src/components/traefik/TraefikRulesPanel.vue",
+          "name": "TraefikRulesPanel",
+          "slug": "traefikrulespanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/traefikrulespanel.md"
+        },
+        {
+          "path": "/src/components/ui/ColorPicker.vue",
+          "name": "ColorPicker",
+          "slug": "colorpicker.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/colorpicker.md"
+        },
+        {
+          "path": "/src/components/ui/IconSelector.vue",
+          "name": "IconSelector",
+          "slug": "iconselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/iconselector.md"
+        },
+        {
+          "path": "/src/components/user/ChatBar.vue",
+          "name": "ChatBar",
+          "slug": "chatbar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatbar.md"
+        },
+        {
+          "path": "/src/components/user/Login.vue",
+          "name": "Login",
+          "slug": "login.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/login.md"
+        },
+        {
+          "path": "/src/components/user/UserAvatar.vue",
+          "name": "UserAvatar",
+          "slug": "useravatar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/useravatar.md"
+        },
+        {
+          "path": "/src/components/user/UserProfile.vue",
+          "name": "UserProfile",
+          "slug": "userprofile.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/userprofile.md"
+        },
+        {
+          "path": "/src/components/user/UserSelector.vue",
+          "name": "UserSelector",
+          "slug": "src-components-user-userselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-user-userselector.md"
+        },
+        {
+          "path": "/src/components/vibe/ChatPanel.vue",
+          "name": "ChatPanel",
+          "slug": "chatpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatpanel.md"
+        },
+        {
+          "path": "/src/components/vibe/ChatPanelHeader.vue",
+          "name": "ChatPanelHeader",
+          "slug": "chatpanelheader.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatpanelheader.md"
+        },
+        {
+          "path": "/src/components/vibe/VibeCodingHeader.vue",
+          "name": "VibeCodingHeader",
+          "slug": "vibecodingheader.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/vibecodingheader.md"
+        },
+        {
+          "path": "/src/components/vibe/modals/SubtaskModal.vue",
+          "name": "SubtaskModal",
+          "slug": "subtaskmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/subtaskmodal.md"
+        },
+        {
+          "path": "/src/components/vibe/modals/SubtasksModal.vue",
+          "name": "SubtasksModal",
+          "slug": "subtasksmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/subtasksmodal.md"
+        },
+        {
+          "path": "/src/components/vibe/modals/TagModal.vue",
+          "name": "TagModal",
+          "slug": "tagmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/tagmodal.md"
+        },
+        {
+          "path": "/src/components/vibe/panels/BranchSelector.vue",
+          "name": "BranchSelector",
+          "slug": "src-components-vibe-panels-branchselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-vibe-panels-branchselector.md"
+        },
+        {
+          "path": "/src/components/vibe/panels/ChangesPanel.vue",
+          "name": "ChangesPanel",
+          "slug": "changespanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/changespanel.md"
+        },
+        {
+          "path": "/src/components/vibe/panels/PRChangesPanel.vue",
+          "name": "PRChangesPanel",
+          "slug": "prchangespanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/prchangespanel.md"
+        },
+        {
+          "path": "/src/components/vibe/panels/PRSearchPanel.vue",
+          "name": "PRSearchPanel",
+          "slug": "prsearchpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/prsearchpanel.md"
+        },
+        {
+          "path": "/src/components/vibe/panels/PreviewPanel.vue",
+          "name": "PreviewPanel",
+          "slug": "previewpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/previewpanel.md"
+        },
+        {
+          "path": "/src/components/wall/ChatPreview.vue",
+          "name": "ChatPreview",
+          "slug": "chatpreview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatpreview.md"
+        },
+        {
+          "path": "/src/components/wall/Wall.vue",
+          "name": "Wall",
+          "slug": "wall.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wall.md"
+        },
+        {
+          "path": "/src/components/wall/WallAttachment.vue",
+          "name": "WallAttachment",
+          "slug": "wallattachment.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wallattachment.md"
+        },
+        {
+          "path": "/src/components/wall/WallAvatar.vue",
+          "name": "WallAvatar",
+          "slug": "wallavatar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wallavatar.md"
+        },
+        {
+          "path": "/src/components/wall/WallBottomNav.vue",
+          "name": "WallBottomNav",
+          "slug": "wallbottomnav.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wallbottomnav.md"
+        },
+        {
+          "path": "/src/components/wall/WallComposer.vue",
+          "name": "WallComposer",
+          "slug": "wallcomposer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wallcomposer.md"
+        },
+        {
+          "path": "/src/components/wall/WallNav.vue",
+          "name": "WallNav",
+          "slug": "wallnav.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wallnav.md"
+        },
+        {
+          "path": "/src/components/wall/WallPostCard.vue",
+          "name": "WallPostCard",
+          "slug": "wallpostcard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wallpostcard.md"
+        },
+        {
+          "path": "/src/components/wall/WallRightRail.vue",
+          "name": "WallRightRail",
+          "slug": "wallrightrail.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wallrightrail.md"
+        },
+        {
+          "path": "/src/components/wall/WallTimeline.vue",
+          "name": "WallTimeline",
+          "slug": "walltimeline.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/walltimeline.md"
+        },
+        {
+          "path": "/src/components/wall/wallEvents.js",
+          "name": "WallEvents",
+          "slug": "wallevents.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wallevents.md"
+        },
+        {
+          "path": "/src/components/wall/wallKinds.js",
+          "name": "WallKinds",
+          "slug": "wallkinds.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wallkinds.md"
+        },
+        {
+          "path": "/src/components/wiki/WikiMarkdown.vue",
+          "name": "WikiMarkdown",
+          "slug": "wikimarkdown.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wikimarkdown.md"
+        },
+        {
+          "path": "/src/components/wiki/WikiProjectTree.vue",
+          "name": "WikiProjectTree",
+          "slug": "wikiprojecttree.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wikiprojecttree.md"
+        },
+        {
+          "path": "/src/components/wiki/WikiSections.vue",
+          "name": "WikiSections",
+          "slug": "wikisections.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wikisections.md"
+        },
+        {
+          "path": "/src/components/wiki/WikiSettings.vue",
+          "name": "WikiSettings",
+          "slug": "wikisettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wikisettings.md"
+        },
+        {
+          "path": "/src/components/wiki/WikiTree.vue",
+          "name": "WikiTree",
+          "slug": "wikitree.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wikitree.md"
+        },
+        {
+          "path": "/src/components/windowManager/AppWindow.vue",
+          "name": "AppWindow",
+          "slug": "appwindow.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/appwindow.md"
+        },
+        {
+          "path": "/src/components/windowManager/Navigator.vue",
+          "name": "Navigator",
+          "slug": "navigator.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/navigator.md"
+        },
+        {
+          "path": "/src/components/windowManager/VirtualDesktop.vue",
+          "name": "VirtualDesktop",
+          "slug": "virtualdesktop.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/virtualdesktop.md"
+        },
+        {
+          "path": "/src/components/windowManager/Window.vue",
+          "name": "Window",
+          "slug": "src-components-windowmanager-window.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-windowmanager-window.md"
+        },
+        {
+          "path": "/src/components/windowManager/Workspace.vue",
+          "name": "Workspace",
+          "slug": "src-components-windowmanager-workspace.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-windowmanager-workspace.md"
+        },
+        {
+          "path": "/src/components/wizards/Wizard.vue",
+          "name": "Wizard",
+          "slug": "wizard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wizard.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspaceActions.vue",
+          "name": "WorkspaceActions",
+          "slug": "workspaceactions.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspaceactions.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspaceAppBuilder.vue",
+          "name": "WorkspaceAppBuilder",
+          "slug": "workspaceappbuilder.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspaceappbuilder.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspaceCard.vue",
+          "name": "WorkspaceCard",
+          "slug": "workspacecard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacecard.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspaceCreate.vue",
+          "name": "WorkspaceCreate",
+          "slug": "workspacecreate.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacecreate.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspaceCreateContent.vue",
+          "name": "WorkspaceCreateContent",
+          "slug": "workspacecreatecontent.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacecreatecontent.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspaceCreateSidebar.vue",
+          "name": "WorkspaceCreateSidebar",
+          "slug": "workspacecreatesidebar.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacecreatesidebar.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspaceFileEditor.vue",
+          "name": "WorkspaceFileEditor",
+          "slug": "workspacefileeditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacefileeditor.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspaceLogs.vue",
+          "name": "WorkspaceLogs",
+          "slug": "workspacelogs.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacelogs.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspaceProjectSelector.vue",
+          "name": "WorkspaceProjectSelector",
+          "slug": "workspaceprojectselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspaceprojectselector.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspaceSettings.vue",
+          "name": "WorkspaceSettings",
+          "slug": "workspacesettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacesettings.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspaceStatusBadge.vue",
+          "name": "WorkspaceStatusBadge",
+          "slug": "workspacestatusbadge.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacestatusbadge.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspaceTemplateSelector.vue",
+          "name": "WorkspaceTemplateSelector",
+          "slug": "workspacetemplateselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacetemplateselector.md"
+        },
+        {
+          "path": "/src/components/workspaces/Workspaces.vue",
+          "name": "Workspaces",
+          "slug": "src-components-workspaces-workspaces.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-components-workspaces-workspaces.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspacesList.vue",
+          "name": "WorkspacesList",
+          "slug": "workspaceslist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspaceslist.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspacesManager.vue",
+          "name": "WorkspacesManager",
+          "slug": "workspacesmanager.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacesmanager.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspacesSelector.vue",
+          "name": "WorkspacesSelector",
+          "slug": "workspacesselector.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacesselector.md"
+        },
+        {
+          "path": "/src/components/workspaces/WorkspacesViewer.vue",
+          "name": "WorkspacesViewer",
+          "slug": "workspacesviewer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspacesviewer.md"
+        },
+        {
+          "path": "/src/composables/useMobileViewport.js",
+          "name": "UseMobileViewport",
+          "slug": "usemobileviewport.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/usemobileviewport.md"
+        },
+        {
+          "path": "/src/config/appComponentsMap.js",
+          "name": "AppComponentsMap",
+          "slug": "appcomponentsmap.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/appcomponentsmap.md"
+        },
+        {
+          "path": "/src/config/apps.js",
+          "name": "Apps",
+          "slug": "apps.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/apps.md"
+        },
+        {
+          "path": "/src/config/mobile.js",
+          "name": "Mobile",
+          "slug": "mobile.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mobile.md"
+        },
+        {
+          "path": "/src/main.ts",
+          "name": "Main",
+          "slug": "main.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/main.md"
+        },
+        {
+          "path": "/src/mixins/contextMenu.js",
+          "name": "ContextMenu",
+          "slug": "src-mixins-contextmenu.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-mixins-contextmenu.md"
+        },
+        {
+          "path": "/src/mixins/index.js",
+          "name": "Index",
+          "slug": "src-mixins-index.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-mixins-index.md"
+        },
+        {
+          "path": "/src/model/chat.ts",
+          "name": "Chat",
+          "slug": "src-model-chat.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-model-chat.md"
+        },
+        {
+          "path": "/src/models/MCPServer.js",
+          "name": "MCPServer",
+          "slug": "mcpserver.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/mcpserver.md"
+        },
+        {
+          "path": "/src/router/index.ts",
+          "name": "Index",
+          "slug": "src-router-index.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-router-index.md"
+        },
+        {
+          "path": "/src/router/navigate.js",
+          "name": "Navigate",
+          "slug": "navigate.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/navigate.md"
+        },
+        {
+          "path": "/src/service/chat.js",
+          "name": "Chat",
+          "slug": "src-service-chat.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-service-chat.md"
+        },
+        {
+          "path": "/src/service/index.js",
+          "name": "Index",
+          "slug": "src-service-index.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-service-index.md"
+        },
+        {
+          "path": "/src/service/prAnalysis.js",
+          "name": "PrAnalysis",
+          "slug": "pranalysis.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/pranalysis.md"
+        },
+        {
+          "path": "/src/service/project.js",
+          "name": "Project",
+          "slug": "src-service-project.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-service-project.md"
+        },
+        {
+          "path": "/src/service/service.js",
+          "name": "Service",
+          "slug": "service.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/service.md"
+        },
+        {
+          "path": "/src/service/wiki.js",
+          "name": "Wiki",
+          "slug": "wiki.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wiki.md"
+        },
+        {
+          "path": "/src/store/browsers.js",
+          "name": "Browsers",
+          "slug": "src-store-browsers.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-store-browsers.md"
+        },
+        {
+          "path": "/src/store/chats.js",
+          "name": "Chats",
+          "slug": "src-store-chats.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-store-chats.md"
+        },
+        {
+          "path": "/src/store/entityStatuses.js",
+          "name": "EntityStatuses",
+          "slug": "entitystatuses.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/entitystatuses.md"
+        },
+        {
+          "path": "/src/store/index.js",
+          "name": "Index",
+          "slug": "src-store-index.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-store-index.md"
+        },
+        {
+          "path": "/src/store/kanban.js",
+          "name": "Kanban",
+          "slug": "src-store-kanban.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-store-kanban.md"
+        },
+        {
+          "path": "/src/store/logs.js",
+          "name": "Logs",
+          "slug": "src-store-logs.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-store-logs.md"
+        },
+        {
+          "path": "/src/store/media.js",
+          "name": "Media",
+          "slug": "media.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/media.md"
+        },
+        {
+          "path": "/src/store/meets.js",
+          "name": "Meets",
+          "slug": "src-store-meets.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-store-meets.md"
+        },
+        {
+          "path": "/src/store/orchestration.js",
+          "name": "Orchestration",
+          "slug": "src-store-orchestration.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-store-orchestration.md"
+        },
+        {
+          "path": "/src/store/planning.js",
+          "name": "Planning",
+          "slug": "planning.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/planning.md"
+        },
+        {
+          "path": "/src/store/profiles.js",
+          "name": "Profiles",
+          "slug": "src-store-profiles.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-store-profiles.md"
+        },
+        {
+          "path": "/src/store/project.js",
+          "name": "Project",
+          "slug": "src-store-project.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-store-project.md"
+        },
+        {
+          "path": "/src/store/session.js",
+          "name": "Session",
+          "slug": "session.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/session.md"
+        },
+        {
+          "path": "/src/store/teams.js",
+          "name": "Teams",
+          "slug": "src-store-teams.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-store-teams.md"
+        },
+        {
+          "path": "/src/store/toast.js",
+          "name": "Toast",
+          "slug": "src-store-toast.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-store-toast.md"
+        },
+        {
+          "path": "/src/store/ui.js",
+          "name": "Ui",
+          "slug": "ui.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/ui.md"
+        },
+        {
+          "path": "/src/store/users.js",
+          "name": "Users",
+          "slug": "users.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/users.md"
+        },
+        {
+          "path": "/src/store/views.js",
+          "name": "Views",
+          "slug": "src-store-views.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-store-views.md"
+        },
+        {
+          "path": "/src/utils/audioLevel.js",
+          "name": "AudioLevel",
+          "slug": "audiolevel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/audiolevel.md"
+        },
+        {
+          "path": "/src/utils/browserAnnotations.js",
+          "name": "BrowserAnnotations",
+          "slug": "browserannotations.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/browserannotations.md"
+        },
+        {
+          "path": "/src/utils/browserCollab.js",
+          "name": "BrowserCollab",
+          "slug": "browsercollab.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/browsercollab.md"
+        },
+        {
+          "path": "/src/utils/chatUnread.js",
+          "name": "ChatUnread",
+          "slug": "chatunread.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatunread.md"
+        },
+        {
+          "path": "/src/utils/codeBlockExtractor.js",
+          "name": "CodeBlockExtractor",
+          "slug": "codeblockextractor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/codeblockextractor.md"
+        },
+        {
+          "path": "/src/utils/fileEvents.js",
+          "name": "FileEvents",
+          "slug": "fileevents.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/fileevents.md"
+        },
+        {
+          "path": "/src/utils/highlight.js",
+          "name": "Highlight",
+          "slug": "highlight.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/highlight.md"
+        },
+        {
+          "path": "/src/utils/markdownParser.js",
+          "name": "MarkdownParser",
+          "slug": "markdownparser.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/markdownparser.md"
+        },
+        {
+          "path": "/src/utils/meetCode.js",
+          "name": "MeetCode",
+          "slug": "meetcode.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetcode.md"
+        },
+        {
+          "path": "/src/utils/prFileMatcher.js",
+          "name": "PrFileMatcher",
+          "slug": "prfilematcher.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/prfilematcher.md"
+        },
+        {
+          "path": "/src/utils/profileKnowledge.js",
+          "name": "ProfileKnowledge",
+          "slug": "profileknowledge.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/profileknowledge.md"
+        },
+        {
+          "path": "/src/utils/projectLinks.js",
+          "name": "ProjectLinks",
+          "slug": "projectlinks.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectlinks.md"
+        },
+        {
+          "path": "/src/views/AISettings.vue",
+          "name": "AISettings",
+          "slug": "aisettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/aisettings.md"
+        },
+        {
+          "path": "/src/views/AboutView.vue",
+          "name": "AboutView",
+          "slug": "aboutview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/aboutview.md"
+        },
+        {
+          "path": "/src/views/AgentPlanView.vue",
+          "name": "AgentPlanView",
+          "slug": "agentplanview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/agentplanview.md"
+        },
+        {
+          "path": "/src/views/AppRouteView.vue",
+          "name": "AppRouteView",
+          "slug": "approuteview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/approuteview.md"
+        },
+        {
+          "path": "/src/views/ChatView.vue",
+          "name": "ChatView",
+          "slug": "chatview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatview.md"
+        },
+        {
+          "path": "/src/views/ChatsView.vue",
+          "name": "ChatsView",
+          "slug": "chatsview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/chatsview.md"
+        },
+        {
+          "path": "/src/views/CodxJunior.vue",
+          "name": "CodxJunior",
+          "slug": "src-views-codxjunior.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-views-codxjunior.md"
+        },
+        {
+          "path": "/src/views/CodxWelcomeView.vue",
+          "name": "CodxWelcomeView",
+          "slug": "codxwelcomeview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/codxwelcomeview.md"
+        },
+        {
+          "path": "/src/views/CompanyView.vue",
+          "name": "CompanyView",
+          "slug": "companyview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/companyview.md"
+        },
+        {
+          "path": "/src/views/DesktopView.vue",
+          "name": "DesktopView",
+          "slug": "desktopview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/desktopview.md"
+        },
+        {
+          "path": "/src/views/DocsView.vue",
+          "name": "DocsView",
+          "slug": "docsview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/docsview.md"
+        },
+        {
+          "path": "/src/views/GlobalSettings.vue",
+          "name": "GlobalSettings",
+          "slug": "src-views-globalsettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-views-globalsettings.md"
+        },
+        {
+          "path": "/src/views/KanbanView.vue",
+          "name": "KanbanView",
+          "slug": "src-views-kanbanview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-views-kanbanview.md"
+        },
+        {
+          "path": "/src/views/KnowledgeSettings.vue",
+          "name": "KnowledgeSettings",
+          "slug": "knowledgesettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/knowledgesettings.md"
+        },
+        {
+          "path": "/src/views/KnowledgeView.vue",
+          "name": "KnowledgeView",
+          "slug": "knowledgeview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/knowledgeview.md"
+        },
+        {
+          "path": "/src/views/LiveEdit.vue",
+          "name": "LiveEdit",
+          "slug": "liveedit.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/liveedit.md"
+        },
+        {
+          "path": "/src/views/ManagementDashboardView.vue",
+          "name": "ManagementDashboardView",
+          "slug": "managementdashboardview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/managementdashboardview.md"
+        },
+        {
+          "path": "/src/views/MeetView.vue",
+          "name": "MeetView",
+          "slug": "meetview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetview.md"
+        },
+        {
+          "path": "/src/views/MessengerView.vue",
+          "name": "MessengerView",
+          "slug": "messengerview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/messengerview.md"
+        },
+        {
+          "path": "/src/views/ProjectProfile.vue",
+          "name": "ProjectProfile",
+          "slug": "projectprofile.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectprofile.md"
+        },
+        {
+          "path": "/src/views/ProjectScripts.vue",
+          "name": "ProjectScripts",
+          "slug": "src-views-projectscripts.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/src-views-projectscripts.md"
+        },
+        {
+          "path": "/src/views/ProjectSettings.vue",
+          "name": "ProjectSettings",
+          "slug": "projectsettings.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectsettings.md"
+        },
+        {
+          "path": "/src/views/QuickChatView.vue",
+          "name": "QuickChatView",
+          "slug": "quickchatview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/quickchatview.md"
+        },
+        {
+          "path": "/src/views/SharedView.vue",
+          "name": "SharedView",
+          "slug": "sharedview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/sharedview.md"
+        },
+        {
+          "path": "/src/views/SolopreneurView.vue",
+          "name": "SolopreneurView",
+          "slug": "solopreneurview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/solopreneurview.md"
+        },
+        {
+          "path": "/src/views/SplitView.vue",
+          "name": "SplitView",
+          "slug": "splitview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/splitview.md"
+        },
+        {
+          "path": "/src/views/StatusView.vue",
+          "name": "StatusView",
+          "slug": "statusview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/statusview.md"
+        },
+        {
+          "path": "/src/views/TeamView.vue",
+          "name": "TeamView",
+          "slug": "teamview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/teamview.md"
+        },
+        {
+          "path": "/src/views/VibeCodingView.vue",
+          "name": "VibeCodingView",
+          "slug": "vibecodingview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/vibecodingview.md"
+        },
+        {
+          "path": "/src/views/WikiView.vue",
+          "name": "WikiView",
+          "slug": "wikiview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/wikiview.md"
+        },
+        {
+          "path": "/src/views/WorkspaceView.vue",
+          "name": "WorkspaceView",
+          "slug": "workspaceview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/workspaceview.md"
+        },
+        {
+          "path": "/src/views/api-monitoring/ApiMonitoringChart.vue",
+          "name": "ApiMonitoringChart",
+          "slug": "apimonitoringchart.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/apimonitoringchart.md"
+        },
+        {
+          "path": "/src/views/api-monitoring/ApiMonitoringView.vue",
+          "name": "ApiMonitoringView",
+          "slug": "apimonitoringview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/apimonitoringview.md"
+        },
+        {
+          "path": "/src/views/api-monitoring/useApiMonitoring.js",
+          "name": "UseApiMonitoring",
+          "slug": "useapimonitoring.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/useapimonitoring.md"
+        },
+        {
+          "path": "/src/views/infra/CloudServerModal.vue",
+          "name": "CloudServerModal",
+          "slug": "cloudservermodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/cloudservermodal.md"
+        },
+        {
+          "path": "/src/views/infra/ContainerDrawer.vue",
+          "name": "ContainerDrawer",
+          "slug": "containerdrawer.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/containerdrawer.md"
+        },
+        {
+          "path": "/src/views/infra/ContainerShellModal.vue",
+          "name": "ContainerShellModal",
+          "slug": "containershellmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/containershellmodal.md"
+        },
+        {
+          "path": "/src/views/infra/ContainersPanel.vue",
+          "name": "ContainersPanel",
+          "slug": "containerspanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/containerspanel.md"
+        },
+        {
+          "path": "/src/views/infra/EventsPanel.vue",
+          "name": "EventsPanel",
+          "slug": "eventspanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/eventspanel.md"
+        },
+        {
+          "path": "/src/views/infra/HostSettingsModal.vue",
+          "name": "HostSettingsModal",
+          "slug": "hostsettingsmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/hostsettingsmodal.md"
+        },
+        {
+          "path": "/src/views/infra/ImagesPanel.vue",
+          "name": "ImagesPanel",
+          "slug": "imagespanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/imagespanel.md"
+        },
+        {
+          "path": "/src/views/infra/InfraView.vue",
+          "name": "InfraView",
+          "slug": "infraview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/infraview.md"
+        },
+        {
+          "path": "/src/views/infra/MaintenancePanel.vue",
+          "name": "MaintenancePanel",
+          "slug": "maintenancepanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/maintenancepanel.md"
+        },
+        {
+          "path": "/src/views/infra/MonitoringChart.vue",
+          "name": "MonitoringChart",
+          "slug": "monitoringchart.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/monitoringchart.md"
+        },
+        {
+          "path": "/src/views/infra/MonitoringPanel.vue",
+          "name": "MonitoringPanel",
+          "slug": "monitoringpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/monitoringpanel.md"
+        },
+        {
+          "path": "/src/views/infra/NetworksPanel.vue",
+          "name": "NetworksPanel",
+          "slug": "networkspanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/networkspanel.md"
+        },
+        {
+          "path": "/src/views/infra/ProjectDockerPanel.vue",
+          "name": "ProjectDockerPanel",
+          "slug": "projectdockerpanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectdockerpanel.md"
+        },
+        {
+          "path": "/src/views/infra/SshKeyField.vue",
+          "name": "SshKeyField",
+          "slug": "sshkeyfield.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/sshkeyfield.md"
+        },
+        {
+          "path": "/src/views/infra/StackLogsModal.vue",
+          "name": "StackLogsModal",
+          "slug": "stacklogsmodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/stacklogsmodal.md"
+        },
+        {
+          "path": "/src/views/infra/StacksPanel.vue",
+          "name": "StacksPanel",
+          "slug": "stackspanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/stackspanel.md"
+        },
+        {
+          "path": "/src/views/infra/VolumesPanel.vue",
+          "name": "VolumesPanel",
+          "slug": "volumespanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/volumespanel.md"
+        },
+        {
+          "path": "/src/views/infra/useInfra.js",
+          "name": "UseInfra",
+          "slug": "useinfra.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/useinfra.md"
+        },
+        {
+          "path": "/src/views/infra/useInfraLayout.js",
+          "name": "UseInfraLayout",
+          "slug": "useinfralayout.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/useinfralayout.md"
+        },
+        {
+          "path": "/src/views/infra/useInfraMonitor.js",
+          "name": "UseInfraMonitor",
+          "slug": "useinframonitor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/useinframonitor.md"
+        },
+        {
+          "path": "/src/views/infra/useInfraStacks.js",
+          "name": "UseInfraStacks",
+          "slug": "useinfrastacks.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/useinfrastacks.md"
+        },
+        {
+          "path": "/src/views/management/useAssistantProfile.js",
+          "name": "UseAssistantProfile",
+          "slug": "useassistantprofile.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/useassistantprofile.md"
+        },
+        {
+          "path": "/src/views/management/useManagementDashboard.js",
+          "name": "UseManagementDashboard",
+          "slug": "usemanagementdashboard.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/usemanagementdashboard.md"
+        },
+        {
+          "path": "/src/wizards/gitIssue.js",
+          "name": "GitIssue",
+          "slug": "gitissue.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/gitissue.md"
+        }
+      ],
+      "id": "src",
+      "path": "src"
+    },
+    {
+      "title": "Project overview",
+      "description": "Documentation for the Project overview area of the project.",
+      "icon": "fa-solid fa-diagram-project",
+      "order": 20,
+      "keywords": [
+        "project-overview"
+      ],
+      "children": [],
+      "files": [
+        {
+          "path": "/README.md",
+          "name": "README",
+          "slug": "readme.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/readme.md"
+        },
+        {
+          "path": "/api-examples.md",
+          "name": "Api examples",
+          "slug": "api-examples.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/api-examples.md"
+        },
+        {
+          "path": "/env.d.ts",
+          "name": "Env.d",
+          "slug": "env-d.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/env-d.md"
+        },
+        {
+          "path": "/github_issues.html",
+          "name": "Github issues",
+          "slug": "github-issues.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/github-issues.md"
+        },
+        {
+          "path": "/index.html",
+          "name": "Index",
+          "slug": "index.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/index.md"
+        },
+        {
+          "path": "/index.md",
+          "name": "Index",
+          "slug": "index-2.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/index-2.md"
+        },
+        {
+          "path": "/lighthouse_report.json",
+          "name": "Lighthouse report",
+          "slug": "lighthouse-report.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/lighthouse-report.md"
+        },
+        {
+          "path": "/markdown-examples.md",
+          "name": "Markdown examples",
+          "slug": "markdown-examples.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/markdown-examples.md"
+        },
+        {
+          "path": "/package-lock.json",
+          "name": "Package lock",
+          "slug": "package-lock.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/package-lock.md"
+        },
+        {
+          "path": "/package.json",
+          "name": "Package",
+          "slug": "package.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/package.md"
+        },
+        {
+          "path": "/postcss.config.js",
+          "name": "Postcss.config",
+          "slug": "postcss-config.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/postcss-config.md"
+        },
+        {
+          "path": "/tailwind.config.js",
+          "name": "Tailwind.config",
+          "slug": "tailwind-config.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/tailwind-config.md"
+        },
+        {
+          "path": "/tsconfig.app.json",
+          "name": "Tsconfig.app",
+          "slug": "tsconfig-app.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/tsconfig-app.md"
+        },
+        {
+          "path": "/tsconfig.json",
+          "name": "Tsconfig",
+          "slug": "tsconfig.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/tsconfig.md"
+        },
+        {
+          "path": "/tsconfig.node.json",
+          "name": "Tsconfig.node",
+          "slug": "tsconfig-node.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/tsconfig-node.md"
+        },
+        {
+          "path": "/vite.config.ts",
+          "name": "Vite.config",
+          "slug": "vite-config.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/project-overview/vite-config.md"
+        }
+      ],
+      "id": "project-overview",
+      "path": "project-overview"
+    },
+    {
+      "title": "Docs",
+      "description": "Documentation for the Docs area of the project.",
+      "icon": "fa-regular fa-file-lines",
+      "order": 30,
+      "keywords": [
+        "docs"
+      ],
+      "children": [],
+      "files": [
+        {
+          "path": "/docs/mobile/README.md",
+          "name": "README",
+          "slug": "readme.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/docs/readme.md"
+        },
+        {
+          "path": "/docs/mobile/approaches/01-shell-first.md",
+          "name": "01 shell first",
+          "slug": "01-shell-first.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/docs/01-shell-first.md"
+        },
+        {
+          "path": "/docs/mobile/approaches/02-adaptive-pages.md",
+          "name": "02 adaptive pages",
+          "slug": "02-adaptive-pages.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/docs/02-adaptive-pages.md"
+        },
+        {
+          "path": "/docs/mobile/approaches/03-launcher-stack.md",
+          "name": "03 launcher stack",
+          "slug": "03-launcher-stack.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/docs/03-launcher-stack.md"
+        },
+        {
+          "path": "/docs/mobile/mobile-current-status.md",
+          "name": "Mobile current status",
+          "slug": "mobile-current-status.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/docs/mobile-current-status.md"
+        },
+        {
+          "path": "/docs/mobile/mockups-brief.md",
+          "name": "Mockups brief",
+          "slug": "mockups-brief.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/docs/mockups-brief.md"
+        },
+        {
+          "path": "/docs/mobile/status-verification-delta.md",
+          "name": "Status verification delta",
+          "slug": "status-verification-delta.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/docs/status-verification-delta.md"
+        }
+      ],
+      "id": "docs",
+      "path": "docs"
+    },
+    {
+      "title": "Client",
+      "description": "Documentation for the Client area of the project.",
+      "icon": "fa-regular fa-file-lines",
+      "order": 40,
+      "keywords": [
+        "client"
+      ],
+      "children": [],
+      "files": [
+        {
+          "path": "/client/src/components/ChatEntry.vue",
+          "name": "ChatEntry",
+          "slug": "chatentry.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/client/chatentry.md"
+        },
+        {
+          "path": "/client/src/components/chat/ChatImageEditorModal.vue",
+          "name": "ChatImageEditorModal",
+          "slug": "chatimageeditormodal.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/client/chatimageeditormodal.md"
+        },
+        {
+          "path": "/client/src/components/profiles/ProfileKnowledgeFileEditor.vue",
+          "name": "ProfileKnowledgeFileEditor",
+          "slug": "profileknowledgefileeditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/client/profileknowledgefileeditor.md"
+        },
+        {
+          "path": "/client/src/components/profiles/ProfileKnowledgePanel.vue",
+          "name": "ProfileKnowledgePanel",
+          "slug": "profileknowledgepanel.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/client/profileknowledgepanel.md"
+        },
+        {
+          "path": "/client/src/services/profileKnowledgeApi.js",
+          "name": "ProfileKnowledgeApi",
+          "slug": "profileknowledgeapi.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/client/profileknowledgeapi.md"
+        }
+      ],
+      "id": "client",
+      "path": "client"
+    },
+    {
+      "title": "Tests",
+      "description": "Documentation for the Tests area of the project.",
+      "icon": "fa-solid fa-vial-circle-check",
+      "order": 50,
+      "keywords": [
+        "tests"
+      ],
+      "children": [],
+      "files": [
+        {
+          "path": "/tests/blockEditing.test.mjs",
+          "name": "BlockEditing.test",
+          "slug": "blockediting-test.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/tests/blockediting-test.md"
+        },
+        {
+          "path": "/tests/browserAnnotations.test.mjs",
+          "name": "BrowserAnnotations.test",
+          "slug": "browserannotations-test.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/tests/browserannotations-test.md"
+        },
+        {
+          "path": "/tests/browserCollab.test.mjs",
+          "name": "BrowserCollab.test",
+          "slug": "browsercollab-test.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/tests/browsercollab-test.md"
+        },
+        {
+          "path": "/tests/fileChangeParser.test.mjs",
+          "name": "FileChangeParser.test",
+          "slug": "filechangeparser-test.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/tests/filechangeparser-test.md"
+        }
+      ],
+      "id": "tests",
+      "path": "tests"
+    },
+    {
+      "title": "File",
+      "description": "Documentation for the File area of the project.",
+      "icon": "fa-regular fa-file-lines",
+      "order": 60,
+      "keywords": [
+        "file"
+      ],
+      "children": [],
+      "files": [
+        {
+          "path": "/file/path/to/ChatEntryEvent.vue",
+          "name": "ChatEntryEvent",
+          "slug": "chatentryevent.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/file/chatentryevent.md"
+        },
+        {
+          "path": "/file/path/to/ChatEntryTimeline.vue",
+          "name": "ChatEntryTimeline",
+          "slug": "chatentrytimeline.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/file/chatentrytimeline.md"
+        },
+        {
+          "path": "/file/path/to/ChatEntryTools.vue",
+          "name": "ChatEntryTools",
+          "slug": "chatentrytools.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/file/chatentrytools.md"
+        }
+      ],
+      "id": "file",
+      "path": "file"
+    },
+    {
+      "title": "Codx",
+      "description": "Documentation for the Codx area of the project.",
+      "icon": "fa-regular fa-file-lines",
+      "order": 70,
+      "keywords": [
+        "codx"
+      ],
+      "children": [],
+      "files": [
+        {
+          "path": "/codx/junior/engine/git_engine.py",
+          "name": "Git engine",
+          "slug": "git-engine.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/codx/git-engine.md"
+        }
+      ],
+      "id": "codx",
+      "path": "codx"
+    },
+    {
+      "title": "Path",
+      "description": "Documentation for the Path area of the project.",
+      "icon": "fa-regular fa-file-lines",
+      "order": 80,
+      "keywords": [
+        "path"
+      ],
+      "children": [],
+      "files": [
+        {
+          "path": "/path/to/script/setup_workspace.sh",
+          "name": "Setup workspace",
+          "slug": "setup-workspace.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/path/setup-workspace.md"
+        }
+      ],
+      "id": "path",
+      "path": "path"
+    },
+    {
+      "title": "Other",
+      "description": "Remaining project files.",
+      "icon": "fa-regular fa-file-lines",
+      "order": 900,
+      "keywords": [],
+      "children": [],
+      "files": [
+        {
+          "path": "/wiki/codx-junior-ui.features.md",
+          "name": "Codx junior ui.features",
+          "slug": "codx-junior-ui-features.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/other/codx-junior-ui-features.md"
+        }
+      ],
+      "id": "other",
+      "path": "other"
+    }
+  ],
+  "assistant": {
+    "enabled": true
+  },
+  "path": "/home/codx-junior-projects/codx-junior/client/.codx/wiki_settings.json"
+}

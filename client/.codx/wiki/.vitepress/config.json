@@ -1,0 +1,101 @@
+{
+  "project": {
+    "name": "codx-junior-ui",
+    "description": "Ensure clear separation between client and server logic.",
+    "icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSvsXyz8eDobC4MvaRkM3zmOZ9ETdrS0ozGCQ&s",
+    "repository": ""
+  },
+  "sidebar": [
+    {
+      "text": "Overview",
+      "items": [
+        {
+          "text": "Introduction",
+          "link": "/home"
+        }
+      ]
+    },
+    {
+      "text": "Client",
+      "items": [
+        {
+          "text": "Client overview",
+          "link": "/client/overview"
+        }
+      ]
+    },
+    {
+      "text": "Codx",
+      "items": [
+        {
+          "text": "Codx overview",
+          "link": "/codx/overview"
+        }
+      ]
+    },
+    {
+      "text": "Docs",
+      "items": [
+        {
+          "text": "Docs overview",
+          "link": "/docs/overview"
+        }
+      ]
+    },
+    {
+      "text": "File",
+      "items": [
+        {
+          "text": "File overview",
+          "link": "/file/overview"
+        }
+      ]
+    },
+    {
+      "text": "Other",
+      "items": [
+        {
+          "text": "Other overview",
+          "link": "/other/overview"
+        }
+      ]
+    },
+    {
+      "text": "Path",
+      "items": [
+        {
+          "text": "Path overview",
+          "link": "/path/overview"
+        }
+      ]
+    },
+    {
+      "text": "Project overview",
+      "items": [
+        {
+          "text": "Project overview overview",
+          "link": "/project-overview/overview"
+        }
+      ]
+    },
+    {
+      "text": "Src",
+      "items": [
+        {
+          "text": "Src overview",
+          "link": "/src/overview"
+        }
+      ]
+    },
+    {
+      "text": "Tests",
+      "items": [
+        {
+          "text": "Tests overview",
+          "link": "/tests/overview"
+        }
+      ]
+    }
+  ],
+  "last_update": 1794313908
+}

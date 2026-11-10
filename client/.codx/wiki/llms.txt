@@ -1,0 +1,16 @@
+# codx-junior-ui
+
+> Ensure clear separation between client and server logic.
+
+## Documentation
+
+- [codx-junior-ui](home): Ensure clear separation between client and server logic.
+- [Src overview](src/overview): Documentation for the Src area of the project.
+- [Project overview overview](project-overview/overview): Documentation for the Project overview area of the project.
+- [Docs overview](docs/overview): Documentation for the Docs area of the project.
+- [Client overview](client/overview): Documentation for the Client area of the project.
+- [Tests overview](tests/overview): Documentation for the Tests area of the project.
+- [File overview](file/overview): Documentation for the File area of the project.
+- [Codx overview](codx/overview): Documentation for the Codx area of the project.
+- [Path overview](path/overview): Documentation for the Path area of the project.
+- [Other overview](other/overview): Remaining project files.

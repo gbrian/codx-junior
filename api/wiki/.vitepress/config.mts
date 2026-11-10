@@ -8,28 +8,31 @@ const {
     icon,
     repository
   },
-  sidebar
+  sidebar,
+  base
 } = config as any
+
 const socialLinks = []
 if (repository) {
   socialLinks.push({ icon: 'github', link: repository })
 }
-// https://vitepress.dev/reference/site-config
+
+// The generated wiki is deployable as its own website. `base` is written by
+// the site builder (`/` for standalone deployments, a sub-path when hosted
+// under codx-junior).
 export default defineConfig({
   title,
   description,
-  base:'/api/wiki/' + title,
+  base: base || '/',
   ignoreDeadLinks: true,
+  head: [
+    ['meta', { name: 'theme-color', content: '#550e57' }]
+  ],
   themeConfig: {
-    search: {
-      provider: 'local'
-    },
+    search: { provider: 'local' },
     logo: icon,
-    // https://vitepress.dev/reference/default-theme-config
-    nav: [
-      { text: 'Home', link: '/' },
-    ],
+    nav: [{ text: 'Home', link: '/' }],
     sidebar,
     socialLinks
-  },
+  }
 })

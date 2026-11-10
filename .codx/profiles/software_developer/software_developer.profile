@@ -10,8 +10,10 @@
   "path": "/home/codx-junior-projects/codx-junior/.codx/profiles/software_developer/software_developer.profile",
   "profiles": [
     "biblio",
-    "git"
+    "git",
+    "file_editor"
   ],
+  "team": [],
   "llm_model": "",
   "use_knowledge": true,
   "user": {
@@ -21,6 +23,9 @@
     "theme": "dim",
     "projects": [],
     "role": "user",
+    "companies": [],
+    "language": "auto",
+    "workspace_mode": "auto",
     "token": "",
     "disabled": false,
     "github": "",
@@ -40,7 +45,9 @@
     "github_admin": false,
     "github_only": false,
     "token_limit_rules": [],
-    "token_limit_requests": []
+    "token_limit_requests": [],
+    "is_company_mode": false,
+    "company_ids": []
   },
   "tools": [
     "project_search",

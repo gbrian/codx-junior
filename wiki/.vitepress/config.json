@@ -36,50 +36,7 @@
       ]
     },
     {
-      "text": "Ai and knowledge management",
-      "items": [
-        {
-          "text": "Agentic Development Tools and Harnesses",
-          "link": "/ai-and-knowledge-management/agents/vllm-models-agent-harnesses-json"
-        },
-        {
-          "text": "Ai and knowledge management vllm models hub cachedir tag",
-          "link": "/ai-and-knowledge-management/vllm-models-hub-cachedir-tag"
-        },
-        {
-          "text": "Model Documentation: Qwen2.5-7B-Instruct",
-          "link": "/ai-and-knowledge-management/models/vllm-models-hub-models-qwen-qwen2-5-7b-instruct-blobs-0178295f88afc3c7f279ed284f961f8c1be00654"
-        }
-      ]
-    },
-    {
-      "text": "App module",
-      "items": [
-        {
-          "text": "App module codx junior python sh",
-          "link": "/app-module/codx-junior-python-sh"
-        }
-      ]
-    },
-    {
-      "text": "Database and data storage",
-      "items": [
-        {
-          "text": "codx-junior Wiki Documentation",
-          "link": "/database-and-data-storage/readme-md"
-        },
-        {
-          "text": "Database and Data Storage Documentation",
-          "link": "/database-and-data-storage/codx-junior-code-workspace"
-        },
-        {
-          "text": "Developer Settings Configuration",
-          "link": "/database-and-data-storage/code-server-user-settings-json"
-        }
-      ]
-    },
-    {
-      "text": "Deployment and operations",
+      "text": "Deployment and Operations",
       "items": [
         {
           "text": "API Restart Utility",
@@ -144,7 +101,7 @@
       ]
     },
     {
-      "text": "Development and testing",
+      "text": "Development and Testing",
       "items": [
         {
           "text": "Development and Testing Configuration",
@@ -161,7 +118,7 @@
       ]
     },
     {
-      "text": "Project overview",
+      "text": "Project Overview",
       "items": [
         {
           "text": "GNU Affero General Public License v3 Documentation",
@@ -186,6 +143,58 @@
         {
           "text": "Project Overview: Qwen2.5-7B-Instruct Tokenizer Configuration",
           "link": "/project-overview/vllm-models-hub-models-qwen-qwen2-5-7b-instruct-blobs-07bfe0640cb5a0037f9322287fbfc682806cf672"
+        }
+      ]
+    },
+    {
+      "text": "Ai and knowledge management",
+      "items": [
+        {
+          "text": "Agentic Development Tools and Harnesses",
+          "link": "/ai-and-knowledge-management/agents/vllm-models-agent-harnesses-json"
+        },
+        {
+          "text": "Ai and knowledge management vllm models hub cachedir tag",
+          "link": "/ai-and-knowledge-management/vllm-models-hub-cachedir-tag"
+        },
+        {
+          "text": "Model Documentation: Qwen2.5-7B-Instruct",
+          "link": "/ai-and-knowledge-management/models/vllm-models-hub-models-qwen-qwen2-5-7b-instruct-blobs-0178295f88afc3c7f279ed284f961f8c1be00654"
+        }
+      ]
+    },
+    {
+      "text": "App module",
+      "items": [
+        {
+          "text": "App module codx junior python sh",
+          "link": "/app-module/codx-junior-python-sh"
+        }
+      ]
+    },
+    {
+      "text": "Database and data storage",
+      "items": [
+        {
+          "text": "codx-junior Wiki Documentation",
+          "link": "/database-and-data-storage/readme-md"
+        },
+        {
+          "text": "Database and Data Storage Documentation",
+          "link": "/database-and-data-storage/codx-junior-code-workspace"
+        },
+        {
+          "text": "Developer Settings Configuration",
+          "link": "/database-and-data-storage/code-server-user-settings-json"
+        }
+      ]
+    },
+    {
+      "text": "Integrations",
+      "items": [
+        {
+          "text": "DSH harness integration",
+          "link": "/integrations/dsh-harness"
         }
       ]
     },
@@ -607,5 +616,6 @@
       ]
     }
   ],
-  "last_update": 1794306135
+  "base": "/",
+  "last_update": 1794314141
 }

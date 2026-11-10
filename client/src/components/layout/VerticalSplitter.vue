@@ -8,7 +8,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
     <SplitterPanel
       :id="`${groupId}-panel-splitter-1`"
       :min-size="panels?.left?.minSize || 10"
-      :collapsible="panels?.left?.collapsible || true"
+      :collapsible="panels?.left?.collapsible ?? true"
       :defaultSize="leftSize"
       :class="panels?.left?.class"
       :style="panels?.left?.style"
@@ -38,7 +38,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
     <SplitterPanel
       :id="`${groupId}-panel-splitter-2`"
       :min-size="panels?.right?.minSize || 10"
-      :collapsible="panels?.right?.collapsible || true"
+      :collapsible="panels?.right?.collapsible ?? true"
       :defaultSize="rightSize"
       :class="panels?.right?.class"
       :style="panels?.right?.style"

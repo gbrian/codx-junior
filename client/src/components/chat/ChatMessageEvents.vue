@@ -7,34 +7,14 @@ import Markdown from '../Markdown.vue'
        Sticks right under the chat entry header (`top-[27px]`, which mirrors the
        header height: 24px row + pb-1.5 + border − mt-1 → 33px at @lg/panel), so
        the run detail stays visible while the message body scrolls.
-       Opaque surface + shadow: it must not let content show through while stuck. -->
-  <div class="sticky top-[27px] @lg/panel:top-[33px] z-10 flex flex-col max-h-[60vh] rounded-lg border border-base-300/70 bg-base-100 shadow-sm overflow-hidden">
-
-    <!-- ── Summary strip ── -->
-    <div class="flex items-center gap-2 px-3 py-1.5 text-[11px] text-base-content/60 bg-base-200/60 shrink-0">
-      <i class="fa-solid fa-wrench text-info"></i>
-      <span class="font-semibold tracking-wide uppercase">Tools &amp; Events</span>
-      <span class="grow"></span>
-      <span v-if="toolEvents.length" class="badge badge-xs badge-ghost gap-1">
-        <i class="fa-solid fa-wrench text-[9px]"></i>{{ toolEvents.length }}
-      </span>
-      <span v-if="lifecycleEvents.length" class="badge badge-xs badge-ghost gap-1">
-        <i class="fa-solid fa-play text-[9px]"></i>{{ lifecycleEvents.length }}
-      </span>
-
-      <!-- Processing-details drawer trigger.
-           Opens the dedicated side drawer with the full "Processing Details" for
-           this message. Lives here (inside the inline tools panel) so the tools
-           icon only expands this compact list, while "more" opens the drawer. -->
-      <button
-        class="btn btn-xs btn-ghost tooltip tooltip-bottom"
-        :class="drawerOpen && 'btn-active text-warning'"
-        data-tip="More details"
-        @click.stop="$emit('show-events-drawer', message)"
-      >
-        <i class="fa-solid fa-ellipsis"></i>
-      </button>
-    </div>
+       Opaque surface + shadow: it must not let content show through while stuck.
+       The one-line run summary lives OUTSIDE this panel (see
+       <ChatEntryToolSummary>), so the wall starts directly with the executions
+       and no line is spent twice on the same information. -->
+  <div
+    :id="panelId"
+    class="sticky top-[27px] @lg/panel:top-[33px] z-10 flex flex-col max-h-[60vh] rounded-lg border border-base-300/70 bg-base-100 shadow-sm overflow-hidden"
+  >
 
     <!-- Scrollable wall: a long run never outgrows the viewport -->
     <div class="min-h-0 overflow-y-auto">
@@ -186,8 +166,8 @@ import Markdown from '../Markdown.vue'
 
 <script>
 export default {
-  props: ['message', 'drawerOpen'],
-  emits: ['show-events-drawer'],
+  // `panelId` is the id the tool summary strip points at with aria-controls
+  props: ['message', 'panelId'],
   data() {
     return {
       openTools: {},
