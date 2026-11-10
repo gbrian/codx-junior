@@ -1,5 +1,6 @@
 <script setup>
 import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
+import WikiProjectTree from '@/components/wiki/WikiProjectTree.vue'
 </script>
 
 <template>
@@ -18,9 +19,9 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
       :class="isPhone ? 'fixed inset-y-0 left-0 shadow-2xl' : 'relative'"
     >
       <div class="flex items-center gap-2 border-b border-base-content/10 px-4 py-3">
-        <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/80 to-secondary/80 text-primary-content shadow-sm">
-          <img v-if="site.project.icon" :src="site.project.icon" class="h-full w-full object-cover" alt="" />
-          <i v-else class="fa-solid fa-book-open"></i>
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg">
+          <img v-if="site.project.icon" :src="site.project.icon" class="h-full w-full object-contain" alt="" />
+          <i v-else class="fa-solid fa-book-open text-primary"></i>
         </div>
         <div class="min-w-0 flex-1">
           <div class="text-[0.65rem] font-bold uppercase tracking-[0.18em] opacity-50">Documentation</div>
@@ -100,7 +101,7 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
             <li v-for="item in section.items" :key="item.path">
               <button
                 class="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[0.82rem] transition-colors"
-                :class="isActive(item.path) ? 'bg-primary/10 font-semibold text-primary' : 'hover:bg-base-300/70'"
+                :class="isActive(item.path) ? 'bg-base-content/10 font-semibold' : 'hover:bg-base-content/5'"
                 @click="openPage(item.path)"
               >
                 <i :class="[item.icon || 'fa-regular fa-file-lines', isActive(item.path) ? 'text-primary' : 'opacity-45']" class="w-4 shrink-0 text-center text-[0.72rem]"></i>
@@ -111,21 +112,14 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
           </ul>
         </div>
 
-        <div v-if="site.child_projects.length" class="mt-4 border-t border-base-content/10 pt-3">
-          <div class="px-2 text-[0.68rem] font-bold uppercase tracking-[0.12em] opacity-60">Project docs</div>
-          <button
-            v-for="child in site.child_projects"
-            :key="child.project_id || child.name"
-            class="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[0.82rem] hover:bg-base-300/70"
-            @click="selectProject(child.name)"
-          >
-            <span class="status-badge" :class="'status-' + (child.status || 'pending')"></span>
-            <span class="min-w-0 flex-1">
-              <span class="block truncate">{{ child.title || child.name }}</span>
-              <span class="block truncate text-[0.68rem] opacity-50">{{ child.description }}</span>
-            </span>
-            <span class="badge badge-ghost badge-xs">{{ child.page_count || 0 }}</span>
-          </button>
+        <div v-if="projectTree.length" class="mt-4 border-t border-base-content/10 pt-3">
+          <div class="px-2 text-[0.68rem] font-bold uppercase tracking-[0.12em] opacity-60">Projects</div>
+          <WikiProjectTree
+            :nodes="projectTree"
+            :current="site.project?.name"
+            class="mt-1"
+            @select="selectProject"
+          />
         </div>
 
         <div v-if="!site.navigation.length" class="px-3 py-6 text-center text-xs opacity-50">
@@ -210,7 +204,7 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
 
           <!-- Empty / disabled -->
           <div v-else-if="!site.navigation.length" class="mx-auto max-w-2xl p-8 text-center lg:p-16">
-            <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-2xl text-primary">
+            <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center text-3xl text-primary">
               <i class="fa-solid fa-book-open-reader"></i>
             </div>
             <h2 class="text-2xl font-bold">This project has no wiki yet</h2>
@@ -236,16 +230,14 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
           <!-- Landing -->
           <div v-else-if="isHome" class="pb-16">
             <section class="relative overflow-hidden border-b border-base-content/10">
-              <div class="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-primary/15 blur-3xl"></div>
-              <div class="pointer-events-none absolute -right-16 top-0 h-64 w-64 rounded-full bg-secondary/15 blur-3xl"></div>
               <div class="relative mx-auto max-w-5xl px-6 py-10 lg:px-10 lg:py-14">
-                <div class="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[0.68rem] font-semibold text-primary">
+                <div class="inline-flex items-center gap-2 rounded-full border border-base-content/15 px-3 py-1 text-[0.68rem] font-semibold text-base-content/70">
                   <i class="fa-solid fa-sparkles"></i>
                   {{ site.home.badge || 'Living documentation' }}
                 </div>
                 <div class="mt-5 flex items-start gap-4">
-                  <div v-if="site.project.icon" class="hidden h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-base-content/10 shadow-lg sm:block">
-                    <img :src="site.project.icon" class="h-full w-full object-cover" alt="" />
+                  <div v-if="site.project.icon" class="hidden h-14 w-14 shrink-0 sm:block">
+                    <img :src="site.project.icon" class="h-full w-full object-contain" alt="" />
                   </div>
                   <div class="min-w-0">
                     <h1 class="text-3xl font-black tracking-tight lg:text-5xl">{{ site.home.title }}</h1>
@@ -292,7 +284,7 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
                   class="group rounded-2xl border border-base-content/10 bg-base-200/40 p-4 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
                   @click="openPage(feature.path)"
                 >
-                  <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <span class="flex h-9 w-9 items-center justify-center text-primary/80">
                     <i :class="feature.icon || 'fa-regular fa-file-lines'"></i>
                   </span>
                   <span class="mt-3 block text-sm font-bold">{{ feature.title }}</span>
@@ -437,7 +429,7 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
             : 'relative w-[24rem]'"
         >
           <div class="flex items-center gap-2 border-b border-base-content/10 px-4 py-3">
-            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-primary-content">
+            <div class="flex h-8 w-8 items-center justify-center text-primary">
               <i class="fa-solid fa-robot text-sm"></i>
             </div>
             <div class="min-w-0 flex-1">
@@ -449,9 +441,23 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
             </button>
           </div>
 
+          <div class="flex items-center gap-2 border-b border-base-content/10 px-3 py-1.5 text-[0.65rem] text-base-content/60">
+            <label class="flex cursor-pointer items-center gap-1.5">
+              <input v-model="assistantIncludeChildren" type="checkbox" class="checkbox checkbox-xs" />
+              Child projects
+            </label>
+            <span>Depth</span>
+            <select v-model.number="assistantChildDepth" class="select select-xs select-bordered h-6 min-h-0 py-0">
+              <option :value="1">1</option>
+              <option :value="2">2</option>
+              <option :value="3">3</option>
+              <option :value="4">4</option>
+            </select>
+          </div>
+
           <div ref="assistantScroll" class="flex-1 space-y-4 overflow-y-auto px-3 py-4">
             <div v-for="(message, index) in assistantMessages" :key="index" class="flex gap-2" :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
-              <div v-if="message.role === 'assistant'" class="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <div v-if="message.role === 'assistant'" class="mt-1 flex h-7 w-7 shrink-0 items-center justify-center text-primary/70">
                 <i class="fa-solid fa-robot text-[0.7rem]"></i>
               </div>
               <div class="min-w-0 max-w-[85%]" :class="message.role === 'user' ? 'order-first' : ''">
@@ -468,7 +474,7 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
                     :key="citation.type + citation.path"
                     class="badge badge-outline badge-sm max-w-full gap-1 hover:border-primary hover:text-primary"
                     :title="citation.description"
-                    @click="citation.type === 'wiki' ? openPage(citation.path) : null"
+                    @click="openCitation(citation)"
                   >
                     <i :class="citation.icon || 'fa-regular fa-file-lines'" class="text-[0.6rem]"></i>
                     <span class="max-w-[11rem] truncate">{{ citation.title }}</span>
@@ -534,6 +540,13 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
           />
           <kbd class="kbd kbd-xs">esc</kbd>
         </div>
+        <div class="flex items-center justify-between border-b border-base-content/10 px-4 py-2 text-[0.7rem] text-base-content/60">
+          <label class="flex cursor-pointer items-center gap-2">
+            <input v-model="searchIncludeChildren" type="checkbox" class="checkbox checkbox-xs" />
+            Include child project docs
+          </label>
+          <span>Depth {{ site.search?.depth ?? 0 }}</span>
+        </div>
         <div class="max-h-[55vh] overflow-y-auto p-2">
           <button
             v-for="result in searchResults"
@@ -546,6 +559,7 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
               <span class="block truncate text-sm font-semibold">{{ result.title }}</span>
               <span class="block truncate text-[0.7rem] opacity-50">{{ result.section }} · {{ result.description }}</span>
             </span>
+            <span v-if="result.project && result.project !== site.project?.name" class="badge badge-ghost badge-xs">{{ result.project_title || result.project }}</span>
             <span class="text-[0.6rem] uppercase tracking-wider opacity-30">{{ result.kind }}</span>
           </button>
           <div v-if="!searchResults.length" class="px-4 py-8 text-center text-sm opacity-50">
@@ -570,13 +584,14 @@ const EMPTY_SITE = {
   pages: {},
   child_projects: [],
   parent_project: null,
-  assistant: {},
+  hierarchy: [],
+  assistant: { search_children: true, search_depth: 2 },
   stats: {},
   search: { items: [] }
 }
 
 export default {
-  components: { WikiMarkdown },
+  components: { WikiMarkdown, WikiProjectTree },
   data() {
     return {
       site: { ...EMPTY_SITE },
@@ -593,7 +608,10 @@ export default {
       activeHeading: '',
       searchOpen: false,
       searchQuery: '',
+      searchIncludeChildren: true,
       assistantOpen: false,
+      assistantIncludeChildren: true,
+      assistantChildDepth: 2,
       assistantInput: '',
       assistantLoading: false,
       assistantMessages: [
@@ -636,6 +654,16 @@ export default {
     isHome() {
       return !this.page || Boolean(this.site.home?.page && this.page.path === this.site.home.page)
     },
+    projectTree() {
+      if (this.site.hierarchy?.length) return this.site.hierarchy
+      const fallback = []
+      if (this.site.parent_project) fallback.push({ ...this.site.parent_project, depth: 0, children: [] })
+      fallback.push({ ...this.site.project, depth: 0, is_current: true, children: [] })
+      for (const child of this.site.child_projects || []) {
+        fallback.push({ ...child, depth: 1, children: [] })
+      }
+      return fallback
+    },
     flatPages() {
       return (this.site.navigation || []).flatMap(section => section.items || [])
     },
@@ -674,9 +702,12 @@ export default {
         const nav = this.flatPages.find(page => page.path === item.path) || {}
         return { ...nav, ...item }
       })
-      if (!query) return enriched.slice(0, 12)
+      const filtered = this.searchIncludeChildren
+        ? enriched
+        : enriched.filter(item => !item.project || item.project === this.site.project?.name)
+      if (!query) return filtered.slice(0, 12)
       const terms = query.split(/\s+/).filter(Boolean)
-      return enriched
+      return filtered
         .map(item => {
           const haystack = `${item.title} ${item.description} ${item.section} ${(item.tags || []).join(' ')}`.toLowerCase()
           const score = terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0)
@@ -754,6 +785,9 @@ export default {
           .filter(section => (section.items?.length || 0) > 12)
           .map(section => section.title)
         this.assistantSuggestions = this.site.assistant?.suggestions || []
+        this.assistantIncludeChildren = this.site.assistant?.search_children !== false
+        this.assistantChildDepth = Number(this.site.assistant?.search_depth ?? 2)
+        this.searchIncludeChildren = this.site.search?.children !== false
         const initial = pagePath || this.site.home?.page || this.flatPages[0]?.path
         this.loadingSite = false
         if (initial) {
@@ -866,7 +900,11 @@ export default {
     },
     openSearchResult(result) {
       this.closeSearch()
-      this.openPage(result.path)
+      if (result.project && result.project !== this.site.project?.name) {
+        this.loadSite(result.project, result.path)
+      } else {
+        this.openPage(result.path)
+      }
     },
     onGlobalKeydown(event) {
       const key = event.key.toLowerCase()
@@ -926,6 +964,8 @@ export default {
           question: text,
           project: this.projectName,
           page: this.page?.path,
+          include_children: this.assistantIncludeChildren,
+          child_depth: this.assistantChildDepth,
           history
         })
         this.assistantMessages.push({
@@ -945,6 +985,14 @@ export default {
       } finally {
         this.assistantLoading = false
         this.scrollAssistantToBottom()
+      }
+    },
+    openCitation(citation) {
+      if (!citation || citation.type !== 'wiki') return
+      if (citation.project && citation.project !== this.site.project?.name) {
+        this.loadSite(citation.project, citation.path)
+      } else {
+        this.openPage(citation.path)
       }
     },
     scrollAssistantToBottom() {

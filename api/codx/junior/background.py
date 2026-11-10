@@ -75,6 +75,15 @@ def start_background_services(stop_event) -> None:
     except Exception as ex:  # pragma: no cover - defensive
         logger.exception("Failed to start the orchestration worker: %s", ex)
 
+    # Board managers: a profile reviews a board periodically and applies the
+    # actions it decides (move/comment/close/update/create). Opt-in per board.
+    try:
+        from codx.junior.board_manager.worker import start_board_manager_worker
+
+        start_board_manager_worker(stop_event=stop_event)
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.exception("Failed to start the board manager worker: %s", ex)
+
     # Company autopilot. It only dispatches missions whose company explicitly
     # enabled autonomy, and it is a no-op when no company is enabled.
     try:
@@ -102,6 +111,13 @@ async def stop_background_services() -> None:
         stop_orchestration_worker()
     except Exception as ex:  # pragma: no cover - defensive
         logger.exception("Failed to stop the orchestration worker: %s", ex)
+
+    try:
+        from codx.junior.board_manager.worker import stop_board_manager_worker
+
+        stop_board_manager_worker()
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.exception("Failed to stop the board manager worker: %s", ex)
 
     try:
         from codx.junior.company.autopilot import stop_company_autopilot
@@ -194,6 +210,19 @@ async def process_project_changes(project) -> None:
         logger.exception("Error processing project changes for %s: %s", project.project_name, ex)
 
 
+def ensure_project_wiki(project) -> None:
+    """Create the lightweight wiki for a project that does not have one yet."""
+    try:
+        docs_path = os.path.join(project.get_project_wiki_path(), "docs.json")
+        if os.path.isfile(docs_path):
+            return
+        from codx.junior.wiki.wiki_manager import WikiManager
+
+        WikiManager(settings=project).ensure_initial_wiki(queue_pages=False)
+    except Exception as ex:  # pragma: no cover - wiki must not stop change checks
+        logger.warning("Cannot auto-create wiki for %s: %s", project.project_name, ex)
+
+
 def run_project_check_thread(project) -> None:
     """
     Entry point for a per-project worker in the thread pool.
@@ -206,6 +235,7 @@ def run_project_check_thread(project) -> None:
     logger.debug("Thread started for project: %s", project.project_name)
     try:
         # Each thread gets its own event loop to safely run async code
+        ensure_project_wiki(project)
         asyncio.run(process_project_changes(project=project))
     except RuntimeError as ex:
         logger.error(

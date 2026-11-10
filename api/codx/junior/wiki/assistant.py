@@ -119,6 +119,8 @@ class WikiAssistant:
         history: Optional[List[Dict[str, str]]] = None,
         page_path: Optional[str] = None,
         use_knowledge: bool = True,
+        include_children: Optional[bool] = None,
+        child_depth: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Answer a documentation question.
@@ -154,9 +156,22 @@ class WikiAssistant:
         selected = self._select_pages(question, pages, page_path)
         context_pages = self._load_page_context(selected) if selected else []
 
+        if include_children is None:
+            include_children = bool(getattr(self.settings, "wiki_search_children", True))
+        if child_depth is None:
+            try:
+                child_depth = int(getattr(self.settings, "wiki_search_depth", 2) or 2)
+            except (TypeError, ValueError):
+                child_depth = 2
+        child_depth = max(0, min(10, int(child_depth)))
+        child_pages = self._child_page_context(question, child_depth) if include_children else []
+        context_pages.extend(child_pages)
+
         knowledge = []
         if use_knowledge:
-            knowledge = await asyncio.to_thread(self._search_knowledge, question)
+            knowledge = await asyncio.to_thread(
+                self._search_knowledge, question, include_children, child_depth
+            )
 
         prompt = self._build_prompt(question, history, context_pages, knowledge, site)
         try:
@@ -181,6 +196,9 @@ class WikiAssistant:
             "pages_used": [page["path"] for page in context_pages],
             "context": {
                 "wiki_pages": len(context_pages),
+                "child_pages": len(child_pages),
+                "child_projects": include_children,
+                "child_depth": child_depth,
                 "knowledge_documents": len(knowledge),
                 "codebase_search": bool(use_knowledge),
             },
@@ -233,7 +251,73 @@ class WikiAssistant:
                 break
         return context
 
-    def _search_knowledge(self, question: str) -> List[Dict[str, Any]]:
+    def _child_projects(self, depth: int) -> List[Any]:
+        """Return descendant projects within *depth* levels."""
+        if depth <= 0:
+            return []
+        try:
+            from codx.junior.project.project_discover import (
+                find_all_projects,
+                is_path_child_of,
+            )
+
+            current = os.path.normpath(self.settings.abs_project_path or "")
+            if not current:
+                return []
+            children = []
+            for project in find_all_projects().values():
+                path = os.path.normpath(project.abs_project_path or "")
+                if not path or path == current or not is_path_child_of(path, current):
+                    continue
+                if len(os.path.relpath(path, current).split(os.sep)) <= depth:
+                    children.append(project)
+            return sorted(children, key=lambda project: project.abs_project_path or "")
+        except Exception as ex:  # pragma: no cover - discovery is optional
+            logger.debug("Cannot resolve child projects for assistant: %s", ex)
+            return []
+
+    def _child_page_context(self, question: str, depth: int) -> List[Dict[str, Any]]:
+        """Select a few wiki pages from child projects as extra context."""
+        context: List[Dict[str, Any]] = []
+        budget = MAX_CONTEXT_CHARS // 3
+        for child in self._child_projects(depth):
+            if budget <= 0:
+                break
+            try:
+                builder = WikiSiteBuilder(settings=child)
+                child_site = builder.build_if_stale(write=False)
+                if not child_site:
+                    continue
+                child_project = child_site.get("project", {})
+                pages = list(child_site.get("pages", {}).values())
+                selected = self._select_pages(question, pages, None)[:2]
+                for page in selected:
+                    loaded = builder.page(page["path"])
+                    if not loaded:
+                        continue
+                    body = strip_frontmatter(loaded.get("content", ""))
+                    allowed = max(0, min(len(body), budget))
+                    context.append({
+                        **page,
+                        "project": child_project.get("name") or child.project_name,
+                        "project_title": child_project.get("title") or child.project_name,
+                        "wiki_url": f"?project={child.project_name}&page={page['path']}",
+                        "content": _trim(body, allowed),
+                        "headings": loaded.get("headings", []),
+                    })
+                    budget -= allowed
+                    if budget <= 0:
+                        break
+            except Exception as ex:  # pragma: no cover - one child must not break the answer
+                logger.debug("Cannot load child wiki pages for %s: %s", child.project_name, ex)
+        return context
+
+    def _search_knowledge(
+        self,
+        question: str,
+        include_children: bool = False,
+        child_depth: int = 0,
+    ) -> List[Dict[str, Any]]:
         """Best-effort knowledge search; failures are non-fatal."""
         try:
             from codx.junior.knowledge.knowledge_db import KnowledgeDB
@@ -253,9 +337,33 @@ class WikiAssistant:
                 "source": source,
                 "content": _trim(content, 1800),
                 "score": metadata.get("score"),
+                "project": self.settings.project_name,
             })
             if len(results) >= 4:
                 break
+        if include_children:
+            for child in self._child_projects(child_depth)[:3]:
+                try:
+                    from codx.junior.knowledge.knowledge_db import KnowledgeDB
+
+                    documents = KnowledgeDB(settings=child).search(question, _limit=3)
+                except Exception as ex:
+                    logger.debug("Child knowledge search unavailable for %s: %s", child.project_name, ex)
+                    continue
+                for document in documents or []:
+                    metadata = getattr(document, "metadata", {}) or {}
+                    content = getattr(document, "page_content", "") or ""
+                    source = metadata.get("source") or metadata.get("file") or ""
+                    if not content.strip() or not source:
+                        continue
+                    results.append({
+                        "source": source,
+                        "content": _trim(content, 1200),
+                        "score": metadata.get("score"),
+                        "project": child.project_name,
+                    })
+                    if len(results) >= 10:
+                        return results
         return results
 
     # ── prompt / AI ─────────────────────────────────────────────────────────
@@ -272,12 +380,12 @@ class WikiAssistant:
         page_blocks = []
         for page in pages:
             page_blocks.append(
-                f"<doc path=\"{page['path']}\" title=\"{page['title']}\" "
-                f"section=\"{page.get('section', '')}\">\n"
+                f"<doc project=\"{page.get('project', '')}\" path=\"{page['path']}\" "
+                f"title=\"{page['title']}\" section=\"{page.get('section', '')}\">\n"
                 f"{page.get('content', '')}\n</doc>"
             )
         knowledge_blocks = [
-            f"<snippet source=\"{item['source']}\">\n{item['content']}\n</snippet>"
+            f"<snippet project=\"{item.get('project', '')}\" source=\"{item['source']}\">\n{item['content']}\n</snippet>"
             for item in knowledge
         ]
         history_text = "\n".join(
@@ -405,17 +513,22 @@ words unless a step-by-step example needs more. End with a "Sources" section.
         seen = set()
         for page in pages:
             path = page["path"]
-            if path in seen:
+            project = page.get("project") or self.settings.project_name
+            key = f"{project}:{path}"
+            if key in seen:
                 continue
             if cited_paths and path not in cited_paths:
                 # Keep used pages as suggestions even when the model omitted a
                 # link; this keeps the UI useful when citations are incomplete.
                 pass
-            seen.add(path)
+            seen.add(key)
             citations.append({
                 "type": "wiki",
                 "title": page["title"],
                 "path": path,
+                "project": project,
+                "project_title": page.get("project_title", project),
+                "wiki_url": page.get("wiki_url", f"?page={path}"),
                 "description": page.get("description", ""),
                 "icon": page.get("icon", "fa-regular fa-file-lines"),
             })
@@ -427,6 +540,7 @@ words unless a step-by-step example needs more. End with a "Sources" section.
                     "type": "source",
                     "title": source.split("/")[-1] or source,
                     "path": source,
+                    "project": item.get("project", self.settings.project_name),
                     "description": "Project source / knowledge snippet",
                     "icon": "fa-solid fa-code",
                 })

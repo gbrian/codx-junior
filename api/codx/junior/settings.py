@@ -86,6 +86,14 @@ class CODXJuniorSettings(BaseModel):
         default=True,
         description="Enable the documentation AI assistant for this project",
     )
+    wiki_search_children: Optional[bool] = Field(
+        default=True,
+        description="Include child project documentation in wiki search and the assistant",
+    )
+    wiki_search_depth: Optional[int] = Field(
+        default=2,
+        description="How many child-project levels wiki search and the assistant may traverse",
+    )
 
     project_preview_url: Optional[str] = Field(default=None)
 

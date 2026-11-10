@@ -78,6 +78,21 @@ def _related_projects(settings: Any) -> list:
         )
     except Exception as ex:  # pragma: no cover - discovery is optional
         logger.debug("Cannot resolve related projects for wiki: %s", ex)
+    # Include the whole hierarchy under the same root, so clicking a sibling
+    # or cousin project in the docs tree is allowed too.
+    try:
+        root = min(
+            [settings] + [p for p in related if p and is_path_child_of(settings.abs_project_path, p.abs_project_path)],
+            key=lambda project: len(project.abs_project_path or ""),
+        )
+        root_path = root.abs_project_path
+        for project in find_all_projects().values():
+            if not project.abs_project_path:
+                continue
+            if project.abs_project_path == root_path or is_path_child_of(project.abs_project_path, root_path):
+                related.append(project)
+    except Exception as ex:  # pragma: no cover - discovery is optional
+        logger.debug("Cannot resolve wiki project hierarchy: %s", ex)
     unique = {}
     for project in related:
         if project is None:
@@ -168,15 +183,13 @@ async def wiki_site(request: Request, project: Optional[str] = Query(default=Non
     builder = WikiSiteBuilder(settings=settings)
     site = builder.load()
     if not site:
-        if getattr(settings, "project_wiki", False):
-            # Seed the folder (landing page + static-site shell) without calling
-            # the AI, then build the manifest. The full tree is generated from
-            # the wiki settings screen.
-            manager = WikiManager(settings=settings)
-            await asyncio.to_thread(manager.ensure_wiki_structure)
-            site = await asyncio.to_thread(lambda: builder.build(write=True))
-        else:
-            site = await asyncio.to_thread(lambda: builder.build(write=False))
+        # Every project has a wiki. Build the lightweight one on first read
+        # (deterministic tree + category overviews), without blocking on AI.
+        manager = WikiManager(settings=settings)
+        await asyncio.to_thread(manager.ensure_initial_wiki, False)
+        settings = manager.settings
+        builder = WikiSiteBuilder(settings=settings)
+        site = await asyncio.to_thread(lambda: builder.build(write=True))
     elif builder.is_stale(site):
         # Another process (or a restart) wrote pages after the manifest: rebuild
         # the cheap, AI-free navigation/index on read.
@@ -232,6 +245,8 @@ async def wiki_assistant(
             history=payload.get("history") or [],
             page_path=payload.get("page"),
             use_knowledge=bool(payload.get("use_knowledge", True)),
+            include_children=payload.get("include_children"),
+            child_depth=payload.get("child_depth"),
         )
     except ValueError as ex:
         raise HTTPException(status_code=422, detail=str(ex))
@@ -296,12 +311,11 @@ async def wiki_create(
     """
     session = _session(request)
     settings = _resolve_settings(session, payload.get("project"))
-    if not getattr(settings, "project_wiki", False):
-        settings.project_wiki = True
-        settings = settings.save_project()
-        find_all_projects()
     manager = WikiManager(settings=settings)
-    site = await asyncio.to_thread(manager.create_initial_wiki)
+    await asyncio.to_thread(manager.ensure_initial_wiki, True)
+    settings = manager.settings
+    find_all_projects()
+    site = await asyncio.to_thread(manager.build_site)
     return {
         "ok": True,
         "site": _site_payload(settings, site),

@@ -387,7 +387,33 @@ class WikiManager:
                 break
         return selected
 
-    def create_initial_wiki(self) -> Dict[str, Any]:
+    def ensure_initial_wiki(self, queue_pages: bool = False) -> bool:
+        """
+        Make sure the project has a wiki, creating a lightweight one if needed.
+
+        Returns True when a wiki was created. This is the automatic path used
+        for every discovered project; it deliberately does not queue a large AI
+        batch unless the caller asks for it.
+        """
+        try:
+            existing = self.site_builder.load()
+            settings = self.load_wiki_settings()
+            if existing and existing.get("pages") and settings.get("categories"):
+                return False
+        except Exception:
+            pass
+        if not self.settings.project_wiki:
+            self.settings.project_wiki = True
+            saved = self.settings.save_project()
+            self.settings = saved
+            self.wiki_path = saved.get_project_wiki_path()
+            self.wiki_home_path = os.path.join(self.wiki_path, "home.md")
+            self.site_builder = WikiSiteBuilder(settings=saved)
+        self.is_wiki_active = True
+        self.create_initial_wiki(queue_pages=queue_pages)
+        return True
+
+    def create_initial_wiki(self, queue_pages: bool = True) -> Dict[str, Any]:
         """
         Create a usable wiki without waiting for a large AI pipeline.
 
@@ -411,7 +437,7 @@ class WikiManager:
                 except Exception as ex:
                     logger.warning("Cannot write category overview for %s: %s", category.get("title"), ex)
         site = self.build_site()
-        initial_files = self._initial_page_files(categories)
+        initial_files = self._initial_page_files(categories) if queue_pages else []
         if initial_files:
             from codx.junior.wiki.scheduler import schedule_wiki_update
 

@@ -435,6 +435,8 @@ class WikiSiteBuilder:
         home = self._pick_home_page(pages)
         project = self._project_info(pages)
         child_projects, parent_project = self._related_projects()
+        hierarchy = self._build_project_hierarchy()
+        search_items = self._build_search_items(pages)
         navigation = self._build_navigation(pages, home)
         features = self._build_features(navigation, pages)
         site = {
@@ -446,6 +448,7 @@ class WikiSiteBuilder:
             "pages": {page["path"]: page for page in pages},
             "child_projects": child_projects,
             "parent_project": parent_project,
+            "hierarchy": hierarchy,
             "assistant": self._assistant_config(project, pages),
             "stats": {
                 "pages": len(pages),
@@ -457,16 +460,9 @@ class WikiSiteBuilder:
             },
             "search": {
                 "provider": "local",
-                "items": [
-                    {
-                        "path": page["path"],
-                        "title": page["title"],
-                        "description": page.get("description", ""),
-                        "section": page.get("section", ""),
-                        "tags": page.get("tags", []),
-                    }
-                    for page in pages
-                ],
+                "children": bool(getattr(self.settings, "wiki_search_children", True)),
+                "depth": self._search_depth(),
+                "items": search_items,
             },
         }
         if write:
@@ -936,6 +932,152 @@ class WikiSiteBuilder:
             key=lambda group: (group["order"], group["title"].lower()),
         )
 
+    # ── project hierarchy / cross-project search ─────────────────────────────
+
+    def _all_projects(self) -> List[Any]:
+        """Return discovered projects, or an empty list when discovery fails."""
+        try:
+            from codx.junior.project.project_discover import find_all_projects
+
+            return list(find_all_projects().values())
+        except Exception as ex:  # pragma: no cover - discovery is optional
+            logger.debug("Cannot discover projects for wiki: %s", ex)
+            return []
+
+    def _hierarchy_scope(self) -> List[Any]:
+        """
+        Return the projects that belong to the same hierarchy as this one.
+
+        The scope starts at the topmost known ancestor and includes every
+        project below it, so siblings and cousins are navigable too.
+        """
+        projects = self._all_projects()
+        current_path = os.path.normpath(self.settings.abs_project_path or "")
+        if not projects or not current_path:
+            return [self.settings]
+        try:
+            from codx.junior.project.project_discover import is_path_child_of
+
+            ancestors = [
+                project for project in projects
+                if os.path.normpath(project.abs_project_path or "") == current_path
+                or is_path_child_of(current_path, project.abs_project_path)
+            ]
+            root = min(ancestors, key=lambda project: len(project.abs_project_path or "")) if ancestors else self.settings
+            root_path = os.path.normpath(root.abs_project_path or "")
+            scope = [
+                project for project in projects
+                if project.abs_project_path
+                and (
+                    os.path.normpath(project.abs_project_path) == root_path
+                    or is_path_child_of(project.abs_project_path, root_path)
+                )
+            ]
+            if self.settings.project_id not in {p.project_id for p in scope}:
+                scope.append(self.settings)
+            return scope
+        except Exception as ex:  # pragma: no cover - discovery is optional
+            logger.debug("Cannot resolve project hierarchy: %s", ex)
+            return [self.settings]
+
+    def _build_project_hierarchy(self) -> List[Dict[str, Any]]:
+        """Return the full project tree, nested by filesystem ancestry."""
+        scope = self._hierarchy_scope()
+        current_path = os.path.normpath(self.settings.abs_project_path or "")
+        nodes: Dict[str, Dict[str, Any]] = {}
+        for project in scope:
+            path = os.path.normpath(project.abs_project_path or "")
+            if not path or path in nodes:
+                continue
+            card = self._project_card(project)
+            card["is_current"] = project.project_id == self.settings.project_id
+            card["children"] = []
+            card["depth"] = len(path.replace(current_path, "").strip(os.sep).split(os.sep)) if path != current_path else 0
+            nodes[path] = card
+        if not nodes:
+            card = self._project_card(self.settings)
+            card["is_current"] = True
+            card["children"] = []
+            card["depth"] = 0
+            return [card]
+
+        roots: List[Dict[str, Any]] = []
+        for path, node in sorted(nodes.items(), key=lambda item: len(item[0])):
+            parents = [
+                candidate for candidate in nodes
+                if candidate != path and path.startswith(candidate + os.sep)
+            ]
+            if parents:
+                parent = max(parents, key=len)
+                nodes[parent]["children"].append(node)
+            else:
+                roots.append(node)
+        return roots
+
+    def _search_depth(self) -> int:
+        try:
+            return max(0, min(10, int(getattr(self.settings, "wiki_search_depth", 2) or 0)))
+        except (TypeError, ValueError):
+            return 2
+
+    def _child_projects_for_search(self) -> List[Any]:
+        """Return descendant projects within the configured search depth."""
+        if not getattr(self.settings, "wiki_search_children", True):
+            return []
+        try:
+            from codx.junior.project.project_discover import is_path_child_of
+        except Exception:
+            return []
+        current = os.path.normpath(self.settings.abs_project_path or "")
+        depth = self._search_depth()
+        result = []
+        for project in self._hierarchy_scope():
+            path = os.path.normpath(project.abs_project_path or "")
+            if not path or path == current or not is_path_child_of(path, current):
+                continue
+            level = len(os.path.relpath(path, current).split(os.sep))
+            if level <= depth:
+                result.append(project)
+        return sorted(result, key=lambda project: project.abs_project_path or "")
+
+    def _build_search_items(self, pages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Search index: current pages plus child-project pages up to the depth."""
+        project = self.settings.project_name
+        items = [
+            {
+                "path": page["path"],
+                "title": page["title"],
+                "description": page.get("description", ""),
+                "section": page.get("section", ""),
+                "tags": page.get("tags", []),
+                "project": project,
+                "project_title": project,
+                "wiki_url": f"?page={quote(page['path'])}",
+            }
+            for page in pages
+        ]
+        for child in self._child_projects_for_search():
+            try:
+                child_site = WikiSiteBuilder(settings=child).build_if_stale(write=False)
+            except Exception:
+                continue
+            child_project = child_site.get("project", {}) if isinstance(child_site, dict) else {}
+            child_name = child_project.get("name") or child.project_name
+            for page in child_site.get("pages", {}).values():
+                items.append({
+                    "path": page.get("path", ""),
+                    "title": page.get("title", ""),
+                    "description": page.get("description", ""),
+                    "section": page.get("section", ""),
+                    "tags": page.get("tags", []),
+                    "project": child_name,
+                    "project_title": child_project.get("title") or child.project_name,
+                    "wiki_url": f"?project={quote(child_name)}&page={quote(page.get('path', ''))}",
+                })
+                if len(items) >= 600:
+                    return items
+        return items
+
     # ── related projects ────────────────────────────────────────────────────
 
     def _related_projects(self) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:
@@ -1036,6 +1178,8 @@ class WikiSiteBuilder:
             ),
             "suggestions": unique[:6],
             "scope": [page["path"] for page in pages[:80]],
+            "search_children": bool(getattr(self.settings, "wiki_search_children", True)),
+            "search_depth": self._search_depth(),
         }
 
     # ── derived files ───────────────────────────────────────────────────────

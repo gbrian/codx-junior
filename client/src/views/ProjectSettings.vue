@@ -119,6 +119,20 @@ import TraefikRulesPanel from '@/components/traefik/TraefikRulesPanel.vue'
                     <span>Enable the documentation AI assistant</span>
                   </label>
                 </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label class="label-text flex items-center gap-2">
+                      <input v-model="settings.wiki_search_children" type="checkbox" class="toggle" />
+                      <span>Search child project docs</span>
+                    </label>
+                    <div class="text-xs text-base-content/60 mt-1">Include child wikis in search and the assistant.</div>
+                  </div>
+                  <div>
+                    <label class="label-text block mb-2">Child search depth</label>
+                    <input v-model.number="settings.wiki_search_depth" type="number" min="0" max="10" class="input input-bordered w-full" />
+                    <div class="text-xs text-base-content/60 mt-1">How many child levels to traverse.</div>
+                  </div>
+                </div>
                 <div>
                   <label class="label-text block mb-2">Wiki path</label>
                   <input v-model="settings.project_wiki_path" type="text" class="input input-bordered w-full" />

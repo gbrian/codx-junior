@@ -123,6 +123,38 @@ flowchart LR
     ChildB --> Parent
 ```
 
+## Every project gets a wiki
+
+Projects are not left without documentation. When a project is discovered, the
+background worker creates a lightweight wiki automatically:
+
+- a deterministic category tree from the repository layout,
+- one overview page per category,
+- the docs manifest and navigation.
+
+The **Create wiki** button remains available for a project with no pages; it
+also queues the first detailed AI pages. Opening the Wiki tab creates the
+lightweight wiki on demand if it is still missing.
+
+## Project hierarchy
+
+The sidebar project tree is built from the filesystem hierarchy: the topmost
+ancestor, the current project, siblings and every descendant project are shown.
+Selecting a project opens its wiki in place.
+
+## Child project search and assistant depth
+
+Search and the documentation assistant can cross project boundaries:
+
+- `wiki_search_children` includes child wiki pages and child knowledge in the
+  search index and assistant retrieval.
+- `wiki_search_depth` controls how many child levels are traversed (default 2).
+- The search palette has an **Include child project docs** check.
+- The assistant panel has the same check plus a depth selector per conversation.
+
+Search results and assistant citations from another project show its project
+badge; selecting one switches the docs view to that project.
+
 ## Enabling and rebuilding the wiki
 
 1. Open **Project settings** and enable **Generate wiki**.

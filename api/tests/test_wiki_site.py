@@ -30,6 +30,8 @@ class FakeSettings:
         self.project_dependencies = ""
         self.project_wiki_path = None
         self.wiki_auto_update = True
+        self.wiki_search_children = True
+        self.wiki_search_depth = 2
 
     def get_project_wiki_path(self):
         return os.path.join(self.codx_path, "wiki")
@@ -92,6 +94,9 @@ class WikiSiteBuilderTest(unittest.TestCase):
         self.assertIn("Overview", sections)
         self.assertIn("Architecture", sections)
         self.assertGreaterEqual(site["stats"]["pages"], 3)
+        self.assertIn("hierarchy", site)
+        self.assertTrue(site["search"]["children"])
+        self.assertEqual(site["search"]["depth"], 2)
         self.assertTrue(os.path.isfile(os.path.join(self.wiki, "docs.json")))
         self.assertTrue(os.path.isfile(os.path.join(self.wiki, "llms.txt")))
         self.assertTrue(os.path.isfile(os.path.join(self.wiki, ".vitepress", "config.json")))
