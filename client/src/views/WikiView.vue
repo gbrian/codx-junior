@@ -215,14 +215,19 @@ import WikiMarkdown from '@/components/wiki/WikiMarkdown.vue'
             </div>
             <h2 class="text-2xl font-bold">This project has no wiki yet</h2>
             <p class="mt-2 text-sm opacity-60">
-              Enable the wiki in the project settings, then generate the documentation tree.
-              Once pages exist they appear here and the assistant can answer questions about them.
+              Create a documentation site from the project layout. The first overview pages
+              appear immediately; detailed pages are generated in the background.
             </p>
-            <div class="mt-5 flex justify-center gap-2">
-              <button class="btn btn-primary btn-sm" @click="requestRefresh">
+            <div class="mt-5 flex flex-wrap justify-center gap-2">
+              <button class="btn btn-primary btn-sm gap-2" :disabled="creatingWiki" @click="createWiki">
+                <span v-if="creatingWiki" class="loading loading-spinner loading-xs"></span>
+                <i v-else class="fa-solid fa-wand-magic-sparkles"></i>
+                {{ creatingWiki ? 'Creating wiki…' : 'Create wiki' }}
+              </button>
+              <button class="btn btn-ghost btn-sm gap-2" :disabled="creatingWiki" @click="requestRefresh">
                 <i class="fa-solid fa-rotate"></i> Check again
               </button>
-              <button class="btn btn-ghost btn-sm" @click="$ui.setActiveTab('wiki_settings')">
+              <button class="btn btn-ghost btn-sm gap-2" @click="openWikiSettings">
                 <i class="fa-solid fa-sliders"></i> Wiki settings
               </button>
             </div>
@@ -581,6 +586,7 @@ export default {
       loadingSite: true,
       error: null,
       sidebarOpen: false,
+      creatingWiki: false,
       isPhone: typeof window !== 'undefined'
         && window.matchMedia('(max-width: 479px)').matches,
       collapsedSections: [],
@@ -946,6 +952,32 @@ export default {
         const element = this.$refs.assistantScroll
         if (element) element.scrollTop = element.scrollHeight
       })
+    },
+
+    async createWiki() {
+      if (this.creatingWiki) return
+      this.creatingWiki = true
+      this.error = null
+      try {
+        const response = await this.api().wiki.create({ project: this.projectName })
+        const created = response?.site || response
+        if (created?.navigation) this.site = { ...EMPTY_SITE, ...created }
+        await this.loadSite(this.projectName)
+        this.showToast('Wiki created — detailed pages are being generated')
+      } catch (error) {
+        console.error('Wiki creation failed', error)
+        this.error = error?.message || 'Could not create the wiki'
+      } finally {
+        this.creatingWiki = false
+      }
+    },
+    openWikiSettings() {
+      const ui = this.$storex?.ui
+      if (ui?.openApp) {
+        ui.openApp({ appKey: 'knowledge_settings', payload: { tab: 'wiki' } })
+      } else {
+        this.$ui.setActiveTab('knowledge_settings')
+      }
     },
 
     // ── background updates ───────────────────────────────────────────────

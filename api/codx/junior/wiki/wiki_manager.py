@@ -46,6 +46,7 @@ from codx.junior.wiki.site import (
     first_heading,
     first_paragraph,
     humanize,
+    icon_for,
     parse_frontmatter,
     profile_text,
     reading_time,
@@ -251,6 +252,176 @@ class WikiManager:
             "reflect the current project.\n"
             f"{language_hint}\n"
         )
+
+    # ── initial wiki creation (deterministic, no AI) ──────────────────────
+
+    def build_default_tree(self) -> Dict[str, Any]:
+        """
+        Create a sensible category tree from the repository layout.
+
+        ``create_wiki_tree`` is AI-powered and can be slow. This deterministic
+        tree gives a new wiki an immediately navigable structure; the tree can
+        be regenerated later from Wiki settings.
+        """
+        root = os.path.abspath(self.settings.abs_project_path or "")
+        wiki_root = os.path.abspath(self.wiki_path)
+        groups: Dict[str, List[str]] = {}
+        for file_path in self.loader.list_repository_files() or []:
+            absolute = os.path.abspath(file_path)
+            if absolute.startswith(wiki_root):
+                continue
+            try:
+                relative = os.path.relpath(absolute, root).replace(os.sep, "/")
+            except ValueError:
+                continue
+            if relative.startswith("../") or relative.startswith("."):
+                continue
+            top = relative.split("/")[0] if "/" in relative else "project-overview"
+            if top.startswith(".") or top in ("node_modules", "dist", "build", "coverage"):
+                continue
+            groups.setdefault(top, []).append(relative)
+
+        if not groups:
+            return self.load_wiki_settings()
+
+        ordered = sorted(groups.items(), key=lambda item: (-len(item[1]), item[0]))
+        selected = ordered[:8]
+        overflow = [path for _group, files in ordered[8:] for path in files]
+
+        categories = []
+        for index, (group, files) in enumerate(selected):
+            title = humanize(group)
+            categories.append({
+                "title": title,
+                "description": f"Documentation for the {title} area of the project.",
+                "icon": icon_for(title),
+                "order": (index + 1) * 10,
+                "keywords": [group],
+                "children": [],
+                "files": [
+                    {"path": f"/{path}", "name": humanize(os.path.basename(path))}
+                    for path in sorted(files)
+                ],
+            })
+        if overflow:
+            categories.append({
+                "title": "Other",
+                "description": "Remaining project files.",
+                "icon": icon_for("other"),
+                "order": 900,
+                "keywords": [],
+                "children": [],
+                "files": [
+                    {"path": f"/{path}", "name": humanize(os.path.basename(path))}
+                    for path in sorted(overflow)
+                ],
+            })
+
+        settings = self.load_wiki_settings()
+        settings["categories"] = categories
+        return self.save_wiki_settings(settings)
+
+    def _write_category_overview(self, category: Dict[str, Any]) -> str:
+        """Write a deterministic category landing page (no AI call)."""
+        title = str(category.get("title") or "Overview")
+        description = str(category.get("description") or f"Documentation for {title}.")
+        files = category.get("files", []) or []
+        rows = []
+        for file in files[:40]:
+            path = str(file.get("path", "")).lstrip("/")
+            rows.append(f"| `{path}` | {file.get('name') or humanize(path)} |")
+        more = "" if len(files) <= 40 else f"\n_…and {len(files) - 40} more files._\n"
+        body = (
+            f"# {title}\n\n"
+            f"> **TL;DR** — {description}\n\n"
+            "> [!NOTE]\n"
+            "> This overview was generated from the repository layout when the wiki was created. "
+            "Detailed pages are generated in the background as files change.\n\n"
+            "## What's inside\n\n"
+            "| File | Area |\n| --- | --- |\n"
+            + "\n".join(rows)
+            + f"\n{more}\n"
+            "## Suggested reading\n\n"
+            "- Start with the files closest to the project entry point.\n"
+            "- Ask the assistant for a guided tour of this area.\n"
+        )
+        header = yaml.safe_dump(
+            {
+                "title": f"{title} overview",
+                "description": description[:300],
+                "tags": ["overview", "generated"],
+                "category": title,
+            },
+            sort_keys=False,
+            allow_unicode=True,
+        ).strip()
+        page_path = path_join(self.wiki_path, category["path"], "overview.md")
+        os.makedirs(os.path.dirname(page_path), exist_ok=True)
+        write_file(page_path, f"---\n{header}\n---\n\n{body}")
+        return page_path
+
+    def _initial_page_files(self, categories: List[Dict[str, Any]], limit: int = 12) -> List[str]:
+        """Pick a small, useful set of files for the first AI page batch."""
+        candidates: List[str] = []
+        preferred = ("readme", "main", "app", "index", "entrypoint", "dockerfile")
+        for category in categories:
+            for file in category.get("files", []) or []:
+                path = str(file.get("path", "")).lstrip("/")
+                if path:
+                    candidates.append(path)
+        def priority(path: str) -> tuple:
+            name = os.path.basename(path).lower()
+            return (
+                0 if name.startswith("readme") else 1,
+                0 if any(token in name for token in preferred) else 1,
+                len(path),
+            )
+        seen = set()
+        selected = []
+        for path in sorted(candidates, key=priority):
+            if path in seen:
+                continue
+            seen.add(path)
+            selected.append(os.path.join(self.settings.abs_project_path, path))
+            if len(selected) >= limit:
+                break
+        return selected
+
+    def create_initial_wiki(self) -> Dict[str, Any]:
+        """
+        Create a usable wiki without waiting for a large AI pipeline.
+
+        * seeds the folder/home,
+        * builds a deterministic category tree when none exists,
+        * writes one overview page per category,
+        * rebuilds the docs manifest,
+        * queues a small first batch of detailed pages in the background.
+        """
+        self.is_wiki_active = True
+        self.ensure_wiki_structure()
+        settings = self.load_wiki_settings()
+        if not settings.get("categories"):
+            settings = self.build_default_tree()
+        settings = self.load_wiki_settings()
+        categories = self._get_all_categories(settings.get("categories", []))
+        for category in categories:
+            if category.get("files"):
+                try:
+                    self._write_category_overview(category)
+                except Exception as ex:
+                    logger.warning("Cannot write category overview for %s: %s", category.get("title"), ex)
+        site = self.build_site()
+        initial_files = self._initial_page_files(categories)
+        if initial_files:
+            from codx.junior.wiki.scheduler import schedule_wiki_update
+
+            schedule_wiki_update(
+                self.settings,
+                files=initial_files,
+                reason="create-wiki",
+                debounce_seconds=1,
+            )
+        return site
 
     def create_config(self) -> Dict[str, Any]:
         """Initialise the wiki folder and return its settings."""

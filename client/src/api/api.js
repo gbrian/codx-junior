@@ -885,6 +885,9 @@ const initializeAPI = ({ project, user } = {}) => {
       update(payload) {
         return API.post('/api/wiki/updates', payload)
       },
+      create(payload = {}) {
+        return API.post('/api/wiki/create', payload)
+      },
       rebuild() {
         return API.get('/api/wiki-engine/rebuild')
       },

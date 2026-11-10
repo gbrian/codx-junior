@@ -236,6 +236,15 @@ export const APPS = {
     route: () => ({ name: 'knowledge-settings' })
   },
 
+  // Alias used by the wiki UI. It opens the existing Knowledge Settings panel
+  // directly on its Wiki tab instead of pointing at a non-existent app (which
+  // used to show an empty panel).
+  wiki_settings: {
+    id: 'wiki_settings', title: 'Wiki Settings', component: 'knowledge_settings', icon: 'fa-solid fa-sliders',
+    desktopParams: p => ({ ...(p.params || {}), tab: 'wiki' }),
+    route: () => ({ name: 'knowledge-settings', query: { tab: 'wiki' } })
+  },
+
   // ── Project & user ────────────────────────────────────────────────────────
   projects: {
     id: 'projects', title: 'Projects', component: 'projects', icon: 'fa-solid fa-cubes',

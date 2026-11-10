@@ -282,6 +282,33 @@ async def wiki_updates_action(
     return {"ok": scheduled, "action": "schedule", "status": _update_payload(settings)}
 
 
+@router.post("/wiki/create")
+async def wiki_create(
+    request: Request,
+    payload: Dict[str, Any] = Body(default={}),
+):
+    """
+    Create a usable wiki for a project that does not have one.
+
+    This enables the project wiki and performs the fast, deterministic part of
+    the setup: category tree from the repository layout, one overview page per
+    category, docs manifest and a small queued batch of detailed pages.
+    """
+    session = _session(request)
+    settings = _resolve_settings(session, payload.get("project"))
+    if not getattr(settings, "project_wiki", False):
+        settings.project_wiki = True
+        settings = settings.save_project()
+        find_all_projects()
+    manager = WikiManager(settings=settings)
+    site = await asyncio.to_thread(manager.create_initial_wiki)
+    return {
+        "ok": True,
+        "site": _site_payload(settings, site),
+        "updates": _update_payload(settings),
+    }
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Legacy endpoints
 # ─────────────────────────────────────────────────────────────────────────────

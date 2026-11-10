@@ -123,7 +123,8 @@ export default {
     }
   },
   async created() {
-    if (this.$ui.activeTab === 'wiki_settings') {
+    const requestedTab = this.params?.tab || this.$route?.query?.tab
+    if (this.$ui.activeTab === 'wiki_settings' || requestedTab === 'wiki') {
       this.selectedTab = 'Wiki'
     }
     this.currentProject = this.$project
