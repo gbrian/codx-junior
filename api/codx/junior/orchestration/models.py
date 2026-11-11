@@ -509,6 +509,14 @@ class RunState(BaseModel):
             "restarted run cannot silently lose its final report."
         )
     )
+    notification_sent: bool = Field(
+        default=False,
+        description=(
+            "True once the user has been notified of the terminal status of "
+            "this run (toast + delivery report). Prevents duplicate "
+            "notifications across processes/restarts."
+        )
+    )
 
     events: List[RunEvent] = Field(default_factory=list)
 

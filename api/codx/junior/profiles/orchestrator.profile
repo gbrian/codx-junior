@@ -29,7 +29,8 @@
     "list_profiles_summary",
     "team_context",
     "project_manager",
-    "create_task"
+    "create_task",
+    "search_codx"
   ],
   "tags": [
     "orchestration",

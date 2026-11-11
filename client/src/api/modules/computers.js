@@ -55,6 +55,31 @@ export const computersModule = (API) => ({
     return API.post(`/api/computers/${sessionId}/viewer-credentials`, {})
   },
 
+  // ── Desktop size ───────────────────────────────────────────────────────
+
+  /**
+   * Options of the desktop-size selector.
+   *
+   * `auto` (first entry, the default) makes the remote desktop follow the
+   * viewer size; the fixed presets carry `width`/`height`, and `custom` tells
+   * the UI to ask for the size manually.
+   */
+  async desktopSizes() {
+    return API.get('/api/computers/desktop-sizes')
+  },
+
+  /**
+   * Ask the machine to resize its desktop.
+   *
+   * `mode='client'` treats width/height as the viewer size in CSS pixels
+   * (`scale` = device pixel ratio); `mode='manual'` applies an explicit size
+   * (`{ resolution: '1920x1080' }` is also accepted). Sessions with auto resize
+   * on answer without touching the machine.
+   */
+  async resizeDesktop(sessionId, payload = {}) {
+    return API.post(`/api/computers/${sessionId}/resize`, payload)
+  },
+
   // ── Saved computers ────────────────────────────────────────────────────
 
   /** Commit a running Linux/Kasmweb desktop into the project library. */

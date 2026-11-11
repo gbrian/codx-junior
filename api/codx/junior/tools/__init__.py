@@ -55,6 +55,7 @@ from .project_structure import (
     PROJECT_STRUCTURE_TOOL_JSON,
     READ_FOLDER_TOOL_JSON,
 )
+from .codx_tools import search_codx, SEARCH_CODX_TOOL_JSON
 from .code_writer import code_writer
 from .create_task_tool import create_task, CREATE_TASK_TOOL_JSON
 from .process_task_tool import process_task, PROCESS_TASK_TOOL_JSON
@@ -207,9 +208,62 @@ from .model import ToolResponse, ToolSettings
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# -----------------------------------------------------------------------------
+# Tool allowlist sentinels
+# -----------------------------------------------------------------------------
+# A profile whose ``tools`` allowlist contains this marker is granted EVERY
+# chat-scoped tool registered in the runtime (the "codx-junior" harness profile
+# uses it). The marker is expanded where the request tools are decided
+# (:class:`codx.junior.ai.smol.smol_agent.SmolAgent`), so it never reaches the
+# provider. Validators accept it as a tool name so a profile saved with it
+# keeps working.
+ALL_TOOLS_MARKER = "*"
+
+# Tools that are NEVER granted by an allowlist, even with the marker: they are
+# injected per run by the agent, which is the only component that knows whether
+# the user may teach a profile (write access) or must only read knowledge.
+PROFILE_MANAGED_TOOL_NAMES = frozenset({
+    "profile_learning",
+    "profile_knowledge",
+    "profile_knowledge_search",
+})
+
+
+def all_tool_names() -> frozenset:
+    """Return the names of every tool registered in the runtime."""
+    return frozenset(tool["tool_json"]["function"]["name"] for tool in TOOLS)
+
+
+def expand_tool_allowlist(selected) -> frozenset:
+    """
+    Expand a tool-name allowlist (e.g. ``Profile.tools``) into a name set.
+
+    * ``ALL_TOOLS_MARKER`` ("*") grants every registered tool.
+    * ``PROFILE_MANAGED_TOOL_NAMES`` are never granted by an allowlist: they
+      are injected per run by the agent, which is the only component that
+      knows whether the user may teach a profile (write access) or must only
+      read knowledge.
+
+    Args:
+        selected: Iterable of tool names (may contain the marker).
+
+    Returns:
+        Frozen set of concrete tool names.
+    """
+    names = {str(name) for name in (selected or []) if name}
+    if ALL_TOOLS_MARKER in names:
+        names.discard(ALL_TOOLS_MARKER)
+        names.update(all_tool_names() - PROFILE_MANAGED_TOOL_NAMES)
+    return frozenset(names)
+
+
 # Export public API
 __all__ = [
     "TOOLS",
+    "ALL_TOOLS_MARKER",
+    "PROFILE_MANAGED_TOOL_NAMES",
+    "all_tool_names",
+    "expand_tool_allowlist",
     "ToolResponse",
     "ToolSettings",
     "fetch_webpage",
@@ -227,6 +281,7 @@ __all__ = [
     "project_changes",
     "project_structure",
     "read_folder",
+    "search_codx",
     "code_writer",
     "create_task",
     "process_task",
@@ -364,18 +419,18 @@ TOOLS = [
             "function": {
                 "name": "project_search",
                 "description": (
-                    "Search for documents within a project using one or more search queries. "
-                    "Also finds project files whose path matches each query; the repository's "
-                    ".gitignore and the project's custom ignore patterns are honored so ignored "
-                    "folders and files are discarded. "
-                    "A query containing glob wildcards ('*', '?', '[') is treated as a glob "
-                    "pattern matched against project file paths (e.g. '**/*.py' returns every "
-                    "Python file). "
-                    "BULK OPERATION: To reduce tool calls, provide multiple queries at once "
-                    "as a list instead of making separate calls. "
-                    "Example: search=[\"authentication\", \"user session\"] instead of two separate calls. "
-                    "Use project_grep for exact text/regex matches in file contents, and "
-                    "project_changes to inspect what changed in the working tree."
+                    "CODEBASE ONLY: `.codx` (tasks, profiles, browser sessions, chats) is "
+                    "excluded from this tool — use `search_codx` for the control plane. "
+                    "Search for CONCEPTS across the project's knowledge base, and for files "
+                    "whose PATH matches each query. It does not return symbol definitions: "
+                    "use project_grep for an exact symbol/string/config key and project_glob "
+                    "for file paths. The repository's .gitignore and the project's custom "
+                    "ignore patterns are honored. A query containing glob wildcards "
+                    "('*', '?', '[') is treated as a glob pattern matched against project "
+                    "file paths (e.g. '**/*.py'). "
+                    "BULK OPERATION: provide multiple related concepts at once as a list "
+                    "instead of making separate calls. "
+                    "Example: search=[\"authentication\", \"user session\"]."
                 ),
                 "parameters": {
                     "type": "object",
@@ -383,16 +438,10 @@ TOOLS = [
                         "search": {
                             "type": ["string", "array"],
                             "description": (
-                                "Single search query (string) or list of search queries (array of strings). "
-                                "Combining multiple related queries in one call is more efficient. "
-                                "A query may contain glob wildcards to find files by pattern."
-                            )
-                        },
-                        "validation": {
-                            "type": "string",
-                            "description": (
-                                "Optional text used to validate and filter search results. "
-                                "Helps extract only important content from large documents."
+                                "Single concept query (string) or list of concept queries "
+                                "(array of strings). Combining multiple related queries in "
+                                "one call is more efficient. A query may contain glob "
+                                "wildcards to find files by path pattern."
                             )
                         }
                     },
@@ -410,6 +459,8 @@ TOOLS = [
             "function": {
                 "name": "project_grep",
                 "description": (
+                    "CODEBASE ONLY: `.codx` (tasks, profiles, browser sessions, chats) is "
+                    "excluded — use `search_codx` for the control plane. "
                     "Search the raw text of project files (grep) and return matching lines "
                     "with their line numbers and optional context. Use this instead of "
                     "project_search when you need an exact symbol, string, error message, "
@@ -479,6 +530,8 @@ TOOLS = [
             "function": {
                 "name": "project_glob",
                 "description": (
+                    "CODEBASE ONLY: `.codx` (tasks, profiles, browser sessions, chats) is "
+                    "excluded — use `search_codx` for the control plane. "
                     "Find project files by glob pattern and return their paths. This is "
                     "the fast way to discover files: it does not query the knowledge "
                     "base. Standard wildcards are supported (*, ?, [abc] and recursive "
@@ -513,19 +566,33 @@ TOOLS = [
         "tool_call": project_glob
     },
     {
+        "tool_json": SEARCH_CODX_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat", cache=False).dict(),
+        "tags": ["codx", "control-plane", "tasks", "profiles", "browser-sessions", "search"],
+        "tool_call": search_codx
+    },
+    {
         "tool_json": {
             "type": "function",
             "function": {
                 "name": "project_read_file",
                 "description": (
-                    "Read project file content from one or multiple file paths. "
+                    "Read CODEBASE file content from one or multiple file paths. "
+                    "`.codx` files (tasks/profiles/sessions) are not discovered by the "
+                    "project_* search tools; locate them with `search_codx` first and pass "
+                    "the returned path here only when the exact file is needed. "
                     "Paths are read literally: glob wildcards ('*', '?', '[') are NOT "
-                    "interpreted. Use project_search/project_grep to discover files by "
+                    "interpreted. Use project_grep/project_glob to discover files by "
                     "pattern and then read the returned paths. "
                     "\n\nLarge files are bounded and truncated at a line boundary; the "
-                    "response states which lines are shown. Use start_line/end_line to "
-                    "page through a big file and line_numbers to get line numbers. Binary "
-                    "files are rejected instead of being dumped into the context. "
+                    "response states which lines are shown. DO NOT page through a big "
+                    "file to find a symbol: pass pattern=\"setActiveTab\" (literal or "
+                    "regex) and only the matching lines plus context are returned. For "
+                    "a map of a large file pass outline=true; an outline is also added "
+                    "automatically when you request the whole file. Use start_line/"
+                    "end_line only when you already know which lines you need, and "
+                    "line_numbers to get line numbers. Binary files are rejected instead "
+                    "of being dumped into the context. "
                     "\n\nBULK OPERATION: To reduce tool calls, read multiple related files "
                     "at once by providing a list of paths instead of making separate calls. "
                     "Example: file_path=[\"src/main.py\", \"config/settings.py\"]. "
@@ -558,6 +625,34 @@ TOOLS = [
                                 "a bulk read. Defaults to the last line of each file."
                             ),
                             "minimum": 1
+                        },
+                        "pattern": {
+                            "type": "string",
+                            "description": (
+                                "Literal text or regular expression to find inside the "
+                                "file. Only matching lines (plus context_lines) are "
+                                "returned, with line numbers. Use this instead of reading "
+                                "a large file page by page."
+                            )
+                        },
+                        "context_lines": {
+                            "type": "integer",
+                            "description": (
+                                "Lines of context around each pattern match (0-10). "
+                                "Defaults to 2. Ignored when pattern is not set."
+                            ),
+                            "default": 2,
+                            "minimum": 0,
+                            "maximum": 10
+                        },
+                        "outline": {
+                            "type": "boolean",
+                            "description": (
+                                "If true, prepend a heuristic outline of the file "
+                                "declarations (with line numbers) before the content. "
+                                "Useful before reading ranges of a large file."
+                            ),
+                            "default": False
                         },
                         "max_chars": {
                             "type": "integer",

@@ -10,6 +10,7 @@ import MessagePRView from './chat/MessagePRView.vue'
 import MessageFileView from './chat/MessageFileView.vue'
 import ChatEntrySelectionMenu from './ChatEntrySelectionMenu.vue'
 import ChatAttachmentPreview from './chat/ChatAttachmentPreview.vue'
+import ChatEntryToolSummary from './chat/ChatEntryToolSummary.vue'
 import ChatMessageEvents from './chat/ChatMessageEvents.vue'
 import ChatImageEditorModal from './chat/ChatImageEditorModal.vue'
 </script>
@@ -98,18 +99,20 @@ import ChatImageEditorModal from './chat/ChatImageEditorModal.vue'
                - visible when no tool ran yet (run/lifecycle events only);
                - visible in channels too: the inline panel below is the only place
                  that shows what the assistant actually did there.
-               The count only appears once tools were recorded. -->
+               The tool count is NOT repeated here anymore: it belongs to the tool
+               summary strip below (@see ChatEntryToolSummary), which is also the
+               discoverable trigger, so this button stays icon-only at every width. -->
           <button
             v-if="isAssistant"
-            class="btn btn-xs btn-ghost gap-1 tooltip tooltip-bottom"
+            class="btn btn-xs btn-ghost tooltip tooltip-bottom"
             :class="eventsOpen && 'btn-active text-warning'"
             :data-tip="eventsTip"
             :aria-expanded="eventsOpen ? 'true' : 'false'"
+            :aria-controls="eventsPanelId"
             @click.stop="toggleEventsPanel"
           >
             <span v-if="!isDone" class="loading loading-spinner loading-xs text-info"></span>
             <i v-else class="fa-solid fa-wrench" :class="toolEventCount ? 'text-info' : 'text-base-content/40'"></i>
-            <span v-if="toolEventCount" class="text-[11px] tabular-nums">x{{ toolEventCount }}</span>
           </button>
 
           <span class="font-semibold text-sm text-base-content truncate max-w-[60%] @lg/panel:max-w-none">
@@ -282,19 +285,37 @@ import ChatImageEditorModal from './chat/ChatImageEditorModal.vue'
 
         </div>
 
+        <!-- ── Tool summary strip ──
+             The ALWAYS-visible trace of the run: basic info about the tools the
+             assistant executed — the last one (status · tool · argument ·
+             duration) plus the run totals — so the run can be followed without
+             opening anything. Shown from the first event while streaming, and
+             while the panel is open (it carries the ⋯ drawer trigger).
+             Clicking it emits `show-events`, exactly like the header wrench, so
+             both triggers share the very same parent-owned state. -->
+        <ChatEntryToolSummary
+          v-if="showToolStrip"
+          :message="displayMessage"
+          :eventsOpen="eventsOpen"
+          :drawerOpen="eventsDrawerOpen"
+          :panelId="eventsPanelId"
+          class="mt-1.5"
+          @toggle="toggleEventsPanel"
+          @show-events-drawer="$emit('show-events-drawer', message)"
+        />
+
         <!-- ── Tool & run events (collapsible, live-updated while streaming) ──
-             Rendered inline, directly under the header so it is discoverable and
-             contextual. Driven by the existing `eventsOpen` prop (parent owns the
-             open state). The "more details" drawer trigger lives INSIDE this panel
-             (see <ChatMessageEvents>), which re-emits `show-events-drawer`.
-             Channels render it too: the header trigger is the only way to see what
-             the assistant ran inside a channel, hiding it made the button a no-op. -->
+             Rendered inline, directly under the summary strip so it is
+             discoverable and contextual. Driven by the existing `eventsOpen` prop
+             (parent owns the open state). The full wall starts with the
+             executions: the run summary is the strip above, not a second header.
+             Channels render it too: the strip trigger is the only way to see what
+             the assistant ran inside a channel, hiding it made the panel unusable. -->
         <ChatMessageEvents
           v-if="eventsOpen"
           :message="displayMessage"
-          :drawerOpen="eventsDrawerOpen"
-          class="mt-2"
-          @show-events-drawer="$emit('show-events-drawer', message)"
+          :panelId="eventsPanelId"
+          class="mt-1.5"
         />
 
         <!-- ── Thread / Reply badge (always visible if exists) ── -->
@@ -1036,12 +1057,14 @@ export default {
     someCodeBlocksSelected() {
       return this.selectedCodeBlockKeys.length > 0 && !this.allCodeBlocksSelected
     },
+    // `displayMessage` is the content actually rendered (topic replies included),
+    // so the tool count belongs to it — the strip below renders the same events.
     toolEventCount() {
-      const toolEvents = this.message?.tool_events
+      const toolEvents = this.displayMessage?.tool_events
       if (Array.isArray(toolEvents)) {
         return toolEvents.length
       }
-      return this.message?.tool_event ? 1 : 0
+      return this.displayMessage?.tool_event ? 1 : 0
     },
     // Tooltip of the events trigger. Tool count is 0 until the first tool runs,
     // so the label adapts instead of the button disappearing.
@@ -1059,6 +1082,19 @@ export default {
     },
     hasEvents() {
       return this.toolEventCount > 0
+    },
+    // The tool summary strip is the always-visible summary of the run: it shows
+    // up with the run itself (streaming, before any tool ran) and stays while
+    // tools were recorded. Also shown while the panel is open because it carries
+    // the ⋯ drawer trigger. User messages never render it.
+    showToolStrip() {
+      if (!this.isAssistant) return false
+      return this.toolEventCount > 0 || !this.isDone || this.eventsOpen
+    },
+    // Id shared by the panel and every trigger pointing at it (aria-controls)
+    eventsPanelId() {
+      const key = this.message?.doc_id || this.message?.id
+      return key ? `events-panel-${key}` : 'events-panel'
     },
     attachmentCount() {
       return this.message?.attachments?.length || 0
@@ -1516,8 +1552,9 @@ export default {
       this.$emit('sub-task', { content: taskData.content, title: taskData.title })
     },
     // The events/tools panel is rendered INLINE inside this component (see the
-    // <ChatMessageEvents> block under the header). We still notify the parent
-    // which message was toggled so it can own the `eventsOpen` flag.
+    // <ChatMessageEvents> block under the tool summary strip). We still notify the
+    // parent which message was toggled so it can own the `eventsOpen` flag — the
+    // strip and the header wrench both call this, so they always stay in sync.
     toggleEventsPanel() {
       this.$emit('show-events', this.message)
     },

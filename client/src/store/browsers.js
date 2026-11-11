@@ -1,6 +1,7 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import { $storex } from '.'
 import { API } from '../api/api'
+import { desktopSizeOptions } from '../utils/desktopSizes'
 
 export const namespaced = true
 
@@ -18,7 +19,12 @@ export const state = () => ({
   costBySession: {},
   loadingActivity: false,
   controlLoading: false,
-  realtimeReady: false
+  realtimeReady: false,
+  // Options of the desktop-size selector returned by
+  // `/api/computers/desktop-sizes`. `null` means "not loaded (yet)": the UI
+  // then falls back to the built-in presets, so it also works against a
+  // backend without that endpoint.
+  desktopSizes: null
 })
 
 export const getters = getterTree(state, {
@@ -46,7 +52,10 @@ export const getters = getterTree(state, {
   isLoadingActivity: state => state.loadingActivity,
   isControlling: state => state.controlLoading,
   hasError: state => !!state.error,
-  errorMessage: state => state.error
+  errorMessage: state => state.error,
+
+  /** Selector options for the desktop size: auto, the fixed presets and custom. */
+  desktopSizeOptions: state => desktopSizeOptions(state.desktopSizes)
 })
 
 export const mutations = mutationTree(state, {
@@ -149,6 +158,10 @@ export const mutations = mutationTree(state, {
       ...state.costBySession,
       [sessionId]: cost || null
     }
+  },
+
+  setDesktopSizes(state, presets) {
+    state.desktopSizes = Array.isArray(presets) && presets.length ? presets : null
   }
 })
 
@@ -160,18 +173,81 @@ function notify(type, text) {
   }
 }
 
+/**
+ * Advertise a session that was just created to the active meet.
+ *
+ * Requirement: when the meet owner starts a browser session it must be started
+ * for everyone in the room — not only for the browser tab it was created from.
+ * The meet store persists the association on the meet and broadcasts it, so
+ * participants that join later (or reload) land in the same session too.
+ *
+ * Never throws: creating a session must not fail because the meet is gone.
+ */
+function shareNewSessionWithMeet(session) {
+  if (!session?.id) return
+  try {
+    const meets = $storex.meets
+    const meetId = meets?.currentMeetId
+    if (!meetId) return
+    const meet = meets.meetForId(meetId)
+    if (!meet) return
+    const me = $storex.users?.user?.username || 'guest'
+    // Only the meet owner auto-shares; a participant can still share manually
+    // from the meet browser panel.
+    if (meet.initiator && meet.initiator !== me) return
+    Promise.resolve(meets.shareBrowserSession({ meetId, session })).catch((error) => {
+      console.warn('[Browsers] Could not share the new session with the meet', error)
+    })
+  } catch (error) {
+    console.warn('[Browsers] Meet sharing unavailable', error)
+  }
+}
+
+/**
+ * Normalise the list response of the computer-session endpoint.
+ *
+ * The canonical `/api/computers` route answers `{ sessions: [...] }`, the
+ * legacy `/api/browsers` route has also answered a bare array (and some
+ * versions wrap it as `{ computers: [...] }`). Reading only `response.sessions`
+ * turned any of those shapes into an EMPTY list — the screen showed "no
+ * computer sessions" (or, with a failed request, nothing at all) while the
+ * sessions existed on the server.
+ */
+function normalizeSessionList(response) {
+  if (Array.isArray(response)) return response
+  if (Array.isArray(response?.sessions)) return response.sessions
+  if (Array.isArray(response?.computers)) return response.computers
+  return []
+}
+
 export const actions = actionTree(
   { state, getters, mutations },
   {
+    /**
+     * Load the shared machines.
+     *
+     * `/api/computers` is the canonical endpoint, but older installations only
+     * expose the legacy `/api/browsers` routes. A 404 there used to end up as an
+     * empty, unexplained session list (the error was stored in `state.error` and
+     * nobody rendered it), which looks exactly like "the screen shows nothing".
+     * The legacy route is tried before giving up, and a real failure is kept in
+     * `state.error` so the list can show it with a retry.
+     */
     async loadSessions({ commit }) {
       commit('setLoading', true)
       commit('clearError')
       try {
         const response = await API.computers.list()
-        commit('setSessions', response?.sessions || [])
+        commit('setSessions', normalizeSessionList(response))
       } catch (error) {
-        commit('setError', error.message || 'Failed to load sessions')
-        console.error('[Browsers] Error loading sessions:', error)
+        try {
+          const legacy = await API.browsers.list()
+          commit('setSessions', normalizeSessionList(legacy))
+          console.warn('[Browsers] /api/computers failed, using the legacy /api/browsers endpoint:', error?.message)
+        } catch (legacyError) {
+          commit('setError', error.message || 'Failed to load sessions')
+          console.error('[Browsers] Error loading sessions:', error, legacyError)
+        }
       } finally {
         commit('setLoading', false)
       }
@@ -188,6 +264,8 @@ export const actions = actionTree(
      *  - `share_folders`    project-relative folders to mount instead
      *  - `readonly`         mount those folders read-only
      *  - `downloads_folder` project folder receiving the browser downloads
+     *  - `desktop_auto_resize` let the desktop follow the viewer (default) or
+     *    pin `desktop_width`/`desktop_height`
      */
     async createSession({ commit }, sessionData) {
       commit('clearError')
@@ -216,6 +294,9 @@ export const actions = actionTree(
           extra_env: sessionData.extra_env || null,
           desktop_width: sessionData.desktop_width || null,
           desktop_height: sessionData.desktop_height || null,
+          // Default on the backend too: the desktop follows the client viewport
+          // (KasmVNC remote resize) instead of a fixed desktop size.
+          desktop_auto_resize: sessionData.desktop_auto_resize ?? null,
           vnc_host: sessionData.vnc_host || null,
           vnc_port: sessionData.vnc_port || null,
           vnc_password: sessionData.vnc_password || null,
@@ -231,12 +312,40 @@ export const actions = actionTree(
         commit('selectSession', session.id)
         commit('toggleNewSessionForm', false)
         notify('success', `${session.kind_label || "Computer"} session "${session.name}" created`)
+        // A meet owner starting a browser session starts it for the whole room:
+        // advertise it on the meet (the backend persists it so late joiners and
+        // page reloads land in the same session).
+        shareNewSessionWithMeet(session)
         return session
       } catch (error) {
         commit('setError', error.message || 'Failed to create session')
         notify('error', error.message || 'Failed to create session')
         throw error
       }
+    },
+
+    /**
+     * Make sure a session is available locally so a panel can open it.
+     *
+     * Used when another participant's browser session is shared with a meet:
+     * the viewer may be on a screen whose list was loaded before the session
+     * existed (or may never have loaded it at all).
+     */
+    async ensureSession({ state, commit }, sessionOrId) {
+      const sessionId = typeof sessionOrId === 'string' ? sessionOrId : sessionOrId?.id
+      if (!sessionId) return null
+      const existing = state.sessions.find(s => s.id === sessionId)
+      if (existing) return existing
+      try {
+        const session = await API.computers.get(sessionId)
+        if (session?.id) {
+          commit('addSession', session)
+          return session
+        }
+      } catch (error) {
+        console.warn('[Browsers] Could not load shared session', sessionId, error)
+      }
+      return null
     },
 
     async updateSession({ commit }, sessionData) {
@@ -248,9 +357,11 @@ export const actions = actionTree(
         }
         // Advanced settings: only send fields the caller actually edited. An
         // empty size/"" image clears the override; extra_env must be an object.
+        // `desktop_auto_resize` is the only one applied immediately (the
+        // live-view URL carries it); the rest need a restart.
         const advancedKeys = [
           'image', 'cpu_cores', 'ram_size', 'disk_size', 'shm_size',
-          'extra_env', 'desktop_width', 'desktop_height'
+          'extra_env', 'desktop_width', 'desktop_height', 'desktop_auto_resize'
         ]
         advancedKeys.forEach((key) => {
           if (Object.prototype.hasOwnProperty.call(sessionData, key)) {
@@ -266,6 +377,26 @@ export const actions = actionTree(
         commit('setError', error.message || 'Failed to update session')
         notify('error', error.message || 'Failed to update session')
         throw error
+      }
+    },
+
+    /**
+     * Load the desktop-size selector options (auto + presets + custom).
+     *
+     * The endpoint is optional: when it is missing the built-in presets are
+     * used, so the settings UI never renders an empty select.
+     */
+    async loadDesktopSizes({ state, commit }) {
+      if (Array.isArray(state.desktopSizes)) return state.desktopSizes
+      try {
+        const response = await API.computers.desktopSizes()
+        const presets = response?.presets || []
+        commit('setDesktopSizes', presets)
+        return presets
+      } catch (error) {
+        console.warn('[Browsers] /api/computers/desktop-sizes unavailable, using the built-in sizes:', error?.message)
+        commit('setDesktopSizes', null)
+        return []
       }
     },
 

@@ -96,7 +96,7 @@
     "enabled": true,
     "profile": "ProjectManager",
     "mode": "apply",
-    "interval_minutes": 60,
+    "interval_minutes": 480,
     "max_actions": 5,
     "max_tasks": 80,
     "include_done": true,

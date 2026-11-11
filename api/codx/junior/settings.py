@@ -723,7 +723,9 @@ class CODXJuniorSettings(BaseModel):
 
 
     def get_ignore_patterns(self):
-        ignore_patterns = [".git", "node_modules"]
+        # `.codx` is the control plane (tasks, profiles, sessions, chats, db):
+        # it is never codebase content and must never be indexed as such.
+        ignore_patterns = [".git", ".codx", "node_modules"]
         if self.project_wiki_path:
             wiki_path = os.path.join(self.abs_project_path, self.project_wiki_path)
             ignore_patterns.append(wiki_path)

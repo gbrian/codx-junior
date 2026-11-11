@@ -486,10 +486,80 @@
       "read_by": [],
       "error": null,
       "linked_chat_ids": []
+    },
+    {
+      "doc_id": "5819ce49-d905-45b7-a40c-86352824ba31",
+      "role": "assistant",
+      "task_item": "",
+      "content": "Scheduled as critical path. Split into two cards, both owner software_developer, target 2026-11-14:\n(1) drop or accept the `estimation_cost` kwarg at the `TaskManager.create_task()` call site \u2014 until this lands every delegated sub-task dies before a worker starts (already killed 183031f3 and 242c730f);\n(2) a BLOCKED run must end in On Hold with the failure reason on the card, never Done/100%.\nRun one file per attempt, no full-file rewrites. Post a one-line status here when (1) is on disk \u2014 it unblocks the two cards above.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-11 05:40:39.575642",
+      "updated_at": "2026-11-11T05:40:39.575732",
+      "attachments": [],
+      "files": [],
+      "project_id": null,
+      "meta_data": {
+        "board_manager": {
+          "profile": "ProjectManager"
+        }
+      },
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "ProjectManager"
+      ],
+      "user": "ProjectManager",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "0ae93444-0fcd-4fa7-b1a5-951c9c5ba314",
+      "role": "assistant",
+      "task_item": "",
+      "content": "Critical path today. While create_task(estimation_cost) fails, every delegated subtask dies before a worker starts \u2014 this is exactly why 242c730f and 183031f3 produced nothing, and it will kill any new card we schedule. Due 2026-11-14. Action: a software_developer must start it now (drop the kwarg at the call site or accept it). If it slips, all three dependent cards slip with it \u2014 no other card on this board unblocks them.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-11 07:40:57.103891",
+      "updated_at": "2026-11-11T07:40:57.103963",
+      "attachments": [],
+      "files": [],
+      "project_id": null,
+      "meta_data": {
+        "board_manager": {
+          "profile": "ProjectManager"
+        }
+      },
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "ProjectManager"
+      ],
+      "user": "ProjectManager",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
     }
   ],
   "created_at": "2026-11-10 11:49:38.249766",
-  "updated_at": "2026-11-10T14:36:49.977059",
+  "updated_at": "2026-11-11T07:40:57.104713",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",
@@ -498,8 +568,8 @@
   "sprints": [
     "codx-junior maintenance"
   ],
-  "priority": null,
-  "due_date": null,
+  "priority": "high",
+  "due_date": "2026-11-14",
   "progress": 0,
   "assignees": [],
   "sort_index": null,

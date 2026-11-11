@@ -55,7 +55,19 @@ import ComputerImageLibrary from './ComputerImageLibrary.vue'
           ></span>
         </button>
 
-        <div v-if="sessions.length === 0" class="py-3 text-base-content/40" title="No computer sessions yet">
+        <!-- The list could not be fetched: say it and let the user retry
+             instead of showing an empty rail that looks like "no sessions". -->
+        <button
+          v-if="hasError"
+          @click="reloadSessions"
+          class="w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center text-error/80 hover:bg-error/10 transition-colors duration-150"
+          :title="`Could not load sessions: ${errorMessage}`"
+          aria-label="Retry loading computer sessions"
+        >
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </button>
+
+        <div v-if="!hasError && sessions.length === 0" class="py-3 text-base-content/40" title="No computer sessions yet">
           <i class="fa-solid fa-inbox"></i>
         </div>
       </template>
@@ -118,6 +130,23 @@ import ComputerImageLibrary from './ComputerImageLibrary.vue'
       <div v-if="isLoading" class="flex items-center justify-center py-8">
         <div class="loading loading-spinner loading-sm"></div>
         <span class="ml-2 text-sm">Loading sessions...</span>
+      </div>
+
+      <!-- Failure state: the request did not succeed, so "no sessions yet"
+           would be a lie. Show what happened and offer a retry. -->
+      <div
+        v-else-if="hasError"
+        class="flex flex-col items-center gap-2 px-2 py-8 text-center"
+        role="alert"
+        aria-live="polite"
+      >
+        <i class="fa-solid fa-triangle-exclamation text-2xl text-error/70" aria-hidden="true"></i>
+        <p class="text-sm font-semibold text-error">Could not load computer sessions</p>
+        <p class="max-w-[18rem] break-words text-[11px] opacity-60">{{ errorMessage }}</p>
+        <button class="btn btn-xs btn-outline gap-1" @click="reloadSessions">
+          <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
+          Retry
+        </button>
       </div>
 
       <div v-else-if="sessions.length === 0" class="text-center py-8 text-base-content/50">
@@ -274,6 +303,14 @@ export default {
     },
     isLoading() {
       return this.$storex.browsers.isLoading
+    },
+    // Load failure of the session list: rendered instead of the empty state so
+    // a failed request never looks like "there are no sessions".
+    hasError() {
+      return this.$storex.browsers.hasError
+    },
+    errorMessage() {
+      return this.$storex.browsers.errorMessage
     },
     // The modal is owned by the store so both the rail and the footer button
     // (and any other entry point) open the very same dialog.

@@ -45,7 +45,8 @@
   },
   "tools": [
     "list_profiles_summary",
-    "list_profiles"
+    "list_profiles",
+    "search_codx"
   ],
   "tags": [
     "travel",

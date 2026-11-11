@@ -59,6 +59,10 @@ class BrowserSessionResponse(BaseModel):
     display: Optional[str] = Field(default=None, description="X11 display for Linux desktops")
     desktop_width: int = Field(default=1920, description="Desktop width in pixels")
     desktop_height: int = Field(default=1080, description="Desktop height in pixels")
+    desktop_auto_resize: bool = Field(
+        default=True,
+        description="Desktop follows the client viewport (KasmVNC remote resize); false pins the size",
+    )
     vnc_host: Optional[str] = Field(default=None, description="Host of the AI VNC connection")
     vnc_port: int = Field(default=5900, description="VNC/RFB port")
     ssh_host: Optional[str] = Field(default=None, description="SSH host configured for shell access")
@@ -175,6 +179,13 @@ class BrowserSessionCreateRequest(BaseModel):
     desktop_height: Optional[int] = Field(
         default=None, ge=480, le=4320, description="Desktop/browser height in pixels"
     )
+    desktop_auto_resize: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Let the desktop follow the viewer size (default). False pins "
+            "desktop_width/desktop_height and scales the image locally"
+        ),
+    )
     control: Optional[str] = Field(
         default=None, description="Force the control channel (cdp, docker, vnc)"
     )
@@ -232,6 +243,13 @@ class BrowserSessionUpdateRequest(BaseModel):
     )
     desktop_height: Optional[int] = Field(
         default=None, ge=480, le=4320, description="Desktop/browser height in pixels"
+    )
+    desktop_auto_resize: Optional[bool] = Field(
+        default=None,
+        description=(
+            "Desktop follows the viewer size (applies immediately, no restart); "
+            "false pins desktop_width/desktop_height"
+        ),
     )
 
 
@@ -335,6 +353,28 @@ class ComputerScreenshotRequest(BaseModel):
 
     include_text: bool = Field(default=True, description="Run OCR and return text/words")
     max_width: int = Field(default=1600, description="Maximum width of the returned image")
+
+
+class ComputerDesktopSizePreset(BaseModel):
+    """One option of the desktop-size selector (``GET /computers/desktop-sizes``)."""
+
+    id: str = Field(description="Stable option id: auto, <width>x<height> or custom")
+    label: str = Field(description="Label shown in the selector")
+    width: int = Field(default=0, description="Width in pixels (0 when the option has no fixed size)")
+    height: int = Field(default=0, description="Height in pixels (0 when the option has no fixed size)")
+    auto: bool = Field(default=False, description="The desktop follows the viewer size")
+    custom: bool = Field(default=False, description="The UI must ask for width/height manually")
+    description: str = Field(default="", description="Short help text for the option")
+
+
+class ComputerDesktopSizesResponse(BaseModel):
+    """Desktop-size selector options offered by the API."""
+
+    count: int = Field(description="Number of options")
+    default: str = Field(default="auto", description="Option the UI preselects")
+    presets: List[ComputerDesktopSizePreset] = Field(
+        default_factory=list, description="Selector options: auto, fixed sizes and custom"
+    )
 
 
 class ComputerVncTicketResponse(BaseModel):
@@ -507,6 +547,10 @@ class SioBrowserCreateRequest(BaseModel):
     )
     desktop_height: Optional[int] = Field(
         default=None, ge=480, le=4320, description="Desktop/browser height in pixels"
+    )
+    desktop_auto_resize: Optional[bool] = Field(
+        default=None,
+        description="Let the desktop follow the viewer size (default) or pin the resolution",
     )
     control: Optional[str] = Field(default=None, description="Force the control channel")
     vnc_host: Optional[str] = Field(default=None, description="Remote VNC host")

@@ -397,6 +397,16 @@ async def orchestrator(
                     "run": service.summary(run.run_id),
                 }),
             )
+        # Default supervisor: the profiles active in THIS chat (the mentioned
+        # profiles, e.g. `codx-junior`). The harness profile therefore stays
+        # the accountable supervisor of its own run instead of falling back to
+        # the generic orchestrator profile.
+        if not profiles:
+            profiles = [
+                str(name).strip().lstrip("@")
+                for name in (getattr(chat, "profiles", None) or [])
+                if str(name).strip().lstrip("@")
+            ]
         config = _config_from_args(
             budget_cxjcoins=budget_cxjcoins,
             per_step_budget=per_step_budget,

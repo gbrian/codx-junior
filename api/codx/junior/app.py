@@ -242,6 +242,15 @@ async def startup_event():
         start_turn_recovery(stop_event=APP_STOP_EVENT)
     except Exception as ex:  # pragma: no cover - defensive
         logger.exception("Failed to start the chat turn recovery worker: %s", ex)
+    # Harness watchdog: monitors the orchestration worker heartbeat from the
+    # API process and restarts the background process when it stalls with
+    # active runs. Never started inside the background process itself.
+    try:
+        from codx.junior.harness.watchdog import start_harness_watchdog
+
+        start_harness_watchdog(stop_event=APP_STOP_EVENT)
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.exception("Failed to start the harness watchdog: %s", ex)
     logger.info("FASTAPI startup")
 
 
@@ -255,6 +264,12 @@ async def shutdown_event():
         stop_turn_recovery()
     except Exception as ex:  # pragma: no cover - defensive
         logger.exception("Failed to stop the chat turn recovery worker: %s", ex)
+    try:
+        from codx.junior.harness.watchdog import stop_harness_watchdog
+
+        stop_harness_watchdog()
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.exception("Failed to stop the harness watchdog: %s", ex)
     await stop_background_services()
     
 @app.exception_handler(RequestValidationError)

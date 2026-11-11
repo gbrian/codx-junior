@@ -58,7 +58,10 @@ export default {
   },
   data() {
     return {
-      workspacesExpanded: false
+      // Expanded by default: the workspace apps are primary launchers, so they
+      // must be visible without an extra click (the section header still allows
+      // folding them away to save vertical space).
+      workspacesExpanded: true
     }
   },
   computed: {

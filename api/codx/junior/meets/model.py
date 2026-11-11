@@ -36,7 +36,7 @@ classDiagram
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -122,6 +122,16 @@ class Meet(BaseModel):
     signals: List[MeetSignal] = Field(
         default_factory=list, description="WebRTC signalling history"
     )
+    # Browser/computer session started for the whole room. Kept on the meet (and
+    # not only announced over the socket) so a participant joining later — or
+    # reloading the page — opens the same co-browsing session.
+    shared_browser: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Browser/computer session shared with the meet: "
+            "{session_id, session_name, kind, owner, timestamp}"
+        ),
+    )
     project_id: Optional[str] = Field(
         default=None, description="Project the meet belongs to, if any"
     )
@@ -181,6 +191,22 @@ class MeetEndRequest(BaseModel):
     """Payload for ``POST /api/meets/end``."""
 
     meetId: Optional[str] = Field(default=None, description="Meet to end")
+    timestamp: Optional[int] = Field(default=None, description="Client timestamp")
+
+
+class MeetBrowserRequest(BaseModel):
+    """Payload for ``POST /api/meets/{meet_id}/browser``.
+
+    Shares a browser/computer session with the whole meet.
+    """
+
+    sessionId: str = Field(description="Browser/computer session id to share")
+    sessionName: Optional[str] = Field(
+        default="", description="Human readable session name"
+    )
+    kind: Optional[str] = Field(
+        default="browser", description="Session kind (browser, linux, windows, ...)"
+    )
     timestamp: Optional[int] = Field(default=None, description="Client timestamp")
 
 

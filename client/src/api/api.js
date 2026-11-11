@@ -18,6 +18,7 @@ import { repoModule } from './modules/repo'
 import { consoleModule } from './modules/console'
 import { traefikModule } from './modules/traefik'
 import { dshModule } from './modules/dsh'
+import { harnessModule } from './modules/harness'
 import { RequestCache, hashBody } from './requestCache'
 import { requestQueues } from './requestQueue'
 
@@ -786,6 +787,17 @@ const initializeAPI = ({ project, user } = {}) => {
         API._teamsModule = teamsModule(API)
       }
       return API._teamsModule
+    },
+
+    /**
+     * Native harness: audit journal and worker/watchdog health. Read-only
+     * observability of the codx-junior harness. See api/modules/harness.js.
+     */
+    get harness() {
+      if (!API._harnessModule) {
+        API._harnessModule = harnessModule(API)
+      }
+      return API._harnessModule
     },
 
     /**

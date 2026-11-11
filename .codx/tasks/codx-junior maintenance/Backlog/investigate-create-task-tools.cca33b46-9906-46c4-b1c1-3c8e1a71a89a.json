@@ -105,10 +105,80 @@
       "read_by": [],
       "error": null,
       "linked_chat_ids": []
+    },
+    {
+      "doc_id": "c6f1f065-fa0e-4cf1-9feb-e1f3e0028cdd",
+      "role": "assistant",
+      "task_item": "",
+      "content": "Stalled since 2026-11-04 with no description, no profiles and no owner, so no worker can start it. To make it actionable, add two lines: which profile/tool created a task, and which board + sprint was expected vs. actually used. Then assign software_developer. If bfc2024a (board and sprint tools) already covers destination validation, this card should be closed as covered by it rather than re-run.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-10 23:38:49.280570",
+      "updated_at": "2026-11-10T23:38:49.280640",
+      "attachments": [],
+      "files": [],
+      "project_id": null,
+      "meta_data": {
+        "board_manager": {
+          "profile": "ProjectManager"
+        }
+      },
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "ProjectManager"
+      ],
+      "user": "ProjectManager",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "2278dfe0-3deb-4658-a86c-9adc7972eb81",
+      "role": "assistant",
+      "task_item": "",
+      "content": "Stalled since 2026-11-04 with no description and no owner. To make it runnable add two lines \u2014 which profile/tool created the task, and the expected vs actual board+sprint \u2014 then assign software_developer. If bfc2024a (board and sprint tools) already covers destination validation, close this as covered instead of re-running it.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-11 03:40:16.117855",
+      "updated_at": "2026-11-11T03:40:16.117926",
+      "attachments": [],
+      "files": [],
+      "project_id": null,
+      "meta_data": {
+        "board_manager": {
+          "profile": "ProjectManager"
+        }
+      },
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "ProjectManager"
+      ],
+      "user": "ProjectManager",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
     }
   ],
   "created_at": "2026-11-04 08:31:23.960679",
-  "updated_at": "2026-11-10T11:35:58.592843",
+  "updated_at": "2026-11-11T03:40:16.118434",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",

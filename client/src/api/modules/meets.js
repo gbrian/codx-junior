@@ -245,6 +245,36 @@ export const meetsModule = (API) => ({
   },
 
   /**
+   * Share a browser/computer session with everyone in the meet.
+   * Backend: POST /api/meets/:meetId/browser
+   */
+  async shareBrowser({ meetId, sessionId, sessionName, kind } = {}) {
+    try {
+      return await API.post(`/api/meets/${meetId}/browser`, {
+        sessionId,
+        sessionName,
+        kind
+      })
+    } catch (error) {
+      console.error('[meets] Failed to share browser session:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Stop sharing the browser/computer session with the meet.
+   * Backend: DELETE /api/meets/:meetId/browser
+   */
+  async unshareBrowser({ meetId } = {}) {
+    try {
+      return await API.delete(`/api/meets/${meetId}/browser`)
+    } catch (error) {
+      console.error('[meets] Failed to unshare browser session:', error)
+      throw error
+    }
+  },
+
+  /**
    * WebRTC Signaling - Send SDP offer
    * Backend: POST /api/meets/:meetId/signal/offer
    */

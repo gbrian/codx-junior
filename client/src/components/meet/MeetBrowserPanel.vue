@@ -77,11 +77,36 @@
         <i class="fa-regular fa-compass text-4xl text-white/20" aria-hidden="true"></i>
         <div>
           <p class="text-sm text-white/60">No browser sessions yet</p>
-          <p class="mt-1 text-xs text-white/30">Create one in Computer sessions, then share it here.</p>
+          <p class="mt-1 text-xs text-white/30">
+            {{ isInitiator ? 'Start one for everyone in the call.' : 'Waiting for the host to start a shared browser…' }}
+          </p>
         </div>
+        <button
+          v-if="isInitiator"
+          class="btn btn-primary btn-sm gap-2"
+          :disabled="starting"
+          @click="startSharedBrowser"
+        >
+          <span v-if="starting" class="loading loading-spinner loading-xs"></span>
+          <i v-else class="fa-solid fa-plus"></i>
+          Start shared browser
+        </button>
       </div>
       <div v-else class="space-y-1.5">
-        <p class="px-1 text-[10px] font-bold uppercase tracking-wide text-white/40">Open for the call</p>
+        <div class="flex items-center justify-between px-1">
+          <p class="text-[10px] font-bold uppercase tracking-wide text-white/40">Open for the call</p>
+          <button
+            v-if="isInitiator"
+            class="btn btn-ghost btn-xs gap-1 text-primary"
+            :disabled="starting"
+            title="Start a browser session for everyone in the call"
+            @click="startSharedBrowser"
+          >
+            <span v-if="starting" class="loading loading-spinner loading-xs"></span>
+            <i v-else class="fa-solid fa-plus text-[10px]"></i>
+            New
+          </button>
+        </div>
         <button
           v-for="session in sessions"
           :key="session.id"
@@ -120,6 +145,9 @@ export default {
   props: {
     meetId: { type: String, required: true },
     currentUser: { type: Object, default: null },
+    // The meet initiator ("owner") may start the shared browser for the whole
+    // room; everybody else gets it automatically through `sharedSession`.
+    isInitiator: { type: Boolean, default: false },
     // Announcement forwarded by MeetView so it is not missed when this tab is
     // not mounted yet.
     sharedSession: { type: Object, default: null }
@@ -127,9 +155,13 @@ export default {
   data() {
     return {
       loading: false,
+      starting: false,
       selectedId: null,
       showPicker: false,
       sharedInfo: null,
+      // Session id already opened because it was shared with the meet. Guards
+      // against re-openings on every presence/annotation message.
+      lastSharedId: null,
       viewers: [],
       collabUnsubscribe: null,
       viewersTimer: null
@@ -150,7 +182,7 @@ export default {
     sharedSession: {
       immediate: true,
       handler(value) {
-        if (value?.kind === 'browser-session') this.handleSharedSession(value)
+        if (value?.kind === 'browser-session' && value.sessionId) this.handleSharedSession(value)
       }
     }
   },
@@ -186,16 +218,66 @@ export default {
       const session = this.$storex.browsers.sessionById(sessionId)
       if (session) this.$storex.browsers.selectSession(sessionId)
     },
+    /**
+     * Start a browser session and open it for the whole call.
+     *
+     * `browsers.createSession` advertises it to the meet when the current user
+     * is the meet initiator (see the store), which also persists it on the meet
+     * so late joiners and reloads land in the same session.
+     */
+    async startSharedBrowser() {
+      if (this.starting) return
+      this.starting = true
+      try {
+        const session = await this.$storex.browsers.createSession({
+          name: `Meet browser ${new Date().toLocaleTimeString()}`,
+          kind: 'browser'
+        })
+        if (!session?.id) return
+        // Make sure the room is pointed at the new session even if the
+        // automatic share was skipped (e.g. an older backend on load).
+        const shared = this.$storex.meets.sharedBrowserFor(this.meetId)
+        if (shared?.sessionId !== session.id) {
+          await this.$storex.meets.shareBrowserSession({ meetId: this.meetId, session })
+        }
+        await this.$storex.browsers.ensureSession(session.id)
+        this.openSession(session.id)
+      } catch (error) {
+        console.error('[MeetBrowserPanel] Could not start a shared browser', error)
+        this.$storex.ui.addNotification({
+          text: error.message || 'Could not start the shared browser',
+          type: 'error'
+        })
+      } finally {
+        this.starting = false
+      }
+    },
     onCollabEvent(event) {
       if (!event || event.meetId !== this.meetId) return
       if (event.kind === 'presence') {
         this.refreshViewers()
+        return
+      }
+      if (event.kind === 'browser-session' && event.sessionId) {
+        this.handleSharedSession({
+          ...event,
+          kind: 'browser-session',
+          sessionName: event.sessionName || 'Browser session'
+        })
       }
     },
-    handleSharedSession(event) {
-      if (!event?.sessionId || event.kind !== 'browser-session') return
+    /**
+     * The room has a shared session: make sure it is in the local list (the
+     * viewer may not have loaded it yet) and open it for the user.
+     */
+    async handleSharedSession(event) {
+      const sessionId = event?.sessionId
+      if (!sessionId) return
       this.sharedInfo = event
-      if (!this.selectedId) this.openSession(event.sessionId)
+      if (this.lastSharedId === sessionId && this.selectedId === sessionId) return
+      this.lastSharedId = sessionId
+      await this.$storex.browsers.ensureSession(sessionId)
+      this.openSession(sessionId)
     },
     refreshViewers() {
       if (!this.meetId) return

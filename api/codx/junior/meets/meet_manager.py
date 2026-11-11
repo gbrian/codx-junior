@@ -250,6 +250,41 @@ class MeetManager:
             return meet
 
     # -------------------------------------------------------------------------
+    # Shared browser / computer session
+    # -------------------------------------------------------------------------
+
+    def set_shared_browser(
+        self, meet_id: str, shared_browser: Optional[dict] = None
+    ) -> Meet:
+        """
+        Attach (or clear) the browser/computer session shared with the meet.
+
+        The association lives on the meet so a participant that joins later, or
+        reloads the page, opens the same co-browsing session instead of an empty
+        panel. Passing ``None``/an empty dict clears it.
+
+        Args:
+            meet_id: Meet that owns the session.
+            shared_browser: ``{session_id, session_name, kind, owner, timestamp}``
+                (or ``None`` to stop sharing).
+
+        Returns:
+            The updated :class:`Meet`.
+
+        Raises:
+            KeyError: when the meet does not exist.
+        """
+        with self._lock:
+            meet = self._require_meet(meet_id)
+            meet.shared_browser = dict(shared_browser) if shared_browser else None
+            meet.updated_at = utc_now()
+            session_id = (meet.shared_browser or {}).get("session_id")
+            logger.info(
+                "Meet '%s' shared browser session '%s'", meet_id, session_id or "(none)"
+            )
+            return meet
+
+    # -------------------------------------------------------------------------
     # Queries
     # -------------------------------------------------------------------------
 

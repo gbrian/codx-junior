@@ -39,7 +39,9 @@ class WatchProjectFileChanges:
             logger.info(f"Created group for root path: {root_path} with projects: {project_names}")
 
     def _get_path_ignores(self, path: str):
-        ignore_patterns = set()
+        # `.codx` is the control plane: it changes on every tool/task/chat
+        # event and must never be watched as codebase content.
+        ignore_patterns = {".codx"}
         for project in self.groups[path]:
             if project.knowledge_file_ignore:
                 ignore_patterns.update(project.knowledge_file_ignore.split(","))

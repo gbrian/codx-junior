@@ -7,17 +7,25 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
 </script>
 
 <template>
-  <div :class="[
-    'border-r-2 border-l-2 border-base-300 flex flex-col h-full overflow-hidden relative transition-all duration-200',
-    isCompact ? 'w-16 md:w-16' : 'w-64 md:w-64',
-    $ui?.isMobile && !isCompact ? 'shadow-lg z-40' : ''
-  ]"
+  <!-- ── Chat rail ──
+       Two widths driven by `isCompact`: a 16rem panel with labelled sections and
+       a 4rem icon rail exposing the same actions. Every block is a real
+       <section> with a heading, so the rail reads as a document outline instead
+       of a pile of floating widgets, and each heading carries the count of what
+       it lists (Progressive disclosure: the number is the reason to scroll). -->
+  <aside
+    class="flex flex-col h-full overflow-hidden relative border-r-2 border-l-2 border-base-300 transition-all duration-200"
+    :class="[
+      isCompact ? 'w-16' : 'w-64',
+      $ui?.isMobile && !isCompact ? 'shadow-lg z-40' : ''
+    ]"
+    aria-label="Chat and subtasks"
   >
 
-    <!-- HEADER: Fixed - Root Chat Node -->
+    <!-- ─────────────────────────── HEADER: root chat ─────────────────────────── -->
     <div class="shrink-0 border-b border-base-100">
-      <!-- Root Chat Node - Expanded Mode -->
-      <div v-if="!isCompact" class="px-2 md:px-3 py-2">
+      <!-- Expanded: the full node card (identity + hover actions) -->
+      <div v-if="!isCompact" class="px-2 py-2">
         <ChatSidebarNode
           :chat="rootChat"
           :allChats="[]"
@@ -27,58 +35,63 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
           @select="selectChat"
           @add-subtask="$emit('add-subtask', $event)"
           @delete-chat="$emit('delete-chat', $event)"
-          @click.stop=""
         />
       </div>
-      <!-- Root Chat Node - Compact Mode -->
+
+      <!-- Compact: one square avatar. The project icon is an <img> layered over
+           the initials' fallback — never a CSS background behind the text. -->
       <div v-else class="flex flex-col items-center gap-2 p-2">
-        <div
+        <button
+          type="button"
+          class="tooltip tooltip-right shrink-0 rounded-lg"
+          :data-tip="rootChat?.name"
+          :aria-label="`Open ${rootChat?.name || 'chat'}`"
+          :aria-current="isRootSelected ? 'page' : undefined"
           @click="selectChat(rootChat)"
-          class="relative cursor-pointer group"
-          :title="rootChat?.name"
         >
-          <div
-            class="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold border transition-all duration-200"
-            :class="[
-              selectedChatId === rootChat.id
-                ? 'border-primary/60 shadow-md ring-2 ring-primary/20'
-                : 'border-base-content/20 hover:bg-white/20 hover:border-base-content/30'
-            ]"
-            :style="`background-image: url(${allChatsWorkingProject[rootChat]?.project_icon})`"
+          <span
+            class="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden text-xs font-bold border transition-all duration-200"
+            :class="isRootSelected
+              ? 'border-primary/60 shadow-md ring-2 ring-primary/20'
+              : 'border-base-content/20 hover:border-base-content/30 hover:bg-base-content/10'"
           >
-            {{ getInitials(rootChat.name) }}
-          </div>
-          <!-- Tooltip -->
-          <div class="absolute left-14 top-1/2 -translate-y-1/2 bg-white/20 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-base-content/20">
-            {{ rootChat.name }}
-          </div>
-        </div>
+            <img
+              v-if="rootProject?.project_icon"
+              :src="rootProject.project_icon"
+              :alt="rootChat?.name || ''"
+              class="w-full h-full object-cover"
+            />
+            <span v-else>{{ getInitials(rootChat?.name) }}</span>
+          </span>
+        </button>
       </div>
     </div>
 
-    <!-- CENTER: Scrollable Content Area -->
+    <!-- ─────────────────────── CENTER: scrollable sections ─────────────────────── -->
     <div class="flex-1 overflow-y-auto min-h-0 flex flex-col">
-      <!-- Attachments Section -->
-      <div v-if="workingChat.attachments?.length" class="border-b border-base-100 shrink-0">
+
+      <!-- Attachments — the card already prints its own header/count -->
+      <section v-if="workingChat.attachments?.length" class="shrink-0 border-b border-base-100 p-2">
         <ChatAttachmentPreview
           :attachments="workingChat.attachments"
           @remove-attachment="$emit('remove-attachment', $event)"
         />
-      </div>
+      </section>
 
-      <!-- Profiles Section (channel members live in the host's members panel, so
-           the block is hidden — not removed — in channel mode) -->
-      <div
+      <!-- Profiles (channel members live in the host's members panel, so the
+           block is hidden — not removed — in channel mode) -->
+      <section
         v-if="chatProfiles.length"
-        class="border-b border-base-100 shrink-0"
+        class="shrink-0 border-b border-base-100"
         :class="{ hidden: channelMode }"
       >
-        <div v-if="!isCompact" class="px-3 py-3">
-          <div class="text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-3 px-1">
-            <i class="fa-solid fa-circle-user text-xs mr-2 opacity-60"></i>Profiles
+        <div v-if="!isCompact" class="px-2 py-2">
+          <div class="flex items-center gap-2 px-1 mb-2">
+            <h3 class="text-[10px] font-semibold uppercase tracking-[0.08em] text-base-content/45">Profiles</h3>
+            <span class="ml-auto text-[10px] text-base-content/40 tabular-nums">{{ chatProfiles.length }}</span>
           </div>
           <div class="space-y-2">
-            <ProfileCard 
+            <ProfileCard
               v-for="profile in chatProfiles"
               :key="profile.name"
               :profile="profile"
@@ -86,32 +99,37 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
             />
           </div>
         </div>
+
+        <!-- Compact: avatars only, each with a readable tooltip -->
         <div v-else class="p-2 flex flex-col items-center gap-2">
-          <div class="text-xs font-semibold text-base-content/50 text-center">P</div>
-          <div class="space-y-1.5 flex flex-col items-center">
-            <ProfileAvatar 
+          <i class="fa-solid fa-circle-user text-[11px] text-base-content/40" aria-hidden="true"></i>
+          <div class="flex flex-col items-center gap-1.5">
+            <span
               v-for="profile in chatProfiles"
               :key="profile.name"
-              :profile="profile"
-              :width="10"
-            />
+              class="tooltip tooltip-right"
+              :data-tip="profile.name"
+            >
+              <ProfileAvatar :profile="profile" :width="10" />
+            </span>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- Chat Children (Subtasks) Section - Now shows ALL nested chats -->
-      <!-- Groups / channels have no task hierarchy: the section is hidden, the
-           markup stays for task chats. -->
-      <div
+      <!-- Subtasks — groups / channels have no task hierarchy -->
+      <section
         v-if="allNestedChats.length > 0"
-        class="ml-1 px-2 md:px-3 py-2 flex flex-col flex-1 min-h-0"
+        class="flex-1 min-h-0 flex flex-col px-2 py-2"
         :class="{ hidden: channelMode }"
       >
-        <!-- Header with status filter -->
-        <div v-if="!isCompact" class="flex items-center justify-between gap-2 mb-2 px-1 shrink-0">
-          <div class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">
-            <i class="fa-solid fa-list-check text-xs mr-2 opacity-60"></i>Subtasks
-          </div>
+        <!-- Header: count + status filter -->
+        <div v-if="!isCompact" class="flex items-center gap-2 px-1 mb-2 shrink-0">
+          <h3 class="text-[10px] font-semibold uppercase tracking-[0.08em] text-base-content/45">Subtasks</h3>
+          <span class="text-[10px] text-base-content/40 tabular-nums">
+            {{ filteredNestedChats.length }}<template v-if="statusFilter">/{{ allNestedChats.length }}</template>
+          </span>
+
+          <div class="grow"></div>
 
           <!-- Status filter dropdown -->
           <div class="dropdown dropdown-end" @click.stop>
@@ -154,7 +172,7 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
           </div>
         </div>
 
-        <!-- Compact mode: active filter indicator -->
+        <!-- Compact: the active filter is an icon, the count stays visible -->
         <div
           v-else-if="statusFilter"
           class="flex justify-center mb-1 shrink-0"
@@ -175,91 +193,98 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
           @add-subtask="$emit('add-subtask', $event)"
           @delete-chat="$emit('delete-chat', $event)"
         />
-      </div>
+      </section>
+
+      <!-- Empty state — a placeholder, not a list -->
       <div v-else class="px-3 py-8 text-center" :class="{ hidden: channelMode }">
+        <i class="fa-solid fa-list-check text-base-content/20 text-lg mb-2 block" aria-hidden="true"></i>
         <p class="text-xs text-base-content/40">No subtasks yet</p>
       </div>
     </div>
 
-    <!-- FOOTER: Fixed - Icon Toolbar -->
+    <!-- ─────────────────────────── FOOTER: action toolbar ─────────────────────────── -->
     <div class="shrink-0 border-t border-base-100 px-2 py-2">
-      <div class="flex items-center gap-1"
-        :class="isCompact && 'flex-col gap-3'" 
-      >
-        <!-- Browser Session Button (channels have no codebase to browse; the
-             button is hidden, still available for task chats) -->
-        <button 
-          @click.stop="openBrowserSessionDialog"
-          :title="'Create browser session'"
-          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
+      <div class="flex items-center gap-1" :class="isCompact && 'flex-col gap-2'">
+
+        <!-- Browser session (channels have no codebase to browse; hidden, still
+             available for task chats) -->
+        <button
+          type="button"
+          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors duration-150"
           :class="{ hidden: channelMode }"
+          title="Create browser session"
+          aria-label="Create browser session"
+          @click.stop="openBrowserSessionDialog"
         >
-          <i class="fa-solid fa-globe text-sm"></i>
+          <i class="fa-solid fa-globe text-sm" aria-hidden="true"></i>
         </button>
 
-        <!-- More Actions Dropdown (opens top-right) -->
+        <!-- More actions — grouped menu, opens upwards -->
         <div class="dropdown dropdown-top dropdown-start flex-1">
-          <div
+          <button
             ref="actionsTrigger"
-            tabindex="0"
-            role="button"
-            :title="'More actions'"
-            class="flex items-center justify-center h-9 w-full rounded-lg cursor-pointer text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
+            type="button"
+            class="w-full flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors duration-150"
+            title="More actions"
+            aria-label="More actions"
+            aria-haspopup="menu"
           >
-            <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
-          </div>
+            <i class="fa-solid fa-ellipsis-vertical text-sm" aria-hidden="true"></i>
+          </button>
           <ul
             tabindex="0"
-            class="dropdown-content menu menu-sm bg-base-100 rounded-box z-50 w-44 p-2 shadow-lg border border-base-300 mb-1"
+            class="dropdown-content menu menu-sm bg-base-100 rounded-box z-50 w-48 p-1 shadow-lg border border-base-300 mb-1"
           >
-            <!-- Timeline / AI logs / task settings belong to task chats: they are
-                 hidden in channel mode instead of removed. -->
+            <!-- Group headers replace the previous empty <li> spacers: a menu
+                 that is scannable in three blocks, not seven loose rows. -->
+            <li class="menu-title" :class="{ hidden: channelMode }">Task</li>
             <li :class="{ hidden: channelMode }">
               <a @click.stop="handleFooterAction({ type: 'timeline' })">
-                <i class="fa-solid fa-timeline text-sm opacity-70"></i>
+                <i class="fa-solid fa-timeline text-sm opacity-70" aria-hidden="true"></i>
                 View timeline
               </a>
             </li>
             <li :class="{ hidden: channelMode }">
               <a @click.stop="handleFooterAction({ type: 'logs' })">
-                <i class="fa-solid fa-file-lines text-sm opacity-70"></i>
+                <i class="fa-solid fa-file-lines text-sm opacity-70" aria-hidden="true"></i>
                 View AI logs
               </a>
             </li>
-            <li :class="{ hidden: channelMode }"></li>
+
+            <li class="menu-title">Chat</li>
             <li>
               <a
                 @click.stop="handleReload"
                 :class="isReloading && 'is-disabled pointer-events-none opacity-50'"
               >
-                <i class="fa-solid fa-arrows-rotate text-sm opacity-70" :class="isReloading && 'fa-spin'"></i>
+                <i class="fa-solid fa-arrows-rotate text-sm opacity-70" :class="isReloading && 'fa-spin'" aria-hidden="true"></i>
                 Reload chat
               </a>
             </li>
             <li>
               <a @click.stop="handleFooterAction({ type: 'export' })">
-                <i class="fa-solid fa-download text-sm opacity-70"></i>
+                <i class="fa-solid fa-download text-sm opacity-70" aria-hidden="true"></i>
                 Export chat
               </a>
             </li>
             <!-- Admin only: raw JSON snapshot for a postmortem. Deliberately NOT
-                 hidden in channel mode — a group conversation may need a
-                 postmortem too. `canDump` is resolved by the host (ChatView),
-                 the sidebar only renders the entry point. -->
+                 hidden in channel mode — a group conversation may need one too.
+                 `canDump` is resolved by the host (ChatView). -->
             <li v-if="canDump">
               <a
                 @click.stop="handleFooterAction({ type: 'dump' })"
                 title="Admin only: full chat dump (JSON, postmortem)"
               >
-                <i class="fa-solid fa-bug text-sm opacity-70 text-warning"></i>
+                <i class="fa-solid fa-bug text-sm opacity-70 text-warning" aria-hidden="true"></i>
                 Dump chat
               </a>
             </li>
-            <li :class="{ hidden: channelMode }"></li>
+
+            <li class="menu-title" :class="{ hidden: channelMode }">Configuration</li>
             <li :class="{ hidden: channelMode }">
               <a @click.stop="handleFooterAction({ type: 'settings' })">
-                <i class="fa-solid fa-gear text-sm opacity-70"></i>
-                Settings
+                <i class="fa-solid fa-gear text-sm opacity-70" aria-hidden="true"></i>
+                Properties
               </a>
             </li>
           </ul>
@@ -273,98 +298,91 @@ import ChatAttachmentPreview from './ChatAttachmentPreview.vue'
              of the buttons above so it matches at every sidebar width:
                class="flex-1 flex items-center justify-center h-9 rounded-lg
                       text-base-content/60 hover:text-base-content/90
-                      hover:bg-base-200 focus:ring-2 focus:ring-primary/50
-                      transition-colors duration-150"
+                      hover:bg-base-200 focus-visible:ring-2
+                      focus-visible:ring-primary/50 transition-colors duration-150"
              The container is a row when expanded and a column when compact, so
              `flex-1` is all a button needs to align. -->
         <slot name="actions" />
 
-        <!-- Compact Toggle Button -->
-        <button 
-          @click.stop="$emit('toggle-compact')"
+        <!-- Compact toggle -->
+        <button
+          type="button"
+          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors duration-150"
           :title="isCompact ? 'Expand sidebar' : 'Collapse sidebar'"
-          class="flex-1 flex items-center justify-center h-9 rounded-lg text-base-content/60 hover:text-base-content/90 hover:bg-base-200 focus:ring-2 focus:ring-primary/50 transition-colors duration-150"
+          :aria-label="isCompact ? 'Expand sidebar' : 'Collapse sidebar'"
+          :aria-expanded="!isCompact"
+          @click.stop="$emit('toggle-compact')"
         >
-          <i :class="isCompact ? 'fa-solid fa-angle-right' : 'fa-solid fa-angle-left'"></i>
+          <i :class="isCompact ? 'fa-solid fa-angle-right' : 'fa-solid fa-angle-left'" aria-hidden="true"></i>
         </button>
       </div>
     </div>
 
-    <!-- Browser Session Dialog Modal -->
-    <dialog v-if="showBrowserDialog" class="modal modal-open">
-      <form method="dialog" class="modal-box w-full max-w-sm">
-        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-        
-        <h3 class="font-bold text-lg mb-4">Create Browser Session</h3>
-        
-        <div class="form-control gap-4">
-          <!-- Session Name -->
-          <div class="form-control w-full">
-            <label class="label">
-              <span class="label-text text-sm font-medium">Session Name</span>
-            </label>
-            <input
-              v-model="browserSessionForm.name"
-              type="text"
-              placeholder="e.g., Testing Session"
-              class="input input-bordered input-sm w-full focus:ring-2 focus:ring-primary/50"
-            />
-          </div>
+    <!-- ── Browser session dialog ──
+         Rendered through the app <modal>, which mounts itself on the app root:
+         a dialog nested inside this `overflow-hidden` rail was clipped and could
+         not be escaped with the keyboard. -->
+    <modal
+      v-if="showBrowserDialog"
+      title="Create browser session"
+      close
+      @close="closeBrowserSessionDialog"
+    >
+      <div class="flex flex-col gap-4 w-full md:w-96">
+        <label class="block">
+          <span class="block text-[11px] font-medium uppercase tracking-[0.06em] text-base-content/45 mb-1">
+            Session name
+          </span>
+          <input
+            v-model="browserSessionForm.name"
+            type="text"
+            placeholder="e.g., Testing Session"
+            class="input input-sm input-bordered w-full bg-base-100 focus:border-primary/50 focus:ring-2 focus:ring-primary/40"
+          />
+        </label>
 
-          <!-- Chat ID (Read-only) -->
-          <div class="form-control w-full">
-            <label class="label">
-              <span class="label-text text-sm font-medium">Chat ID</span>
-            </label>
-            <input
-              :value="workingChat.id"
-              type="text"
-              disabled
-              class="input input-bordered input-sm w-full bg-base-300 text-base-content/50"
-            />
-          </div>
+        <label class="block">
+          <span class="block text-[11px] font-medium uppercase tracking-[0.06em] text-base-content/45 mb-1">
+            Chat
+          </span>
+          <input
+            :value="workingChat.name"
+            type="text"
+            disabled
+            class="input input-sm input-bordered w-full bg-base-200/60 text-base-content/50"
+          />
+        </label>
 
-          <!-- Description -->
-          <div class="form-control w-full">
-            <label class="label">
-              <span class="label-text text-sm font-medium">Description (Optional)</span>
-            </label>
-            <textarea
-              v-model="browserSessionForm.description"
-              placeholder="Add notes about this session..."
-              class="textarea textarea-bordered textarea-sm w-full focus:ring-2 focus:ring-primary/50 resize-none"
-              rows="3"
-            ></textarea>
-          </div>
-        </div>
+        <label class="block">
+          <span class="block text-[11px] font-medium uppercase tracking-[0.06em] text-base-content/45 mb-1">
+            Description <span class="normal-case font-normal text-base-content/35">(optional)</span>
+          </span>
+          <textarea
+            v-model="browserSessionForm.description"
+            placeholder="Add notes about this session..."
+            class="textarea textarea-bordered textarea-sm w-full resize-none bg-base-100 focus:border-primary/50 focus:ring-2 focus:ring-primary/40"
+            rows="3"
+          ></textarea>
+        </label>
 
-        <!-- Actions -->
-        <div class="modal-action gap-2 mt-6">
-          <button
-            type="button"
-            @click="closeBrowserSessionDialog"
-            class="btn btn-ghost btn-sm"
-          >
+        <div class="flex items-center justify-end gap-2 pt-1">
+          <button type="button" class="btn btn-ghost btn-sm" @click="closeBrowserSessionDialog">
             Cancel
           </button>
           <button
             type="button"
-            @click="createBrowserSession"
+            class="btn btn-primary btn-sm gap-1"
             :disabled="!browserSessionForm.name.trim() || isCreatingSession"
-            class="btn btn-primary btn-sm"
+            @click="createBrowserSession"
           >
-            <span v-if="isCreatingSession" class="loading loading-spinner loading-sm"></span>
-            <span v-else>Create Session</span>
+            <span v-if="isCreatingSession" class="loading loading-spinner loading-xs"></span>
+            <i v-else class="fa-solid fa-globe" aria-hidden="true"></i>
+            Create session
           </button>
         </div>
-      </form>
-      <form method="dialog" class="modal-backdrop">
-        <button @click="closeBrowserSessionDialog">close</button>
-      </form>
-    </dialog>
-  </div>
+      </div>
+    </modal>
+  </aside>
 </template>
 
 <script>
@@ -403,6 +421,21 @@ export default {
     }
   },
   computed: {
+    isRootSelected() {
+      return !!this.rootChat?.id && this.selectedChatId === this.rootChat.id
+    },
+    // Working project of the root chat (its icon replaces the initials in the
+    // compact rail). Read straight from the chat instead of pre-building a map
+    // keyed by id — the previous lookup used the chat OBJECT as key and always
+    // missed, so the project icon never showed.
+    rootProject() {
+      if (!this.rootChat) return null
+      try {
+        return this.$chats.getChatWorkingProject(this.rootChat) || null
+      } catch {
+        return null
+      }
+    },
     allNestedChats() {
       // Groups / channels have no task hierarchy: nothing to list
       if (this.channelMode) return []
@@ -429,10 +462,6 @@ export default {
     },
     selectedChat() {
       return this.allChats.find(c => c.id === this.selectedChatId) || this.rootChat
-    },
-    allChatsWorkingProject() {
-      return [this.rootChat, ...this.allNestedChats]
-        .reduce((v, acc) => ({ ...acc, [v.id]: this.$chats.getChatWorkingProject(v) }), {})
     }
   },
   methods: {
@@ -493,6 +522,7 @@ export default {
         name: '',
         description: ''
       }
+      this.isCreatingSession = false
     },
     async createBrowserSession() {
       if (!this.browserSessionForm.name.trim()) return

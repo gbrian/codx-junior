@@ -48,7 +48,10 @@
     "docker_container",
     "docker_compose_service",
     "docker_ps",
-    "project_write_file"
+    "project_write_file",
+    "project_grep",
+    "project_glob",
+    "search_codx"
   ],
   "tags": [],
   "api_settings": {

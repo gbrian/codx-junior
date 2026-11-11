@@ -265,8 +265,26 @@ import ChatLogsPanel from '@/components/ChatLogsPanel.vue'
       </div>
     </modal>
 
-    <modal v-if="showTaskSettings">
-      <TaskSettings :taskData="theChat" @close="showTaskSettings = false" />
+    <!-- Chat properties -------------------------------------------------
+         `TaskSettings` owns the form; the dialog owns the frame. The title and
+         the `board / column · id` subtitle live in the modal `header` slot
+         (rendered by <Modal> only when there is content), and `close` wires the
+         X button and the Escape key. `hideHeader` stops the child from printing
+         a second, duplicated header bar. -->
+    <modal v-if="showTaskSettings" close @close="showTaskSettings = false">
+      <template #header>
+        <div class="min-w-0">
+          <h2 class="text-sm md:text-base font-semibold truncate">Chat properties</h2>
+          <p class="text-[11px] text-base-content/50 truncate font-mono">
+            {{ theChat?.board || '—' }}
+            <span class="mx-1 opacity-50">/</span>{{ theChat?.column || 'unassigned' }}
+            <template v-if="theChat?.id">
+              <span class="mx-1 opacity-50">·</span>{{ String(theChat.id).slice(0, 8) }}
+            </template>
+          </p>
+        </div>
+      </template>
+      <TaskSettings :taskData="theChat" hideHeader @close="showTaskSettings = false" />
     </modal>
 
     <modal close="true" @close="showExportChat = false" v-if="showExportChat">

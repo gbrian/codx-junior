@@ -143,7 +143,9 @@ from codx.junior.model.model import CodxUser
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.tools import (
     TOOLS,
-    ToolResponse
+    ToolResponse,
+    ALL_TOOLS_MARKER,
+    expand_tool_allowlist,
 )
 from codx.junior.utils.utils import clean_string
 
@@ -259,6 +261,44 @@ Use xml envelope per file with the changes like in the example:
    lines (start_line/end_line) instead of reading the whole file again.
  * Batch independent queries/files into a single call whenever the tool
    supports a list (bulk reads and multi-query searches).
+
+### HOW TO INVESTIGATE — act like a developer, not a reader
+ * For a runtime symptom ("not working", "blank", "nothing shows", "not
+   opening"), collect RUNTIME evidence first when a tool can do it: screenshot
+   / browser console / network request, container or app logs, the failing API
+   response. Reading code only confirms a hypothesis; it is not evidence.
+ * Use the right discovery tool: project_grep for an EXACT symbol, string or
+   error message; project_glob for file paths; project_search for concepts
+   only. Do not use semantic search for identifiers.
+ * To find a symbol inside a large file, call project_read_file with
+   pattern="symbol" (or read the outline) instead of paging through it. Do
+   not read a whole file unless the whole file is relevant.
+ * Work in small loops: after at most 3-5 discovery calls, state a concrete
+   hypothesis, run the smallest probe or make the smallest change that tests
+   it, then verify. Alternate investigation and action; never spend the whole
+   turn reading.
+ * Before the tool budget runs out, write down in your answer: what is
+   confirmed, what is ruled out, and the single next concrete step. Never end
+   a run with only tool calls and no findings.
+
+### CODEBASE vs .codx (control plane)
+ * The codebase is the project source tree. Use project_structure, project_glob,
+   project_grep, project_search and project_read_file for it. `.codx/` is
+   EXCLUDED from all of those tools.
+ * Start with a MAP, not a broad search: project_structure(max_depth=2) or
+   project_glob for the codebase; search_codx(query="") for the control plane.
+   Then read/search only the files the map points to.
+ * `.codx/` is the control plane: task cards and boards, AI profiles, browser/
+   desktop sessions, views, teams, workspaces, chat turns, orchestration state,
+   project metadata and logs. It can be hundreds of megabytes and it is NOT
+   source code.
+ * Use search_codx(modules=[...], query="...") for `.codx` questions. Call
+   search_codx(query="") first to see the modules and sizes. Examples:
+   search_codx("wallet", modules=["tasks"]);
+   search_codx("browser session", modules=["browser_sessions"]);
+   search_codx("reviewer", modules=["profiles"]).
+ * Never search `.codx` for a code bug, and never search the codebase for a
+   task, profile or session. Use the matching namespace.
 """
 
 
@@ -1302,18 +1342,13 @@ class SmolAgent:
                     len(openai_messages),
                 )
 
-            # FIX 1: INCREMENT LOOP GUARD AFTER PROCESSING ALL TOOLS
-            # This is CRITICAL for preventing infinite loops when:
-            # 1. All tool calls are cached (normally bypass loop guard checks)
-            # 2. Model requests same tool repeatedly with identical args
-            # 3. Vision content or attachments trigger repeated tool calls
-            #
-            # Incrementing here ensures:
-            # - loop_guard.rounds increases every iteration (even all-cached)
-            # - Stuck loop detection works for cached tool repetition
-            # - max_iterations limit is enforced regardless of cache hits
+            # Count every iteration EXACTLY ONCE. ``LoopGuard.check()`` already
+            # increments ``rounds`` for rounds that executed uncached tools.
+            # Only an all-cached round (which skips ``check()``) still needs to
+            # be counted here; incrementing it again for checked rounds halved
+            # the effective iteration budget and made the run stop early.
             if tool_calls:
-                loop_guard.rounds += 1
+                loop_guard.complete_round(checked=bool(uncached_calls))
                 logger.info(
                     "SmolAgent: round %d complete (cached=%d, uncached=%d, "
                     "iterations_left=%d/%d)",
@@ -2524,8 +2559,12 @@ class SmolAgent:
         """
         Build the deterministic fallback used when no model summary is available.
 
-        Still lists the tools already executed so the next iteration is never
-        worse off than before this feature existed.
+        Still records the tools already executed AND a bounded excerpt of what
+        each one returned, so the next iteration can continue from the evidence
+        instead of re-running the calls. Identical calls are collapsed. This is
+        the safety net for the "tool limit reached, start over" failure: the
+        concrete findings must survive even when the analysis model is
+        unavailable.
 
         Args:
             tool_usages: Collected tool usages.
@@ -2534,8 +2573,41 @@ class SmolAgent:
             Markdown fallback block (without the heading).
         """
         lines: List[str] = ["", TOOL_ANALYSIS_FALLBACK_NOTE, ""]
+
+        # Collapse identical (name, arguments) calls; the latest result wins.
+        collapsed: Dict[Tuple[str, str], Dict[str, str]] = {}
+        repeats: Dict[Tuple[str, str], int] = {}
         for usage in tool_usages:
-            lines.append(f"- `{usage['name']}({usage['args']})`")
+            key = (usage.get("name", ""), usage.get("args", ""))
+            collapsed[key] = usage
+            repeats[key] = repeats.get(key, 0) + 1
+
+        # Keep the block bounded: this is a fallback, not a transcript.
+        total_budget = 8_000
+        items = list(collapsed.items())
+        for index, ((name, args), usage) in enumerate(items):
+            rendered_args = (args or "").strip()
+            if len(rendered_args) > 240:
+                rendered_args = rendered_args[:240] + "…"
+
+            result = (usage.get("result") or "").strip()
+            if len(result) > 600:
+                result = result[:360].rstrip() + "\n…\n" + result[-200:].lstrip()
+
+            entry = f"- `{name}({rendered_args})`"
+            if repeats[(name, args)] > 1:
+                entry += f" (called {repeats[(name, args)]}x; latest shown)"
+            if result:
+                entry += "\n  " + result.replace("\n", "\n  ")
+
+            if total_budget - len(entry) < 0:
+                remaining = len(items) - index
+                lines.append(f"- … {remaining} more tool call(s) omitted")
+                break
+
+            lines.append(entry)
+            total_budget -= len(entry)
+
         return "\n".join(lines)
 
     def _summarize_tool_usage(
@@ -2980,6 +3052,14 @@ class SmolAgent:
         # Collect all enabled tools: global scope tools (always) + selected
         # chat scope tools + the profile tools decided for this run.
         selected_tool_set: Set[str] = set(selected_tools) if selected_tools else set()
+
+        # Expand the all-tools marker: a profile (the codx-junior harness) may
+        # grant every tool at once. Tools managed per run by the agent
+        # (profile knowledge write/read) are never granted by an allowlist, so
+        # the marker cannot smuggle them past the user rights checks.
+        if ALL_TOOLS_MARKER in selected_tool_set:
+            selected_tool_set = set(expand_tool_allowlist(selected_tool_set))
+            logger.info("SmolAgent: expanded all-tools marker (%d tools)", len(selected_tool_set))
 
         profile_tools = self._profile_tools_for_run(profile_names or [])
         if profile_tools:

@@ -3852,6 +3852,36 @@
           "name": "GitIssue",
           "slug": "gitissue.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/gitissue.md"
+        },
+        {
+          "path": "/src/components/browsers/DesktopSizeSelect.vue",
+          "name": "DesktopSizeSelect",
+          "slug": "desktopsizeselect.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/desktopsizeselect.md"
+        },
+        {
+          "path": "/src/utils/desktopSizes.js",
+          "name": "DesktopSizes",
+          "slug": "desktopsizes.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/desktopsizes.md"
+        },
+        {
+          "path": "/src/api/modules/harness.js",
+          "name": "Harness",
+          "slug": "harness.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/harness.md"
+        },
+        {
+          "path": "/src/views/HarnessView.vue",
+          "name": "HarnessView",
+          "slug": "harnessview.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/harnessview.md"
+        },
+        {
+          "path": "/src/utils/meetPeers.js",
+          "name": "MeetPeers",
+          "slug": "meetpeers.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetpeers.md"
         }
       ],
       "id": "src",

@@ -238,6 +238,7 @@ const router = createRouter({
     { path: '/:projectName/vibe-coding', name: 'vibe-coding', component: AppRouteView, meta: { app: 'vibe-coding' } },
     { path: '/:projectName/wiki', name: 'wiki', component: AppRouteView, meta: { app: 'wiki' } },
     { path: '/:projectName/docs', name: 'docs', component: AppRouteView, meta: { app: 'docs' } },
+    { path: '/:projectName/harness', name: 'harness', component: AppRouteView, meta: { app: 'harness', ...mobile('Harness', 'tasks', { hideTopBar: true }) } },
     { path: '/:projectName/knowledge', name: 'knowledge', component: AppRouteView, meta: { app: 'knowledge' } },
     { path: '/:projectName/knowledge-settings', name: 'knowledge-settings', component: AppRouteView, meta: { app: 'knowledge_settings' } },
     { path: '/:projectName/projects', name: 'projects', component: AppRouteView, meta: { app: 'projects' } },

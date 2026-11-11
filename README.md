@@ -49,6 +49,27 @@ We are raising our seed round and onboarding early partners at **[join@codx-juni
 | **AI providers** | Any OpenAI-compatible provider (OpenAI, Ollama, LocalAI, LiteLLM, vLLM, …) with per-purpose models: chat, RAG, embeddings, wiki, vision and image generation. MCP servers can be attached per project. |
 | **Plugins** | Python plugins (Azure DevOps pull requests, image editor, …) that extend the UI and the API. |
 
+## Native harness — give @codx-junior a task
+
+codx-junior ships its own harness: mention the built-in **`codx-junior`**
+profile in any chat to hand it a whole task, and get notified when it is done.
+
+1. Write `@codx-junior build me a landing page for X` in a chat.
+2. The harness registers the request, plans the work and delegates the steps
+   to the right profiles — every step is a visible task card on a board and a
+   sprint, so you can navigate and review all of it while it runs.
+3. When the run finishes, the delivery report is published on the task and you
+   receive a notification.
+4. Open **Harness** in the sidebar to review all runs, the worker/watchdog
+   health and the full audit journal (`.codx/harness/audit.jsonl`) — every
+   request, step and completion is registered and audited.
+
+Harness processes restart on error or interruption: runs are durable on disk,
+`supervisor.conf` supervises the api/background/client processes with
+autorestart, and an in-process watchdog restarts a stalled background worker.
+
+Details: [codx-junior harness](docs/features/codx-junior-harness.md).
+
 ## DSH task sync — quick start
 
 Connect a [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)

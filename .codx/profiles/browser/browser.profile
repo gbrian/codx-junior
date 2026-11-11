@@ -53,7 +53,8 @@
     "get_browser_script",
     "run_browser_script",
     "save_browser_script",
-    "delete_browser_script"
+    "delete_browser_script",
+    "search_codx"
   ],
   "tags": [
     "browser",

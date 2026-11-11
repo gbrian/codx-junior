@@ -42,7 +42,10 @@
     "project_search",
     "fetch_webpage",
     "project_read_file",
-    "generate_tasks_tool"
+    "generate_tasks_tool",
+    "project_grep",
+    "project_glob",
+    "search_codx"
   ],
   "tags": [],
   "api_settings": {

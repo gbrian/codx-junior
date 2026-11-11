@@ -21,7 +21,10 @@
         "repository_commit_message",
         "get_file_last_version",
         "project_read_file",
-        "project_search"
+        "project_search",
+        "project_grep",
+        "project_glob",
+        "search_codx"
     ],
     "tags": [],
     "api_settings": {

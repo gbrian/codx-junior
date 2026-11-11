@@ -44,7 +44,10 @@
     "project_search",
     "project_read_file",
     "create_task",
-    "process_task"
+    "process_task",
+    "project_grep",
+    "project_glob",
+    "search_codx"
   ],
   "tags": [
     "task-manager",

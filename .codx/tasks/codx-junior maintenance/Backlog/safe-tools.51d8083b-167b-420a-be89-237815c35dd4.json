@@ -10,7 +10,7 @@
   "parent_project_id": null,
   "child_index": 0,
   "message_id": null,
-  "status": "Rejected",
+  "status": "Done",
   "status_history": [
     {
       "doc_id": "fc10bc47-84bf-4be9-89bc-5bddb863afbe",
@@ -26,6 +26,14 @@
       "to_status": "Rejected",
       "user": null,
       "at": "2026-11-10T15:36:34.115328",
+      "meta_data": null
+    },
+    {
+      "doc_id": "b8147de3-4601-4bdd-bde3-85cd2e7a25cb",
+      "from_status": "Rejected",
+      "to_status": "Done",
+      "user": null,
+      "at": "2026-11-10T18:37:28.241237",
       "meta_data": null
     }
   ],
@@ -548,7 +556,7 @@
     }
   ],
   "created_at": "2026-11-07 16:01:39.117615",
-  "updated_at": "2026-11-10T15:36:32.715320",
+  "updated_at": "2026-11-10T18:37:26.852817",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",
@@ -559,7 +567,7 @@
   ],
   "priority": null,
   "due_date": null,
-  "progress": 0,
+  "progress": 100,
   "assignees": [],
   "sort_index": null,
   "columns": [],

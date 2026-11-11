@@ -50,6 +50,10 @@ GIT_FILE_LIST_COMMAND = "git ls-files --cached --others --exclude-standard --ful
 MAX_FILE_MATCHES = 100
 # VCS internals never listed when only the repository .gitignore is applied
 VCS_IGNORE_PATTERNS = (".git",)
+# The control-plane folder is never part of the codebase: it holds tasks,
+# profiles, sessions, chats and databases. It has dedicated tools (search_codx)
+# and must not leak into codebase search/structure results.
+CODX_DIRNAME = ".codx"
 
 # ── Reading limits ──────────────────────────────────────────────────────────
 # Default/maximum characters returned by a single file read. Large files are
@@ -62,6 +66,20 @@ MAX_TOTAL_READ_CHARS = 150000
 MAX_READ_LINE_CHARS = 2000
 # Bytes inspected to decide whether a file is binary.
 BINARY_SAMPLE_BYTES = 8192
+
+# ── In-file search (project_read_file(pattern=...)) ─────────────────────────
+# A model debugging one symbol should not have to page through a whole file.
+# ``pattern`` returns only the matching lines plus context, like a scoped grep.
+MAX_PATTERN_MATCHES = 100
+MAX_PATTERN_CONTEXT_LINES = 10
+
+# ── File outline ────────────────────────────────────────────────────────────
+# Large files are returned with a heuristic map of their declarations, so the
+# model can request the lines that matter instead of walking the file page by
+# page. The auto outline is only added when the whole file is requested.
+OUTLINE_AUTO_MIN_LINES = 400
+MAX_OUTLINE_ENTRIES = 80
+AUTO_OUTLINE_ENTRIES = 40
 
 # ── Content search (project_grep) limits ────────────────────────────────────
 MAX_GREP_FILE_BYTES = 2 * 1024 * 1024
@@ -106,6 +124,49 @@ def get_ai(settings: CODXJuniorSettings, tool_name: str) -> AI:
 def _project_root(settings: CODXJuniorSettings) -> str:
     """Return the absolute, normalized project root."""
     return os.path.abspath(settings.abs_project_path)
+
+
+def is_codx_relative_path(rel_path: str) -> bool:
+    """
+    Return True when *rel_path* is the ``.codx`` folder or a descendant of it.
+
+    The check is path-component based (not a substring), so a file such as
+    ``docs/about.codx.md`` is not mistaken for the control plane.
+
+    Args:
+        rel_path: Project-relative path.
+
+    Returns:
+        bool: True for ``.codx`` and ``.codx/...``.
+
+    Example:
+        >>> is_codx_relative_path(".codx/tasks/a.json")
+        True
+        >>> is_codx_relative_path("docs/about.codx.md")
+        False
+    """
+    normalized = str(rel_path or "").replace("\\", "/").strip("/")
+    return normalized == CODX_DIRNAME or normalized.startswith(CODX_DIRNAME + "/")
+
+
+def is_codx_path(project_root: str, abs_path: str) -> bool:
+    """
+    Return True when *abs_path* is inside the project's ``.codx`` folder.
+
+    Args:
+        project_root: Absolute project root.
+        abs_path: Absolute path to test.
+
+    Returns:
+        bool: True when the path belongs to the control plane.
+    """
+    try:
+        rel_path = os.path.relpath(abs_path, project_root)
+    except ValueError:  # pragma: no cover - different drives on Windows
+        return False
+    if rel_path == os.pardir or rel_path.startswith(os.pardir + os.sep):
+        return False
+    return is_codx_relative_path(rel_path)
 
 
 def is_path_within_project(
@@ -316,6 +377,280 @@ def _find_glob_files(
     return sorted(set(results))[:limit]
 
 
+# Declaration patterns used to build the heuristic file outline. The first
+# matching pattern wins for a line; the actual declaration line is rendered, so
+# the outline never invents names.
+_OUTLINE_PATTERNS: Tuple[Tuple["re.Pattern[str]", str], ...] = (
+    (re.compile(r"^(\s*)class\s+[A-Za-z_$][\w$]*"), "class"),
+    (re.compile(r"^(\s*)(?:async\s+)?def\s+[A-Za-z_]\w*\s*\("), "def"),
+    (
+        re.compile(
+            r"^(\s*)(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+"
+            r"[A-Za-z_$][\w$]*"
+        ),
+        "function",
+    ),
+    (
+        re.compile(
+            r"^(\s*)(?:export\s+)?(?:default\s+)?class\s+[A-Za-z_$][\w$]*"
+        ),
+        "class",
+    ),
+    (
+        re.compile(
+            r"^(\s*)(?:export\s+)?(?:interface|type|enum)\s+[A-Za-z_$][\w$]*"
+        ),
+        "type",
+    ),
+    (
+        re.compile(
+            r"^(\s*)(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*"
+            r"(?:async\s*)?(?:\(|function)"
+        ),
+        "const",
+    ),
+    (
+        re.compile(r"^(\s{0,4})(?:get|set)\s+[A-Za-z_$][\w$]*\s*\("),
+        "accessor",
+    ),
+    (
+        re.compile(r"^(\s{0,4})([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{"),
+        "method",
+    ),
+)
+
+# Words that look like a method declaration (``if (x) {``) but are control flow.
+_OUTLINE_NON_SYMBOLS = frozenset({
+    "if", "for", "while", "switch", "catch", "with", "return", "function",
+    "else", "do", "try", "finally", "typeof", "await", "yield",
+})
+
+# File extensions whose headings are useful in the outline.
+_MARKDOWN_EXTENSIONS = frozenset({"md", "mdx", "rst"})
+
+# Maximum characters of one outline declaration line.
+_OUTLINE_LINE_MAX_CHARS = 120
+
+
+def _build_file_outline(
+    lines: List[str],
+    extension: str,
+    max_entries: int,
+) -> List[Tuple[int, int, str]]:
+    """
+    Return a heuristic list of declaration lines for *lines*.
+
+    The outline is deliberately cheap and language-agnostic: it recognises the
+    common Python/JS/TS/Vue declaration forms (and Markdown headings) and
+    reports the ORIGINAL line, so the model can jump straight to it. It never
+    replaces a real parser; it only prevents page-by-page reads of large files.
+
+    Args:
+        lines: File lines (without line terminators).
+        extension: File extension without the dot (used for Markdown headings).
+        max_entries: Maximum number of declarations returned.
+
+    Returns:
+        List of ``(line_number, indent, rendered_line)`` in file order.
+    """
+    entries: List[Tuple[int, int, str]] = []
+    for number, line in enumerate(lines, start=1):
+        if len(entries) >= max_entries:
+            break
+        if not line or not line.strip():
+            continue
+        if len(line) > MAX_READ_LINE_CHARS:
+            continue
+
+        indent = len(line) - len(line.lstrip())
+        # Nested callbacks/declarations deeper than this add noise, not a map.
+        if indent > 8:
+            continue
+
+        stripped = line.strip()
+
+        if extension in _MARKDOWN_EXTENSIONS and stripped.startswith("#"):
+            entries.append((number, indent, stripped[:_OUTLINE_LINE_MAX_CHARS]))
+            continue
+
+        for pattern, kind in _OUTLINE_PATTERNS:
+            match = pattern.match(line)
+            if not match:
+                continue
+            if kind == "method" and match.group(2) in _OUTLINE_NON_SYMBOLS:
+                break
+            entries.append((number, indent, stripped[:_OUTLINE_LINE_MAX_CHARS]))
+            break
+
+    return entries
+
+
+def _render_outline(
+    rel_path: str,
+    lines: List[str],
+    extension: str,
+    *,
+    max_entries: int,
+    automatic: bool,
+) -> str:
+    """
+    Render the outline block prepended to a file read.
+
+    Args:
+        rel_path: Project-relative path (shown in the header).
+        lines: Full file content split into lines.
+        extension: File extension without the dot.
+        max_entries: Maximum declarations to render.
+        automatic: True when the outline was added by the tool (not requested).
+
+    Returns:
+        Markdown outline block, or an empty string when no declaration matched.
+    """
+    entries = _build_file_outline(lines, extension, max_entries)
+    if not entries:
+        return ""
+
+    reason = (
+        "added automatically because the file is large; "
+        "request only the lines you need"
+        if automatic
+        else "requested"
+    )
+    header = (
+        f"### Outline ({len(entries)} declaration(s), {reason})\n"
+        "Line numbers below can be used with `start_line`/`end_line` "
+        "or `pattern`."
+    )
+    body = "\n".join(
+        f"{number:>6}| {line}"
+        for number, _indent, line in entries
+    )
+    return f"{header}\n```\n{body}\n```"
+
+
+def _render_pattern_matches(
+    rel_path: str,
+    extension: str,
+    lines: List[str],
+    pattern: str,
+    context_lines: int,
+    start_line: int,
+    end_line: int,
+    max_chars: int,
+) -> str:
+    """
+    Return only the lines of a file that match *pattern*, with context.
+
+    Used by ``project_read_file(pattern=...)`` so the model can locate a symbol
+    or a config key in a large file in ONE call instead of paging through it.
+    Matching lines are always numbered so the model can follow up with an exact
+    ``start_line``/``end_line`` read.
+
+    Args:
+        rel_path: Project-relative path (shown in the header).
+        extension: File extension without the dot (code fence language).
+        lines: Full file content split into lines.
+        pattern: Literal text or regular expression.
+        context_lines: Lines of context before/after each match (clamped).
+        start_line: First line of the searched scope (1-based).
+        end_line: Last line of the searched scope (inclusive).
+        max_chars: Maximum characters returned (the file read budget).
+
+    Returns:
+        Formatted matches block (or a clear "no matches" message).
+    """
+    total_lines = len(lines)
+    regex_note = ""
+    try:
+        regex = re.compile(pattern)
+    except re.error:
+        regex = re.compile(re.escape(pattern))
+        regex_note = " (not valid as a regex; searched literally)"
+
+    scope_start = max(1, start_line)
+    scope_end = min(total_lines, end_line)
+    matches = [
+        number
+        for number in range(scope_start, scope_end + 1)
+        if regex.search(lines[number - 1])
+    ]
+
+    scope_note = (
+        f"lines {scope_start}-{scope_end} of {total_lines}"
+        if (scope_start, scope_end) != (1, total_lines)
+        else f"{total_lines} lines"
+    )
+    header = (
+        f"# {rel_path} — pattern `{pattern}`{regex_note} "
+        f"({len(matches)} match(es); {scope_note})"
+    )
+
+    if not matches:
+        return (
+            f"{header}\n\n"
+            f"> No line matches `{pattern}`. The pattern is case-sensitive. "
+            "Try a shorter pattern, or read a line range if you know where the "
+            "code is."
+        )
+
+    limited = matches[:MAX_PATTERN_MATCHES]
+    context = max(0, min(int(context_lines or 0), MAX_PATTERN_CONTEXT_LINES))
+
+    # Merge overlapping context windows so shared context is shown once.
+    windows: List[List[int]] = []
+    for number in limited:
+        low = max(scope_start, number - context)
+        high = min(scope_end, number + context)
+        if windows and low <= windows[-1][1] + 1:
+            windows[-1][1] = max(windows[-1][1], high)
+        else:
+            windows.append([low, high])
+
+    rendered: List[str] = []
+    used_chars = 0
+    stopped = False
+    for index, (low, high) in enumerate(windows):
+        if index > 0:
+            gap = f"{'':>6}| …"
+            if used_chars + len(gap) + 1 > max_chars:
+                stopped = True
+                break
+            rendered.append(gap)
+            used_chars += len(gap) + 1
+        for number in range(low, high + 1):
+            line = lines[number - 1]
+            if len(line) > MAX_READ_LINE_CHARS:
+                line = line[:MAX_READ_LINE_CHARS] + " …[line truncated]"
+            entry = f"{number:>6}| {line}"
+            if used_chars + len(entry) + 1 > max_chars:
+                stopped = True
+                break
+            rendered.append(entry)
+            used_chars += len(entry) + 1
+        if stopped:
+            break
+
+    formatted = (
+        f"{header}\n```{extension} {rel_path}\n"
+        + "\n".join(rendered)
+        + "\n```"
+    )
+    notes: List[str] = []
+    if len(matches) > len(limited):
+        notes.append(
+            f"{len(matches) - len(limited)} more match(es) not shown; "
+            "narrow the pattern."
+        )
+    if stopped:
+        notes.append(
+            "Output truncated at the read budget; narrow the pattern or use "
+            "`start_line`/`end_line`."
+        )
+    if notes:
+        formatted += "\n\n> " + " ".join(notes)
+    return formatted
+
+
 def _read_single_file(
     settings: CODXJuniorSettings,
     file_path: str,
@@ -323,6 +658,9 @@ def _read_single_file(
     end_line: Optional[int] = None,
     max_chars: Optional[int] = None,
     line_numbers: bool = False,
+    pattern: Optional[str] = None,
+    context_lines: int = 2,
+    outline: bool = False,
 ) -> Tuple[str, Optional[str]]:
     """
     Read a single file (or a line range of it) and return its content or error.
@@ -340,6 +678,11 @@ def _read_single_file(
         max_chars: Maximum characters in the code block. Defaults to
             ``DEFAULT_MAX_READ_CHARS`` and is clamped to ``MAX_READ_CHARS``.
         line_numbers: Prefix every returned line with its 1-based number.
+        pattern: Optional literal/regex. When set, only matching lines (plus
+            ``context_lines`` of context) are returned — the cheap way to find
+            a symbol in a large file without paging through it.
+        context_lines: Lines of context around each ``pattern`` match.
+        outline: Prepend a heuristic outline of the file declarations.
 
     Returns:
         tuple: (content_or_error, error_message_or_none)
@@ -398,6 +741,12 @@ def _read_single_file(
         extension = os.path.splitext(abs_path)[1].lstrip(".")
 
         if total_lines == 0:
+            if pattern:
+                return (
+                    f"# {rel_path} (empty file; 0 lines)\n\n"
+                    f"> No line matches `{pattern}`: the file is empty.",
+                    None,
+                )
             formatted = f"# {rel_path} (empty file)\n```{extension} {rel_path}\n\n```"
             return formatted, None
 
@@ -436,6 +785,49 @@ def _read_single_file(
             200,
             min(int(max_chars or DEFAULT_MAX_READ_CHARS), MAX_READ_CHARS),
         )
+
+        # In-file search: one call returns the lines that matter instead of
+        # making the model page through the whole file.
+        if pattern and str(pattern).strip():
+            try:
+                context = int(context_lines)
+            except (TypeError, ValueError):
+                context = 2
+            return (
+                _render_pattern_matches(
+                    rel_path=rel_path,
+                    extension=extension,
+                    lines=lines,
+                    pattern=str(pattern),
+                    context_lines=context,
+                    start_line=requested_start,
+                    end_line=requested_end,
+                    max_chars=cap,
+                ),
+                None,
+            )
+
+        # Large files get a heuristic map when the model asks for the whole
+        # file (or explicitly asks for an outline). A targeted range read does
+        # not need the map repeated on every page.
+        outline_block = ""
+        automatic_outline = (
+            not outline
+            and start_line is None
+            and end_line is None
+            and total_lines >= OUTLINE_AUTO_MIN_LINES
+        )
+        if outline or automatic_outline:
+            outline_block = _render_outline(
+                rel_path=rel_path,
+                lines=lines,
+                extension=extension,
+                max_entries=(
+                    AUTO_OUTLINE_ENTRIES if automatic_outline
+                    else MAX_OUTLINE_ENTRIES
+                ),
+                automatic=automatic_outline,
+            )
 
         rendered_lines: List[str] = []
         used_chars = 0
@@ -482,14 +874,21 @@ def _read_single_file(
             formatted += (
                 f"\n\n> Truncated: showing {shown_range} ({remaining} line(s) "
                 f"left). Call project_read_file again with "
-                f"`start_line={last_line + 1}` to continue."
+                f"`start_line={last_line + 1}`, or use `pattern=...` to jump "
+                f"directly to the lines you need."
             )
-        elif last_line < total_lines:
+        elif last_line < total_lines and end_line is not None:
+            # The caller asked for a specific range: do not nudge it into
+            # reading the rest of the file page by page. Offer a targeted way
+            # to continue instead.
             formatted += (
-                f"\n\n> Showing requested range {shown_range}; {remaining} "
-                f"more line(s) are available. Call project_read_file with "
-                f"`start_line={last_line + 1}` to continue."
+                f"\n\n> Showing the requested range {shown_range}; "
+                f"{remaining} line(s) follow it. Request them only if needed, "
+                f"or use `pattern=...` / the outline to jump to a symbol."
             )
+
+        if outline_block:
+            formatted = f"{outline_block}\n\n{formatted}"
 
         logger.debug(
             "Successfully read file: %s (%s)", file_path, shown_range
@@ -511,6 +910,9 @@ def project_read_file(
     end_line: Optional[int] = None,
     max_chars: Optional[int] = None,
     line_numbers: bool = False,
+    pattern: Optional[str] = None,
+    context_lines: int = 2,
+    outline: bool = False,
     **kwargs,
 ) -> ToolResponse:
     """
@@ -528,6 +930,11 @@ def project_read_file(
     ``end_line`` to read the rest. Binary files are reported as errors and never
     dumped into the context.
 
+    To find a symbol or a configuration key in a large file, pass ``pattern``:
+    only the matching lines (plus context) are returned, with line numbers. For
+    a map of a large file, pass ``outline=True`` (a heuristic outline is also
+    added automatically when the whole file is large).
+
     Args:
         file_path: Single file path (str) or list of file paths to read.
                    Supports relative and absolute paths. Glob patterns are not
@@ -539,6 +946,13 @@ def project_read_file(
         max_chars: Maximum characters returned per file. Defaults to 50000 and
                    is clamped between 200 and 400000.
         line_numbers: If true, prefix every returned line with its number.
+        pattern: Optional literal text or regular expression. When set, only
+                 matching lines are returned (with ``context_lines`` of
+                 context), so a symbol can be located without paging through
+                 the file.
+        context_lines: Lines of context around each ``pattern`` match.
+        outline: If true, prepend a heuristic outline (declaration line
+                 numbers) of the file.
         **kwargs: Additional arguments including:
             - settings (CODXJuniorSettings): Project settings (required).
 
@@ -555,6 +969,9 @@ def project_read_file(
         Read a specific range with line numbers:
         >>> project_read_file("src/main.py", start_line=40, end_line=80,
         ...                   line_numbers=True)
+
+        Find a symbol in a large file:
+        >>> project_read_file("src/store/ui.js", pattern="setActiveTab")
 
         Read multiple files at once:
         >>> project_read_file(["src/main.py", "config/settings.py"])
@@ -599,6 +1016,9 @@ def project_read_file(
             end_line=end_line,
             max_chars=max_chars,
             line_numbers=line_numbers,
+            pattern=pattern,
+            context_lines=context_lines,
+            outline=outline,
         )
         contents.append(content)
         total_chars += len(content)
@@ -704,7 +1124,8 @@ def _list_walk_files(project_root: str, ignore_patterns: List[str]) -> List[str]
     for current_root, dirs, files in os.walk(project_root):
         dirs[:] = [
             d for d in dirs
-            if not any(p and p in os.path.join(current_root, d) for p in ignore_patterns)
+            if d != CODX_DIRNAME
+            and not any(p and p in os.path.join(current_root, d) for p in ignore_patterns)
         ]
         for file_name in files:
             walk_files.append(os.path.join(current_root, file_name))
@@ -756,6 +1177,8 @@ def list_project_files(
     valid_files = [
         abs_path for abs_path in abs_files
         if not any(p and p in abs_path for p in ignore_patterns)
+        # `.codx` is the control plane, never codebase content.
+        and not is_codx_path(project_root, abs_path)
     ]
 
     return sorted({os.path.relpath(abs_path, project_root) for abs_path in valid_files})
@@ -986,6 +1409,11 @@ def project_search(
             part for part in [
                 f"> No results found for: '{', '.join(search_queries)}' "
                 f"in project: '{settings.project_name}'",
+                "> This tool matches concepts in the knowledge base and file PATHS. "
+                "For an exact symbol, string, config key or error message use "
+                "`project_grep`; for a file name pattern use `project_glob`. "
+                "For tasks, profiles, browser sessions or chats use `search_codx` "
+                "(the `.codx` control plane).",
                 warning_section,
             ] if part
         )
@@ -1129,7 +1557,8 @@ def project_glob(
                 f"> No project files matched "
                 f"{', '.join(f'`{item}`' for item in patterns)}. "
                 "Check the pattern, or use project_grep/project_search to search "
-                "by content or name."
+                "by content or name. For tasks, profiles, browser sessions or "
+                "chats use `search_codx` (the `.codx` control plane)."
             ),
         )
 
@@ -1376,7 +1805,8 @@ def project_grep(
             f"> No matches for `{pattern}` in `{search_path}`"
             + (f" ({'; '.join(notes)})" if notes else "")
             + "\n\nTry a shorter pattern, a different `include` filter or "
-            "`regex=True`."
+            "`regex=True`. For tasks, profiles, browser sessions or chats use "
+            "`search_codx` (the `.codx` control plane)."
         )
         user_response = f"Search completed: 0 matches for `{pattern}`"
     else:

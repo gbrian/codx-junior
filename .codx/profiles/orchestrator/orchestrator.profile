@@ -30,7 +30,10 @@
     "list_profiles_summary",
     "team_context",
     "project_manager",
-    "create_task"
+    "create_task",
+    "project_grep",
+    "project_glob",
+    "search_codx"
   ],
   "tags": [
     "orchestration",

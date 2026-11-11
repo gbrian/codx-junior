@@ -317,18 +317,27 @@ import { onBrowserCollab } from '@/utils/browserCollab'
                 v-for="peer in remotePeers"
                 :key="peer.id"
                 class="relative aspect-video rounded-2xl overflow-hidden bg-[#3c4043] flex items-center justify-center"
+                :class="peer.presenting && 'ring-2 ring-primary/60'"
               >
                 <video
                   v-if="peer.hasStream"
                   :ref="el => bindRemoteVideo(el, peer.id)"
                   autoplay
                   playsinline
-                  class="w-full h-full object-cover"
+                  class="w-full h-full"
+                  :class="peer.presenting ? 'object-contain bg-black' : 'object-cover'"
                 ></video>
                 <div v-else class="w-14 h-14 rounded-full bg-primary/30 flex items-center justify-center">
                   <i class="fa-solid fa-user text-2xl text-primary/70"></i>
                 </div>
-                <div class="absolute bottom-2 left-2">
+                <div class="absolute bottom-2 left-2 flex items-center gap-1.5">
+                  <span
+                    v-if="peer.presenting"
+                    class="text-white text-xs bg-primary/70 px-2 py-0.5 rounded-md backdrop-blur-sm flex items-center gap-1"
+                  >
+                    <i class="fa-solid fa-share-from-square text-xs"></i>
+                    {{ peer.presentationLabel || 'Screen' }}
+                  </span>
                   <span class="text-white text-xs bg-black/50 px-2 py-0.5 rounded-md backdrop-blur-sm">{{ peer.label }}</span>
                 </div>
               </div>
@@ -344,7 +353,7 @@ import { onBrowserCollab } from '@/utils/browserCollab'
             :is-requesting-screen="isRequestingScreen"
             :active-panel-tab="activePanelTab"
             :panel-collapsed="panelCollapsed"
-            :has-shared-browser="!!sharedBrowserSession"
+            :has-shared-browser="!!sharedBrowserInfo"
             :duration="formattedDuration"
             :is-initiator="isInitiator"
             @toggle-mute="onToggleMute"
@@ -393,7 +402,7 @@ import { onBrowserCollab } from '@/utils/browserCollab'
           >
             <i class="fa-solid fa-window-maximize"></i>
             Browser
-            <span v-if="sharedBrowserSession" class="badge badge-xs badge-primary" title="A participant shared a browser session">
+            <span v-if="sharedBrowserInfo" class="badge badge-xs badge-primary" title="A participant shared a browser session">
               live
             </span>
           </button>
@@ -412,7 +421,8 @@ import { onBrowserCollab } from '@/utils/browserCollab'
             v-if="activePanelTab === 'browser'"
             :meet-id="currentMeet.meetId"
             :current-user="currentUserName"
-            :shared-session="sharedBrowserSession"
+            :is-initiator="isInitiator"
+            :shared-session="sharedBrowserInfo"
             class="h-full"
           />
           <div v-if="activePanelTab === 'chat'" class="flex flex-col h-full">
@@ -482,6 +492,9 @@ export default {
       // only in the browser tab) so the notification arrives even when the tab
       // is closed and is ready when the user opens it.
       sharedBrowserSession: null,
+      // Session id already auto-opened, so a re-announcement does not yank the
+      // user back to the browser tab every time it is re-sent.
+      lastSharedBrowserId: null,
       browserCollabUnsubscribe: null,
       // Join by code
       joinCode: '',
@@ -542,16 +555,22 @@ export default {
       const me = this.currentUserName
       const peers = []
       const seenUsernames = new Set()
+      const presentations = this.$storex.meets.remotePresentationsFor(this.currentMeet.meetId)
 
       // Peers we are already receiving media from (they carry a device id).
       Object.values(this.currentMeet.remoteStreams || {}).forEach(entry => {
         const username = entry.username || entry.peerId
+        const presentation = presentations[entry.peerId]
         peers.push({
           id: entry.peerId,
           username,
           // A same-username peer is unmistakably the user's other device.
           label: username === me ? `${username} (other device)` : username,
-          hasStream: true
+          hasStream: true,
+          // The screen-share announcement only changes how the tile is
+          // rendered: the media itself arrives through the regular video track.
+          presenting: !!presentation,
+          presentationLabel: presentation?.label || ''
         })
         seenUsernames.add(username)
       })
@@ -564,7 +583,9 @@ export default {
           id: participant,
           username: participant,
           label: participant,
-          hasStream: false
+          hasStream: false,
+          presenting: false,
+          presentationLabel: ''
         })
       })
 
@@ -585,6 +606,28 @@ export default {
       if (!this.currentMeet || !this.currentMeet.chatId) return null
       return this.$storex.chats.chats?.[this.currentMeet.chatId] || null
     },
+    // Browser/computer session shared with this meet.
+    //
+    // The backend keeps the association on the meet (so late joiners and page
+    // reloads get it back); the WebRTC announcement is a live fallback for
+    // older backends. Both are normalised to the shape the browser panel and
+    // the call controls expect.
+    sharedBrowserInfo() {
+      const meetId = this.currentMeet?.meetId || this.activeMeetId
+      const fromStore = meetId ? this.$storex.meets.sharedBrowserFor(meetId) : null
+      const raw = fromStore || this.sharedBrowserSession
+      if (!raw?.sessionId) return null
+      return {
+        ...raw,
+        kind: 'browser-session',
+        sessionId: raw.sessionId,
+        sessionName: raw.sessionName || 'Browser session',
+        user: raw.user || {
+          username: raw.owner || '',
+          name: raw.owner || ''
+        }
+      }
+    },
     // True when at least one screen share is active
     isScreenSharing() {
       return this.localScreenStreams.length > 0
@@ -604,10 +647,30 @@ export default {
     },
     currentMeet: {
       handler(newVal, oldVal) {
-        if (newVal?.meetId !== oldVal?.meetId) this.sharedBrowserSession = null
+        if (newVal?.meetId !== oldVal?.meetId) {
+          this.sharedBrowserSession = null
+          this.lastSharedBrowserId = null
+        }
         if (newVal && !this.activeMeetId) {
           this.activeMeetId = newVal.meetId
         }
+        // Entering a room (start/join/deep link) must publish the media that is
+        // already capturing, not only the streams toggled afterwards.
+        if (newVal?.meetId) {
+          this.$nextTick(() => this.publishLocalMedia())
+        }
+      },
+      immediate: true
+    },
+    // The host started a browser session for the room → open the co-browsing
+    // panel for everyone in the call.
+    sharedBrowserInfo: {
+      handler(info) {
+        if (!info?.sessionId) {
+          this.lastSharedBrowserId = null
+          return
+        }
+        this.onSharedBrowserAvailable(info)
       },
       immediate: true
     },
@@ -618,6 +681,11 @@ export default {
         if (!this.localMuted && !this.localMicStream) {
           this.enableMic()
         }
+        // Media started in the pre-join lobby was never published (there was no
+        // meet to publish it to), so the peer connection would be created with
+        // no tracks and the other participants would only see an avatar even
+        // though the camera is on.
+        this.publishLocalMedia()
         this.$nextTick(() => this.bindStreamToInCallVideo())
       }
     },
@@ -727,15 +795,50 @@ export default {
       }
     },
 
-    /** A participant shared a browser session in this call. */
+    /** Collaboration announcements that arrive over the meet data channel. */
     onBrowserCollabEvent(event) {
-      if (!event || event.kind !== 'browser-session') return
+      if (!event) return
       const currentId = this.currentMeet?.meetId || this.activeMeetId
       if (currentId && event.meetId && event.meetId !== currentId) return
+
+      // A remote participant started/stopped presenting its screen. The video
+      // itself rides the regular track, this only drives the tile rendering.
+      if (event.kind === 'screen-share') {
+        this.$storex.meets.setRemotePresentation({
+          meetId: currentId,
+          peerId: event.fromPeerId,
+          username: event.user?.username || '',
+          label: event.label,
+          active: event.active !== false
+        })
+        return
+      }
+
+      if (event.kind !== 'browser-session') return
       this.sharedBrowserSession = event
       const who = event.user?.name || event.user?.username || 'A participant'
       this.$storex.ui.addNotification({
         text: `${who} shared browser session "${event.sessionName || 'session'}" — open the Browser tab to join`,
+        type: 'info'
+      })
+    },
+
+    /**
+     * A shared browser session was announced for the room (socket event or the
+     * data channel). Open the co-browsing panel so the session is really
+     * "started for everyone", not just listed somewhere.
+     */
+    onSharedBrowserAvailable(info) {
+      if (!info?.sessionId || !this.currentMeet) return
+      if (this.lastSharedBrowserId === info.sessionId) return
+      this.lastSharedBrowserId = info.sessionId
+      this.activePanelTab = 'browser'
+      this.panelCollapsed = false
+      const who = info.user?.name || info.user?.username || info.owner || 'The host'
+      // The owner already knows: do not notify them about their own session.
+      if ((info.owner || info.user?.username) === this.currentUserName) return
+      this.$storex.ui.addNotification({
+        text: `${who} started the shared browser "${info.sessionName}" — everyone in the call is in it`,
         type: 'info'
       })
     },
@@ -791,12 +894,13 @@ export default {
      * they are sent to every connected peer.
      */
     publishLocalMedia() {
-      if (!this.activeMeetId || !this.currentMeet) return
+      const meetId = this.activeMeetId || this.$storex.meets.currentMeetId
+      if (!meetId || !this.$storex.meets.meetForId(meetId)) return
       const tracks = []
       if (this.localMicStream) tracks.push(...this.localMicStream.getAudioTracks())
       if (this.localCameraStream) tracks.push(...this.localCameraStream.getVideoTracks())
       const stream = tracks.length ? new MediaStream(tracks) : null
-      this.$storex.meets.setLocalStream({ meetId: this.activeMeetId, stream })
+      this.$storex.meets.setLocalStream({ meetId, stream })
     },
 
     // ─── Microphone ─────────────────────────────────────────────────────────
@@ -968,6 +1072,9 @@ export default {
           ...this.localScreenStreams,
           { id: shareId, stream, label }
         ]
+        // Publish the newest share to every peer: the display track replaces the
+        // camera track on the wire, so the other participants really see it.
+        this.presentScreenShare(shareId, stream, label)
       } catch (error) {
         // NotAllowedError = user cancelled the picker — not an error worth toasting
         if (error.name !== 'NotAllowedError') {
@@ -979,6 +1086,17 @@ export default {
       }
     },
 
+    /** Forward a screen share to the call (no-op outside an active meet). */
+    presentScreenShare(shareId, stream, label) {
+      if (!this.activeMeetId || !stream) return
+      this.$storex.meets.presentScreenShare({
+        meetId: this.activeMeetId,
+        shareId,
+        stream,
+        label
+      })
+    },
+
     /**
      * Stop a specific screen share by its id.
      */
@@ -987,6 +1105,16 @@ export default {
       if (share) {
         share.stream.getTracks().forEach(t => t.stop())
         this.localScreenStreams = this.localScreenStreams.filter(s => s.id !== shareId)
+      }
+      // Fall back to the next active share, or to the camera when none is left.
+      const remaining = this.localScreenStreams
+      if (this.activeMeetId) {
+        if (remaining.length) {
+          const next = remaining[remaining.length - 1]
+          this.presentScreenShare(next.id, next.stream, next.label)
+        } else {
+          this.$storex.meets.stopPresentation({ meetId: this.activeMeetId })
+        }
       }
     },
 
@@ -998,6 +1126,9 @@ export default {
         share.stream.getTracks().forEach(t => t.stop())
       })
       this.localScreenStreams = []
+      if (this.activeMeetId) {
+        this.$storex.meets.stopPresentation({ meetId: this.activeMeetId })
+      }
     },
 
     /**

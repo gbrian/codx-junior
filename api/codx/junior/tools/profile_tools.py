@@ -524,8 +524,16 @@ def _validate_tools(tools: List[str]) -> None:
 
     Raises:
         ValueError: If any tool name is unknown.
+
+    ``ALL_TOOLS_MARKER`` ("*") is accepted: it grants every chat-scoped tool
+    and is used by the ``codx-junior`` harness profile.
     """
-    unknown = [tool for tool in tools if tool not in _available_tool_names()]
+    from codx.junior.tools import ALL_TOOLS_MARKER
+
+    unknown = [
+        tool for tool in tools
+        if tool not in _available_tool_names() and tool != ALL_TOOLS_MARKER
+    ]
     if unknown:
         raise ValueError(
             f"Unknown tool(s) {unknown}. Available tools: "

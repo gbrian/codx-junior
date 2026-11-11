@@ -108,6 +108,15 @@ import { isOpenInNewTabEvent, openProjectInNewTab } from '@/utils/projectLinks'
         @click="handleNavigateToManagementDashboard"
       />
 
+      <!-- Native harness observability: runs, worker/watchdog health and the
+           audit journal of every piece of work handled by @codx-junior. -->
+      <NavItem
+        icon="fas fa-bolt"
+        label="Harness"
+        :is-collapsed="isCollapsed"
+        @click="handleNavigateToHarness"
+      />
+
       <NavItem
         icon="fa-regular fa-comments"
         label="Messenger"
@@ -300,6 +309,11 @@ export default {
     // "/:projectName/management-dashboard" in single / mobile mode.
     handleNavigateToManagementDashboard() {
       this.openApp('management-dashboard')
+    },
+    // Opens the native harness observability view (runs, worker/watchdog
+    // health, audit journal). Registered as 'harness' in config/apps.js.
+    handleNavigateToHarness() {
+      this.openApp('harness')
     },
     handleNavigateToCompany() {
       this.openApp('company')

@@ -55,7 +55,11 @@
     "project_structure",
     "generate_tasks_tool",
     "create_task",
-    "get_file_last_version"
+    "get_file_last_version",
+    "project_grep",
+    "project_glob",
+    "project_changes",
+    "search_codx"
   ],
   "tags": [],
   "api_settings": {

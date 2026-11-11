@@ -205,6 +205,24 @@ class OrchestrationWorker:
                 # No run was ever created for this project: nothing to do.
                 continue
             store = RunStore(codx_path)
+            # Audit worker recovery: when this process (re)starts after an
+            # interruption and finds an existing orchestration folder, the
+            # absence or staleness of the previous heartbeat is registered in
+            # the harness journal before the fresh heartbeat is written.
+            try:
+                from codx.junior.harness.audit import record_audit
+
+                previous = store.worker_status(ttl_seconds=600.0)
+                if not previous.get("present"):
+                    record_audit(
+                        codx_path,
+                        "worker_recovered",
+                        pid=os.getpid(),
+                        previous_age_seconds=previous.get("age_seconds"),
+                        cycles=self._cycles,
+                    )
+            except Exception as ex:  # pragma: no cover - audit must never break work
+                logger.warning("Orchestration worker could not audit recovery: %s", ex)
             store.write_worker_heartbeat({
                 "tick_seconds": self.tick_seconds,
                 "max_runs": self.max_runs,

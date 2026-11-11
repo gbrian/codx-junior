@@ -111,6 +111,23 @@ class LoopGuard:
             self.max_identical_rounds,
         )
 
+    def complete_round(self, checked: bool) -> None:
+        """
+        Account for a finished tool round that did not go through :meth:`check`.
+
+        :meth:`check` already increments ``rounds`` for every round that
+        executes uncached tools. An all-cached round skips that check (there is
+        nothing to execute), so it must still count towards the depth guard;
+        otherwise a model repeating cached calls could loop forever. Calls for
+        checked rounds are a no-op, which keeps every iteration counted exactly
+        once.
+
+        Args:
+            checked: True when :meth:`check` ran for this round.
+        """
+        if not checked:
+            self.rounds += 1
+
     def check(self, tool_calls: Dict[str, Dict[str, Any]]) -> None:
         """
         Register a new tool round and verify all guards (depth, breadth, stuck loop).

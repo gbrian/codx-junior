@@ -12,7 +12,7 @@ import logging
 from typing import Dict, List, Any, Optional, TYPE_CHECKING
 from pathlib import Path
 
-from .project_tools import list_project_files
+from .project_tools import CODX_DIRNAME, is_codx_path, list_project_files
 
 if TYPE_CHECKING:
     from codx.junior.settings import CODXJuniorSettings
@@ -24,7 +24,7 @@ PROJECT_STRUCTURE_TOOL_JSON = {
     "type": "function",
     "function": {
         "name": "project_structure",
-        "description": "Get the project structure with files and folders read from disk, including nested (child) projects. Files and folders are filtered using only the repository .gitignore. Returns a tree-like representation of the project organization.",
+        "description": "Get the CODEBASE structure with files and folders read from disk, including nested (child) projects. Start here to understand the codebase layout: use max_depth=2 for a compact overview before reading files. `.codx` (tasks, profiles, sessions, chats) is excluded: use `search_codx` to inspect the control plane. Files and folders are filtered using only the repository .gitignore. Returns a tree-like representation of the project organization.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -57,7 +57,7 @@ READ_FOLDER_TOOL_JSON = {
     "type": "function",
     "function": {
         "name": "read_folder",
-        "description": "Read and display the structure of a specific folder within the project, reading files and folders from disk, including nested (child) projects. Files and folders are filtered using only the repository .gitignore. Provides a tree-like view of files and subdirectories at a given path.",
+        "description": "Read a CODEBASE folder. `.codx` is the control plane, not code: calling this with a `.codx` path returns a pointer to `search_codx` instead of a tree. Files and folders are filtered using only the repository .gitignore. Provides a tree-like view of files and subdirectories at a given path.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -323,6 +323,18 @@ def _collect_project_files(settings: "CODXJuniorSettings") -> List[str]:
     return sorted(rel_files)
 
 
+def _codx_redirect_message() -> str:
+    """Return the control-plane pointer used when a tree read targets `.codx`."""
+    return (
+        "`.codx/` is the control plane (tasks, profiles, browser sessions, boards, "
+        "views, teams, workspaces, chat turns and logs), not the codebase.\n\n"
+        "Use `search_codx(query=\"\")` to list its modules and sizes, or "
+        "`search_codx(query=\"...\", modules=[\"tasks\"])` to search it. "
+        "For source code use `project_structure`, `project_glob`, `project_grep` "
+        "or `project_search`."
+    )
+
+
 def _build_structure(
     settings: "CODXJuniorSettings",
     include_details: bool = False,
@@ -387,6 +399,10 @@ def _build_structure(
                 target_path = _validate_path(path, project_root, codx_root)
             except ValueError as ex:
                 raise ValueError(f"Invalid path parameter: {str(ex)}") from ex
+            # The control plane has its own search tool: do not dump a tree of
+            # tasks/sessions and send the model wandering through .codx.
+            if is_codx_path(project_root, str(target_path)):
+                return _codx_redirect_message()
 
         structure_tree: Dict[str, Any] = {}
 
@@ -413,6 +429,12 @@ def _build_structure(
             project_root=project_root,
             max_depth=max_depth,
         )
+
+        if os.path.isdir(os.path.join(project_root, CODX_DIRNAME)):
+            formatted += (
+                "\n\n> `.codx/` (tasks, profiles, sessions, chats) is the control "
+                "plane and is excluded here. Use `search_codx` to inspect it."
+            )
 
         return formatted
 

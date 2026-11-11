@@ -4,7 +4,6 @@ import DesktopViewer from './DesktopViewer.vue'
 import Chat from '@/components/chat/Chat.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import VerticalSplitter from '../layout/VerticalSplitter.vue'
-import { broadcastBrowserCollab } from '@/utils/browserCollab'
 
 export default {
   name: 'BrowserSessionPanel',
@@ -678,29 +677,34 @@ export default {
       }
     },
     /**
-     * Announce the session in the meeting. Peers receive it over the WebRTC
-     * data channel and can open the same VNC view, sharing the page and the
-     * annotation layer.
+     * Share the session with the meeting.
+     *
+     * The meet store persists it on the meet (so participants that join later
+     * open the same session) and announces it over the WebRTC data channel for
+     * the peers already connected.
      */
-    onShareSession(session = {}) {
+    async onShareSession(session = {}) {
       if (!this.meetId || !session.sessionId) return
-      const user = this.$storex.users?.user || {}
-      broadcastBrowserCollab(this.meetId, {
-        kind: 'browser-session',
-        sessionId: session.sessionId,
-        sessionName: session.name || 'Browser session',
-        pageUrl: session.url || '',
-        pageTitle: session.title || '',
-        user: {
-          username: user.username || 'guest',
-          name: user.name || user.username || 'Guest',
-          avatar: user.avatar || ''
-        }
-      })
-      this.$storex.ui.addNotification({
-        text: `Browser session "${session.name || 'session'}" shared with the call`,
-        type: 'success'
-      })
+      try {
+        await this.$storex.meets.shareBrowserSession({
+          meetId: this.meetId,
+          session: {
+            id: session.sessionId,
+            name: session.name || this.selectedSession?.name || 'Browser session',
+            kind: this.selectedSession?.kind || 'browser'
+          }
+        })
+        this.$storex.ui.addNotification({
+          text: `Browser session "${session.name || 'session'}" shared with the call`,
+          type: 'success'
+        })
+      } catch (error) {
+        console.error('[BrowserSessionPanel] Could not share the session', error)
+        this.$storex.ui.addNotification({
+          text: error.message || 'Could not share the session with the call',
+          type: 'error'
+        })
+      }
     },
 
     async openChatWith({ chatId = null, createNew = false, latest = false } = {}) {

@@ -44,7 +44,10 @@
   "tools": [
     "project_search",
     "fetch_webpage",
-    "project_read_file"
+    "project_read_file",
+    "project_grep",
+    "project_glob",
+    "search_codx"
   ],
   "tags": [],
   "api_settings": {

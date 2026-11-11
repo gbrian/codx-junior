@@ -174,6 +174,126 @@ def test_read_file_rejects_binary(project):
     assert "\x00" not in response.llm_response
 
 
+def test_read_file_pattern_returns_only_matches_with_context(project):
+    """A symbol search must not dump the whole file (the trace paged 4x)."""
+    with open(
+        os.path.join(project.abs_project_path, "src", "panel.py"),
+        "w",
+        encoding="utf-8",
+    ) as file:
+        file.write(
+            "\n".join([
+                "def unrelated():",
+                "    pass",
+                "def setActiveTab(tab):",
+                "    # activate",
+                "    return tab",
+                "def other():",
+                "    pass",
+                "def use_active():",
+                "    setActiveTab('x')",
+            ])
+        )
+
+    response = project_read_file(
+        "src/panel.py", pattern="setActiveTab", context_lines=1, settings=project
+    )
+
+    assert "pattern `setActiveTab`" in response.llm_response
+    assert "2 match(es)" in response.llm_response
+    assert "     3| def setActiveTab(tab):" in response.llm_response
+    assert "     9|     setActiveTab('x')" in response.llm_response
+    # Line 1 is outside every context window: the whole file was NOT returned.
+    assert "def unrelated" not in response.llm_response
+
+
+def test_read_file_pattern_scope_and_no_match(project):
+    no_match = project_read_file(
+        "sample.txt", pattern="needle", settings=project
+    )
+    assert "0 match(es)" in no_match.llm_response
+    assert "No line matches" in no_match.llm_response
+
+    scoped = project_read_file(
+        "sample.txt", pattern="line", start_line=8, end_line=10, settings=project
+    )
+    assert "lines 8-10 of 10" in scoped.llm_response
+    assert "line 7" not in scoped.llm_response
+
+
+def test_read_file_pattern_invalid_regex_falls_back_to_literal(project):
+    with open(
+        os.path.join(project.abs_project_path, "src", "call.py"),
+        "w",
+        encoding="utf-8",
+    ) as file:
+        file.write("result = fn(\n    value=1,\n)\n")
+
+    response = project_read_file(
+        "src/call.py", pattern="fn(", settings=project
+    )
+
+    assert "searched literally" in response.llm_response
+    assert "1 match(es)" in response.llm_response
+    assert "result = fn(" in response.llm_response
+
+
+def test_read_file_outline_maps_declarations(project):
+    with open(
+        os.path.join(project.abs_project_path, "src", "panel.py"),
+        "w",
+        encoding="utf-8",
+    ) as file:
+        file.write(
+            "class Panel:\n"
+            "    def setup(self):\n"
+            "        pass\n"
+            "    def render(self):\n"
+            "        pass\n"
+        )
+
+    response = project_read_file("src/panel.py", outline=True, settings=project)
+
+    assert "### Outline" in response.llm_response
+    assert "requested" in response.llm_response
+    assert response.llm_response.index("### Outline") < response.llm_response.index(
+        "# src/panel.py"
+    )
+    assert "class Panel:" in response.llm_response
+    assert "def setup" in response.llm_response
+
+
+def test_read_file_auto_outline_for_large_file(project):
+    body = []
+    for index in range(140):
+        body.append(f"def function_{index}():")
+        body.append("    pass")
+        body.append("")
+    with open(
+        os.path.join(project.abs_project_path, "src", "large.py"),
+        "w",
+        encoding="utf-8",
+    ) as file:
+        file.write("\n".join(body))
+
+    response = project_read_file("src/large.py", settings=project)
+
+    assert "### Outline" in response.llm_response
+    assert "added automatically" in response.llm_response
+
+
+def test_read_file_requested_range_does_not_nudge_more_reads(project):
+    """The old hint told the model to continue reading after every range."""
+    response = project_read_file(
+        "sample.txt", start_line=3, end_line=5, settings=project
+    )
+
+    assert "more line(s) are available. Call project_read_file with" not in (
+        response.llm_response
+    )
+    assert "Showing the requested range" in response.llm_response
+
+
 # ---------------------------------------------------------------------------
 # Content search (grep)
 # ---------------------------------------------------------------------------
@@ -309,6 +429,27 @@ def test_project_search_survives_knowledge_failure(project, monkeypatch):
     assert "auth_service.py" in response.llm_response
     assert "milvus offline" in response.llm_response
     assert "1 warning" in response.user_response
+
+
+def test_project_search_no_match_points_to_grep(project, monkeypatch):
+    """A path/concept miss must not make the model retry the same search."""
+    class _EmptyDB:
+        def search(self, query, _limit=10):
+            return []
+
+    class _FakeKnowledge:
+        def __init__(self, settings):
+            self.settings = settings
+
+        def get_db(self):
+            return _EmptyDB()
+
+    monkeypatch.setattr(project_tools, "Knowledge", _FakeKnowledge)
+
+    response = project_search("setActiveTab", settings=project)
+
+    assert "No results found" in response.llm_response
+    assert "project_grep" in response.llm_response
 
 
 # ---------------------------------------------------------------------------

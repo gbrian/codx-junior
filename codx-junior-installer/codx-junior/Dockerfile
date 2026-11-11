@@ -49,8 +49,8 @@ RUN bash scripts/install_base.sh
 COPY --chown=${USER} entrypoint.sh /entrypoint.sh
 RUN chmod +x /home/codx-junior/codx-junior/entrypoint.sh
 
-COPY  supervisor.api.conf /etc/supervisord/supervisor.api.conf
-COPY  supervisor.client.conf /etc/supervisord/supervisor.client.conf     
+# All harness processes are defined inline in supervisor.conf (copied above)
+# and are supervised with autorestart, so no per-app fragments are needed.
 
 CMD [ "/home/codx-junior/codx-junior/entrypoint.sh" ]
 

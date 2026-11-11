@@ -118,6 +118,27 @@ class OrchestrationService:
     def _emit(self, run: RunState, event_type: str, message: str = "", **data: Any) -> None:
         """Append the event to the run timeline and notify listeners."""
         run.add_event(event_type, message, **data)
+        # Register the transition in the harness audit journal: every request,
+        # step and completion of the run is audited (append-only JSONL, never
+        # raises). The timeline stays the human-readable copy; the journal is
+        # the machine-readable audit trail of all harness work.
+        try:
+            from codx.junior.harness.audit import record_audit
+
+            payload = {key: value for key, value in list(data.items())[:8]}
+            payload.setdefault("main_chat_id", getattr(run, "main_chat_id", ""))
+            record_audit(
+                str(getattr(self.settings, "codx_path", "") or ""),
+                f"run_event",
+                run_event=event_type,
+                run_id=run.run_id,
+                status=run.status,
+                created_by=getattr(run.config, "created_by", "") if run.config else "",
+                message=message[:500] if message else "",
+                **payload,
+            )
+        except Exception as ex:  # pragma: no cover - audit must never break work
+            logger.warning("Orchestration: could not write harness audit entry: %s", ex)
         if self.event_manager is not None:
             emit = getattr(self.event_manager, "orchestration_event", None)
             if callable(emit):
@@ -138,6 +159,47 @@ class OrchestrationService:
         """Persist *run* (atomic write)."""
         run.touch()
         return self.store.save(run)
+
+    def _notify_completion(self, run: RunState) -> None:
+        """
+        Notify the user once that a run reached its terminal status.
+
+        The durable ``notification_sent`` flag makes the notification survive
+        crashes and duplicate ticks across processes: a finished run notifies
+        exactly once, even when the worker restarts.
+        """
+        if getattr(run, "notification_sent", False):
+            return
+        run.notification_sent = True
+        try:
+            from codx.junior.harness.audit import record_audit
+
+            record_audit(
+                str(getattr(self.settings, "codx_path", "") or ""),
+                "notification_sent",
+                run_id=run.run_id,
+                status=run.status,
+                main_chat_id=getattr(run, "main_chat_id", ""),
+            )
+        except Exception:  # pragma: no cover - audit must never break work
+            pass
+        if self.event_manager is not None:
+            notify = getattr(self.event_manager, "send_notification", None)
+            if callable(notify):
+                try:
+                    notify(
+                        type="notification",
+                        title="codx-junior",
+                        text=(
+                            f"Run '{run.name}' finished ({run.status}). "
+                            "The delivery report is on the task."
+                        ),
+                        chat={"id": getattr(run, "main_chat_id", "")},
+                        run_id=run.run_id,
+                        status=run.status,
+                    )
+                except Exception as ex:  # pragma: no cover - notifications are best effort
+                    logger.warning("Orchestration: could not send completion notification: %s", ex)
 
     def _update_main_card_safe(self, run: RunState, **kwargs: Any) -> None:
         """Mirror the run on the main card without ever losing the run state."""
@@ -657,6 +719,7 @@ class OrchestrationService:
             main_chat=main_chat,
         )
         self._emit(run, "run_completed", "Run completed", summary=summary[:2000])
+        self._notify_completion(run)
         self._save(run)
         return run
 
@@ -692,6 +755,8 @@ class OrchestrationService:
         if was_stalled and run.report_written:
             run.report_generation = int(getattr(run, "report_generation", 0) or 0) + 1
             run.report_written = False
+        # A resumed run must be able to notify its next terminal status again.
+        run.notification_sent = False
         self._update_main_card_safe(run, status="doing", run_status=run.status)
         self._emit(run, "run_resumed", "Run resumed")
         self._save(run)
@@ -742,6 +807,9 @@ class OrchestrationService:
         # as belonging to an older attempt.
         run.report_generation = int(getattr(run, "report_generation", 0) or 0) + 1
         run.report_written = False
+        # ...and notify the user again when the new attempt reaches a terminal
+        # status.
+        run.notification_sent = False
         self._update_main_card_safe(run, status="doing", run_status=run.status)
         self._emit(run, "run_started", "Run started")
         self._save(run)
@@ -784,6 +852,7 @@ class OrchestrationService:
             main_chat=main_chat,
         )
         self._emit(run, "run_stopped", run.stop_reason)
+        self._notify_completion(run)
         self._save(run)
         return run
 
@@ -1545,6 +1614,7 @@ class OrchestrationService:
         )
         self._append_report(run, report)
         self._emit(run, f"run_{status}", run.stop_reason or status)
+        self._notify_completion(run)
         self._save(run)
         logger.info(
             "Orchestration: run '%s' finalized as %s (spent=%.6f)",

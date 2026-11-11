@@ -78,6 +78,9 @@ ENV_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 MAX_EXTRA_ENV = 50
 MAX_ENV_VALUE_LENGTH = 4096
 
+#: Values that mean "false" when the flag arrives as text from a form/query.
+FALSE_FLAGS = ("", "0", "false", "no", "off")
+
 
 def normalize_size(value: Any, field: str = "size") -> Optional[str]:
     """
@@ -108,6 +111,24 @@ def normalize_size(value: Any, field: str = "size") -> Optional[str]:
     if float(number) <= 0:
         raise ValueError(f"Invalid {field} '{value}': it must be greater than zero")
     return f"{number}{unit}"
+
+
+def normalize_flag(value: Any, default: bool = True) -> bool:
+    """
+    Normalize a boolean flag that may arrive as a bool, a number or a string.
+
+    Args:
+        value: Raw value (``True``, ``1``, ``"true"``, ``"off"``...).
+        default: Used when the value is None.
+
+    Returns:
+        bool: The flag.
+    """
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return value.strip().lower() not in FALSE_FLAGS
+    return bool(value)
 
 
 def normalize_extra_env(value: Any) -> Dict[str, str]:
@@ -454,6 +475,14 @@ class BrowserSession(BaseModel):
         default=1080,
         description="Desktop height in pixels (used to scale screenshot coordinates)"
     )
+    desktop_auto_resize: bool = Field(
+        default=True,
+        description=(
+            "Let the desktop follow the client viewport (KasmVNC remote resize). "
+            "When false the desktop keeps desktop_width/desktop_height and the "
+            "viewer scales the framebuffer locally"
+        )
+    )
     vnc_host: Optional[str] = Field(
         default=None,
         description="Host the AI's VNC control connection reaches (container DNS or remote host)"
@@ -641,9 +670,14 @@ class BrowserSession(BaseModel):
         # Nullable persisted values must not break reloads: ports and sizes have
         # concrete defaults.
         for key, default in (("vnc_port", 5900), ("ssh_port", 22),
-                             ("desktop_width", 1920), ("desktop_height", 1080)):
+                             ("desktop_width", 1920), ("desktop_height", 1080),
+                             ("desktop_auto_resize", True)):
             if data.get(key) is None:
                 data[key] = default
+        # The desktop follows the viewer unless a fixed size was chosen; a form
+        # may send "false"/"0"/"off", so coerce text instead of trusting it.
+        if isinstance(data.get("desktop_auto_resize"), str):
+            data["desktop_auto_resize"] = normalize_flag(data["desktop_auto_resize"])
         if not data.get("engine"):
             data["engine"] = "chromium" if kind == "browser" else (
                 "remote" if kind == "remote" else "desktop"
@@ -671,6 +705,12 @@ class BrowserSession(BaseModel):
     def _normalize_extra_env(cls, value: Any) -> Dict[str, str]:
         """Accept a mapping, KEY=VALUE lines or a list from the UI/API."""
         return normalize_extra_env(value)
+
+    @field_validator("desktop_auto_resize", mode="before")
+    @classmethod
+    def _normalize_auto_resize(cls, value: Any) -> bool:
+        """Accept True/False, 1/0 and 'true'/'false' from the UI."""
+        return normalize_flag(value)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -769,7 +809,9 @@ class BrowserSession(BaseModel):
 
         Resource changes are stored on the record and take effect the next time
         the container is recreated (``restart``), because Docker cannot change
-        the memory/CPU/disk of a running container.
+        the memory/CPU/disk of a running container.  ``desktop_auto_resize`` is
+        the exception: the live view carries it in its URL, so it applies as soon
+        as the client reconnects.
         """
         allowed = {
             "image",
@@ -780,6 +822,7 @@ class BrowserSession(BaseModel):
             "extra_env",
             "desktop_width",
             "desktop_height",
+            "desktop_auto_resize",
         }
         pending: Dict[str, Any] = {}
         for key, value in (updates or {}).items():
@@ -815,6 +858,10 @@ class BrowserSession(BaseModel):
                     if height < 480 or height > 4320:
                         raise ValueError("desktop_height must be between 480 and 4320")
                     pending[key] = height
+            elif key == "desktop_auto_resize":
+                # Auto (default) makes the desktop follow the viewer; an explicit
+                # false pins desktop_width/desktop_height.
+                pending[key] = normalize_flag(value)
 
         for key, value in pending.items():
             setattr(self, key, value)

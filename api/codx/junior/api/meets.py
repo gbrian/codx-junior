@@ -13,6 +13,8 @@ POST   /api/meets/leave                          – leave a meet
 POST   /api/meets/end                            – end a meet
 GET    /api/meets                                – list meets (active by default)
 GET    /api/meets/{meet_id}                      – meet details/status
+POST   /api/meets/{meet_id}/browser              – share a browser session with the meet
+DELETE /api/meets/{meet_id}/browser              – stop sharing the browser session
 POST   /api/meets/{meet_id}/signal/offer         – relay an SDP offer
 POST   /api/meets/{meet_id}/signal/answer        – relay an SDP answer
 POST   /api/meets/{meet_id}/signal/ice-candidate – relay an ICE candidate
@@ -39,6 +41,7 @@ flowchart TD
 """
 
 import logging
+import time
 from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Request
@@ -46,6 +49,7 @@ from fastapi import APIRouter, HTTPException, Request
 from codx.junior.meets.meet_manager import get_meet_manager
 from codx.junior.meets.model import (
     MeetAnswerRequest,
+    MeetBrowserRequest,
     MeetEndRequest,
     MeetIceCandidateRequest,
     MeetInitiateRequest,
@@ -183,6 +187,9 @@ async def initiate_meet(payload: MeetInitiateRequest, request: Request):
             "type": "initiated",
             "meetId": meet.meet_id,
             "from": username,
+            # The session id lets the other participants key the WebRTC peer
+            # connection by *device*, not only by username.
+            "fromSid": sid,
             "meet": meet.model_dump(),
         },
     )
@@ -213,7 +220,13 @@ async def join_meet(payload: MeetJoinRequest, request: Request):
             "type": "joined",
             "meetId": meet.meet_id,
             "from": username,
+            # Existing peers offer a connection keyed by `username::fromSid`;
+            # without the session id the answer was looked up under a key that
+            # did not exist and the call stayed silent.
+            "fromSid": sid,
             "participants": meet.participant_usernames(),
+            # Sent so a newcomer starts in the session the room is already in.
+            "sharedBrowser": meet.shared_browser,
         },
     )
     return {"success": True, "meet": meet.model_dump()}
@@ -239,6 +252,7 @@ async def leave_meet(payload: MeetLeaveRequest, request: Request):
             "type": "left",
             "meetId": meet.meet_id,
             "from": username,
+            "fromSid": sid,
             "participants": meet.participant_usernames(),
         },
     )
@@ -253,7 +267,7 @@ async def end_meet(payload: MeetEndRequest, request: Request):
     if not meet_id:
         raise HTTPException(status_code=400, detail="Missing 'meetId' in request body")
 
-    username, _, _ = _resolve_identity(request)
+    username, sid, _ = _resolve_identity(request)
     try:
         meet = manager.end_meet(meet_id, username=username)
     except KeyError:
@@ -261,7 +275,7 @@ async def end_meet(payload: MeetEndRequest, request: Request):
 
     await _emit(
         "codx-junior-meet",
-        {"type": "ended", "meetId": meet.meet_id, "from": username},
+        {"type": "ended", "meetId": meet.meet_id, "from": username, "fromSid": sid},
     )
     return {"success": True, "meet": meet.model_dump()}
 
@@ -273,6 +287,73 @@ async def get_meet_info(meet_id: str, request: Request):
     meet = manager.get_meet(meet_id)
     if not meet:
         raise HTTPException(status_code=404, detail=f"Meet '{meet_id}' not found")
+    return {"success": True, "meet": meet.model_dump()}
+
+
+# ---------------------------------------------------------------------------
+# Shared browser / computer session
+# ---------------------------------------------------------------------------
+
+@router.post("/{meet_id}/browser")
+async def share_browser(meet_id: str, payload: MeetBrowserRequest, request: Request):
+    """
+    Share a browser/computer session with the whole meet.
+
+    The association is stored on the meet (so late joiners and page reloads get
+    it back) and broadcast to every connected client, which makes the session
+    "started for everyone in the room" instead of only for the caller.
+    """
+    manager = get_meet_manager()
+    session_id = (payload.sessionId or "").strip()
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Missing 'sessionId' in request body")
+
+    username, sid, _ = _resolve_identity(request)
+    shared_browser = {
+        "session_id": session_id,
+        "session_name": payload.sessionName or "Browser session",
+        "kind": payload.kind or "browser",
+        "owner": username,
+        "timestamp": payload.timestamp or int(time.time() * 1000),
+    }
+    try:
+        meet = manager.set_shared_browser(meet_id, shared_browser)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Meet '{meet_id}' not found")
+
+    await _emit(
+        "codx-junior-meet",
+        {
+            "type": "browser-session",
+            "meetId": meet.meet_id,
+            "from": username,
+            "fromSid": sid,
+            "sharedBrowser": shared_browser,
+        },
+    )
+    return {"success": True, "meet": meet.model_dump()}
+
+
+@router.delete("/{meet_id}/browser")
+async def unshare_browser(meet_id: str, request: Request):
+    """Stop sharing the browser/computer session with the meet."""
+    manager = get_meet_manager()
+    username, sid, _ = _resolve_identity(request)
+    try:
+        meet = manager.set_shared_browser(meet_id, None)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Meet '{meet_id}' not found")
+
+    await _emit(
+        "codx-junior-meet",
+        {
+            "type": "browser-session",
+            "meetId": meet.meet_id,
+            "from": username,
+            "fromSid": sid,
+            "sharedBrowser": None,
+        },
+    )
     return {"success": True, "meet": meet.model_dump()}
 
 

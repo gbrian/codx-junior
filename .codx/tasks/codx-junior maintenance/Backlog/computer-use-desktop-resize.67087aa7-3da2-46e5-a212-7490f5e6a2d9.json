@@ -1402,10 +1402,45 @@
       "read_by": [],
       "error": null,
       "linked_chat_ids": []
+    },
+    {
+      "doc_id": "b7cf3f5f-89b9-4af7-afe5-ef3d769e5991",
+      "role": "assistant",
+      "task_item": "",
+      "content": "Single owner for desktop resize: this card. dd5a8ae5 (KasmVNC KVNC_* / ?resize=remote|scale) is parked as a duplicate \u2014 do not add a second resize mechanism.\n\nOrder to land: (1) backend resize.py + vnc.py SetDesktopSize/ExtendedDesktopSize + /api/computers/{id}/resize, (2) client API module \u2192 store \u2192 viewer auto-fit, (3) demo: open a live desktop session, resize the viewer window, show the remote desktop following it (and the manual width/height path). `mode=\"client\"` is the default; manual is the fallback when the server reports no resize support.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-11 04:40:34.773400",
+      "updated_at": "2026-11-11T04:40:34.773469",
+      "attachments": [],
+      "files": [],
+      "project_id": null,
+      "meta_data": {
+        "board_manager": {
+          "profile": "ProjectManager"
+        }
+      },
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "ProjectManager"
+      ],
+      "user": "ProjectManager",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
     }
   ],
   "created_at": "2026-11-09 08:56:57.597722",
-  "updated_at": "2026-11-09T09:24:31.034606",
+  "updated_at": "2026-11-11T04:40:34.776652",
   "mode": "chat",
   "kanban_id": "",
   "column_id": "",
@@ -1478,5 +1513,15 @@
   "external_instance_id": null,
   "external_status": null,
   "external_url": null,
-  "external_updated_at": null
+  "external_updated_at": null,
+  "harness": null,
+  "harness_instance_id": null,
+  "harness_task_id": null,
+  "harness_parent_task_id": null,
+  "harness_mode": null,
+  "harness_status": null,
+  "harness_model": null,
+  "harness_usage": {},
+  "harness_cost": null,
+  "harness_metadata": {}
 }

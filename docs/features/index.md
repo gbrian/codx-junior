@@ -30,6 +30,7 @@ context and stay in budget. This section documents every feature in detail.
 | [Browser use and co-browsing](/features/browser-use) | The `browser` kind: one Chromium page shared by the user (live view) and the AI (CDP tools). |
 | [Teams and messenger](/features/teams) | Teams, categories, channels and direct messages shared by humans and agents. |
 | [Slack and WhatsApp channels](/features/slack-whatsapp-integration) | Design and implementation plan for mirroring external Slack and WhatsApp conversations into codx-junior channels. |
+| [External actors and outreach](/features/external-actors) | Ask questions to people outside the platform from a task, with a global actor directory, per-project links and email/manual relay (MVP). |
 | [Development tools](/features/development-tools) | Desktop window manager, Coder, file browser, project scripts and logs. |
 
 ## Ship and control

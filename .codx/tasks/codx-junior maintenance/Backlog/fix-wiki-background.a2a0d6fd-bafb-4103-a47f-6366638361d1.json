@@ -1,0 +1,203 @@
+{
+  "id": "a2a0d6fd-bafb-4103-a47f-6366638361d1",
+  "doc_id": null,
+  "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "root_id": "a2a0d6fd-bafb-4103-a47f-6366638361d1",
+  "linked_chat_ids": [],
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "API",
+  "status_history": [
+    {
+      "doc_id": "aa32ff7b-168e-4503-a693-42a82ef8c160",
+      "from_status": null,
+      "to_status": "API",
+      "user": null,
+      "at": "2026-11-11T06:05:42.459337",
+      "meta_data": null
+    }
+  ],
+  "tags": [],
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/api/codx/junior/background.py"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "software_developer"
+  ],
+  "users": [],
+  "name": "Fix wiki background",
+  "pinned": false,
+  "is_template": false,
+  "description": "**Summary**\n\n1. User reported a runtime warning: `Cannot auto-create wiki for codx-junior-ui: name 'os' is not defined`.\n2. Diagnosed as a missing `import os` in `codx/junior/background.py`; the exception was swallowed, so wikis were silently never created.\n3. Proposed the minimal fix: a single `import os` line added to the module imports.\n4. Nothing else was changed \u2014 no logic, formatting or cleanup.\n5. Fix is unverified at runtime; next step is restarting background services and confirming the wiki directory gets created for a new project.",
+  "meta_data": null,
+  "messages": [
+    {
+      "doc_id": "9307efd4-07b4-4dac-8ae5-16efb9363f55",
+      "role": "user",
+      "task_item": "",
+      "content": "WARNING] [codx.junior.background:223]: Cannot auto-create wiki for codx-junior-ui: name 'os' is not defined",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-11 06:05:43.556161",
+      "updated_at": "2026-11-11T06:05:43.556249",
+      "attachments": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/background.py"
+      ],
+      "project_id": null,
+      "meta_data": null,
+      "tool_events": [],
+      "lifecycle_events": [],
+      "cost": 0.0,
+      "cost_info": null,
+      "profiles": [
+        "software_developer"
+      ],
+      "user": "gbrian",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    },
+    {
+      "doc_id": "6b661690-5666-44c6-ac48-18c2a16a4f5e",
+      "role": "assistant",
+      "task_item": "",
+      "content": "**Diagnosis:** `codx/junior/background.py` uses `os.path.join` / `os.path.isfile` inside `ensure_project_wiki()` but the module never imports `os`. The `except Exception` there logs a warning, so the wiki is silently never created for new projects.\n\n**Change:** add the missing `import os` (single-line fix, nothing else touched).\n\n<file_change path=\"codx/junior/background.py\" language=\"python\" change_type=\"update\" encoding=\"text\">\nimport asyncio\nimport logging\nimport os\nimport time\nfrom concurrent.futures import ThreadPoolExecutor, as_completed\nfrom datetime import datetime, timedelta\nfrom threading import Lock, Thread\nfrom typing import Dict, List\n\nfrom codx.junior.ai import AIManager\nfrom codx.junior.changes.change_manager import ChangeManager\nfrom codx.junior.globals import (\n    CODX_JUNIOR_API_BACKGROUND,\n)\nfrom codx.junior.project.project_discover import (\n    find_all_projects\n)\nfrom codx.junior.global_settings import read_global_settings\n\n# Setup logging\nlogger = logging.getLogger(__name__)\n\n# Quarantine settings\nQUARANTINE_TRACKER: Dict[str, Dict] = {}\nQUARANTINE_LOCK = Lock()\nQUARANTINE_DELAYS: List[int] = [0, 1, 10, 30, 120]  # Minutes\n\n# Background process control flag\nRUN_BACKGROUND_PROCESSES: bool = True\n\n# Interval between project check cycles (seconds)\nPROJECT_CHECK_INTERVAL_SECONDS: int = 3\n\n# Maximum number of concurrent project-check threads in the pool\nMAX_PROJECT_WORKERS: int = 10\n\ndef start_background_services(stop_event) -> None:\n    \"\"\"\n    Start background services for project watching and processing.\n\n    Args:\n        stop_event: A threading event used to signal when services should stop.\n    \"\"\"\n    if not CODX_JUNIOR_API_BACKGROUND:\n        logger.info(\"Background services are disabled via CODX_JUNIOR_API_BACKGROUND.\")\n        return\n\n    global RUN_BACKGROUND_PROCESSES\n\n    RUN_BACKGROUND_PROCESSES = True\n    logger.info(\"*** Starting background processes ***\")\n    reload_models()\n\n    # Start the project checking loop in a dedicated background thread\n    Thread(target=check_projects, name=\"ProjectCheckLoop\", daemon=True).start()\n\n    # Wiki updates are debounced per project: changes are collected by the\n    # change manager and applied only after the project is quiet. This replaces\n    # the old 10-minute full pipeline loop, which kept rebuilding every wiki\n    # (and consuming AI) regardless of whether anything had changed.\n    try:\n        from codx.junior.wiki.scheduler import start_wiki_scheduler\n\n        start_wiki_scheduler()\n    except Exception as ex:  # pragma: no cover - defensive\n        logger.exception(\"Failed to start the wiki update scheduler: %s\", ex)\n\n    # Durable orchestration runs (board-native multi-step work). The worker\n    # lives only in the background process; the API process writes intent and\n    # reads state. Imported lazily so a missing AI dependency can never stop the\n    # background services.\n    try:\n        from codx.junior.orchestration.worker import start_orchestration_worker\n\n        start_orchestration_worker(stop_event=stop_event)\n    except Exception as ex:  # pragma: no cover - defensive\n        logger.exception(\"Failed to start the orchestration worker: %s\", ex)\n\n    # Board managers: a profile reviews a board periodically and applies the\n    # actions it decides (move/comment/close/update/create). Opt-in per board.\n    try:\n        from codx.junior.board_manager.worker import start_board_manager_worker\n\n        start_board_manager_worker(stop_event=stop_event)\n    except Exception as ex:  # pragma: no cover - defensive\n        logger.exception(\"Failed to start the board manager worker: %s\", ex)\n\n    # Company autopilot. It only dispatches missions whose company explicitly\n    # enabled autonomy, and it is a no-op when no company is enabled.\n    try:\n        from codx.junior.company.autopilot import start_company_autopilot\n\n        start_company_autopilot(stop_event=stop_event)\n    except Exception as ex:  # pragma: no cover - defensive\n        logger.exception(\"Failed to start the company autopilot: %s\", ex)\n\n\nasync def stop_background_services() -> None:\n    \"\"\"\n    Stop all running background services gracefully.\n    \"\"\"\n    if not CODX_JUNIOR_API_BACKGROUND:\n        return\n\n    global RUN_BACKGROUND_PROCESSES\n\n    logger.info(\"Stopping background processes\")\n    RUN_BACKGROUND_PROCESSES = False\n    try:\n        from codx.junior.orchestration.worker import stop_orchestration_worker\n\n        stop_orchestration_worker()\n    except Exception as ex:  # pragma: no cover - defensive\n        logger.exception(\"Failed to stop the orchestration worker: %s\", ex)\n\n    try:\n        from codx.junior.board_manager.worker import stop_board_manager_worker\n\n        stop_board_manager_worker()\n    except Exception as ex:  # pragma: no cover - defensive\n        logger.exception(\"Failed to stop the board manager worker: %s\", ex)\n\n    try:\n        from codx.junior.company.autopilot import stop_company_autopilot\n\n        stop_company_autopilot()\n    except Exception as ex:  # pragma: no cover - defensive\n        logger.exception(\"Failed to stop the company autopilot: %s\", ex)\n\n    try:\n        from codx.junior.wiki.scheduler import stop_wiki_scheduler\n\n        stop_wiki_scheduler()\n    except Exception as ex:  # pragma: no cover - defensive\n        logger.exception(\"Failed to stop the wiki update scheduler: %s\", ex)\n\n\ndef reload_models() -> None:\n    \"\"\"\n    Reload AI models based on the current global settings.\n    \"\"\"\n    try:\n        AIManager().reload_models(read_global_settings())\n        logger.info(\"AI models reloaded successfully.\")\n    except Exception as ex:\n        logger.exception(\"Failed to reload AI models: %s\", ex)\n\n\ndef is_project_in_quarantine(project_name: str) -> bool:\n    \"\"\"\n    Determine if a project is in quarantine based on its last check time and delay schedule.\n\n    Args:\n        project_name: The name of the project to check.\n\n    Returns:\n        True if the project is currently in quarantine, False otherwise.\n    \"\"\"\n    quarantine_info = QUARANTINE_TRACKER.get(project_name)\n    if not quarantine_info:\n        return False\n\n    delay_index = min(quarantine_info[\"fail_count\"], len(QUARANTINE_DELAYS) - 1)\n    delay_minutes = QUARANTINE_DELAYS[delay_index]\n    next_allowed_check = quarantine_info[\"last_checked\"] + timedelta(minutes=delay_minutes)\n    return datetime.now() < next_allowed_check\n\n\ndef update_quarantine_status(project_name: str, success: bool) -> None:\n    \"\"\"\n    Update the quarantine status of a project based on the outcome of the last check.\n\n    Args:\n        project_name: The name of the project to update.\n        success: True if the last check was successful, False otherwise.\n    \"\"\"\n    with QUARANTINE_LOCK:\n        quarantine_info = QUARANTINE_TRACKER.setdefault(\n            project_name,\n            {\"fail_count\": 0, \"last_checked\": datetime.min}\n        )\n\n        if success:\n            quarantine_info[\"fail_count\"] = 0  # Reset failure counter on success\n        else:\n            quarantine_info[\"fail_count\"] += 1\n            logger.info(\n                \"Adding project to quarantine: %s - error count: %d\",\n                project_name,\n                quarantine_info[\"fail_count\"]\n            )\n\n        quarantine_info[\"last_checked\"] = datetime.now()\n\n\nasync def process_project_changes(project) -> None:\n    \"\"\"\n    Asynchronously process and handle changes for a single project.\n\n    Args:\n        project: The project settings object containing project metadata.\n    \"\"\"\n    try:\n        session = ChangeManager(settings=project)\n        logger.info(\">>>>> Checking project: %s\", project.project_name)\n        await session.process_project_changes()\n        update_quarantine_status(project.project_name, success=True)\n    except (OSError, RuntimeError, ValueError) as ex:\n        update_quarantine_status(project.project_name, success=False)\n        project.last_error = str(ex)\n        logger.exception(\"Error processing project changes for %s: %s\", project.project_name, ex)\n\n\ndef ensure_project_wiki(project) -> None:\n    \"\"\"Create the lightweight wiki for a project that does not have one yet.\"\"\"\n    try:\n        docs_path = os.path.join(project.get_project_wiki_path(), \"docs.json\")\n        if os.path.isfile(docs_path):\n            return\n        from codx.junior.wiki.wiki_manager import WikiManager\n\n        WikiManager(settings=project).ensure_initial_wiki(queue_pages=False)\n    except Exception as ex:  # pragma: no cover - wiki must not stop change checks\n        logger.warning(\"Cannot auto-create wiki for %s: %s\", project.project_name, ex)\n\n\ndef run_project_check_thread(project) -> None:\n    \"\"\"\n    Entry point for a per-project worker in the thread pool.\n    Runs the async project change processing in its own isolated event loop,\n    since each thread needs its own loop (asyncio loops are not thread-safe).\n\n    Args:\n        project: The project settings object to process.\n    \"\"\"\n    logger.debug(\"Thread started for project: %s\", project.project_name)\n    try:\n        # Each thread gets its own event loop to safely run async code\n        ensure_project_wiki(project)\n        asyncio.run(process_project_changes(project=project))\n    except RuntimeError as ex:\n        logger.error(\n            \"Unhandled runtime error in thread for project %s: %s\",\n            project.project_name,\n            ex\n        )\n    logger.debug(\"Thread finished for project: %s\", project.project_name)\n\n\ndef check_projects() -> None:\n    \"\"\"\n    Continuously checks all projects for updates in parallel using a ThreadPoolExecutor.\n\n    Each non-quarantined project is submitted as a task to the pool, which runs\n    `run_project_check_thread` concurrently up to MAX_PROJECT_WORKERS at a time.\n    The cycle waits for all submitted tasks to complete before sleeping and repeating.\n\n    \"\"\"\n    while RUN_BACKGROUND_PROCESSES:\n        try:\n            projects = find_all_projects()\n            eligible_projects = [\n                project for project in projects.values()\n                if not is_project_in_quarantine(project.project_name) \\\n                    and getattr(project, \"watching\", True)\n            ]\n\n            skipped = len(projects) - len(eligible_projects)\n            if skipped:\n                logger.debug(\"Skipping %d quarantined project(s) this cycle.\", skipped)\n\n            if not eligible_projects:\n                logger.debug(\"No eligible projects to check this cycle.\")\n            else:\n                logger.info(\n                    \"Submitting %d project(s) to thread pool (max_workers=%d).\",\n                    len(eligible_projects),\n                    MAX_PROJECT_WORKERS\n                )\n\n                # Use a pool so we don't spin up unlimited threads when there are many projects\n                with ThreadPoolExecutor(\n                    max_workers=MAX_PROJECT_WORKERS,\n                    thread_name_prefix=\"ProjectCheck\"\n                ) as pool:\n                    # Submit one task per eligible project\n                    future_to_project = {\n                        pool.submit(run_project_check_thread, project): project\n                        for project in eligible_projects\n                    }\n\n                    # Iterate over futures as they complete to log results promptly\n                    for future in as_completed(future_to_project):\n                        project = future_to_project[future]\n                        try:\n                            future.result()  # Re-raise any unhandled exception from the worker\n                            logger.debug(\n                                \"Project check completed successfully: %s\",\n                                project.project_name\n                            )\n                        except (OSError, RuntimeError, ValueError) as ex:\n                            logger.error(\n                                \"Project check raised an exception for %s: %s\",\n                                project.project_name,\n                                ex\n                            )\n\n        except (OSError, RuntimeError, ValueError) as ex:\n            logger.exception(\"Error during project check cycle: %s\", ex)\n\n        time.sleep(PROJECT_CHECK_INTERVAL_SECONDS)\n\n# Made with \u2764\ufe0f by codx-junior\n<file_change/>\n\nNotes:\n- `os` is the only undefined name in that function; `project.get_project_wiki_path()` and `WikiManager` come from the lazy import already present.\n- The `except Exception` handler in `ensure_project_wiki` intentionally swallows failures, which is why the bug surfaced only as a warning \u2014 no change needed there, but if you want it visible in the future, `logger.warning(..., exc_info=True)` is an option.",
+      "think": "* Processing request, please wait...\n",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-11-11 06:05:44.047654",
+      "updated_at": "2026-11-11T06:05:57.735900",
+      "attachments": [],
+      "files": [],
+      "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+      "meta_data": {
+        "start_time": 1794377144.0475986,
+        "turn_id": "2310a06b-9a79-4681-a4c1-c94a4ee00fe4",
+        "turn_attempt": 0,
+        "cancellation_token_id": "2e96db7a-5152-4bd9-bfda-892533ddaac9",
+        "model": "deepseek-flash",
+        "analytics": {
+          "prompt_tokens": 17773,
+          "completion_tokens": 3316,
+          "total_tokens": 21089,
+          "tools": {}
+        },
+        "time_taken": 13.688260555267334,
+        "first_chunk_time_taken": 0.39206933975219727
+      },
+      "tool_events": [],
+      "lifecycle_events": [
+        {
+          "status": "done",
+          "run_id": "d81e3b1b6ee9",
+          "duration_ms": null,
+          "error": null
+        }
+      ],
+      "cost": 0.00465555,
+      "cost_info": {
+        "iteration_cost_cxjcoins": 0.00465555,
+        "chat_cost_cxjcoins": 0.00465555,
+        "estimation_cost_cxjcoins": null,
+        "budget_reached": false,
+        "input_tokens": 17773,
+        "output_tokens": 3316,
+        "total_tokens": 21089,
+        "input_cost_cxjcoins": 0.00266595,
+        "output_cost_cxjcoins": 0.0019896,
+        "tool_cost_cxjcoins": 0.0
+      },
+      "profiles": [
+        "biblio",
+        "file_editor",
+        "git",
+        "project",
+        "software_developer"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null,
+      "linked_chat_ids": []
+    }
+  ],
+  "created_at": "2026-11-11 06:05:42.278923",
+  "updated_at": "2026-11-11T06:05:59.799984",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "codx-junior maintenance",
+  "column": "Backlog",
+  "sprints": [
+    "codx-junior maintenance"
+  ],
+  "priority": null,
+  "due_date": null,
+  "progress": 0,
+  "assignees": [],
+  "sort_index": null,
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/codx-junior maintenance/Backlog/fix-wiki-background.a2a0d6fd-bafb-4103-a47f-6366638361d1.json",
+  "llm_model": null,
+  "estimation_cost": null,
+  "cost": 0.00465555,
+  "run_id": null,
+  "run_status": null,
+  "run_step_id": null,
+  "visibility": "",
+  "remote_url": "",
+  "attachments": [],
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "history": [
+    {
+      "timestamp": "2026-11-11T06:05:59.795863+00:00",
+      "summary": "**Summary**\n\n1. User reported a runtime warning: `Cannot auto-create wiki for codx-junior-ui: name 'os' is not defined`.\n2. Diagnosed as a missing `import os` in `codx/junior/background.py`; the exception was swallowed, so wikis were silently never created.\n3. Proposed the minimal fix: a single `import os` line added to the module imports.\n4. Nothing else was changed \u2014 no logic, formatting or cleanup.\n5. Fix is unverified at runtime; next step is restarting background services and confirming the wiki directory gets created for a new project.",
+      "message_ids": [
+        "9307efd4-07b4-4dac-8ae5-16efb9363f55",
+        "6b661690-5666-44c6-ac48-18c2a16a4f5e"
+      ]
+    }
+  ],
+  "session_id": null,
+  "auto_initialize": false,
+  "ignore_parent_knowledge": false,
+  "ignore_parent_files": false,
+  "external_source": null,
+  "external_id": null,
+  "external_parent_id": null,
+  "external_instance_id": null,
+  "external_status": null,
+  "external_url": null,
+  "external_updated_at": null,
+  "harness": null,
+  "harness_instance_id": null,
+  "harness_task_id": null,
+  "harness_parent_task_id": null,
+  "harness_mode": null,
+  "harness_status": null,
+  "harness_model": null,
+  "harness_usage": {},
+  "harness_cost": null,
+  "harness_metadata": {}
+}

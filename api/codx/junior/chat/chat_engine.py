@@ -81,6 +81,18 @@ PROFILE_MANAGED_TOOLS = {
     "profile_knowledge_search",
 }
 
+# Read-only investigation tools a profile MUST have when it can read project
+# files. Profile allowlists are the real tool surface: a profile that enabled
+# `project_read_file` without `project_grep`/`project_glob` forces the model to
+# read whole files and search by name (the 57-call trace). The engine adds the
+# missing read-only tools instead of trusting every saved profile to be current.
+REQUIRED_INVESTIGATION_TOOLS = (
+    "project_grep",
+    "project_glob",
+    "project_changes",
+    "search_codx",
+)
+
 # Internal AI request header used to declare the profiles taking part in the
 # turn. It is consumed by SmolAgent (which strips it before reaching the
 # provider) and is what makes the agent inject the profile knowledge tools.
@@ -524,6 +536,43 @@ class ChatEngine:
             if tool_name not in PROFILE_MANAGED_TOOLS
         ]
 
+    def _ensure_investigation_tools(self, chat_tools: List[str]) -> List[str]:
+        """
+        Add the read-only investigation tools to a file-reading profile.
+
+        A profile's ``tools`` list is an allowlist, not a suggestion: a tool
+        that is registered but absent from the list is invisible to the model.
+        Profiles saved before ``project_grep`` / ``project_glob`` /
+        ``search_codx`` existed therefore forced the agent to page through
+        files and use semantic search for exact symbols.
+
+        The tools added here are all read-only, so completing the allowlist
+        cannot grant a write capability. Profiles that cannot read project
+        files are left untouched.
+
+        Args:
+            chat_tools: Tool names collected from the active profiles.
+
+        Returns:
+            The same list plus any missing investigation tools.
+        """
+        if "project_read_file" not in chat_tools:
+            return chat_tools
+
+        missing = [
+            tool_name for tool_name in REQUIRED_INVESTIGATION_TOOLS
+            if tool_name not in chat_tools
+        ]
+        if not missing:
+            return chat_tools
+
+        logger.info(
+            "Profile tool allowlist can read files but is missing %s; "
+            "adding the read-only investigation tools",
+            missing,
+        )
+        return chat_tools + missing
+
     # -------------------------------------------------------------------------
     # Helper: build the AI request headers (ADDED profiles header)
     # -------------------------------------------------------------------------
@@ -720,6 +769,9 @@ class ChatEngine:
             # so a profile saved with `profile_learning` cannot offer the write
             # tool to users without knowledge administration rights.
             chat_tools = self._strip_inherited_profile_tools(chat_tools)
+            # Never let a saved allowlist hide the tools needed to investigate
+            # the files the profile is already allowed to read.
+            chat_tools = self._ensure_investigation_tools(chat_tools)
 
             if not chat_model:
                 profile_models = [p for p in sorted_profiles if p.llm_model]
@@ -2787,6 +2839,33 @@ class ChatEngine:
                     chat=chat,
                     message=f"Team profiles: {chat_team_names}"
                 )
+
+            # ------------------------------------------------------------------
+            # 9.4 ADDED: register harness requests in the audit journal.
+            #      When the `codx-junior` harness profile takes part in a
+            #      user-initiated turn that is not yet a run main task, the
+            #      request is audited (append-only JSONL, never raises) so every
+            #      piece of work handed to the harness is traceable.
+            # ------------------------------------------------------------------
+            if (
+                iteration == 0
+                and "codx-junior" in chat_profile_names
+                and not getattr(chat, "run_id", None)
+            ):
+                try:
+                    from codx.junior.harness.audit import record_audit
+
+                    record_audit(
+                        str(self.settings.codx_path or ""),
+                        "task_requested",
+                        chat_id=chat.id,
+                        profile="codx-junior",
+                        user=self.user.username if self.user else "anonymous",
+                        mode=chat_mode,
+                        request=(query or "")[:500],
+                    )
+                except Exception as ex:  # pragma: no cover - audit must never break work
+                    logger.warning("Could not audit harness request: %s", ex)
 
             response_message.profiles = chat_profile_names
             

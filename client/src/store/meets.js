@@ -3,7 +3,14 @@ import { $storex } from '.'
 import { API } from '../api/api'
 import { normalizeMeetCode, generateMeetCode } from '../utils/meetCode'
 import {
+  findPeerKey,
+  isPolite,
+  peerIdOf,
+  transceiverHasKind
+} from '../utils/meetPeers'
+import {
   attachCollabDataChannel,
+  broadcastBrowserCollab,
   closeCollabChannel,
   createCollabDataChannel
 } from '../utils/browserCollab'
@@ -25,8 +32,17 @@ const peerConnections = {}
 // ICE candidates can arrive before the offer/answer → buffered until the remote
 // description is set.
 const pendingCandidates = {}
-// { [meetId]: MediaStream } – local mic + camera stream published to peers
-const localStreams = {}
+// { [meetId]: { audio: MediaStreamTrack|null, video: MediaStreamTrack|null } }
+// The local tracks the user wants to send. They are mirrored into a *stable*
+// outbound MediaStream (see `outboundStreams`) so the MSID negotiated with every
+// peer never changes when a device is switched on/off.
+const localTracks = {}
+// { [meetId]: MediaStream } – stable outbound stream (audio + the video track
+// that is actually being sent: camera or screen share).
+const outboundStreams = {}
+// { [meetId]: { shareId, label, track } } – screen share currently forwarded to
+// the peers (the camera track is replaced while presenting).
+const presentations = {}
 // { [meetId]: evt[] } – signals received before the meet was registered locally
 const pendingSignals = {}
 // { [meetId]: intervalId } – duration ticker
@@ -78,20 +94,6 @@ function readDeviceId() {
 // Stable per-tab device id: two tabs/devices of the same user get distinct ids.
 const deviceId = readDeviceId()
 
-/**
- * Build the composite, device-scoped peer key.
- *
- * @param {string} username - participant username (used for display too)
- * @param {string} [sid]    - session discriminator (socket id / device id). When
- *                            missing we degrade to the plain username, which
- *                            keeps the legacy single-device behaviour working.
- * @returns {string}
- */
-function peerIdOf(username, sid) {
-  const who = username || 'guest'
-  return sid ? `${who}::${sid}` : who
-}
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function currentUsername() {
@@ -134,8 +136,28 @@ function meetToClient(meet, fallback = {}) {
     participants: participants.length ? participants : (fallback.participants || [currentUsername()]),
     status: meet?.status === 'ended' ? 'ended' : 'active',
     chatId: fallback.chatId || null,
+    // A browser session shared before we joined is part of the meet state, so a
+    // late joiner lands directly in the same co-browsing session.
+    sharedBrowser: normalizeSharedBrowser(meet?.shared_browser || meet?.sharedBrowser),
     startedAt: meet?.created_at ? new Date(meet.created_at).getTime() : (fallback.startedAt || Date.now()),
     duration: 0
+  }
+}
+
+/**
+ * Normalise the shared-browser payload (backend snake_case or socket
+ * camelCase) into the client shape used by the UI.
+ */
+function normalizeSharedBrowser(shared) {
+  if (!shared) return null
+  const sessionId = shared.sessionId || shared.session_id || shared.session
+  if (!sessionId) return null
+  return {
+    sessionId,
+    sessionName: shared.sessionName || shared.session_name || shared.name || 'Browser session',
+    kind: shared.kind || 'browser',
+    owner: shared.owner || shared.from || '',
+    timestamp: shared.timestamp || Date.now()
   }
 }
 
@@ -144,6 +166,11 @@ function meetToClient(meet, fallback = {}) {
  *
  * `peerId` is the device-scoped key (see `peerIdOf`) so two devices logged in
  * with the same account get independent connections instead of sharing one.
+ *
+ * The connection owns the renegotiation lifecycle (`onnegotiationneeded`), so a
+ * camera/microphone turned on *after* joining, or a screen share started with
+ * the camera off, is still delivered to the other side instead of being dropped
+ * because the initial SDP did not contain the m-line.
  */
 function ensurePeer(ctx, meetId, peerId, username = '', { offerer = false } = {}) {
   peerConnections[meetId] = peerConnections[meetId] || {}
@@ -156,19 +183,29 @@ function ensurePeer(ctx, meetId, peerId, username = '', { offerer = false } = {}
   const pc = new RTCPeerConnection({ iceServers })
   // Remember the display name so `ontrack` can label the remote stream even
   // though the map key is a device-scoped id.
+  pc._meetId = meetId
+  pc._peerId = peerId
   pc._username = username || peerId
+  // Remote session id, learned from the signalling payloads (glare resolution).
+  pc._remoteSid = ''
+  // True once a full offer/answer cycle completed: only then may a local media
+  // change trigger an unsolicited (re)offer.
+  pc._ready = false
+  pc._negotiating = false
+  pc._makingOffer = false
+  pc._needsNegotiation = false
 
   pc.onicecandidate = (event) => {
     if (!event.candidate) return
     // Echo the candidate back through the REST signalling endpoint.
-    API.meets.addIceCandidate({ meetId, candidate: event.candidate, to: username || peerId })
+    API.meets.addIceCandidate({ meetId, candidate: event.candidate, to: pc._username || peerId })
       .catch(err => console.warn('[meets] failed to send ICE candidate', err))
   }
 
   pc.ontrack = (event) => {
     const [stream] = event.streams
     if (stream) {
-      ctx.commit('setRemoteStream', { meetId, peerId, username: pc._username, stream })
+      ctx.commit('setRemoteStream', { meetId, peerId: pc._peerId, username: pc._username, stream })
     }
   }
 
@@ -176,16 +213,19 @@ function ensurePeer(ctx, meetId, peerId, username = '', { offerer = false } = {}
   // session"). The offerer creates it; the answering side receives it here.
   pc.ondatachannel = (event) => {
     if (event.channel?.label === 'codx-browser-collab') {
-      attachCollabDataChannel(meetId, peerId, event.channel)
+      attachCollabDataChannel(meetId, pc._peerId, event.channel)
     }
   }
 
-  // Publish the local media we already have when the peer is created.
-  const stream = localStreams[meetId]
-  if (stream) {
-    stream.getTracks().forEach(track => {
-      try { pc.addTrack(track, stream) } catch (e) { /* already added */ }
-    })
+  // A camera/mic added after the first negotiation needs a new offer. The
+  // first negotiation is driven by `createOffer`/`handleMeetSignal`, so only
+  // changes that land while it is in flight are deferred.
+  pc.onnegotiationneeded = () => {
+    if (pc._negotiating) {
+      pc._needsNegotiation = true
+      return
+    }
+    scheduleNegotiation(pc)
   }
 
   peerConnections[meetId][peerId] = pc
@@ -193,10 +233,139 @@ function ensurePeer(ctx, meetId, peerId, username = '', { offerer = false } = {}
   return pc
 }
 
+/**
+ * Send a new offer for an established peer connection (renegotiation).
+ *
+ * Debounced and serialised: while an offer/answer is in flight the request is
+ * retried shortly instead of creating a second offer.
+ */
+function scheduleNegotiation(pc, { delay = 120 } = {}) {
+  if (!pc || pc._negotiationTimer || pc.signalingState === 'closed') return
+  pc._negotiationTimer = setTimeout(async () => {
+    pc._negotiationTimer = null
+    if (pc.signalingState === 'closed') return
+    if (pc.signalingState !== 'stable') {
+      if ((pc._negotiationRetries = (pc._negotiationRetries || 0) + 1) < 25) {
+        scheduleNegotiation(pc)
+      }
+      return
+    }
+    pc._negotiationRetries = 0
+    await negotiatePeer(pc)
+  }, delay)
+}
+
+/**
+ * Create/send an offer for the peer connection and wait for the answer.
+ * Returns the offer sent, or `null` when the connection was not stable.
+ */
+async function negotiatePeer(pc) {
+  if (pc._makingOffer) return null
+  pc._makingOffer = true
+  pc._negotiating = true
+  try {
+    // The offer always snapshots the current media; anything queued before it
+    // is therefore included and the flag can be cleared.
+    pc._needsNegotiation = false
+    const offer = await pc.createOffer()
+    if (pc.signalingState !== 'stable') {
+      pc._negotiating = false
+      return null
+    }
+    await pc.setLocalDescription(offer)
+    await API.meets.sendOffer({
+      meetId: pc._meetId,
+      offer,
+      to: pc._username || pc._peerId
+    })
+    return offer
+  } catch (error) {
+    console.warn('[meets] negotiation failed', error)
+    pc._negotiating = false
+    return null
+  } finally {
+    pc._makingOffer = false
+  }
+}
+
+/**
+ * Apply a remote SDP offer and answer it.
+ *
+ * Glare (both peers renegotiating at once) is resolved with the perfect
+ * negotiation pattern: the *polite* side rolls its pending offer back and
+ * answers, the impolite side keeps its offer and ignores the incoming one.
+ */
+async function acceptOffer(ctx, meetId, peerKey, pc, signal, from, fromSid) {
+  const collision = pc.signalingState !== 'stable'
+  if (collision) {
+    const polite = isPolite(API.sid || deviceId, fromSid || pc._remoteSid)
+    if (!polite) {
+      // Our offer wins; the remote (polite) side rolls back and answers it.
+      return
+    }
+    try {
+      await pc.setLocalDescription({ type: 'rollback' })
+    } catch (error) {
+      console.warn('[meets] could not roll back a colliding offer', error)
+      return
+    }
+  }
+
+  pc._negotiating = true
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(signal))
+    await flushCandidates(meetId, peerKey, pc)
+    // Attach the local media *after* the remote description: the senders of the
+    // offered m-lines are then reused instead of creating new transceivers the
+    // answer could never carry.
+    await attachLocalMedia(pc, meetId)
+    const answer = await pc.createAnswer()
+    await pc.setLocalDescription(answer)
+    await API.meets.sendAnswer({ meetId, answer, to: from })
+  } finally {
+    settleNegotiation(pc)
+  }
+}
+
+/** Mark a negotiation cycle as finished and flush any deferred renegotiation. */
+function settleNegotiation(pc) {
+  pc._negotiating = false
+  pc._ready = true
+  const deferred = pc._needsNegotiation
+  pc._needsNegotiation = false
+  // `onnegotiationneeded` also fires for the tracks that were attached *before*
+  // the offer was created (they are already in the SDP). Only renegotiate when
+  // the senders really disagree with the desired media, so starting a call does
+  // not trigger a pointless second offer/answer round.
+  if (deferred && pc.signalingState === 'stable' && mediaOutOfSync(pc, pc._meetId)) {
+    scheduleNegotiation(pc)
+  }
+}
+
+/**
+ * True when one of the negotiated senders does not carry the track it should.
+ */
+function mediaOutOfSync(pc, meetId) {
+  const wanted = desiredTracks(meetId)
+  for (const kind of ['audio', 'video']) {
+    const transceiver = findTransceiver(pc, kind)
+    if (!transceiver) {
+      if (wanted[kind]) return true
+      continue
+    }
+    // A transceiver added *after* the last offer was created is not part of the
+    // SDP yet (`currentDirection` stays null until it is negotiated).
+    if (!transceiver.currentDirection) return true
+    if (transceiver.sender?.track !== wanted[kind]) return true
+  }
+  return false
+}
+
 function closePeer(ctx, meetId, peerId) {
   const pc = peerConnections[meetId]?.[peerId]
   closeCollabChannel(meetId, peerId)
   if (pc) {
+    if (pc._negotiationTimer) clearTimeout(pc._negotiationTimer)
     try { pc.close() } catch (e) { /* ignore */ }
     delete peerConnections[meetId][peerId]
   }
@@ -204,6 +373,7 @@ function closePeer(ctx, meetId, peerId) {
     delete pendingCandidates[meetId][peerId]
   }
   ctx.commit('removeRemoteStream', { meetId, peerId })
+  ctx.commit('setRemotePresentation', { meetId, peerId, active: false })
 }
 
 function closeAllPeers(ctx, meetId) {
@@ -226,30 +396,126 @@ async function flushCandidates(meetId, peerId, pc) {
 }
 
 /**
- * Keep every peer connection in sync with the current local media: replace the
- * sender tracks that exist, add the new ones and silence the removed kinds.
+ * Local tracks that should be sent right now.
+ *
+ * Screen sharing *replaces* the camera track on the wire: the same video sender
+ * is reused, which keeps the MSID stable and needs no new SDP (the remote keeps
+ * rendering the same <video> element, now with the shared screen).
  */
-async function syncLocalTracks(meetId) {
-  const stream = localStreams[meetId]
-  const peers = peerConnections[meetId] || {}
-  for (const peerId of Object.keys(peers)) {
-    const pc = peers[peerId]
-    for (const kind of ['audio', 'video']) {
-      const track = stream ? stream.getTracks().find(t => t.kind === kind) : null
-      const sender = pc.getSenders().find(s => s.track?.kind === kind)
-      try {
-        if (track && sender) {
-          await sender.replaceTrack(track)
-        } else if (track && !sender) {
-          pc.addTrack(track, stream)
-        } else if (!track && sender) {
-          await sender.replaceTrack(null)
-        }
-      } catch (e) {
-        console.warn('[meets] sync local track failed', e)
+function desiredTracks(meetId) {
+  const tracks = localTracks[meetId] || {}
+  const presentation = presentations[meetId]
+  return {
+    audio: tracks.audio || null,
+    video: presentation?.track || tracks.video || null
+  }
+}
+
+/**
+ * The stable outbound MediaStream of a meet.
+ *
+ * Every peer is offered tracks from this same stream object, so the MSID never
+ * changes when a device is toggled: without it, adding the camera after joining
+ * created a *new* stream id and the remote `<video>` (bound to the old stream)
+ * lost the audio and never showed the new track.
+ */
+function outboundStream(meetId) {
+  let stream = outboundStreams[meetId]
+  if (!stream) {
+    stream = new MediaStream()
+    outboundStreams[meetId] = stream
+  }
+  const wanted = Object.values(desiredTracks(meetId)).filter(Boolean)
+  stream.getTracks().forEach(track => {
+    if (!wanted.includes(track)) stream.removeTrack(track)
+  })
+  wanted.forEach(track => {
+    if (!stream.getTracks().includes(track)) stream.addTrack(track)
+  })
+  return stream
+}
+
+/** Find the negotiated transceiver of a media kind (`audio`/`video`). */
+function findTransceiver(pc, kind) {
+  return (pc.getTransceivers?.() || []).find(transceiver => transceiverHasKind(transceiver, kind)) || null
+}
+
+/**
+ * Mirror the current local media onto one peer connection.
+ *
+ * Uses the already negotiated transceivers whenever possible (no renegotiation
+ * needed). A kind that was not in the first SDP is attached with `addTrack`,
+ * which fires `onnegotiationneeded` and is sent by the renegotiation handler.
+ */
+async function attachLocalMedia(pc, meetId) {
+  if (!pc || pc.signalingState === 'closed') return
+  const wanted = desiredTracks(meetId)
+  const stream = outboundStream(meetId)
+
+  for (const kind of ['audio', 'video']) {
+    const track = wanted[kind]
+    const transceiver = findTransceiver(pc, kind)
+    if (transceiver) {
+      const sender = transceiver.sender
+      // A transceiver created from a *remote* offer starts as "recvonly": the
+      // direction has to be opened up explicitly, otherwise the answer carries
+      // `a=recvonly` and our camera/microphone never reaches the other side.
+      if (track && transceiver.direction === 'recvonly') {
+        try { transceiver.direction = 'sendrecv' } catch (error) { /* ignore */ }
       }
+      if (sender.track === track) continue
+      const hadTrack = !!sender.track
+      try {
+        await sender.replaceTrack(track || null)
+        if (track && !hadTrack) {
+          // The m-line was negotiated without an MSID: teach it the stream and
+          // renegotiate so the remote receives an `ontrack` with real media.
+          try { sender.setStreams?.(stream) } catch (e) { /* older browsers */ }
+          if (pc._ready && pc.signalingState === 'stable') {
+            // Media published after the call was set up (e.g. the camera was
+            // started in the lobby and only published once the room opened).
+            scheduleNegotiation(pc)
+          } else {
+            pc._needsNegotiation = true
+          }
+        }
+      } catch (error) {
+        console.warn('[meets] could not replace', kind, 'track', error)
+      }
+      continue
+    }
+    if (!track) continue
+    try {
+      pc.addTrack(track, stream)
+    } catch (error) {
+      console.warn('[meets] could not add', kind, 'track', error)
     }
   }
+}
+
+/**
+ * Keep every peer connection in sync with the current local media.
+ */
+async function syncLocalTracks(meetId) {
+  const peers = peerConnections[meetId] || {}
+  for (const peerId of Object.keys(peers)) {
+    await attachLocalMedia(peers[peerId], meetId)
+  }
+}
+
+/**
+ * Tell the other participants whether this session is presenting its screen.
+ * The media itself travels as the regular video track; this announcement only
+ * lets the remote UI render the tile (and label it) as a shared screen.
+ */
+function announcePresentation(meetId, { active = false, label = '' } = {}) {
+  if (!meetId) return
+  broadcastBrowserCollab(meetId, {
+    kind: 'screen-share',
+    active: !!active,
+    label: label || '',
+    user: userProfile()
+  })
 }
 
 export const state = () => ({
@@ -269,6 +535,15 @@ export const state = () => ({
 
   // Outgoing knocks we are waiting on: { [meetId]: { meetId, status, ts } }
   outgoingJoins: {},
+
+  // Screen shares announced by remote participants:
+  // { [meetId]: { [peerId]: { peerId, username, label } } }
+  remotePresentations: {},
+
+  // Browser/computer sessions shared with a meet. The backend is the source of
+  // truth (it survives reloads and late joiners), these are the mirrored
+  // entries: { [meetId]: { sessionId, sessionName, kind, owner, timestamp } }
+  sharedBrowsers: {},
 
   // Meet history
   meetHistory: [],
@@ -345,7 +620,14 @@ export const getters = getterTree(state, {
   // Incoming knock requests as an array (with a stable key for rendering).
   joinRequestsList: (state) =>
     Object.entries(state.joinRequests).map(([key, req]) => ({ key, ...req })),
-  joinRequestCount: (state) => Object.keys(state.joinRequests).length
+  joinRequestCount: (state) => Object.keys(state.joinRequests).length,
+  // Screen shares announced by remote peers, keyed by peer id.
+  remotePresentationsFor: (state) => (meetId) => state.remotePresentations[meetId] || {},
+  // True when at least one remote participant is presenting its screen.
+  hasRemotePresentation: (state) => (meetId) =>
+    Object.keys(state.remotePresentations[meetId] || {}).length > 0,
+  // The browser/computer session shared with a meet (or `null`).
+  sharedBrowserFor: (state) => (meetId) => state.sharedBrowsers[meetId] || null
 })
 
 export const mutations = mutationTree(state, {
@@ -408,6 +690,43 @@ export const mutations = mutationTree(state, {
     const streams = { ...state.activeMeets[meetId].remoteStreams }
     delete streams[peerId]
     state.activeMeets[meetId].remoteStreams = streams
+  },
+
+  /**
+   * Record (or clear) a remote participant's screen-share announcement.
+   * `active: false` removes the entry, falling back to a regular camera tile.
+   */
+  setRemotePresentation(state, { meetId, peerId, username, label, active = true }) {
+    if (!meetId || !peerId) return
+    const current = { ...(state.remotePresentations[meetId] || {}) }
+    if (!active) {
+      if (!current[peerId]) return
+      delete current[peerId]
+    } else {
+      current[peerId] = { peerId, username: username || current[peerId]?.username || peerId, label: label || 'Screen' }
+    }
+    state.remotePresentations = { ...state.remotePresentations, [meetId]: current }
+  },
+
+  /**
+   * Mirror the browser/computer session shared with the meet. `null` clears it.
+   */
+  setSharedBrowser(state, { meetId, sharedBrowser }) {
+    if (!meetId) return
+    const updated = { ...state.sharedBrowsers }
+    if (sharedBrowser?.sessionId) {
+      updated[meetId] = {
+        ...state.sharedBrowsers[meetId],
+        sessionId: sharedBrowser.sessionId,
+        sessionName: sharedBrowser.sessionName || 'Browser session',
+        kind: sharedBrowser.kind || 'browser',
+        owner: sharedBrowser.owner || sharedBrowser.from || '',
+        timestamp: sharedBrowser.timestamp || Date.now()
+      }
+    } else {
+      delete updated[meetId]
+    }
+    state.sharedBrowsers = updated
   },
 
   setParticipants(state, { meetId, participants }) {
@@ -498,6 +817,12 @@ export const mutations = mutationTree(state, {
       const updated = { ...state.activeMeets }
       delete updated[meetId]
       state.activeMeets = updated
+      const presentations = { ...state.remotePresentations }
+      delete presentations[meetId]
+      state.remotePresentations = presentations
+      const sharedBrowsers = { ...state.sharedBrowsers }
+      delete sharedBrowsers[meetId]
+      state.sharedBrowsers = sharedBrowsers
       if (state.currentMeetId === meetId) {
         state.currentMeetId = null
         state.meetStatus = 'idle'
@@ -569,6 +894,8 @@ export const mutations = mutationTree(state, {
     state.serverMeets = []
     state.joinRequests = {}
     state.outgoingJoins = {}
+    state.remotePresentations = {}
+    state.sharedBrowsers = {}
     state.currentMeetId = null
     state.meetStatus = 'idle'
     state.isMuted = false
@@ -714,14 +1041,127 @@ export const actions = actionTree(
      */
     async setLocalStream(ctx, { meetId, stream } = {}) {
       if (!meetId) return
-      if (stream) {
-        localStreams[meetId] = stream
-        ctx.commit('setLocalStream', { meetId, stream })
-      } else {
-        delete localStreams[meetId]
-        ctx.commit('setLocalStream', { meetId, stream: null })
+      localTracks[meetId] = {
+        audio: stream?.getAudioTracks?.()[0] || null,
+        video: stream?.getVideoTracks?.()[0] || null
       }
+      const outbound = outboundStream(meetId)
+      ctx.commit('setLocalStream', {
+        meetId,
+        stream: outbound.getTracks().length ? outbound : null
+      })
       await syncLocalTracks(meetId)
+    },
+
+    /**
+     * Start forwarding a screen share to every peer.
+     *
+     * The display track replaces the camera track on the existing video sender
+     * (no renegotiation, stable MSID) and the announcement tells the remote UI
+     * to render/label the tile as a shared screen.
+     */
+    async presentScreenShare(ctx, { meetId, shareId, stream, label } = {}) {
+      if (!meetId) return
+      const track = stream?.getVideoTracks?.()[0] || null
+      if (!track) return
+      presentations[meetId] = {
+        shareId: shareId || track.id,
+        label: label || 'Screen',
+        track
+      }
+      const outbound = outboundStream(meetId)
+      ctx.commit('setLocalStream', {
+        meetId,
+        stream: outbound.getTracks().length ? outbound : null
+      })
+      await syncLocalTracks(meetId)
+      announcePresentation(meetId, { active: true, label: presentations[meetId].label })
+    },
+
+    /**
+     * Stop forwarding a screen share and fall back to the camera (if any).
+     * `shareId` restricts the call to the share that ended.
+     */
+    async stopPresentation(ctx, { meetId, shareId } = {}) {
+      if (!meetId) return
+      const current = presentations[meetId]
+      if (!current) return
+      if (shareId && current.shareId !== shareId) return
+      delete presentations[meetId]
+      const outbound = outboundStream(meetId)
+      ctx.commit('setLocalStream', {
+        meetId,
+        stream: outbound.getTracks().length ? outbound : null
+      })
+      await syncLocalTracks(meetId)
+      announcePresentation(meetId, { active: false, label: current.label })
+    },
+
+    /**
+     * Record a remote screen-share announcement (`screen-share` collab event).
+     */
+    setRemotePresentation({ commit }, { meetId, peerId, username, label, active } = {}) {
+      if (!meetId || !peerId) return
+      commit('setRemotePresentation', { meetId, peerId, username, label, active })
+    },
+
+    // ─────────────────────────────────────────────────
+    // SHARED BROWSER / COMPUTER SESSION
+    // ─────────────────────────────────────────────────
+
+    /**
+     * Share a browser/computer session with everyone in the meet.
+     *
+     * The backend keeps the association on the meet, so participants that join
+     * later (or reload) get the same session instead of an empty panel. The
+     * local state is updated optimistically: the panel must open even when the
+     * HTTP call is still in flight.
+     */
+    async shareBrowserSession(ctx, { meetId, session } = {}) {
+      if (!meetId || !session?.id) return null
+      const shared = {
+        sessionId: session.id,
+        sessionName: session.name || 'Browser session',
+        kind: session.kind || 'browser',
+        owner: currentUsername(),
+        timestamp: Date.now()
+      }
+      ctx.commit('setSharedBrowser', { meetId, sharedBrowser: shared })
+      try {
+        const result = await API.meets.shareBrowser({
+          meetId,
+          sessionId: shared.sessionId,
+          sessionName: shared.sessionName,
+          kind: shared.kind
+        })
+        const fromServer = normalizeSharedBrowser(result?.meet?.shared_browser)
+        if (fromServer) ctx.commit('setSharedBrowser', { meetId, sharedBrowser: fromServer })
+      } catch (error) {
+        // Older backends do not expose the endpoint: keep the local share and
+        // let the data-channel announcement below carry it to the peers.
+        console.warn('[meets] shareBrowserSession failed, announcing over WebRTC', error)
+      }
+      const user = userProfile()
+      broadcastBrowserCollab(meetId, {
+        kind: 'browser-session',
+        sessionId: shared.sessionId,
+        sessionName: shared.sessionName,
+        user
+      })
+      return shared
+    },
+
+    /**
+     * Stop sharing the session with the meet (participants keep their own view).
+     */
+    async unshareBrowserSession(ctx, { meetId } = {}) {
+      if (!meetId) return
+      ctx.commit('setSharedBrowser', { meetId, sharedBrowser: null })
+      try {
+        await API.meets.unshareBrowser({ meetId })
+      } catch (error) {
+        console.warn('[meets] unshareBrowserSession failed', error)
+      }
     },
 
     // ─────────────────────────────────────────────────
@@ -860,6 +1300,9 @@ export const actions = actionTree(
       ctx.commit('addActiveMeet', client)
       ctx.commit('setCurrentMeet', client.meetId)
       ctx.commit('setMeetStatus', 'active')
+      if (client.sharedBrowser) {
+        ctx.commit('setSharedBrowser', { meetId: client.meetId, sharedBrowser: client.sharedBrowser })
+      }
 
       await ctx.dispatch('_startDurationTimer', client.meetId)
       ctx.dispatch('_flushPendingSignals', client.meetId)
@@ -888,6 +1331,11 @@ export const actions = actionTree(
       // the room even when the backend returns its own `meet_id`.
       ctx.commit('setCurrentMeet', client.meetId)
       ctx.commit('setMeetStatus', 'active')
+      // A session shared before we joined is advertised by the backend, so the
+      // co-browsing panel opens for late joiners too.
+      if (client.sharedBrowser) {
+        ctx.commit('setSharedBrowser', { meetId: client.meetId, sharedBrowser: client.sharedBrowser })
+      }
 
       await ctx.dispatch('_startDurationTimer', client.meetId)
       ctx.dispatch('_flushPendingSignals', client.meetId)
@@ -930,7 +1378,9 @@ export const actions = actionTree(
         meet.localStream.getTracks().forEach(t => t.stop())
       }
       closeAllPeers(ctx, meetId)
-      delete localStreams[meetId]
+      delete localTracks[meetId]
+      delete outboundStreams[meetId]
+      delete presentations[meetId]
       delete pendingSignals[meetId]
       ctx.commit('clearJoinRequestsFor', meetId)
       ctx.commit('removeOutgoingJoin', meetId)
@@ -1036,6 +1486,16 @@ export const actions = actionTree(
       // Everything else only concerns meets we are part of
       if (!ctx.state.activeMeets[meetId]) return
 
+      if (type === 'browser-session') {
+        // A participant started/shared a browser (or computer) session for the
+        // whole room. The backend is authoritative: an empty payload clears it.
+        ctx.commit('setSharedBrowser', {
+          meetId,
+          sharedBrowser: normalizeSharedBrowser(evt.sharedBrowser || evt.shared_browser)
+        })
+        return
+      }
+
       if (type === 'join-request') {
         const requester = from
         // A same-username knock from *another* device is a real request.
@@ -1054,6 +1514,10 @@ export const actions = actionTree(
         const list = normalizeParticipants(evt.participants)
         if (list.length) ctx.commit('setParticipants', { meetId, participants: list })
         else if (from) ctx.commit('addParticipantToMeet', { meetId, userId: from })
+        // The session shared with the meet is part of the join payload; mirror
+        // it so the browser panel opens for everyone.
+        const shared = normalizeSharedBrowser(evt.meet?.shared_browser || evt.sharedBrowser)
+        if (shared) ctx.commit('setSharedBrowser', { meetId, sharedBrowser: shared })
 
         // Mesh topology: every peer already in the meet offers to the newcomer.
         // The newcomer itself waits for the incoming offers.
@@ -1064,13 +1528,18 @@ export const actions = actionTree(
         if (from && !isSelfEcho) {
           ctx.dispatch('createOffer', { meetId, to: from, toSid: fromSid, username: from })
         }
+        // Tell the newcomer whether this session is presenting its screen (the
+        // announcement that started the share predates their data channel).
+        if (presentations[meetId]) {
+          announcePresentation(meetId, { active: true, label: presentations[meetId].label })
+        }
         return
       }
 
       if (type === 'left') {
         const list = normalizeParticipants(evt.participants)
         if (list.length) ctx.commit('setParticipants', { meetId, participants: list })
-        if (from) ctx.dispatch('_dropPeer', { meetId, peerId: peerIdOf(from, fromSid), username: from })
+        if (from) ctx.dispatch('_dropPeer', { meetId, username: from, sid: fromSid })
         return
       }
 
@@ -1088,7 +1557,6 @@ export const actions = actionTree(
       if (!meetId || !from || !type) return
 
       const fromSid = evt.fromSid || evt.fromDevice || ''
-      const fromPeerId = peerIdOf(from, fromSid)
       const me = currentUsername()
       const mySid = API.sid
 
@@ -1106,28 +1574,40 @@ export const actions = actionTree(
         return
       }
 
+      // Resolve the peer connection that belongs to this session. The key may
+      // have been created before the remote session id was known (plain
+      // username) — `findPeerKey` makes both sides land on the same entry,
+      // without which the answer and the ICE candidates were looked up under a
+      // key that did not exist and the call stayed silent.
+      const knownKey = findPeerKey(Object.keys(peerConnections[meetId] || {}), from, fromSid)
+      const peerKey = knownKey || peerIdOf(from, fromSid)
+
       try {
         if (type === 'offer') {
-          const pc = ensurePeer(ctx, meetId, fromPeerId, from)
-          await pc.setRemoteDescription(new RTCSessionDescription(signal))
-          await flushCandidates(meetId, fromPeerId, pc)
-          const answer = await pc.createAnswer()
-          await pc.setLocalDescription(answer)
-          await API.meets.sendAnswer({ meetId, answer, to: from })
+          const pc = knownKey
+            ? peerConnections[meetId][knownKey]
+            : ensurePeer(ctx, meetId, peerKey, from)
+          if (fromSid) pc._remoteSid = fromSid
+          await acceptOffer(ctx, meetId, peerKey, pc, signal, from, fromSid)
         } else if (type === 'answer') {
-          const pc = peerConnections[meetId]?.[fromPeerId]
-          if (!pc) return
+          const pc = knownKey ? peerConnections[meetId][knownKey] : null
+          if (!pc) {
+            console.warn('[meets] dropping answer: no peer connection for', from, fromSid)
+            return
+          }
+          if (fromSid) pc._remoteSid = fromSid
           await pc.setRemoteDescription(new RTCSessionDescription(signal))
-          await flushCandidates(meetId, fromPeerId, pc)
+          await flushCandidates(meetId, peerKey, pc)
+          settleNegotiation(pc)
         } else if (type === 'ice-candidate') {
           if (!signal) return
-          const pc = peerConnections[meetId]?.[fromPeerId]
+          const pc = knownKey ? peerConnections[meetId][knownKey] : null
           if (pc && pc.remoteDescription && pc.remoteDescription.type) {
             await pc.addIceCandidate(new RTCIceCandidate(signal))
           } else {
             pendingCandidates[meetId] = pendingCandidates[meetId] || {}
-            pendingCandidates[meetId][fromPeerId] = pendingCandidates[meetId][fromPeerId] || []
-            pendingCandidates[meetId][fromPeerId].push(signal)
+            pendingCandidates[meetId][peerKey] = pendingCandidates[meetId][peerKey] || []
+            pendingCandidates[meetId][peerKey].push(signal)
           }
         }
       } catch (error) {
@@ -1136,7 +1616,7 @@ export const actions = actionTree(
     },
 
     /**
-     * Create and send an SDP offer to a specific peer *session*.
+     * Create and send the initial SDP offer to a specific peer *session*.
      * `to` is the username (used for routing/display), `toSid` is the target
      * session id when the payload provides one.
      */
@@ -1145,10 +1625,14 @@ export const actions = actionTree(
       const peerId = peerIdOf(to, toSid)
       try {
         const pc = ensurePeer(ctx, meetId, peerId, username || to, { offerer: true })
+        if (toSid) pc._remoteSid = toSid
         if (pc.signalingState !== 'stable') return
-        const offer = await pc.createOffer()
-        await pc.setLocalDescription(offer)
-        await API.meets.sendOffer({ meetId, offer, to })
+        // Attach the local media *before* the offer so the first SDP already
+        // carries the camera/mic (the renegotiation handler covers the rest).
+        pc._negotiating = true
+        await attachLocalMedia(pc, meetId)
+        const offer = await negotiatePeer(pc)
+        if (!offer) pc._negotiating = false
       } catch (error) {
         console.error('[meets] createOffer failed', error)
       }
@@ -1156,15 +1640,20 @@ export const actions = actionTree(
 
     /**
      * Drop the peer connection of a session that left. Accepts either the
-     * device-scoped `peerId` or, as a fallback, the `username` (legacy payloads
-     * without a session id — drops every session of that user).
+     * device-scoped `peerId` or, as a fallback, the `username` + `sid` (legacy
+     * payloads without a session id — drops every session of that user).
      */
-    _dropPeer(ctx, { meetId, peerId, username } = {}) {
+    _dropPeer(ctx, { meetId, peerId, username, sid } = {}) {
       if (peerId) {
         closePeer(ctx, meetId, peerId)
         return
       }
       if (username) {
+        const key = findPeerKey(Object.keys(peerConnections[meetId] || {}), username, sid)
+        if (key) {
+          closePeer(ctx, meetId, key)
+          return
+        }
         Object.keys(peerConnections[meetId] || {})
           .filter(k => k === username || k.startsWith(`${username}::`))
           .forEach(k => closePeer(ctx, meetId, k))
@@ -1309,7 +1798,9 @@ export const actions = actionTree(
     clearMeets(ctx) {
       Object.keys(peerConnections).forEach(meetId => closeAllPeers(ctx, meetId))
       Object.keys(durationTimers).forEach(meetId => ctx.dispatch('_stopDurationTimer', meetId))
-      Object.keys(localStreams).forEach(meetId => delete localStreams[meetId])
+      Object.keys(localTracks).forEach(meetId => delete localTracks[meetId])
+      Object.keys(outboundStreams).forEach(meetId => delete outboundStreams[meetId])
+      Object.keys(presentations).forEach(meetId => delete presentations[meetId])
       Object.keys(pendingSignals).forEach(meetId => delete pendingSignals[meetId])
       ctx.commit('clearAllMeets')
     }

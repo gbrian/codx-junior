@@ -104,13 +104,14 @@ MAX_SCAN_DEPTH = 6
 # plain language: they are shown to a non-technical manager.
 
 COMMON_CODE_TOOLS = [
-    "project_search", "project_grep", "project_glob",
+    "project_search", "project_grep", "project_glob", "search_codx",
     "project_read_file", "project_write_file", "project_changes",
     "apply_file_changes", "create_task",
 ]
 COMMON_ANALYSIS_TOOLS = [
-    "project_search", "project_grep", "project_glob", "project_read_file",
-    "project_changes", "create_task", "list_profiles_summary", "team_context",
+    "project_search", "project_grep", "project_glob", "search_codx",
+    "project_read_file", "project_changes", "create_task",
+    "list_profiles_summary", "team_context",
 ]
 DOCKER_TOOLS = [
     "docker_ps", "docker_logs", "docker_inspect", "docker_images",

@@ -29,6 +29,11 @@ USERS = {}
 
 logger = logging.getLogger(__name__)
 
+# Meet events a client may relay to the other participants. Only the knock /
+# approval handshake is peer-to-peer; every other lifecycle change goes through
+# the meets REST API (which is the authoritative source for all clients).
+MEET_RELAY_TYPES = frozenset({"join-request", "join-approved", "join-rejected"})
+
 #Socket io (sio) create a Socket.IO server
 sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')
 
@@ -151,6 +156,37 @@ async def on_background_event(sid, data: dict):
 def io_login(sid, data: dict):
     USERS[sid] = data
     send_online_users(sid)
+
+@sio.on("codx-junior-meet")
+async def io_meet_event(sid, data: dict = None):
+    """
+    Relay a meet lifecycle event sent by a participant.
+
+    The meet REST API emits the authoritative lifecycle events (initiated,
+    joined, left, ended, browser-session); this relay carries the *peer to peer*
+    handshake the API does not model as a resource: the "knock" (join-request)
+    and its answer (join-approved / join-rejected). Without it a participant
+    joining by code waited forever for an approval that never left its browser.
+
+    Only those handshake types are relayed: lifecycle/state changes must go
+    through the REST API so a client cannot fake a ``joined``/``browser-session``
+    event for everyone.
+
+    The sender's socket id is stamped as `fromSid` so the receiver can tell two
+    devices of the same account apart.
+    """
+    payload = dict(data or {})
+    if payload.get("type") not in MEET_RELAY_TYPES:
+        logger.warning("Ignoring unknown meet event '%s'", payload.get("type"))
+        return
+    payload.setdefault("fromSid", sid)
+    logger.info(
+        "Meet event '%s' from %s (meet %s)",
+        payload.get("type"),
+        payload.get("from"),
+        payload.get("meetId"),
+    )
+    await sio_send_event("codx-junior-meet", payload)
 
 @sio.on("codx-junior-chat")
 @sio_api_endpoint

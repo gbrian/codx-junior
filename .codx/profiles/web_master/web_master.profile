@@ -42,7 +42,10 @@
     "project_search",
     "project_read_file",
     "project_write_file",
-    "project_structure"
+    "project_structure",
+    "project_grep",
+    "project_glob",
+    "search_codx"
   ],
   "tags": [],
   "api_settings": {

@@ -87,6 +87,14 @@ export const APPS = {
     route: () => ({ name: 'kanban', query: { view: 'planning' } })
   },
 
+  // Native harness observability: runs, worker/watchdog health and the
+  // append-only audit journal of every piece of work handled by the
+  // @codx-junior profile. Read-only view over /api/harness/*.
+  harness: {
+    id: 'harness', title: 'Harness', component: 'harness', icon: 'fa-solid fa-bolt',
+    route: () => ({ name: 'harness' })
+  },
+
   // Management dashboard — the cross-project "command center" for management.
   // One screen that answers "what is happening, what is stuck and when will it
   // be delivered" across EVERY project, with a time window (last 7 days by

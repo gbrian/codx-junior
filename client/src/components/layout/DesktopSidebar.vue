@@ -69,10 +69,12 @@ import WindowsMenu from '../main-menu/WindowsMenu.vue'
           @overlay-open="onOverlayOpen"
         />
         
-        <!-- Workspaces Section — hidden in company mode: the manager shell is
-             deliberately small and the full launcher lives in the main menu. -->
+        <!-- Workspaces Section — the active project's workspace apps
+             (store/project.js → projectApps → API.allWorkspaces).
+             Always rendered, no workspace-mode filter: the section is a
+             launcher in its own right, not a company-mode-only affordance.
+             The component itself hides when the project has no apps. -->
         <WorkspacesSection
-          v-if="!isCompanyMode"
           :workspace-apps="workspaceApps"
           :is-collapsed="isCollapsed"
           :current-workspace-id="currentWorkspaceId"
@@ -181,9 +183,6 @@ export default {
     },
     isProjectAdmin() {
       return this.$users?.isProjectAdmin || false
-    },
-    isCompanyMode() {
-      return this.$storex.users.isCompanyMode
     },
     currentWorkspaceId() {
       return this.$storex.$router.$navigation.getWorkspaceId()
