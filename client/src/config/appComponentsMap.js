@@ -40,7 +40,6 @@ export const APP_COMPONENTS_MAP = {
   'messenger': lazy(() => import('../views/MessengerView.vue')),
   'meet': lazy(() => import('../views/MeetView.vue')),
   'projects': lazy(() => import('../components/project/ProjectOverview.vue')),
-  'activity': lazy(() => import('../components/wall/Wall.vue')),
   'chat': lazy(() => import('../views/ChatView.vue')),
   'analytics': lazy(() => import('../components/analytics/MetricsDashboard.vue')),
   'api-monitoring': lazy(() => import('../views/api-monitoring/ApiMonitoringView.vue')),

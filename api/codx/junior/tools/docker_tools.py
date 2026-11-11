@@ -63,6 +63,44 @@ COMPOSE_FILE_NAMES = [
     "compose.yaml",
 ]
 
+# Sub directories scanned when the project root has no compose file. Real
+# projects (this one included) keep their deployment stack under ``scripts/``,
+# and without this fallback every compose tool reported "no compose file"
+# instead of operating on the project's own stack.
+COMPOSE_SUB_DIRS = ["scripts", "docker", "deploy", "devops"]
+
+# First argument tokens a diagnostic ``docker exec`` may not start with: they
+# destroy data or the container itself and are never needed to inspect a
+# running service.
+DOCKER_EXEC_DENIED_COMMANDS = {
+    "rm",
+    "rmdir",
+    "unlink",
+    "shred",
+    "truncate",
+    "dd",
+    "mkfs",
+    "kill",
+    "pkill",
+    "killall",
+    "shutdown",
+    "reboot",
+    "halt",
+    "poweroff",
+    "docker",
+    "socat",
+    "nc",
+    "ncat",
+    "telnet",
+    "ssh",
+    "scp",
+}
+
+# Characters that require a shell. They are rejected with an explicit message
+# instead of being passed to the program as literal arguments, so the caller
+# issues one command per call and the output stays deterministic.
+DOCKER_EXEC_SHELL_CHARS = ("|", "&", ";", ">", "<", "`", "$(", "${", "\n")
+
 # Optional override so a host with only the compose v2 plugin can run
 # ``docker compose`` instead of the legacy ``docker-compose`` binary.
 COMPOSE_CMD_ENV = "CODX_JUNIOR_COMPOSE_CMD"
@@ -173,13 +211,23 @@ def _project_cwd(settings: Optional[CODXJuniorSettings]) -> Optional[str]:
 
 
 def _find_compose_file(project_dir: Optional[str]) -> Optional[str]:
-    """Return the compose file path inside ``project_dir`` (or ``None``)."""
+    """
+    Return the compose file path inside ``project_dir`` (or ``None``).
+
+    The project root is checked first; when it holds no compose file the usual
+    deployment sub directories are scanned too, so a stack kept in ``scripts/``
+    stays reachable from every compose tool.
+    """
     if not project_dir:
         return None
-    for name in COMPOSE_FILE_NAMES:
-        candidate = os.path.join(project_dir, name)
-        if os.path.isfile(candidate):
-            return candidate
+    directories = [project_dir] + [
+        os.path.join(project_dir, name) for name in COMPOSE_SUB_DIRS
+    ]
+    for directory in directories:
+        for name in COMPOSE_FILE_NAMES:
+            candidate = os.path.join(directory, name)
+            if os.path.isfile(candidate):
+                return candidate
     return None
 
 
@@ -1095,6 +1143,117 @@ def docker_restart(container_name: str, timeout: int = 10, **kwargs) -> ToolResp
         )
 
 
+def docker_exec(
+    container_name: str,
+    command: str,
+    timeout: int = 60,
+    **kwargs,
+) -> ToolResponse:
+    """
+    Run one command inside a running container (``docker exec``).
+
+    This is the runtime feedback loop that was missing: it makes the *loaded*
+    code observable instead of guessed from logs, e.g.
+
+        docker_exec(
+            "codx-junior-api",
+            "grep -n estimation_cost /app/codx/junior/task_manager.py",
+        )
+
+    The command is split with :func:`shlex.split` and executed **without a
+    shell**, so pipes, redirections and substitutions are rejected with an
+    explicit message (issue one command per call). Destructive first tokens
+    (``rm``, ``dd``, ``kill`` ...) are refused.
+
+    Args:
+        container_name: Running container (letters, digits, ``_ - .``).
+        command: Command line to execute inside the container.
+        timeout: Seconds before the command is killed (1-300, default: 60).
+        **kwargs: Additional arguments including:
+            - settings (CODXJuniorSettings): Project settings (required).
+            - user (CodxUser): Current user (for audit logging).
+
+    Returns:
+        ToolResponse: Captured stdout/stderr plus the exit code. A non-zero
+        exit is reported as a failure, never as a success.
+    """
+    settings: CODXJuniorSettings = kwargs.get("settings")
+    user: CodxUser = kwargs.get("user")
+
+    if not settings:
+        raise Exception("Invalid project settings")
+
+    try:
+        _validate_input(container_name, "container_name", allow_patterns=[r"^[a-zA-Z0-9_\-\.]+$"])
+
+        if not isinstance(timeout, int) or timeout < 1 or timeout > 300:
+            raise ValueError("timeout must be integer between 1-300 seconds")
+
+        raw_command = (command or "").strip()
+        if not raw_command:
+            raise ValueError("command is required")
+        if len(raw_command) > 1000:
+            raise ValueError("command must be at most 1000 characters")
+        for token in DOCKER_EXEC_SHELL_CHARS:
+            if token in raw_command:
+                raise ValueError(
+                    f"command must not contain '{token}': docker exec runs without a "
+                    "shell, so issue one command per call"
+                )
+
+        argv = shlex.split(raw_command)
+        if not argv:
+            raise ValueError("command is required")
+        program = os.path.basename(argv[0])
+        if program in DOCKER_EXEC_DENIED_COMMANDS:
+            raise ValueError(
+                f"command '{program}' is not allowed in docker exec: use a targeted, "
+                "non-destructive diagnostic command"
+            )
+
+        docker_command = ["docker", "exec", container_name] + argv
+        operation = " ".join(docker_command)
+        result = _safe_exec_docker(
+            docker_command, timeout=timeout, cwd=_project_cwd(settings)
+        )
+
+        output = result.stdout or ""
+        if (result.stderr or "").strip():
+            output = f"{output}\n{result.stderr}" if output.strip() else result.stderr
+
+        logger.info(
+            "Docker exec in %s by user %s: %s (exit=%s)",
+            container_name,
+            user.username if user else "unknown",
+            raw_command,
+            result.returncode,
+        )
+
+        if not result.ok:
+            return ToolResponse(
+                user_response=f"❌ Command failed\n\n{_command_failure(operation, result)}",
+                llm_response=(
+                    f"docker exec failed (exit {result.returncode}) in {container_name}:\n"
+                    f"{(output or '').strip()[:4000] or '_(no output)_'}"
+                )
+            )
+
+        return ToolResponse(
+            user_response=_format_command_feedback(operation, (output or "").strip()),
+            llm_response=(
+                f"docker exec in {container_name} (exit 0):\n"
+                f"{(output or '').strip()[:4000] or '_(no output)_'}"
+            )
+        )
+
+    except Exception as e:
+        logger.exception("Error in docker_exec: %s", str(e))
+        return ToolResponse(
+            user_response=f"❌ Error: {str(e)}",
+            llm_response=f"Failed to exec in container {container_name}: {str(e)}"
+        )
+
+
 def docker_compose_run(service: str, command: Optional[str] = None, **kwargs) -> ToolResponse:
     """
     Run a one-off command in a docker-compose service.
@@ -1583,6 +1742,8 @@ def docker_container(action: str, container_name: str, **kwargs) -> ToolResponse
             - "restart": Restart a container (supports timeout param)
             - "inspect": Show detailed container information
             - "logs": Retrieve container logs (supports tail param)
+            - "exec": Run one diagnostic command inside the container (supports
+              command and timeout params)
         container_name: Name or ID of the container to operate on.
         **kwargs: Additional arguments including:
             - settings (CODXJuniorSettings): Project settings (required).
@@ -1590,6 +1751,7 @@ def docker_container(action: str, container_name: str, **kwargs) -> ToolResponse
             - image (str): Required for create/run - image name/ID to use.
             - timeout (int): For stop/restart actions (1-120 seconds, default: 10).
             - tail (int): For logs action (1-1000 lines, default: 100).
+            - command (str): For exec - command to run inside the container.
             - port_mapping (str): For create/run - port mapping (e.g. "8080:80").
             - env_vars (dict): For create/run - environment variables.
             - detach (bool): For run - run in background (default: True).
@@ -1610,7 +1772,7 @@ def docker_container(action: str, container_name: str, **kwargs) -> ToolResponse
         # Creates and starts the container from an image
     """
     action = action.lower().strip()
-    valid_actions = ["create", "run", "start", "stop", "restart", "inspect", "logs"]
+    valid_actions = ["create", "run", "start", "stop", "restart", "inspect", "logs", "exec"]
 
     if action not in valid_actions:
         return ToolResponse(
@@ -1642,6 +1804,15 @@ def docker_container(action: str, container_name: str, **kwargs) -> ToolResponse
         elif action == "logs":
             tail = kwargs.pop("tail", 100)
             return docker_logs(container_name, tail=tail, **kwargs)
+        elif action == "exec":
+            command = kwargs.pop("command", None)
+            if not command:
+                return ToolResponse(
+                    user_response="❌ Action 'exec' requires a 'command' argument",
+                    llm_response="Missing command for container action: exec"
+                )
+            timeout = kwargs.pop("timeout", 60)
+            return docker_exec(container_name, command, timeout=timeout, **kwargs)
 
     except Exception as e:
         logger.exception("Error in docker_container action '%s': %s", action, str(e))
@@ -2085,7 +2256,7 @@ DOCKER_CONTAINER_TOOL_JSON = {
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["create", "run", "start", "stop", "restart", "inspect", "logs"],
+                    "enum": ["create", "run", "start", "stop", "restart", "inspect", "logs", "exec"],
                     "description": (
                         "Action to perform:\n"
                         "  - 'create': Create a container from an image (not started)\n"
@@ -2094,7 +2265,8 @@ DOCKER_CONTAINER_TOOL_JSON = {
                         "  - 'stop': Stop a running container\n"
                         "  - 'restart': Restart a container\n"
                         "  - 'inspect': Show detailed container information\n"
-                        "  - 'logs': Retrieve container logs"
+                        "  - 'logs': Retrieve container logs\n"
+                        "  - 'exec': Run one diagnostic command inside the container"
                     )
                 },
                 "container_name": {
@@ -2113,6 +2285,13 @@ DOCKER_CONTAINER_TOOL_JSON = {
                     "type": "integer",
                     "description": "For logs action: number of log lines to retrieve (1-1000, default: 100)"
                 },
+                "command": {
+                    "type": "string",
+                    "description": (
+                        "For exec action: command to run inside the container. Runs without "
+                        "a shell: issue one command per call, no pipes or redirections."
+                    )
+                },
                 "port_mapping": {
                     "type": "string",
                     "description": "For create/run actions: port mapping (e.g., '8080:80')"
@@ -2127,6 +2306,41 @@ DOCKER_CONTAINER_TOOL_JSON = {
                 }
             },
             "required": ["action", "container_name"]
+        }
+    }
+}
+
+DOCKER_EXEC_TOOL_JSON = {
+    "type": "function",
+    "function": {
+        "name": "docker_exec",
+        "description": (
+            "Run one command inside a running container and return its output and exit "
+            "code. Use it to inspect the runtime instead of guessing: which file/version "
+            "a service actually loaded, environment variables, files on disk, a python "
+            "import check. Runs without a shell, so issue one command per call."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "container_name": {
+                    "type": "string",
+                    "description": "Name or ID of the running container"
+                },
+                "command": {
+                    "type": "string",
+                    "description": (
+                        "Command to execute inside the container (parsed like a shell "
+                        "command line but executed without a shell; no pipes, "
+                        "redirections or substitutions)"
+                    )
+                },
+                "timeout": {
+                    "type": "integer",
+                    "description": "Timeout in seconds before the command is killed (1-300, default: 60)"
+                }
+            },
+            "required": ["container_name", "command"]
         }
     }
 }

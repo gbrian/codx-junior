@@ -1,0 +1,47 @@
+{
+  "title": "Project dependencies and related-project search",
+  "type": "sprint",
+  "columns": [
+    {
+      "id": "6d73f374-c674-4718-9748-d5b0fbb90f32",
+      "title": "To do",
+      "color": "",
+      "folder": "To do",
+      "order": 0,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "0e1fa5da-0bab-4aea-9074-e23e014392bb",
+      "title": "Doing",
+      "color": "",
+      "folder": "Doing",
+      "order": 1,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "0c368e1a-22b1-4e6c-84d2-e0e181028446",
+      "title": "On hold",
+      "color": "",
+      "folder": "On hold",
+      "order": 2,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "49cf909c-5135-466d-b295-2ac689e14910",
+      "title": "Done",
+      "color": "",
+      "folder": "Done",
+      "order": 3,
+      "project_id": null,
+      "profiles": []
+    }
+  ],
+  "id": "abceaf08-8e0e-4c94-97e6-d07ba1941843",
+  "description": "",
+  "parent_id": null,
+  "folder": "Project dependencies and related-project search",
+  "order": 128
+}

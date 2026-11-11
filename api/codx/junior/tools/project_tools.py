@@ -32,6 +32,31 @@ from .model import ToolResponse
 # Configure logging
 logger = logging.getLogger(__name__)
 
+
+def _atlas_redirect_response(settings, tool_name: str):
+    """Return a redirect when the project atlas forbids legacy discovery."""
+    try:
+        from codx.junior.atlas.constants import atlas_forced
+
+        if not atlas_forced(settings):
+            return None
+    except Exception:
+        return None
+    return ToolResponse(
+        user_response=(
+            f"`{tool_name}` is disabled: this project uses the project atlas."
+        ),
+        llm_response=(
+            f"> `{tool_name}` is disabled by the project atlas.\n\n"
+            "Use `project_locate(query, kind=..., include=..., regex=...)` for "
+            "symbols, strings, error messages, routes and file patterns; use "
+            "`project_map()` to orient and `project_impact()` before editing. "
+            "The atlas already searches file contents and ranks definitions "
+            "before references."
+        ),
+    )
+
+
 # Constants
 BULK_OPERATION_THRESHOLD = 3
 FILE_READ_ERROR_TEMPLATE = "error [%s]\nERROR: %s %s"
@@ -1296,6 +1321,10 @@ def project_search(
             llm_response="Search failed: missing settings",
         )
 
+    redirect = _atlas_redirect_response(settings, "project_search")
+    if redirect:
+        return redirect
+
     # Normalize to list for uniform processing
     search_queries = [search] if isinstance(search, str) else search
 
@@ -1510,6 +1539,10 @@ def project_glob(
     if not settings:
         raise Exception("Invalid project settings")
 
+    redirect = _atlas_redirect_response(settings, "project_glob")
+    if redirect:
+        return redirect
+
     if isinstance(pattern, str):
         patterns = [pattern]
     elif pattern:
@@ -1639,6 +1672,10 @@ def project_grep(
     settings: CODXJuniorSettings = kwargs.get("settings", None)
     if not settings:
         raise Exception("Invalid project settings")
+
+    redirect = _atlas_redirect_response(settings, "project_grep")
+    if redirect:
+        return redirect
 
     pattern = pattern or ""
     if not pattern:

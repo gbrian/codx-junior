@@ -164,7 +164,9 @@ class WikiAssistant:
             except (TypeError, ValueError):
                 child_depth = 2
         child_depth = max(0, min(10, int(child_depth)))
-        child_pages = self._child_page_context(question, child_depth) if include_children else []
+        # Child pages are limited by wiki_search_children/depth; declared
+        # dependency projects are always added on top.
+        child_pages = self._child_page_context(question, child_depth, include_children)
         context_pages.extend(child_pages)
 
         knowledge = []
@@ -276,11 +278,43 @@ class WikiAssistant:
             logger.debug("Cannot resolve child projects for assistant: %s", ex)
             return []
 
-    def _child_page_context(self, question: str, depth: int) -> List[Dict[str, Any]]:
-        """Select a few wiki pages from child projects as extra context."""
+    def _dependency_projects(self) -> List[Any]:
+        """Return the declared dependency projects (never the current one)."""
+        try:
+            return self.settings.get_related_projects(include_children=False)
+        except Exception as ex:  # pragma: no cover - discovery is optional
+            logger.debug("Cannot resolve dependency projects for assistant: %s", ex)
+            return []
+
+    def _related_projects(self, depth: int, include_children: bool = True) -> List[Any]:
+        """
+        Projects whose wiki pages and knowledge are searched with this one.
+
+        Children are limited to *depth* levels through ``wiki_search_children``
+        / ``wiki_search_depth``; declared dependencies are added on top because
+        they may live anywhere on disk (``search_related_projects`` gates both).
+        A project that is both a child and a dependency is searched only once.
+        """
+        related: List[Any] = list(self._child_projects(depth)) if include_children else []
+        seen = {project.codx_path for project in related}
+        seen.add(self.settings.codx_path)
+        for project in self._dependency_projects():
+            if project.codx_path in seen:
+                continue
+            seen.add(project.codx_path)
+            related.append(project)
+        return related
+
+    def _child_page_context(
+        self,
+        question: str,
+        depth: int,
+        include_children: bool = True,
+    ) -> List[Dict[str, Any]]:
+        """Select a few wiki pages from related (child/dependency) projects."""
         context: List[Dict[str, Any]] = []
         budget = MAX_CONTEXT_CHARS // 3
-        for child in self._child_projects(depth):
+        for child in self._related_projects(depth, include_children):
             if budget <= 0:
                 break
             try:
@@ -341,8 +375,11 @@ class WikiAssistant:
             })
             if len(results) >= 4:
                 break
-        if include_children:
-            for child in self._child_projects(child_depth)[:3]:
+        # A dependency is searched even when the project has no children, so the
+        # scope is resolved once through _related_projects.
+        related = self._related_projects(child_depth, include_children)
+        if related:
+            for child in related[:3]:
                 try:
                     from codx.junior.knowledge.knowledge_db import KnowledgeDB
 
@@ -433,22 +470,33 @@ words unless a step-by-step example needs more. End with a "Sources" section.
 
     async def _ask_ai(self, prompt: str) -> str:
         from codx.junior.ai import AI
+        from codx.junior.ai.utils import strip_tool_call_markup
         from codx.junior.model.model import CodxUser
 
         model = self.settings.get_rag_model() or self.settings.get_wiki_model()
+        # ``harness=False`` keeps this a plain documentation completion: no
+        # agent system prompt and no tool schemas. With the agent harness the
+        # model believes it may explore the codebase, emits a tool call the run
+        # cannot execute and the answer reaches the user as raw tool-call
+        # markup instead of prose.
         self._ai = AI(
             settings=self.settings,
             llm_model=model,
             user=CodxUser(username="wiki-assistant"),
             system=_SYSTEM_PROMPT,
+            harness=False,
         )
         messages = await self._ai.a_chat(
             prompt=prompt,
             headers={"tags": "wiki,assistant"},
         )
-        content = (messages[-1].content or "").strip()
+        content = strip_tool_call_markup(messages[-1].content or "")
         if content.startswith("```") and content.endswith("```"):
             content = "\n".join(content.splitlines()[1:-1])
+        if not content.strip():
+            # No readable answer (the model only produced a tool call): let
+            # ``answer`` fall back to the deterministic page list.
+            raise RuntimeError("The model returned no documentation answer")
         return content
 
     def _fallback_answer(

@@ -210,6 +210,19 @@ async def process_project_changes(project) -> None:
         logger.exception("Error processing project changes for %s: %s", project.project_name, ex)
 
 
+def ensure_project_atlas(project) -> None:
+    """Warm the project atlas in the background worker (not on the model path)."""
+    try:
+        if not bool(getattr(project, "project_atlas_enabled", True)):
+            return
+        from codx.junior.atlas import ProjectAtlas
+
+        with ProjectAtlas(project) as atlas:
+            atlas.ensure(force=False)
+    except Exception as ex:  # pragma: no cover - atlas must not stop change checks
+        logger.warning("Cannot warm atlas for %s: %s", project.project_name, ex)
+
+
 def ensure_project_wiki(project) -> None:
     """Create the lightweight wiki for a project that does not have one yet."""
     try:
@@ -236,6 +249,7 @@ def run_project_check_thread(project) -> None:
     try:
         # Each thread gets its own event loop to safely run async code
         ensure_project_wiki(project)
+        ensure_project_atlas(project)
         asyncio.run(process_project_changes(project=project))
     except RuntimeError as ex:
         logger.error(

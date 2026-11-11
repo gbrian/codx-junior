@@ -23,6 +23,7 @@ Made with ❤️ by codx-junior
 
 from __future__ import annotations
 
+import inspect
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -226,6 +227,49 @@ class RunBoard:
         phase = C.STEP_BOARD_PHASE.get(step_status, "backlog")
         return (run.config.columns or C.DEFAULT_RUN_COLUMNS).get(phase, phase)
 
+    def _supported_task_kwargs(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Keep only the keyword arguments the loaded ``create_task`` accepts.
+
+        The API process can run an older build than the source tree (uvicorn
+        without ``--reload``, an installed copy of the package, a container that
+        was not rebuilt). The newest plan kwargs (``estimation_cost``,
+        ``run_id``, ``run_step_id``) then do not exist yet, and a blind call
+        raises ``TypeError`` *before* any worker starts: every ready step is
+        marked failed, the dependent steps stay blocked, and the run sits at
+        0 % until it burns its whole timeout.
+
+        Dropping the unsupported keys keeps the run alive. The missing features
+        degrade gracefully (the card is still tagged ``run:<id>``) and the stale
+        runtime is reported, so the cause is visible instead of looking like a
+        blocked task.
+
+        Args:
+            payload: Keyword arguments for ``TaskManager.create_task``.
+
+        Returns:
+            The subset of *payload* supported by the running callable.
+        """
+        try:
+            parameters = inspect.signature(self._tasks().create_task).parameters
+        except (AttributeError, TypeError, ValueError):  # pragma: no cover - defensive
+            return payload
+        if any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD
+            for parameter in parameters.values()
+        ):
+            return payload
+        unsupported = sorted(name for name in payload if name not in parameters)
+        if unsupported:
+            logger.warning(
+                "Orchestration: the running TaskManager.create_task() does not accept "
+                "%s; creating the card without them. The API is running older code "
+                "than %s: restart it to enable per-step budget and run back-references.",
+                ", ".join(unsupported),
+                __file__,
+            )
+        return {name: value for name, value in payload.items() if name in parameters}
+
     def create_step_card(
         self,
         run: RunState,
@@ -269,27 +313,28 @@ class RunBoard:
             f"run:{run.run_id}",
             f"step:{step.id}",
         ]
-        task = self._tasks().create_task(
-            name=step.title,
-            description=description,
-            content=content,
-            board=board,
-            column=column,
-            sprints=[run.config.sprint] if run.config.sprint else None,
-            status=chat_status,
-            priority=step.priority,
-            profiles=profiles or ([step.profile] if step.profile else []),
-            files=step.files,
-            tags=tags,
-            parent_id=run.main_chat_id or None,
-            parent_chat=main_chat,
-            mode=step.mode or run.config.step_mode or "chat",
-            estimation_cost=estimation_cost,
-            run_id=run.run_id,
-            run_step_id=step.id,
-            ignore_parent_knowledge=True,
-            ignore_parent_files=True,
-        )
+        payload = {
+            "name": step.title,
+            "description": description,
+            "content": content,
+            "board": board,
+            "column": column,
+            "sprints": [run.config.sprint] if run.config.sprint else None,
+            "status": chat_status,
+            "priority": step.priority,
+            "profiles": profiles or ([step.profile] if step.profile else []),
+            "files": step.files,
+            "tags": tags,
+            "parent_id": run.main_chat_id or None,
+            "parent_chat": main_chat,
+            "mode": step.mode or run.config.step_mode or "chat",
+            "estimation_cost": estimation_cost,
+            "run_id": run.run_id,
+            "run_step_id": step.id,
+            "ignore_parent_knowledge": True,
+            "ignore_parent_files": True,
+        }
+        task = self._tasks().create_task(**self._supported_task_kwargs(payload))
         step.chat_id = task.id
         step.board = task.board or board
         step.column = task.column or column

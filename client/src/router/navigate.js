@@ -104,7 +104,7 @@ export default function Navigate({ $router, $storex }) {
   //     apps can stay open at once as side-by-side panels.
   //
   //   • Single mode  → EVERY other route (chats, kanban, messenger, wiki,
-  //     file-explorer, activity…). ONE app at a time, addressed only by its
+  //     file-explorer, wiki…). ONE app at a time, addressed only by its
   //     route path: opening an app replaces the current one.
   //
   // openApp() reads this to decide between creating a panel and pushing a
@@ -196,10 +196,6 @@ export default function Navigate({ $router, $storex }) {
     get isMeetView() {
       const name = $router.currentRoute.value.name
       return name === 'meet' || name === 'meet-session'
-    },
-
-    get isActivityView() {
-      return $router.currentRoute.value.name === 'activity'
     },
 
     get isWorkspaceView() {
@@ -596,11 +592,6 @@ export default function Navigate({ $router, $storex }) {
 
       openFileExplorer() {
         openApp('file-explorer')
-      },
-
-      // Activity Wall (see router/index.ts → "/:projectName/activity")
-      openActivity() {
-        openApp('activity')
       },
 
       // Git repository view, rendered by components/repo/GitView.vue

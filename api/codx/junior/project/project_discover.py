@@ -338,39 +338,48 @@ def find_all_user_projects(user: CodxUser) -> Generator[CODXJuniorProject, None,
 
 def get_project_dependencies(settings: CODXJuniorSettings) -> List[CODXJuniorSettings]:
     """
-    Return all projects that the given project depends on.
+    Return all projects searched together with the given project.
 
-    This includes:
-    - Child/sub-projects declared in ``settings.get_sub_projects()``.
-    - Explicitly linked dependency projects from ``settings.get_project_dependencies()``.
-
-    Unresolvable project names are silently omitted (``find_project_by_name``
-    returns None and the list comprehension filters those out).
+    Child projects and declared dependency projects are resolved by
+    ``CODXJuniorSettings.get_related_projects``: it honours
+    ``search_related_projects``, resolves names on disk (sibling folder,
+    absolute path or a folder inside the project) and deduplicates by
+    ``codx_path``. Names that only the project catalogue knows (a dependency
+    registered outside the project tree) are looked up as a fallback.
 
     Args:
-        settings: The project whose dependencies should be resolved.
+        settings: The project whose related projects should be resolved.
 
     Returns:
-        List of resolved CODXJuniorSettings for all dependency projects.
+        List of resolved CODXJuniorSettings, the current project excluded.
     """
-    project_child_projects: List[Optional[CODXJuniorSettings]] = [
-        find_project_by_name(project.project_name)
-        for project in settings.get_sub_projects()
-    ]
-    project_dependencies: List[Optional[CODXJuniorSettings]] = [
-        find_project_by_name(project_name)
-        for project_name in settings.get_project_dependencies()
-    ]
+    if not settings.search_related_projects:
+        return []
 
-    # Filter out any None values from projects that could not be resolved
-    resolved = [p for p in project_child_projects + project_dependencies if p is not None]
+    try:
+        related: List[CODXJuniorSettings] = list(settings.get_related_projects())
+    except Exception as ex:
+        logger.warning(
+            "Cannot resolve related projects for '%s': %s",
+            settings.project_name,
+            ex,
+        )
+        related = []
+
+    seen = {settings.codx_path}
+    seen.update(project.codx_path for project in related)
+    for project_name in settings.get_dependency_names():
+        project = find_project_by_name(project_name)
+        if project and project.codx_path not in seen:
+            seen.add(project.codx_path)
+            related.append(project)
 
     logger.info(
         "get_project_dependencies for '%s': resolved %d dependencies.",
         settings.project_name,
-        len(resolved),
+        len(related),
     )
-    return resolved
+    return related
 
 
 # ---------------------------------------------------------------------------

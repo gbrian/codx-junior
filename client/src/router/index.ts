@@ -238,7 +238,7 @@ const router = createRouter({
     { path: '/:projectName/vibe-coding', name: 'vibe-coding', component: AppRouteView, meta: { app: 'vibe-coding' } },
     { path: '/:projectName/wiki', name: 'wiki', component: AppRouteView, meta: { app: 'wiki' } },
     { path: '/:projectName/docs', name: 'docs', component: AppRouteView, meta: { app: 'docs' } },
-    { path: '/:projectName/harness', name: 'harness', component: AppRouteView, meta: { app: 'harness', ...mobile('Harness', 'tasks', { hideTopBar: true }) } },
+    { path: '/:projectName/harness', name: 'harness', component: AppRouteView, meta: { app: 'harness', ...mobile('Harness', 'more') } },
     { path: '/:projectName/knowledge', name: 'knowledge', component: AppRouteView, meta: { app: 'knowledge' } },
     { path: '/:projectName/knowledge-settings', name: 'knowledge-settings', component: AppRouteView, meta: { app: 'knowledge_settings' } },
     { path: '/:projectName/projects', name: 'projects', component: AppRouteView, meta: { app: 'projects' } },
@@ -265,12 +265,6 @@ const router = createRouter({
     // dockview panel (see config/apps.js + views/api-monitoring/).
     { path: '/:projectName/api-monitoring', name: 'api-monitoring', component: AppRouteView, meta: { app: 'api-monitoring' } },
     { path: '/:projectName/infra', name: 'infra', component: AppRouteView, meta: { app: 'infra' } },
-    // Activity wall (components/wall/Wall.vue). It used to be the mobile home;
-    // it now has a route of its own so the sidebar "Activity" item
-    // (config/apps.js → activity) still opens it.
-    // Activity is an app with its own bottom navigation (WallBottomNav); the
-    // mobile shell gives it the whole viewport below the status bar.
-    { path: '/:projectName/activity', name: 'activity', component: AppRouteView, meta: { app: 'activity', ...mobile('Activity', 'activity', { hideTopBar: true, hideTabs: true }) } },
     // Git repository view (branches, commits, merges and working-tree diffs).
     // The screen already exists (components/repo/GitView.vue) and is registered
     // in config/appComponentsMap.js as 'git-view'; only the route was missing,

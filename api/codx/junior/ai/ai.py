@@ -60,6 +60,7 @@ class AI:
         user: Optional[CodxUser] = None,
         system: Optional[str] = None,
         session: Optional[Any] = None,
+        harness: bool = True,
     ) -> None:
         """
         Initialize the AI class.
@@ -69,6 +70,9 @@ class AI:
         :param user: The user interacting with the AI.
         :param system: System level parameters.
         :param session: Optional session context for tools that need access to current chat state.
+        :param harness: When False every run is a plain completion (no agent
+                        instructions, no tools). Use it for single-shot
+                        prompts such as the documentation assistant.
         """
         self.system: Optional[str] = system
         self.user: Optional[CodxUser] = user
@@ -78,6 +82,7 @@ class AI:
         self.cache: Union[bool, Dict[str, str]] = False
         self.ai_logger: AILogger = AILogger(settings=settings)
         self.session: Optional[Any] = session
+        self.harness: bool = harness
 
         # Initialize the chat model (SmolAgent, async-native)
         self.llm: Callable = self.create_chat_model(llm_model=llm_model)
@@ -360,6 +365,7 @@ class AI:
             user=self.user,
             system=self.system,
             session=self.session,
+            harness=self.harness,
         )
         logger.debug("SmolAgent a_chat model initialized")
         return agent.chat
@@ -414,6 +420,7 @@ class AI:
             user=self.user,
             system=self.system,
             session=self.session,
+            harness=self.harness,
         )
         return agent.client
 

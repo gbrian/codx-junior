@@ -58,7 +58,6 @@ const activeTab = computed(() => {
   if (name === 'home' || name === 'root') return 'home'
   if (name === 'chats' || name === 'chat' || name === 'chat-workspace' || name === 'new-chat') return 'chats'
   if (name === 'kanban') return 'tasks'
-  if (name === 'activity') return 'activity'
   return 'more'
 })
 
@@ -91,7 +90,10 @@ function select(tab) {
     role="tablist"
   >
     <div class="safe-area-bottom">
-      <div class="grid h-[3.75rem] grid-cols-5">
+      <div
+        class="grid h-[3.75rem]"
+        :style="{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }"
+      >
         <button
           v-for="tab in tabs"
           :key="tab.key"

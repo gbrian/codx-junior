@@ -117,19 +117,28 @@ STEP_BOARD_PHASE = {
 # still adds its tools; this baseline guarantees that a worker can inspect and
 # modify the project even when the run/step does not declare a profile.
 DEFAULT_WORKER_TOOLS = (
-    "project_search",
-    "project_grep",
-    "project_glob",
+    "project_map",
+    "project_locate",
+    "project_trace",
+    "project_impact",
+    "project_health",
     "project_read_file",
     "project_write_file",
     "project_changes",
-    "project_structure",
     "apply_file_changes",
     "code_writer",
     "fetch_webpage",
     "get_file_last_version",
     "repository_status",
     "repository_log",
+    # Runtime diagnostics: a worker must be able to verify what the *running*
+    # service actually loaded (an API started without --reload keeps the old
+    # code and every card creation fails with a signature error). Without these
+    # the only way out of that state was a human restarting the container.
+    "docker_ps",
+    "docker_logs",
+    "docker_container",
+    "docker_exec",
 )
 
 # ── Limits / defaults ───────────────────────────────────────────────────────

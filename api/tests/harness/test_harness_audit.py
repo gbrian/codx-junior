@@ -61,6 +61,21 @@ def test_read_filter_and_pagination(tmp_path):
     assert page[0]["index"] == 4
 
 
+def test_read_filters_by_run_and_chat(tmp_path):
+    """The diagnostic view scopes the journal to one run/task."""
+    log = HarnessAuditLog(str(tmp_path))
+    log.record("run_event", run_id="r1", main_chat_id="main1", step_id="s1")
+    log.record("run_event", run_id="r2", main_chat_id="main2", step_id="s2")
+    log.record("task_requested", chat_id="main1", user="alice")
+
+    assert [e["run_id"] for e in log.read(run_id="r1")] == ["r1"]
+    # A task filter matches both the entry chat_id and the run main_chat_id.
+    entries = log.read(chat_id="main1")
+    assert len(entries) == 2
+    assert {e["event"] for e in entries} == {"run_event", "task_requested"}
+    assert log.read(run_id="nope") == []
+
+
 def test_concurrent_appends_stay_line_clean(tmp_path):
     """Many threads appending at once must produce one valid JSON per line."""
     log = HarnessAuditLog(str(tmp_path))

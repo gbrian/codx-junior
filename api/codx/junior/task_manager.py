@@ -266,6 +266,11 @@ class TaskManager:
         owner_project_id: Optional[str] = None,
         user: Optional[str] = None,
         mode: str = DEFAULT_MODE,
+        estimation_cost: Optional[float] = None,
+        run_id: Optional[str] = None,
+        run_step_id: Optional[str] = None,
+        ignore_parent_knowledge: bool = False,
+        ignore_parent_files: bool = False,
     ) -> Chat:
         """
         Create and persist a task with the information provided by the caller.
@@ -314,6 +319,13 @@ class TaskManager:
             owner_project_id: Project that stores the task (falls back to the parent).
             user: Author username.
             mode: Chat mode of the task (``task`` by default).
+            estimation_cost: Budget cap of the chat in cxjcoins. Used by the
+                orchestration run (main task = run budget, step card = per-step
+                cap) so the cost of the whole tree rolls up to one root.
+            run_id: Orchestration run this task belongs to (board back-reference).
+            run_step_id: Plan step this task is the worker card of.
+            ignore_parent_knowledge: Do not inherit the parent chat knowledge.
+            ignore_parent_files: Do not inherit the parent chat file list.
 
         Returns:
             The persisted :class:`~codx.junior.db.Chat`.
@@ -377,6 +389,11 @@ class TaskManager:
                 or settings_project_id
             ),
             mode=mode,
+            estimation_cost=estimation_cost,
+            run_id=run_id,
+            run_step_id=run_step_id,
+            ignore_parent_knowledge=bool(ignore_parent_knowledge),
+            ignore_parent_files=bool(ignore_parent_files),
         )
 
         # Ancestor invariant: parent_id (when missing) + root_id from the parent.

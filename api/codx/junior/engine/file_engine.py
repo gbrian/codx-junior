@@ -920,6 +920,12 @@ class FileEngine:
         else:
             entry["last_modification"] = None
             entry["size"] = None
+            # A folder holding .codx/project.json is already a codx-junior
+            # project: the explorer badges it and never offers to create it
+            # again. Only folders are checked, files are always False.
+            entry["is_codx_project"] = os.path.isfile(
+                os.path.join(file_path, ".codx", "project.json")
+            )
         return entry
 
     def read_directory(self, path: str) -> dict:

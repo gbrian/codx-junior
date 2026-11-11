@@ -81,11 +81,10 @@ PROFILE_MANAGED_TOOLS = {
     "profile_knowledge_search",
 }
 
-# Read-only investigation tools a profile MUST have when it can read project
-# files. Profile allowlists are the real tool surface: a profile that enabled
-# `project_read_file` without `project_grep`/`project_glob` forces the model to
-# read whole files and search by name (the 57-call trace). The engine adds the
-# missing read-only tools instead of trusting every saved profile to be current.
+# Legacy fallback for projects that disable the atlas. When the atlas is
+# enabled, `_ensure_investigation_tools` grants the atlas tools instead and
+# removes these legacy discovery tools. The list is kept so old projects and
+# profiles keep working unchanged.
 REQUIRED_INVESTIGATION_TOOLS = (
     "project_grep",
     "project_glob",
@@ -536,7 +535,9 @@ class ChatEngine:
             if tool_name not in PROFILE_MANAGED_TOOLS
         ]
 
-    def _ensure_investigation_tools(self, chat_tools: List[str]) -> List[str]:
+    def _ensure_investigation_tools(
+        self, chat_tools: List[str], settings: Any = None
+    ) -> List[str]:
         """
         Add the read-only investigation tools to a file-reading profile.
 
@@ -559,19 +560,47 @@ class ChatEngine:
         if "project_read_file" not in chat_tools:
             return chat_tools
 
+        # The atlas replaces the legacy discovery tools. When it is enforced,
+        # never add grep/glob/search back to a profile: that would recreate the
+        # 57-call scan the atlas exists to prevent.
+        try:
+            from codx.junior.atlas.constants import (
+                ATLAS_TOOL_NAMES,
+                LEGACY_DISCOVERY_TOOL_NAMES,
+                atlas_enabled,
+                atlas_forced,
+            )
+        except Exception:  # pragma: no cover - constants are dependency free
+            ATLAS_TOOL_NAMES = ()
+            LEGACY_DISCOVERY_TOOL_NAMES = ()
+            atlas_enabled = lambda _settings: False  # type: ignore
+            atlas_forced = lambda _settings: False  # type: ignore
+
+        if settings is not None and atlas_enabled(settings):
+            required = tuple(ATLAS_TOOL_NAMES) + ("project_changes", "search_codx")
+            result = list(chat_tools)
+            if atlas_forced(settings):
+                result = [
+                    name for name in result
+                    if name not in LEGACY_DISCOVERY_TOOL_NAMES
+                ]
+        else:
+            required = REQUIRED_INVESTIGATION_TOOLS
+            result = list(chat_tools)
+
         missing = [
-            tool_name for tool_name in REQUIRED_INVESTIGATION_TOOLS
-            if tool_name not in chat_tools
+            tool_name for tool_name in required
+            if tool_name not in result
         ]
         if not missing:
-            return chat_tools
+            return result
 
         logger.info(
             "Profile tool allowlist can read files but is missing %s; "
             "adding the read-only investigation tools",
             missing,
         )
-        return chat_tools + missing
+        return result + missing
 
     # -------------------------------------------------------------------------
     # Helper: build the AI request headers (ADDED profiles header)
@@ -771,7 +800,9 @@ class ChatEngine:
             chat_tools = self._strip_inherited_profile_tools(chat_tools)
             # Never let a saved allowlist hide the tools needed to investigate
             # the files the profile is already allowed to read.
-            chat_tools = self._ensure_investigation_tools(chat_tools)
+            chat_tools = self._ensure_investigation_tools(
+                chat_tools, settings=self.settings
+            )
 
             if not chat_model:
                 profile_models = [p for p in sorted_profiles if p.llm_model]

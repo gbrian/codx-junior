@@ -49,6 +49,18 @@ from .project_tools import (
     project_write_file,
     project_changes,
 )
+from .atlas_tools import (
+    project_map,
+    project_locate,
+    project_trace,
+    project_impact,
+    project_health,
+    PROJECT_MAP_TOOL_JSON,
+    PROJECT_LOCATE_TOOL_JSON,
+    PROJECT_TRACE_TOOL_JSON,
+    PROJECT_IMPACT_TOOL_JSON,
+    PROJECT_HEALTH_TOOL_JSON,
+)
 from .project_structure import (
     project_structure,
     read_folder,
@@ -139,6 +151,7 @@ from .docker_tools import (
     docker_compose_restart,
     docker_container,
     docker_compose_service,
+    docker_exec,
     DOCKER_PS_TOOL_JSON,
     DOCKER_LOGS_TOOL_JSON,
     DOCKER_STATS_TOOL_JSON,
@@ -154,6 +167,7 @@ from .docker_tools import (
     DOCKER_COMPOSE_RESTART_TOOL_JSON,
     DOCKER_CONTAINER_TOOL_JSON,
     DOCKER_COMPOSE_SERVICE_TOOL_JSON,
+    DOCKER_EXEC_TOOL_JSON,
 )
 from .duckduckgo_search import duckduckgo_search, DUCKDUCKGO_SEARCH_TOOL_JSON
 from .browser_tools import (
@@ -273,6 +287,11 @@ __all__ = [
     "html_to_markdown",
     "html_to_pdf",
     "html_slides_to_pdf",
+    "project_map",
+    "project_locate",
+    "project_trace",
+    "project_impact",
+    "project_health",
     "project_search",
     "project_grep",
     "project_glob",
@@ -333,6 +352,7 @@ __all__ = [
     "docker_compose_restart",
     "docker_container",
     "docker_compose_service",
+    "docker_exec",
     "duckduckgo_search",
     "start_session",
     "browse_action",
@@ -412,6 +432,36 @@ TOOLS = [
         "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["content", "documents", "conversion", "pdf", "docx", "markdown", "export"],
         "tool_call": doc_converter
+    },
+    {
+        "tool_json": PROJECT_MAP_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat", cache=False).dict(),
+        "tags": ["project", "atlas", "map", "orientation", "discovery"],
+        "tool_call": project_map
+    },
+    {
+        "tool_json": PROJECT_LOCATE_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat", cache=False).dict(),
+        "tags": ["project", "atlas", "search", "locate", "symbols", "content"],
+        "tool_call": project_locate
+    },
+    {
+        "tool_json": PROJECT_TRACE_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat", cache=False).dict(),
+        "tags": ["project", "atlas", "graph", "trace", "calls", "routes"],
+        "tool_call": project_trace
+    },
+    {
+        "tool_json": PROJECT_IMPACT_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat", cache=False).dict(),
+        "tags": ["project", "atlas", "graph", "impact", "dependencies", "tests"],
+        "tool_call": project_impact
+    },
+    {
+        "tool_json": PROJECT_HEALTH_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat", cache=False).dict(),
+        "tags": ["project", "atlas", "health", "freshness", "index"],
+        "tool_call": project_health
     },
     {
         "tool_json": {
@@ -1700,6 +1750,12 @@ TOOLS = [
         "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
         "tags": ["docker", "containers", "unified", "devops", "optimization"],
         "tool_call": docker_container
+    },
+    {
+        "tool_json": DOCKER_EXEC_TOOL_JSON,
+        "settings": ToolSettings(project_settings=True, dual_response=True, scope="chat").dict(),
+        "tags": ["docker", "containers", "exec", "runtime", "diagnostics", "devops"],
+        "tool_call": docker_exec
     },
     {
         "tool_json": DOCKER_COMPOSE_SERVICE_TOOL_JSON,

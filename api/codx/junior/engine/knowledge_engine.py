@@ -173,18 +173,32 @@ class KnowledgeEngine:
         """
         Return all projects related with this project (child and dependency projects).
 
+        The resolution lives in `CODXJuniorSettings.get_related_projects`, which
+        honours the `search_related_projects` flag and deduplicates a project
+        that is both a child and a declared dependency. A dependency declared by
+        name but living outside the project tree is resolved through the known
+        project catalogue.
+
         Returns:
             Tuple of (child_projects, dependency_projects).
         """
-        def not_none(col: list) -> list:
-            return [e for e in col if e]
+        related = self.settings.get_related_projects()
+        child_paths = (
+            {project.codx_path for project in self.settings.get_sub_projects()}
+            if self.settings.search_related_projects else set()
+        )
+        child_projects = [p for p in related if p.codx_path in child_paths]
+        dependency_projects = [p for p in related if p.codx_path not in child_paths]
 
-        project_child_projects = self.settings.get_sub_projects()
-        project_dependencies = [
-            find_project_by_name(project_name)
-            for project_name in self.settings.get_project_dependencies()
-        ]
-        return not_none(project_child_projects), not_none(project_dependencies)
+        if self.settings.search_related_projects:
+            resolved = {p.codx_path for p in child_projects + dependency_projects}
+            for project_name in self.settings.get_dependency_names():
+                project = find_project_by_name(project_name)
+                if project and project.codx_path not in resolved:
+                    resolved.add(project.codx_path)
+                    dependency_projects.append(project)
+
+        return child_projects, dependency_projects
 
     def get_all_search_projects(self) -> list:
         """

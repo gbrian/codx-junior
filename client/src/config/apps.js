@@ -259,12 +259,6 @@ export const APPS = {
     route: () => ({ name: 'projects' })
   },
 
-  activity: {
-    id: 'activity', title: 'Activity', component: 'activity', icon: 'fa-solid fa-clock-rotate-left',
-    desktopParams: p => ({ project: p.project, board: p.board }),
-    route: () => ({ name: 'activity' })
-  },
-
   settings: {
     id: 'settings', title: 'Project Settings', component: 'settings', icon: 'fa-solid fa-gear',
     route: () => ({ name: 'settings' })

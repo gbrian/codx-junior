@@ -177,6 +177,15 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
               {{ entry.name }}
             </span>
 
+            <!-- Folder that already is a codx-junior project -->
+            <span
+              v-if="entry.is_codx_project"
+              class="badge badge-xs badge-primary badge-outline gap-1 flex-shrink-0"
+              title="This folder is a codx-junior project"
+            >
+              <i class="fa-solid fa-cube"></i> project
+            </span>
+
             <!-- Working tree status (see loadGitStatus) -->
             <span
               v-if="gitStatusFor(entry)"
@@ -253,6 +262,15 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
           >
             <i class="text-4xl" :class="getFileIcon(entry)"></i>
             <span class="text-xs font-mono w-full text-center truncate">{{ entry.name }}</span>
+
+            <!-- Folder that already is a codx-junior project -->
+            <span
+              v-if="entry.is_codx_project"
+              class="badge badge-xs badge-primary badge-outline gap-1"
+              title="This folder is a codx-junior project"
+            >
+              <i class="fa-solid fa-cube"></i> project
+            </span>
 
             <!-- Working tree status (see loadGitStatus) -->
             <span
@@ -366,7 +384,14 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
             <!-- Name + size overlay -->
             <div class="absolute inset-x-0 bottom-0 px-2 py-1 bg-black/60">
-              <div class="text-[11px] font-mono truncate text-white">{{ entry.name }}</div>
+              <div class="text-[11px] font-mono truncate text-white">
+                {{ entry.name }}
+                <i
+                  v-if="entry.is_codx_project"
+                  class="fa-solid fa-cube text-primary-content"
+                  title="This folder is a codx-junior project"
+                ></i>
+              </div>
               <div class="text-[10px] text-white/60" v-if="!entry.is_dir">{{ formatSize(entry.size) }}</div>
             </div>
           </div>
@@ -717,7 +742,9 @@ export default {
     canCreateProject() {
       if (this.selectedEntries.length > 1) return false
       if (!this.selectedEntries.length) return true
-      return !!this.selectedEntries[0].is_dir
+      const entry = this.selectedEntries[0]
+      // A folder that already holds a codx-junior project cannot become one again
+      return !!entry.is_dir && !entry.is_codx_project
     },
     // Git status of the context menu target: the selected entry, or the folder
     // being viewed when the menu was opened on the empty area.

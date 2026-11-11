@@ -7,9 +7,9 @@
 //   • MOBILE_APP_GROUPS — the "Everything" launcher inside the More sheet.
 //
 // The tab bar is deliberately small: Home (management dashboard), Chats,
-// Tasks, Activity and More. Everything else is one tap away from the More
-// sheet, which is searchable and grouped the way people think about the
-// product (work, people, build, insights, account).
+// Tasks and More. Everything else is one tap away from the More sheet, which
+// is searchable and grouped the way people think about the product (work,
+// people, build, insights, account).
 //
 // Route → tab mapping lives in the router metadata (`meta.mobile.tab`), not
 // here, so a route owns how it highlights the bar (see router/index.ts).
@@ -33,12 +33,6 @@ export const MOBILE_TABS = [
     label: 'Tasks',
     icon: 'fa-solid fa-list-check',
     route: { name: 'kanban' }
-  },
-  {
-    key: 'activity',
-    label: 'Activity',
-    icon: 'fa-solid fa-bolt',
-    route: { name: 'activity' }
   },
   {
     key: 'more',
@@ -124,9 +118,9 @@ export const MOBILE_APP_GROUPS = [
         tone: 'accent'
       },
       {
-        key: 'activity',
-        title: 'Activity wall',
-        description: 'What happened across projects',
+        key: 'harness',
+        title: 'Harness',
+        description: 'Runs, worker health and audit',
         icon: 'fa-solid fa-bolt',
         tone: 'warning'
       }
@@ -337,7 +331,7 @@ export const MOBILE_ROUTE_TITLES = {
   'chat-workspace': 'Chat',
   'new-chat': 'New chat',
   kanban: 'Task manager',
-  activity: 'Activity',
+  harness: 'Harness',
   messenger: 'Messenger',
   meet: 'Meet',
   'meet-session': 'Meeting',

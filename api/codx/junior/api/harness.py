@@ -43,6 +43,8 @@ def harness_audit(
     limit: int = Query(default=200, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     event: Optional[str] = Query(default=None),
+    run_id: Optional[str] = Query(default=None),
+    chat_id: Optional[str] = Query(default=None),
 ) -> Dict[str, Any]:
     """
     Read the harness audit journal of the project (newest first).
@@ -51,6 +53,9 @@ def harness_audit(
     run lifecycle events (``run_created`` ... ``run_completed``), step
     dispatches and finishes, notifications and worker supervision
     (``worker_stalled`` / ``worker_restarted`` / ``worker_recovered``).
+
+    ``run_id`` and ``chat_id`` scope the journal to one harness task, which is
+    what the diagnostic view uses to explain why a task is where it is.
     """
     from codx.junior.harness.audit import HarnessAuditLog, audit_path
 
@@ -62,7 +67,13 @@ def harness_audit(
         "exists": journal.exists(),
         "path": audit_path(codx_path),
         "total": None,
-        "entries": journal.read(limit=limit, offset=offset, event=event),
+        "entries": journal.read(
+            limit=limit,
+            offset=offset,
+            event=event,
+            run_id=run_id,
+            chat_id=chat_id,
+        ),
     }
 
 

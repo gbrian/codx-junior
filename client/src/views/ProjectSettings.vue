@@ -2,6 +2,7 @@
 import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
 import MCPServerListEditor from '@/components/project_settings/MCPServerListEditor.vue'
 import TraefikRulesPanel from '@/components/traefik/TraefikRulesPanel.vue'
+import ProjectDependenciesEditor from '@/components/project_settings/ProjectDependenciesEditor.vue'
 </script>
 
 <template>
@@ -140,8 +141,7 @@ import TraefikRulesPanel from '@/components/traefik/TraefikRulesPanel.vue'
                 </div>
                 <div>
                   <label class="label-text block mb-2">Dependencies</label>
-                  <input v-model="settings.project_dependencies" type="text" class="input input-bordered w-full" />
-                  <div class="text-xs text-base-content/60 mt-1">List of external libraries or modules required.</div>
+                  <ProjectDependenciesEditor v-model="settings.project_dependencies" />
                 </div>
               </div>
             </div>
@@ -516,10 +516,13 @@ import TraefikRulesPanel from '@/components/traefik/TraefikRulesPanel.vue'
               <div class="flex justify-between items-start gap-6">
                 <div class="flex-1">
                   <label class="label-text block font-semibold mb-2">Dependencies</label>
-                  <p class="text-xs text-base-content/60">List of external libraries or modules required.</p>
+                  <p class="text-xs text-base-content/60">
+                    Projects searched together with this one. Their knowledge, wiki and files
+                    are included in every search.
+                  </p>
                 </div>
                 <div class="w-96">
-                  <input v-model="settings.project_dependencies" type="text" class="input input-bordered w-full" />
+                  <ProjectDependenciesEditor v-model="settings.project_dependencies" />
                 </div>
               </div>
             </div>

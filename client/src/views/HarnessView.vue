@@ -1,6 +1,24 @@
 <script setup>
+/**
+ * Harness diagnostic view.
+ *
+ * A harness task *is* a codx-junior orchestration run: the main task (a chat)
+ * plus one child task card per plan step. This view answers, for one task:
+ *
+ * - what is the flow of the plan (stages, dependencies, next action),
+ * - which tasks are associated and where they live on the board,
+ * - what happened (run timeline + append-only audit journal),
+ * - what the delivery/stop report says,
+ * - and whether the project has a worker able to advance it at all.
+ *
+ * Read-only except for the run controls (start / pause / stop); the data comes
+ * from `GET /api/orchestration` and `GET /api/harness/*`.
+ */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { $storex } from '@/store'
+import HarnessRunList from '@/components/harness/HarnessRunList.vue'
+import HarnessRunDetail from '@/components/harness/HarnessRunDetail.vue'
+import { formatTime } from '@/components/harness/harnessStatus'
 
 // The project-scoped API instance carries the codx_path of the active project
 // (the harness endpoints are project scoped).
@@ -8,13 +26,21 @@ const api = computed(() => $storex.projects.activeProject?.$api || $storex.api)
 
 const status = ref(null)
 const runs = ref([])
+const selectedRunId = ref('')
+const run = ref(null)
+const runLoading = ref(false)
+const runError = ref('')
+const controlBusy = ref(false)
+
 const audit = ref([])
 const auditOffset = ref(0)
 const auditEvent = ref('')
-const auditTotal = ref(null)
+const auditScope = ref('run')
+const loadingAudit = ref(false)
+
 const loading = ref(false)
 const error = ref('')
-const loadingAudit = ref(false)
+const live = ref(true)
 
 const AUDIT_EVENTS = [
   { value: '', label: 'All events' },
@@ -23,22 +49,17 @@ const AUDIT_EVENTS = [
   { value: 'notification_sent', label: 'notification_sent' },
   { value: 'worker_stalled', label: 'worker_stalled' },
   { value: 'worker_restarted', label: 'worker_restarted' },
-  { value: 'worker_recovered', label: 'worker_recovered' }
+  { value: 'worker_recovered', label: 'worker_recovered' },
+  { value: 'error', label: 'error' }
 ]
-
-const RUN_STATUS_CLASSES = {
-  queued: 'badge-ghost',
-  running: 'badge-info',
-  paused: 'badge-warning',
-  completed: 'badge-success',
-  stopped: 'badge-ghost',
-  failed: 'badge-error',
-  budget_exhausted: 'badge-error',
-  stalled: 'badge-warning'
-}
 
 let refreshTimer = null
 
+function errorMessage(ex) {
+  return ex?.response?.data?.detail || ex?.message || String(ex)
+}
+
+/** Load the run list and the harness health of the project. */
 async function refresh() {
   const client = api.value
   if (!client) return
@@ -50,57 +71,103 @@ async function refresh() {
       client.orchestration.list()
     ])
     status.value = statusData
-    runs.value = runsData || []
+    // `GET /api/orchestration` answers `{ runs: [...] }`.
+    runs.value = Array.isArray(runsData) ? runsData : (runsData?.runs || [])
+    if (!selectedRunId.value && runs.value.length) {
+      selectedRunId.value = runs.value[0].run_id
+    }
+    if (selectedRunId.value) {
+      await loadRun(selectedRunId.value)
+    }
   } catch (ex) {
-    error.value = ex?.response?.data?.detail || ex?.message || String(ex)
+    error.value = errorMessage(ex)
   } finally {
     loading.value = false
   }
 }
 
+/** Load the full detail (plan, step results, next action, worker). */
+async function loadRun(runId) {
+  const client = api.value
+  if (!client || !runId) {
+    run.value = null
+    return
+  }
+  runLoading.value = true
+  runError.value = ''
+  try {
+    run.value = await client.orchestration.get(runId)
+  } catch (ex) {
+    run.value = null
+    runError.value = errorMessage(ex)
+  } finally {
+    runLoading.value = false
+  }
+}
+
+async function selectRun(runId) {
+  if (!runId || runId === selectedRunId.value) return
+  selectedRunId.value = runId
+  await loadRun(runId)
+  await loadAudit(true)
+}
+
+/** Read the append-only audit journal (optionally scoped to the run). */
 async function loadAudit(reset = true) {
   const client = api.value
   if (!client) return
   loadingAudit.value = true
   try {
     const offset = reset ? 0 : auditOffset.value
-    const data = await client.harness.audit({
-      limit: 50,
-      offset,
-      ...(auditEvent.value ? { event: auditEvent.value } : {})
-    })
-    audit.value = reset ? data.entries || [] : [...audit.value, ...(data.entries || [])]
-    auditOffset.value = offset + (data.entries || []).length
-    auditTotal.value = data.exists ? null : 0
+    const params = { limit: 50, offset }
+    if (auditEvent.value) params.event = auditEvent.value
+    if (auditScope.value === 'run' && selectedRunId.value) params.run_id = selectedRunId.value
+    const data = await client.harness.audit(params)
+    const entries = data.entries || []
+    audit.value = reset ? entries : [...audit.value, ...entries]
+    auditOffset.value = offset + entries.length
   } catch (ex) {
-    // The audit load failure must not hide the rest of the view.
+    // The audit failure must not hide the rest of the view.
     console.warn('Harness audit load failed', ex)
   } finally {
     loadingAudit.value = false
   }
 }
 
-function openRunTask(run) {
-  if (!run?.main_chat_id) return
-  $storex.ui.openChat({ id: run.main_chat_id })
+/** Run controls (start / pause / stop) emitted by the detail pane. */
+async function onControl({ action, runId }) {
+  const client = api.value
+  if (!client || !runId) return
+  controlBusy.value = true
+  error.value = ''
+  try {
+    if (action === 'start') await client.orchestration.start(runId)
+    else if (action === 'pause') await client.orchestration.pause(runId, 'paused from the harness view')
+    else if (action === 'stop') await client.orchestration.stop(runId, 'stopped from the harness view')
+    await loadRun(runId)
+    await loadAudit(true)
+  } catch (ex) {
+    error.value = errorMessage(ex)
+  } finally {
+    controlBusy.value = false
+  }
 }
 
-function formatTime(value) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value)
-  return date.toLocaleString()
+function openTask(chatId) {
+  if (!chatId) return
+  $storex.ui.openChat({ id: chatId })
 }
 
+/** One-line human summary of an audit entry. */
 function auditText(entry) {
   if (entry.event === 'task_requested') {
     return `@codx-junior requested by ${entry.user || '?'} in chat ${entry.chat_id || '?'}`
   }
   if (entry.event === 'run_event') {
     const runEvent = entry.run_event || ''
-    const extra = runEvent === 'step_finished' ? ` step ${entry.step_id || '?'}`
-      : runEvent === 'step_started' ? ` step ${entry.step_id || '?'}`
-        : ''
+    const extra = ['step_finished', 'step_started', 'step_dispatched', 'step_retried'].includes(runEvent)
+      ? ` step ${entry.step_id || '?'}`
+      : ''
     return `${runEvent} · run ${entry.run_id || '?'}${extra} · ${entry.message || ''}`
   }
   if (entry.event === 'notification_sent') {
@@ -115,15 +182,23 @@ function auditText(entry) {
   if (entry.event === 'worker_recovered') {
     return `worker recovered · pid ${entry.pid ?? '?'}`
   }
+  if (entry.event === 'error') {
+    return `${entry.message || entry.error || JSON.stringify(entry)}`
+  }
   return JSON.stringify(entry)
+}
+
+function reloadAuditScope() {
+  loadAudit(true)
 }
 
 onMounted(() => {
   refresh()
   loadAudit()
   refreshTimer = setInterval(() => {
+    if (!live.value) return
     refresh()
-    loadAudit()
+    loadAudit(true)
   }, 10000)
 })
 
@@ -142,11 +217,15 @@ onUnmounted(() => {
           codx-junior Harness
         </div>
         <div class="text-xs text-base-content/60">
-          Every request, run, step and completion registered by the
-          <code class="kbd kbd-xs">@codx-junior</code> profile — navigable and audited.
+          Diagnose any harness task: its flow, every associated task card, the timeline and the
+          audited work of the <code class="kbd kbd-xs">@codx-junior</code> profile.
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <label class="label cursor-pointer gap-1 py-0">
+          <input v-model="live" type="checkbox" class="toggle toggle-xs" />
+          <span class="label-text text-xs">live</span>
+        </label>
         <span
           v-if="status"
           class="badge gap-1"
@@ -191,83 +270,41 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Runs -->
-    <section class="flex flex-col gap-2">
-      <div class="flex items-center justify-between">
-        <h2 class="font-semibold text-sm uppercase tracking-wide text-base-content/60">
-          Runs <span class="normal-case font-normal">({{ runs.length }})</span>
-        </h2>
-      </div>
-      <div v-if="!runs.length" class="text-sm text-base-content/50 bg-base-200 rounded-box p-4">
-        No runs yet. Mention <code class="kbd kbd-xs">@codx-junior</code> in a chat and give it a task —
-        every run and step will show up here.
-      </div>
-      <div v-else class="overflow-x-auto bg-base-200 rounded-box">
-        <table class="table table-sm">
-          <thead>
-            <tr>
-              <th>Run</th>
-              <th>Status</th>
-              <th>Progress</th>
-              <th>Board / Sprint</th>
-              <th>Budget</th>
-              <th>Updated</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="run in runs" :key="run.run_id">
-              <td class="max-w-xs">
-                <div class="font-medium truncate" :title="run.name">{{ run.name }}</div>
-                <div class="text-xs text-base-content/50 truncate" :title="run.objective">{{ run.objective }}</div>
-              </td>
-              <td>
-                <span class="badge badge-sm" :class="RUN_STATUS_CLASSES[run.status] || 'badge-ghost'">
-                  {{ run.status }}
-                </span>
-              </td>
-              <td>
-                <div class="w-28">
-                  <progress
-                    class="progress progress-primary w-full"
-                    :value="run.progress || 0"
-                    max="100"
-                  ></progress>
-                  <div class="text-[10px] text-base-content/50">{{ run.progress || 0 }}%</div>
-                </div>
-              </td>
-              <td class="text-xs">{{ run.board }}<span v-if="run.sprint"> / {{ run.sprint }}</span></td>
-              <td class="text-xs">
-                <span v-if="run.budget_cxjcoins">
-                  {{ Number(run.spent_cxjcoins || 0).toFixed(2) }} / {{ Number(run.budget_cxjcoins).toFixed(2) }}
-                </span>
-                <span v-else>—</span>
-              </td>
-              <td class="text-xs">{{ formatTime(run.updated_at) }}</td>
-              <td>
-                <button
-                  class="btn btn-xs btn-outline"
-                  :disabled="!run.main_chat_id"
-                  @click="openRunTask(run)"
-                >
-                  Open task
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <!-- Runs + diagnosis -->
+    <div class="grid grid-cols-1 xl:grid-cols-[20rem_minmax(0,1fr)] gap-3 items-start">
+      <HarnessRunList
+        :runs="runs"
+        :selected-run-id="selectedRunId"
+        :loading="loading"
+        @select="selectRun"
+        @refresh="refresh"
+      />
+      <HarnessRunDetail
+        :run="run"
+        :loading="runLoading"
+        :error="runError"
+        :busy="controlBusy"
+        @open-chat="openTask"
+        @refresh="loadRun(selectedRunId)"
+        @control="onControl"
+      />
+    </div>
 
     <!-- Audit journal -->
     <section class="flex flex-col gap-2 pb-4">
       <div class="flex items-center justify-between gap-2 flex-wrap">
         <h2 class="font-semibold text-sm uppercase tracking-wide text-base-content/60">Audit journal</h2>
-        <select v-model="auditEvent" class="select select-bordered select-xs" @change="loadAudit()">
-          <option v-for="option in AUDIT_EVENTS" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </option>
-        </select>
+        <div class="flex items-center gap-2">
+          <select v-model="auditScope" class="select select-bordered select-xs" @change="reloadAuditScope">
+            <option value="run">This task</option>
+            <option value="all">Whole project</option>
+          </select>
+          <select v-model="auditEvent" class="select select-bordered select-xs" @change="loadAudit()">
+            <option v-for="option in AUDIT_EVENTS" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
       </div>
       <div v-if="!audit.length" class="text-sm text-base-content/50 bg-base-200 rounded-box p-4">
         No audited events yet.

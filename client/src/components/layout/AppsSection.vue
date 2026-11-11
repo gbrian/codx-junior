@@ -76,13 +76,6 @@ import { isOpenInNewTabEvent, openProjectInNewTab } from '@/utils/projectLinks'
       />
 
       <NavItem
-        icon="fas fa-clock-rotate-left"
-        label="Activity"
-        :is-collapsed="isCollapsed"
-        @click="handleNavigateToActivity"
-      />
-
-      <NavItem
         icon="fas fa-list-check"
         label="Task Manager"
         :is-collapsed="isCollapsed"
@@ -291,11 +284,6 @@ export default {
         this.$storex.$router.$navigation.apps.openNewChat()
       }
       this.$emit('close')
-    },
-    // Opens the project Activity Wall. The wall is registered as the home of
-    // the mobile view (see App.vue) and as the "activity" app everywhere else.
-    handleNavigateToActivity() {
-      this.openApp('activity')
     },
     handleNavigateToKanban() {
       this.openApp('tasks')

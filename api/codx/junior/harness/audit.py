@@ -121,6 +121,8 @@ class HarnessAuditLog:
         limit: int = 200,
         offset: int = 0,
         event: Optional[str] = None,
+        run_id: Optional[str] = None,
+        chat_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Read journal entries, newest first.
@@ -129,6 +131,9 @@ class HarnessAuditLog:
             limit: Maximum entries to return (1-2000).
             offset: Entries to skip from the newest one.
             event: Optional event name filter.
+            run_id: Optional run filter (the entries of one harness task/run).
+            chat_id: Optional task filter: matches the entry ``chat_id`` or the
+                ``main_chat_id`` of the run it belongs to.
 
         Returns:
             List of decoded entries.
@@ -152,6 +157,15 @@ class HarnessAuditLog:
                 continue
             if event and entry.get("event") != event:
                 continue
+            if run_id and str(entry.get("run_id") or "") != str(run_id):
+                continue
+            if chat_id:
+                wanted = str(chat_id)
+                if wanted not in (
+                    str(entry.get("chat_id") or ""),
+                    str(entry.get("main_chat_id") or ""),
+                ):
+                    continue
             if offset > 0:
                 offset -= 1
                 continue

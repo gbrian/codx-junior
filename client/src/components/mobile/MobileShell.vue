@@ -29,7 +29,6 @@ const showBack = computed(() => meta.value.back ?? ![
   'home',
   'chats',
   'kanban',
-  'activity',
   'messenger',
   'chat',
   'chat-workspace',

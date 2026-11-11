@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "run_id": "18454861-dc81-4574-a17f-334266d09f2d",
+  "name": "Project dependencies and related-project search",
+  "objective": "Improve codx-junior project settings around \"Project dependencies\" and related-project search, plus a FileExplorer indication for codx-junior project folders.\n\nDELIVERABLES\n1. Backend: `api/codx/junior/settings.py`\n   - Keep `project_dependencies` stored as a comma separated string of project names (backward compatible with existing `.codx/project.json` files and with `client/src/store/project.js`), but normalize parsing.\n   - Add `get_dependency_names()` (strip/dedupe/ignore empties) and `get_dependency_projects()` -> `List[CODXJuniorSettings]`, resolving each name to a real project (sibling folder of the current project, absolute path, or a folder inside the project, always by locating `.codx/project.json`), skipping + logging the ones that do not resolve.\n   - Add `get_related_projects(include_children=True, include_dependencies=True)` returning the current project's children + dependencies deduped by `codx_path` (self excluded), and a new project setting `search_related_projects: Optional[bool] = True` that gates it.\n2. Backend: related-project search must cover current + child + dependency projects. Use the single `get_related_projects()` helper from the knowledge/wiki search paths instead of the ad-hoc `get_sub_projects()` enumerations (respect `search_related_projects`, `wiki_search_children`, `knowledge_query_subprojects`).\n3. Frontend settings UX: `client/src/views/ProjectSettings.vue` currently renders dependencies as a free text input in BOTH the mobile and the desktop general tab. Replace both with a new reusable `client/src/components/project_settings/ProjectDependenciesEditor.vue` (searchable multi-select over `$storex.projects.allProjects`, icon + name chips, add/remove, duplicate prevention, help text explaining that dependencies are searched together with the project, and a warning chip for entries that no longer match a known project). The component must keep the `v-model` value as the comma separated string.\n4. Frontend/Backend FileExplorer: folders that are codx-junior projects (contain `.codx/project.json`) must be visibly flagged. Add `is_codx_project` to the directory entries produced by `parse_file_line()` in `api/codx/junior/engine/file_engine.py` and render a badge/icon + tooltip in `client/src/components/filebrowser/FileExplorer.vue` for all view modes (list, grid, preview), hiding/disabled the \"New codx-junior project\" context action for folders that already are projects.\n\nCONSTRAINTS\n- No unrelated refactors or formatting churn; keep diffs small and reviewable.\n- Follow the existing code style (docstrings in English, comments explaining why).\n- Do not break the legacy comma separated `project_dependencies` value.",
+  "main_chat_id": "1c6a2792-8392-4e6e-95ea-fb8222b79354",
+  "status": "completed",
+  "config": {
+    "budget_cxjcoins": 80.0,
+    "per_step_budget": 15.0,
+    "supervisor_reserve": 12.0,
+    "max_steps": 8,
+    "max_rounds": 4,
+    "max_parallel": 3,
+    "max_attempts": 2,
+    "stagnation_limit": 3,
+    "step_timeout_seconds": 1800,
+    "supervisor_timeout_seconds": 900,
+    "step_mode": "chat",
+    "supervisor_profiles": [
+      "codx-junior"
+    ],
+    "default_profiles": [],
+    "board": "kanban",
+    "sprint": "Project dependencies and related-project search",
+    "columns": {
+      "backlog": "Backlog",
+      "running": "In progress",
+      "done": "Done",
+      "blocked": "Blocked"
+    },
+    "verification": "supervisor",
+    "created_by": "gbrian"
+  },
+  "steps": [
+    {
+      "id": "settings-model",
+      "title": "Backend: dependency model + related-project helpers in settings.py",
+      "objective": "Edit ONLY `api/codx/junior/settings.py` (class `CODXJuniorSettings`).\n\nGOAL: project dependencies become a resolved, reusable concept on the backend without breaking the on-disk format.\n\n1) Keep the persisted field `project_dependencies: Optional[str]` (a comma separated list of PROJECT NAMES, e.g. \"company-commercial,design-system\"). It is already written/read by `save_project()`/`from_project_file()` and parsed by `client/src/store/project.js`, so the storage format MUST NOT change. Improve only the parsing.\n\n2) Replace the body of the existing `get_project_dependencies(self)` with a call to a new `get_dependency_names(self) -> List[str]`: split on ',', strip whitespace, drop empty values and duplicates (preserve order). Keep `get_project_dependencies()` as the public name returning `List[str]` so existing callers keep working; mention in the docstring that it returns names.\n\n3) Add `get_dependency_projects(self) -> List[CODXJuniorSettings]`:\n   - For each name from `get_dependency_names()`, try to resolve a real project, in this order:\n     a) the name is an existing directory containing `.codx/project.json` (absolute path)\n     b) `os.path.join(os.path.dirname(self.abs_project_path or ''), name)` (siblings are the common case: '/projects/website' depends on '/projects/company-commercial')\n     c) `os.path.join(self.abs_project_path, name)` (nested inside the current project)\n   - Load with `CODXJuniorSettings.from_codx_path(<folder> + '/.codx')` (or `from_project_file`) inside a try/except; on failure log a warning and continue.\n   - Exclude the current project itself (`codx_path` equality) and de-duplicate by `codx_path`.\n   - Full docstring with an example.\n\n4) Add `get_related_projects(self, include_children: bool = True, include_dependencies: bool = True) -> List[CODXJuniorSettings]`:\n   - Returns child projects (`get_sub_projects()`) and/or `get_dependency_projects()`, de-duplicated by `codx_path`, always excluding the current project.\n   - When the new setting `search_related_projects` is False, return `[]` (the single switch that gates related-project searching).\n\n5) Add the new setting field next to the knowledge flags, with a docstring-style description:\n   `search_related_projects: Optional[bool] = Field(default=True, description=\"Include child and dependency projects when searching knowledge, files and documentation\")`\n\n6) Add `get_related_project_paths(self) -> List[str]` returning `[p.abs_project_path for p in get_related_projects()]`; keep `get_sub_projects_paths()` unchanged (used by ignore patterns).\n\nDo not touch any other file and do not reformat existing code.",
+      "acceptance": "settings.py contains get_dependency_names, get_dependency_projects, get_related_projects, get_related_project_paths and the search_related_projects field; get_project_dependencies still returns a List[str]; a project.json with \"project_dependencies\": \"a,b\" still loads and 'a,b' resolves to two names.",
+      "profile": "software_developer",
+      "depends_on": [],
+      "files": [
+        "api/codx/junior/settings.py"
+      ],
+      "context": "",
+      "priority": "high",
+      "mode": "",
+      "status": "failed",
+      "attempts": 0,
+      "chat_id": "",
+      "board": "",
+      "column": "",
+      "chat_status": "",
+      "result": null,
+      "error": "Could not create the worker card: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'",
+      "created_at": "2026-11-11T13:36:53.752763+00:00",
+      "updated_at": "2026-11-11T13:36:53.752774+00:00",
+      "started_at": "",
+      "finished_at": "2026-11-11T13:37:04.989140+00:00"
+    },
+    {
+      "id": "explorer-badge",
+      "title": "FileExplorer: flag folders that are codx-junior projects",
+      "objective": "Make the FileExplorer show which folders are codx-junior projects (a folder that contains `.codx/project.json`).\n\nBACKEND \u2014 `api/codx/junior/engine/file_engine.py`:\n- In `parse_file_line()` (around line 886) the entry dict is built with keys name/file_path/is_dir/is_ignored/children and then extended with `get_file_info()` for files. Add a key `is_codx_project` to EVERY entry: for directories, True when `os.path.isfile(os.path.join(file_path, '.codx', 'project.json'))`; for files always False. Keep it cheap (do not walk the tree) and update the docstring's Returns list.\n- `read_directory()` already wraps the entries; no change needed there, but make sure nothing else rebuilds entries and drops the new key (check the file for other places building the same dict shape and keep them consistent).\n\nFRONTEND \u2014 `client/src/components/filebrowser/FileExplorer.vue`:\n- The listing is rendered in three view modes: list (around line 145-260), grid/icon and preview (search the template for `viewMode === 'grid'` and `viewMode === 'preview'` / the `extensionIconMap` usages). In each of them, when `entry.is_codx_project` is true, render a compact indicator on the folder row/card: a small codx-junior marker (e.g. `<i class=\"fa-solid fa-cube text-primary text-xs\"></i>` or a daisy `badge badge-primary badge-xs` with the text \"codx-junior\") plus a `title` tooltip like \"codx-junior project\". Keep it unobtrusive and do not change the row layout or the existing git-status/ignored styling; append the marker next to the entry name.\n- The context menu offers a \"New codx-junior project\" action (see `canCreateProject` computed and the ContextMenu usage / `onEntryContextMenu`). For a folder that is already a codx-junior project the action must not be offered (or must be shown disabled with a \"This folder is already a codx-junior project\" tooltip). Find how that item is defined (it may be in `./ContextMenu.vue`) and implement it with the minimum change, also handling the \"folder being viewed\" case (`getAbsolutePath(currentPath)`) using the `is_codx_project` flag of the listed directory returned by the API if available.\n\nAdd short comments explaining WHY (entry flag comes from the API). Do not touch unrelated code.",
+      "acceptance": "GET /api/files response entries carry is_codx_project; FileExplorer renders a codx-junior marker for such folders in list, grid and preview modes; the 'New codx-junior project' action is not usable on a folder that already is one.",
+      "profile": "software_developer",
+      "depends_on": [],
+      "files": [
+        "api/codx/junior/engine/file_engine.py",
+        "client/src/components/filebrowser/FileExplorer.vue"
+      ],
+      "context": "",
+      "priority": "high",
+      "mode": "",
+      "status": "failed",
+      "attempts": 0,
+      "chat_id": "",
+      "board": "",
+      "column": "",
+      "chat_status": "",
+      "result": null,
+      "error": "Could not create the worker card: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'",
+      "created_at": "2026-11-11T13:36:53.752801+00:00",
+      "updated_at": "2026-11-11T13:36:53.752804+00:00",
+      "started_at": "",
+      "finished_at": "2026-11-11T13:37:06.556414+00:00"
+    },
+    {
+      "id": "settings-ui",
+      "title": "Project settings: searchable project-dependencies picker",
+      "objective": "Replace the misleading free-text 'Dependencies' input in the project settings with a proper picker.\n\nCONTEXT\n- `client/src/views/ProjectSettings.vue` has TWO copies of the general tab: the mobile block (search for `activeTab === 'general'`, first occurrence, the `<label ...>Dependencies</label>` + `<input v-model=\"settings.project_dependencies\">` around line 141) and the desktop block (the row markup with `flex justify-between items-start gap-6`, around line 515). Both bind `settings.project_dependencies`, a COMMA SEPARATED STRING of project names.\n- Known projects are available in the client as `$storex.projects.allProjects` (objects with `project_id`, `project_name`, `project_icon`, `abs_project_path`, `codx_path`). `client/src/store/project.js` already parses the string (`getProjectDependencies`, `getRelatedProjects`) so the stored value MUST stay a comma separated string.\n\nWORK\n1) Create `client/src/components/project_settings/ProjectDependenciesEditor.vue` (Options API, like the other components in that folder \u2014 see `MCPServerListEditor.vue` for style). Requirements:\n   - `props: { modelValue: String }`, `emits: ['update:modelValue']`; computed `names` = modelValue split on ',' trimmed/filtered.\n   - Render one chip per dependency with the project icon (`project_icon`, fallback `fa-solid fa-cube`), the project name and a remove button. Chips of names that do not match any project in `$storex.projects.allProjects` must be rendered with an error/warning style and a tooltip 'Project not found' (never silently dropped).\n   - A search input + result list (daisy `input input-bordered input-sm`, `menu`/`list` styling) filtered by name; the current project must be excluded, as must projects already added. Clicking a result adds it. Keyboard: Enter adds the first match, Escape clears the search.\n   - Helper text: 'Dependencies are other codx-junior projects this project relies on. They are searched together with this project (knowledge, files and docs).' and, when empty, a hint like 'No dependencies. Add the projects this one depends on.'\n   - Write the value back as `names.join(',')` (empty string when the list becomes empty). Never emit when nothing changed.\n2) Use it in BOTH general-tab blocks of `ProjectSettings.vue` (import it next to `ModelSelector`/`MCPServerListEditor`) as `<ProjectDependenciesEditor v-model=\"settings.project_dependencies\" />`, replacing the old input + label. Keep the surrounding responsive container widths (`w-96` on desktop) so the layout does not jump.\n3) Keep the label/description consistent in both copies ('Project dependencies'). Do not change how settings are saved (`saveSettings`) nor the store.\n\nDo not modify other tabs, and do not reformat the file.",
+      "acceptance": "No free-text dependencies input remains in ProjectSettings.vue; the picker lists known projects, adds/removes chips, warns about unknown stored names, and the saved value stays a comma separated string that client/src/store/project.js can still split.",
+      "profile": "software_developer",
+      "depends_on": [],
+      "files": [
+        "client/src/views/ProjectSettings.vue",
+        "client/src/components/project_settings/ProjectDependenciesEditor.vue",
+        "client/src/store/project.js"
+      ],
+      "context": "",
+      "priority": "high",
+      "mode": "",
+      "status": "failed",
+      "attempts": 0,
+      "chat_id": "",
+      "board": "",
+      "column": "",
+      "chat_status": "",
+      "result": null,
+      "error": "Could not create the worker card: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'",
+      "created_at": "2026-11-11T13:36:53.752822+00:00",
+      "updated_at": "2026-11-11T13:36:53.752825+00:00",
+      "started_at": "",
+      "finished_at": "2026-11-11T13:37:08.053846+00:00"
+    }
+  ],
+  "created_at": "2026-11-11T13:36:30.236876+00:00",
+  "updated_at": "2026-11-11T14:21:23.976745+00:00",
+  "started_at": "2026-11-11T13:36:30.339424+00:00",
+  "finished_at": "2026-11-11T14:21:18.595543+00:00",
+  "rounds": 3,
+  "supervisor_rounds": 3,
+  "step_runs": 0,
+  "stagnant_rounds": 2,
+  "pending_supervisor": false,
+  "wake_requested": false,
+  "spent_cxjcoins": 0.9157837499999998,
+  "last_error": "",
+  "stop_reason": "DELIVERED (implemented directly by the supervisor \u2014 the orchestration runtime could not create worker cards).\n\nWHY NOT BY WORKERS\nEvery step failed at dispatch with `TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'`. `TaskManager`/create_task is not part of this repository (grep over the whole tree finds it only in docs), so the running API image passes `estimation_cost` to a TaskManager whose signature does not accept it: this deployment MUST be rebuilt/updated for orchestration to work again. A later round also reported `Worker turn exceeded 900s`. Retrying was pointless, so the supervisor executed the plan in-chat with file tools and removed the two now-obsolete pending steps.\n\nWHAT WAS BUILT\n1. `api/codx/junior/settings.py` \u2014 `project_dependencies` stays a comma separated string (legacy `.codx/project.json` + `client/src/store/project.js` untouched); added `search_related_projects: bool = True`, `get_dependency_names()` (trim/dedupe/drop empties), `find_dependency_project()` (sibling folder, absolute path or folder inside the project, always via `.codx/project.json`), `get_dependency_projects()` (skips + logs stale names), `get_related_projects(include_children, include_dependencies)` (children + dependencies, deduped by `codx_path`, self excluded, gated by the new flag) and `get_project_dependencies()` kept as a deprecated alias.\n2. Search scope \u2014 `api/codx/junior/engine/knowledge_engine.py#get_project_dependencies()` builds child/dependency lists from `get_related_projects()` with a catalogue fallback for projects outside the tree; `api/codx/junior/project/project_discover.py#get_project_dependencies()` (used by AI knowledge search) now delegates to the same helper instead of the old `find_project_by_name`-only enumeration; `api/codx/junior/wiki/assistant.py` gained `_dependency_projects()` / `_related_projects()` and its page context AND knowledge search now iterate them (children still limited by `wiki_search_children`/`wiki_search_depth`, dependencies added on top).\n3. Settings UX \u2014 new `client/src/components/project_settings/ProjectDependenciesEditor.vue`: searchable picker over `$storex.projects.allProjects`, icon + name chips, add/remove, duplicate prevention, self-project excluded, yellow warning chip + tooltip for names that no longer match a project, help text about the shared search scope; `v-model` stays the comma separated string. It replaces the free-text \"external libraries\" input in BOTH the mobile and the desktop general tab of `client/src/views/ProjectSettings.vue`.\n4. FileExplorer \u2014 `parse_file_line()` in `api/codx/junior/engine/file_engine.py` adds `is_codx_project` for directories (checks `.codx/project.json`); `client/src/components/filebrowser/FileExplorer.vue` renders a \"project\" badge in list and grid views, a cube icon in the preview overlay, and `canCreateProject()` no longer offers \"New codx-junior project\" on a folder that already is one.\n\nHOW TO VERIFY\n- Settings \u2192 General \u2192 Dependencies: search and add a sibling project (e.g. `company-commercial`), save, reload \u2014 chip persists; a bogus name shows in yellow.\n- File explorer: a folder holding `.codx/project.json` shows the \"project\" badge in all three view modes and has no \"New codx-junior project\" action.\n- Knowledge/wiki search from a project with a dependency returns snippets tagged with the dependency's project name. Toggle `search_related_projects` off to confirm scope shrinks back to the project itself.\n\nKNOWN GAPS\n- `GET /api/files/search` and `/files/search-content` still walk `file_engine.get_project_roots()` (current + child projects only): dependency folders are not added to path search yet, because a dependency can live anywhere on disk and the endpoint returns project-relative paths.\n- Nothing was executed end-to-end: the running API container does not auto-reload and no compose file is available from the project root, so the Python changes are verified by re-reading the patched regions, not by running them. A restart of `codx-junior-api` (after the platform image fix) is required to pick up the backend changes.",
+  "report_written": true,
+  "last_report": "## Run delivery report\n**Run:** Project dependencies and related-project search (`18454861-dc81-4574-a17f-334266d09f2d`)  \n**Status:** `completed`  \n**Spent:** 0.6246 cxjcoins of 80.0000  \n**Rounds:** 3 \u00b7 **Steps:** 0% complete\n\n### Summary\nDELIVERED (implemented directly by the supervisor \u2014 the orchestration runtime could not create worker cards).\n\nWHY NOT BY WORKERS\nEvery step failed at dispatch with `TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'`. `TaskManager`/create_task is not part of this repository (grep over the whole tree finds it only in docs), so the running API image passes `estimation_cost` to a TaskManager whose signature does not accept it: this deployment MUST be rebuilt/updated for orchestration to work again. A later round also reported `Worker turn exceeded 900s`. Retrying was pointless, so the supervisor executed the plan in-chat with file tools and removed the two now-obsolete pending steps.\n\nWHAT WAS BUILT\n1. `api/codx/junior/settings.py` \u2014 `project_dependencies` stays a comma separated string (legacy `.codx/project.json` + `client/src/store/project.js` untouched); added `search_related_projects: bool = True`, `get_dependency_names()` (trim/dedupe/drop empties), `find_dependency_project()` (sibling folder, absolute path or folder inside the project, always via `.codx/project.json`), `get_dependency_projects()` (skips + logs stale names), `get_related_projects(include_children, include_dependencies)` (children + dependencies, deduped by `codx_path`, self excluded, gated by the new flag) and `get_project_dependencies()` kept as a deprecated alias.\n2. Search scope \u2014 `api/codx/junior/engine/knowledge_engine.py#get_project_dependencies()` builds child/dependency lists from `get_related_projects()` with a catalogue fallback for projects outside the tree; `api/codx/junior/project/project_discover.py#get_project_dependencies()` (used by AI knowledge search) now delegates to the same helper instead of the old `find_project_by_name`-only enumeration; `api/codx/junior/wiki/assistant.py` gained `_dependency_projects()` / `_related_projects()` and its page context AND knowledge search now iterate them (children still limited by `wiki_search_children`/`wiki_search_depth`, dependencies added on top).\n3. Settings UX \u2014 new `client/src/components/project_settings/ProjectDependenciesEditor.vue`: searchable picker over `$storex.projects.allProjects`, icon + name chips, add/remove, duplicate prevention, self-project excluded, yellow warning chip + tooltip for names that no longer match a project, help text about the shared search scope; `v-model` stays the comma separated string. It replaces the free-text \"external libraries\" input in BOTH the mobile and the desktop general tab of `client/src/views/ProjectSettings.vue`.\n4. FileExplorer \u2014 `parse_file_line()` in `api/codx/junior/engine/file_engine.py` adds `is_codx_project` for directories (checks `.codx/project.json`); `client/src/components/filebrowser/FileExplorer.vue` renders a \"project\" badge in list and grid views, a cube icon in the preview overlay, and `canCreateProject()` no longer offers \"New codx-junior project\" on a folder that already is one.\n\nHOW TO VERIFY\n- Settings \u2192 General \u2192 Dependencies: search and add a sibling project (e.g. `company-commercial`), save, reload \u2014 chip persists; a bogus name shows in yellow.\n- File explorer: a folder holding `.codx/project.json` shows the \"project\" badge in all three view modes and has no \"New codx-junior project\" action.\n- Knowledge/wiki search from a project with a dependency returns snippets tagged with the dependency's project name. Toggle `search_related_projects` off to confirm scope shrinks back to the project itself.\n\nKNOWN GAPS\n- `GET /api/files/search` and `/files/search-content` still walk `file_engine.get_project_roots()` (current + child projects only): dependency folders are not added to path search yet, because a dependency can live anywhere on disk and the endpoint returns project-relative paths.\n- Nothing was executed end-to-end: the running API container does not auto-reload and no compose file is available from the project root, so the Python changes are verified by re-reading the patched regions, not by running them. A restart of `codx-junior-api` (after the platform image fix) is required to pick up the backend changes.\n\n### Steps\n\n- **[settings-model] Backend: dependency model + related-project helpers in settings.py** \u2014 `failed` \u00b7 (no result)\n  - error: Could not create the worker card: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'\n- **[explorer-badge] FileExplorer: flag folders that are codx-junior projects** \u2014 `failed` \u00b7 (no result)\n  - error: Could not create the worker card: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'\n- **[settings-ui] Project settings: searchable project-dependencies picker** \u2014 `failed` \u00b7 (no result)\n  - error: Could not create the worker card: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'\n\n_Budget: 0.6246 / 80.0000 cxjcoins._",
+  "report_generation": 0,
+  "notification_sent": true,
+  "events": [
+    {
+      "at": "2026-11-11T13:36:53.752965+00:00",
+      "type": "plan_updated",
+      "message": "Plan updated: 5 step(s)",
+      "data": {
+        "steps": [
+          "settings-model",
+          "explorer-badge",
+          "settings-ui",
+          "search-scope",
+          "review"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-11T13:37:04.989188+00:00",
+      "type": "step_prepare_failed",
+      "message": "Step 'Backend: dependency model + related-project helpers in settings.py' could not be prepared: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'",
+      "data": {
+        "step_id": "settings-model"
+      }
+    },
+    {
+      "at": "2026-11-11T13:37:06.556447+00:00",
+      "type": "step_prepare_failed",
+      "message": "Step 'FileExplorer: flag folders that are codx-junior projects' could not be prepared: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'",
+      "data": {
+        "step_id": "explorer-badge"
+      }
+    },
+    {
+      "at": "2026-11-11T13:37:08.053880+00:00",
+      "type": "step_prepare_failed",
+      "message": "Step 'Project settings: searchable project-dependencies picker' could not be prepared: TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'",
+      "data": {
+        "step_id": "settings-ui"
+      }
+    },
+    {
+      "at": "2026-11-11T14:21:10.796611+00:00",
+      "type": "plan_updated",
+      "message": "Plan updated: 3 step(s)",
+      "data": {
+        "steps": [
+          "settings-model",
+          "explorer-badge",
+          "settings-ui"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-11T14:21:19.093639+00:00",
+      "type": "report",
+      "message": "Delivery report published on the main task",
+      "data": {}
+    },
+    {
+      "at": "2026-11-11T14:21:19.182275+00:00",
+      "type": "run_completed",
+      "message": "Run completed",
+      "data": {
+        "summary": "DELIVERED (implemented directly by the supervisor \u2014 the orchestration runtime could not create worker cards).\n\nWHY NOT BY WORKERS\nEvery step failed at dispatch with `TaskManager.create_task() got an unexpected keyword argument 'estimation_cost'`. `TaskManager`/create_task is not part of this repository (grep over the whole tree finds it only in docs), so the running API image passes `estimation_cost` to a TaskManager whose signature does not accept it: this deployment MUST be rebuilt/updated for orchestration to work again. A later round also reported `Worker turn exceeded 900s`. Retrying was pointless, so the supervisor executed the plan in-chat with file tools and removed the two now-obsolete pending steps.\n\nWHAT WAS BUILT\n1. `api/codx/junior/settings.py` \u2014 `project_dependencies` stays a comma separated string (legacy `.codx/project.json` + `client/src/store/project.js` untouched); added `search_related_projects: bool = True`, `get_dependency_names()` (trim/dedupe/drop empties), `find_dependency_project()` (sibling folder, absolute path or folder inside the project, always via `.codx/project.json`), `get_dependency_projects()` (skips + logs stale names), `get_related_projects(include_children, include_dependencies)` (children + dependencies, deduped by `codx_path`, self excluded, gated by the new flag) and `get_project_dependencies()` kept as a deprecated alias.\n2. Search scope \u2014 `api/codx/junior/engine/knowledge_engine.py#get_project_dependencies()` builds child/dependency lists from `get_related_projects()` with a catalogue fallback for projects outside the tree; `api/codx/junior/project/project_discover.py#get_project_dependencies()` (used by AI knowledge search) now delegates to the same helper instead of the old `find_project_by_name`-only enumeration; `api/codx/junior/wiki/assistant.py` gained `_dependency_projects()` / `_related_projects()` and its page context AND knowledge search now iterate them (children still limited by `wiki_search_children`/`wiki_sea"
+      }
+    }
+  ]
+}

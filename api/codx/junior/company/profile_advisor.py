@@ -104,12 +104,14 @@ MAX_SCAN_DEPTH = 6
 # plain language: they are shown to a non-technical manager.
 
 COMMON_CODE_TOOLS = [
-    "project_search", "project_grep", "project_glob", "search_codx",
+    "project_map", "project_locate", "project_trace", "project_impact",
+    "project_health", "search_codx",
     "project_read_file", "project_write_file", "project_changes",
     "apply_file_changes", "create_task",
 ]
 COMMON_ANALYSIS_TOOLS = [
-    "project_search", "project_grep", "project_glob", "search_codx",
+    "project_map", "project_locate", "project_trace", "project_impact",
+    "project_health", "search_codx",
     "project_read_file", "project_changes", "create_task",
     "list_profiles_summary", "team_context",
 ]
@@ -287,7 +289,8 @@ ROLES: Dict[str, Dict[str, Any]] = {
         ),
         "bases": ["arts", "browser"],
         "tools": CREATIVE_TOOLS + BROWSER_TOOLS + [
-            "project_read_file", "project_search", "fetch_webpage",
+            "project_read_file", "project_map", "project_locate",
+            "project_impact", "fetch_webpage",
         ],
         "responsibilities": [
             "Keep everything visually consistent",
@@ -325,7 +328,8 @@ ROLES: Dict[str, Dict[str, Any]] = {
         ),
         "bases": ["wiki", "teacher", "analyst"],
         "tools": [
-            "project_search", "project_grep", "project_glob", "project_read_file",
+            "project_map", "project_locate", "project_trace", "project_impact",
+            "project_health", "project_read_file",
             "fetch_webpage", "markdown_to_pdf", "markdown_to_docx",
             "html_to_markdown", "create_task",
         ],
@@ -346,8 +350,8 @@ ROLES: Dict[str, Dict[str, Any]] = {
         ),
         "bases": ["browser", "analyst", "software_developer"],
         "tools": BROWSER_TOOLS + [
-            "project_search", "project_grep", "project_read_file",
-            "create_task", "fetch_webpage",
+            "project_map", "project_locate", "project_impact",
+            "project_read_file", "create_task", "fetch_webpage",
         ],
         "responsibilities": [
             "Reproduce the problem before changing anything",

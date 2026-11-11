@@ -147,6 +147,8 @@ from codx.junior.tools import (
     ALL_TOOLS_MARKER,
     expand_tool_allowlist,
 )
+from codx.junior.atlas.constants import apply_atlas_policy
+from codx.junior.ai.utils import strip_tool_call_markup
 from codx.junior.utils.utils import clean_string
 
 logger = logging.getLogger(__name__)
@@ -267,12 +269,17 @@ Use xml envelope per file with the changes like in the example:
    opening"), collect RUNTIME evidence first when a tool can do it: screenshot
    / browser console / network request, container or app logs, the failing API
    response. Reading code only confirms a hypothesis; it is not evidence.
- * Use the right discovery tool: project_grep for an EXACT symbol, string or
-   error message; project_glob for file paths; project_search for concepts
-   only. Do not use semantic search for identifiers.
- * To find a symbol inside a large file, call project_read_file with
-   pattern="symbol" (or read the outline) instead of paging through it. Do
-   not read a whole file unless the whole file is relevant.
+ * Project discovery is ATLAS-FIRST. Call project_map for orientation and
+   project_locate for every "where is X", exact string, error message, route,
+   doc or file-pattern question. project_locate already searches contents and
+   ranks definitions before references, so do NOT grep, glob or use semantic
+   search. The legacy discovery tools are hidden while the atlas is enforced.
+ * Before editing a shared file, call project_impact([...]) to see dependent
+   code, tests and docs. Use project_trace to follow a flow instead of reading
+   every file on the path.
+ * To find a symbol inside a large file, project_locate returns the exact line;
+   use project_read_file with start_line/end_line or pattern="symbol" and do
+   not page through the whole file.
  * Work in small loops: after at most 3-5 discovery calls, state a concrete
    hypothesis, run the smallest probe or make the smallest change that tests
    it, then verify. Alternate investigation and action; never spend the whole
@@ -281,22 +288,18 @@ Use xml envelope per file with the changes like in the example:
    confirmed, what is ruled out, and the single next concrete step. Never end
    a run with only tool calls and no findings.
 
-### CODEBASE vs .codx (control plane)
- * The codebase is the project source tree. Use project_structure, project_glob,
-   project_grep, project_search and project_read_file for it. `.codx/` is
-   EXCLUDED from all of those tools.
- * Start with a MAP, not a broad search: project_structure(max_depth=2) or
-   project_glob for the codebase; search_codx(query="") for the control plane.
-   Then read/search only the files the map points to.
- * `.codx/` is the control plane: task cards and boards, AI profiles, browser/
-   desktop sessions, views, teams, workspaces, chat turns, orchestration state,
-   project metadata and logs. It can be hundreds of megabytes and it is NOT
-   source code.
- * Use search_codx(modules=[...], query="...") for `.codx` questions. Call
-   search_codx(query="") first to see the modules and sizes. Examples:
-   search_codx("wallet", modules=["tasks"]);
-   search_codx("browser session", modules=["browser_sessions"]);
-   search_codx("reviewer", modules=["profiles"]).
+### PROJECT ATLAS — the canonical way to find resources
+ * `project_map(query="", path="")` — orient: domains, entry points, key files,
+   reading order. Call it once at the start of a non-trivial task.
+ * `project_locate(query, kind=..., include=..., regex=...)` — find: symbols,
+   strings, error messages, routes, docs and file patterns. It returns ranked
+   `path:line` evidence with snippets and reasons, verified against the current
+   files. This replaces grep, glob and semantic search.
+ * `project_trace(symbol, direction="out|in|both")` — follow imports, calls and
+   routes. `project_impact([...])` — reverse dependencies, tests and docs.
+ * `project_health()` — coverage/freshness when a lookup looks wrong.
+ * `.codx/` is the control plane (tasks, profiles, browser sessions, chats),
+   NOT source code. Use `search_codx(query="")` for it, never the atlas.
  * Never search `.codx` for a code bug, and never search the codebase for a
    task, profile or session. Use the matching namespace.
 """
@@ -538,6 +541,7 @@ class SmolAgent:
         user: Optional[CodxUser] = None,
         system: Optional[str] = None,
         session: Optional[Any] = None,
+        harness: bool = True,
     ) -> None:
         """
         Args:
@@ -548,7 +552,12 @@ class SmolAgent:
                       chat_global_instructions).
             session:   Optional session context (injected for tools that need
                       access to current chat or session state).
+            harness:   When False the run is a PLAIN completion: no agent
+                      system prompt and no tool schemas. Use it for
+                      single-shot prompts (docs assistant, enrichment) where
+                      tool calling would only produce unusable output.
         """
+        self.harness: bool = harness
         self.tools: List[Dict[str, Any]] = TOOLS
 
         self.settings = settings
@@ -592,6 +601,13 @@ class SmolAgent:
             The complete system message string.
         """
         parts: List[str] = []
+
+        # A plain completion gets ONLY its own instructions. The agent harness
+        # describes tools and a coding workflow; injected into a single-shot
+        # prompt it makes the model try to call tools the run never executes,
+        # and the answer comes back as raw tool-call markup.
+        if not self.harness:
+            return self.extra_system
 
         # 1. LLM settings system prompt
         if self.llm_settings.system:
@@ -1430,6 +1446,10 @@ class SmolAgent:
             combined_content += thinking_content
         if final_answer_content:
             combined_content += final_answer_content
+        # Never surface provider-inline tool-call markup (DeepSeek DSML and
+        # friends): it is machine syntax, not an answer, and the reader must
+        # never see it.
+        combined_content = strip_tool_call_markup(combined_content)
 
         logger.info(
             "SmolAgent: final answer message assembled with %d characters "
@@ -3049,6 +3069,13 @@ class SmolAgent:
             "stream_options": {"include_usage": True},
         }
 
+        # A plain completion never receives tool schemas: there is no tool
+        # loop for it, so a tool call would be unexecutable.
+        if not self.harness:
+            if self.llm_settings.temperature != 0:
+                kwargs["temperature"] = float(self.llm_settings.temperature)
+            return kwargs
+
         # Collect all enabled tools: global scope tools (always) + selected
         # chat scope tools + the profile tools decided for this run.
         selected_tool_set: Set[str] = set(selected_tools) if selected_tools else set()
@@ -3090,6 +3117,14 @@ class SmolAgent:
             elif role == "worker":
                 selected_tool_set.discard(ORCHESTRATION.ORCHESTRATOR_TOOL)
                 selected_tool_set.discard(ORCHESTRATION.DELEGATE_TOOL)
+
+        # Project atlas policy: the atlas tools are always available when the
+        # atlas is enabled, and the legacy discovery tools are removed when it
+        # is enforced. This is the single gate for every profile, including a
+        # profile saved with "*" or with grep in its allowlist.
+        selected_tool_set = apply_atlas_policy(
+            selected_tool_set, getattr(self, "settings", None)
+        )
 
         enabled_tools: List[Dict[str, Any]] = []
 

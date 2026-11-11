@@ -3888,6 +3888,48 @@
           "name": "MeetPeers.test",
           "slug": "meetpeers-test.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetpeers-test.md"
+        },
+        {
+          "path": "/src/components/harness/HarnessRunDetail.vue",
+          "name": "HarnessRunDetail",
+          "slug": "harnessrundetail.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/harnessrundetail.md"
+        },
+        {
+          "path": "/src/components/harness/HarnessRunList.vue",
+          "name": "HarnessRunList",
+          "slug": "harnessrunlist.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/harnessrunlist.md"
+        },
+        {
+          "path": "/src/components/harness/HarnessStepFlow.vue",
+          "name": "HarnessStepFlow",
+          "slug": "harnessstepflow.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/harnessstepflow.md"
+        },
+        {
+          "path": "/src/components/harness/HarnessTaskTable.vue",
+          "name": "HarnessTaskTable",
+          "slug": "harnesstasktable.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/harnesstasktable.md"
+        },
+        {
+          "path": "/src/components/harness/HarnessTimeline.vue",
+          "name": "HarnessTimeline",
+          "slug": "harnesstimeline.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/harnesstimeline.md"
+        },
+        {
+          "path": "/src/components/harness/harnessStatus.js",
+          "name": "HarnessStatus",
+          "slug": "harnessstatus.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/harnessstatus.md"
+        },
+        {
+          "path": "/src/components/project_settings/ProjectDependenciesEditor.vue",
+          "name": "ProjectDependenciesEditor",
+          "slug": "projectdependencieseditor.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/projectdependencieseditor.md"
         }
       ],
       "id": "src",

@@ -5,6 +5,7 @@ __pycache__
 client/.vite
 global_settings.json
 **/.codx/db
+**/.codx/atlas/
 filebrowser.
 core
 .idea

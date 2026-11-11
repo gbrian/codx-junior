@@ -66,6 +66,9 @@ class CODXJuniorSettings(BaseModel):
     project_wiki: Optional[bool] = Field(default=False)
     project_wiki_path: Optional[str] = Field(default=None)
     project_dependencies: Optional[str] = Field(default=None)
+    # Search (knowledge, wiki, files) runs over the current project plus its
+    # children and its dependencies. Disable it to keep every search local.
+    search_related_projects: Optional[bool] = Field(default=True)
 
     # Wiki maintenance. Updates are queued and applied only after the project
     # has been quiet for `wiki_update_debounce_seconds`, capped by
@@ -96,6 +99,29 @@ class CODXJuniorSettings(BaseModel):
     )
 
     project_preview_url: Optional[str] = Field(default=None)
+
+    # Project atlas: an incremental SQLite index of files, symbols, routes,
+    # docs and their graph. It replaces grep/glob/semantic search for project
+    # discovery when enabled, and is refreshed from the working tree on demand.
+    project_atlas_enabled: Optional[bool] = Field(
+        default=True,
+        description="Expose the project atlas (map/locate/trace/impact) to agents",
+    )
+    project_atlas_force: Optional[bool] = Field(
+        default=True,
+        description=(
+            "Hide project_grep/project_glob/project_search from models so "
+            "discovery goes through the atlas"
+        ),
+    )
+    project_atlas_max_files: Optional[int] = Field(
+        default=5000,
+        description="Maximum files indexed by the project atlas",
+    )
+    project_atlas_ttl_seconds: Optional[int] = Field(
+        default=5,
+        description="Reuse the freshness check for this many seconds",
+    )
 
     knowledge_extract_document_tags: Optional[bool] = Field(default=False)
     knowledge_search_type: Optional[str] = Field(default="similarity")
@@ -709,10 +735,119 @@ class CODXJuniorSettings(BaseModel):
             return self.project_wiki_path
         return os.path.join(self.abs_project_path, self.project_wiki_path)
 
+    def get_dependency_names(self) -> List[str]:
+        """
+        Return the configured dependency project names as a clean list.
+
+        The value is persisted as a comma separated string (the legacy format
+        that `.codx/project.json` files and the client store already use), so it
+        is normalized here: entries are trimmed, empty ones dropped and
+        duplicates removed while keeping the declared order.
+        """
+        if not self.project_dependencies:
+            return []
+        names: List[str] = []
+        for raw_name in self.project_dependencies.split(","):
+            name = (raw_name or "").strip()
+            if name and name not in names:
+                names.append(name)
+        return names
+
     def get_project_dependencies(self):
-        if self.project_dependencies:
-            return [d for d in self.project_dependencies.split(",") if d]
-        return []
+        """Deprecated alias of :meth:`get_dependency_names`."""
+        return self.get_dependency_names()
+
+    def _dependency_candidate_paths(self, name: str) -> List[str]:
+        """
+        Folders where a dependency name may live, most specific first.
+
+        A dependency is stored by name, so it can be a folder next to the
+        project ("company-commercial" beside "website"), an absolute path or a
+        folder inside the project itself.
+        """
+        if os.path.isabs(name):
+            return [name]
+        candidates: List[str] = []
+        if self.abs_project_path:
+            parent_path = os.path.dirname(os.path.normpath(self.abs_project_path))
+            if parent_path:
+                candidates.append(os.path.join(parent_path, name))
+            candidates.append(os.path.join(self.abs_project_path, name))
+        return candidates
+
+    def find_dependency_project(self, name: str) -> Optional["CODXJuniorSettings"]:
+        """
+        Resolve one dependency name to its project settings.
+
+        Returns ``None`` when the name points to no codx-junior project. A
+        project is recognized by its `.codx/project.json` file, so an arbitrary
+        folder or a library name never turns into a "project".
+        """
+        for candidate in self._dependency_candidate_paths(name):
+            project_file = os.path.join(candidate, ".codx", "project.json")
+            if not os.path.isfile(project_file):
+                continue
+            try:
+                return CODXJuniorSettings.from_project_file(project_file)
+            except Exception as ex:
+                logger.warning(
+                    "Project '%s': dependency '%s' could not be loaded: %s",
+                    self.project_name, name, ex,
+                )
+        return None
+
+    def get_dependency_projects(self) -> List["CODXJuniorSettings"]:
+        """
+        Resolve the configured dependencies to real projects.
+
+        Names that do not resolve are skipped (and logged) so a stale entry
+        never breaks a search; the settings UI shows them as a warning.
+        """
+        dependencies: List["CODXJuniorSettings"] = []
+        seen = {self.codx_path}
+        for name in self.get_dependency_names():
+            project = self.find_dependency_project(name)
+            if not project:
+                logger.warning(
+                    "Project '%s': dependency '%s' does not match any project",
+                    self.project_name, name,
+                )
+                continue
+            if project.codx_path in seen:
+                continue
+            seen.add(project.codx_path)
+            dependencies.append(project)
+        return dependencies
+
+    def get_related_projects(
+        self,
+        include_children: bool = True,
+        include_dependencies: bool = True,
+    ) -> List["CODXJuniorSettings"]:
+        """
+        Projects searched together with this one: children + dependencies.
+
+        The current project is never part of the result (callers add it) and
+        the list is deduplicated by `codx_path`, so a project that is both a
+        child and a declared dependency is searched only once. Returns an empty
+        list when `search_related_projects` is disabled.
+        """
+        if not self.search_related_projects:
+            return []
+        candidates: List["CODXJuniorSettings"] = []
+        if include_children:
+            candidates.extend(self.get_sub_projects())
+        if include_dependencies:
+            candidates.extend(self.get_dependency_projects())
+
+        related: List["CODXJuniorSettings"] = []
+        seen = {self.codx_path}
+        for project in candidates:
+            if project.codx_path in seen:
+                continue
+            seen.add(project.codx_path)
+            related.append(project)
+        return related
 
     def get_log_ai(self):
         return get_global_settings().log_ai

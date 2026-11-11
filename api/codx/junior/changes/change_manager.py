@@ -136,6 +136,16 @@ class ChangeManager:
             except Exception as ex:
                 logger.exception(f"Error scheduling wiki changes for file {file_path}", ex)
 
+        # Keep the project atlas warm without blocking the change pipeline. The
+        # atlas also refreshes itself before a query, so this is latency
+        # optimisation, not correctness.
+        try:
+            from codx.junior.atlas.curator import schedule_atlas_refresh
+
+            schedule_atlas_refresh(self.settings, files=[file_path])
+        except Exception as ex:
+            logger.debug("Error scheduling atlas refresh for %s: %s", file_path, ex)
+
     def update_project_metrics(self):
         metrics_manager = CODXJuniorMetrics(settings=self.settings)
         self.metrics = metrics_manager.project_metrics()
