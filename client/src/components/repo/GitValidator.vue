@@ -8,7 +8,8 @@ import MarkdownViewer from '@/components/MarkdownViewer.vue'
  * The section loads the change set + the profiles associated with the changed
  * files (backend `validate/context`) and sends the selection to the project LLM
  * (`validate`). Local uncommitted changes are the default; a branch comparison
- * is available too.
+ * is available too. The `staged` filter (on by default) narrows a local review
+ * to the files staged in the index.
  *
  * The left panel keeps the review configuration (source, branches, files and
  * profiles) visible while the right panel shows the generated report. Both
@@ -29,6 +30,8 @@ export default {
     return {
       // Change source: uncommitted local changes or two refs
       source: 'local',
+      // Review only the files staged in the index (Validator filter, on by default)
+      stagedOnly: true,
       fromBranch: '',
       toBranch: '',
       // Validator context
@@ -98,6 +101,12 @@ export default {
       }
       return `local vs ${this.fromBranch || this.baseBranch || 'current branch'}`
     },
+    /** Empty-state label for the file list (the staged filter can hide everything) */
+    emptyFilesLabel() {
+      if (this.fileCount) return 'No file matches the filter'
+      if (this.source === 'local' && this.stagedOnly) return 'No staged changes to validate'
+      return 'No changes to validate'
+    },
     canValidate() {
       return !!this.api && this.fileCount > 0 && !this.reviewing && !this.loadingContext
     }
@@ -130,6 +139,11 @@ export default {
     source() {
       this.invalidateReview()
       this.scheduleLoadContext({ resetSelection: true })
+    },
+    // The staged filter narrows the local change set: reload it, keep the profiles
+    stagedOnly() {
+      this.invalidateReview()
+      this.scheduleLoadContext({ resetSelection: false })
     }
   },
   created() {
@@ -190,7 +204,8 @@ export default {
         const context = await this.api.repo.validateContext({
           source: this.source,
           from_branch: this.fromBranch,
-          to_branch: this.source === 'branch' ? this.toBranch : 'local'
+          to_branch: this.source === 'branch' ? this.toBranch : 'local',
+          staged: this.source === 'local' ? this.stagedOnly : false
         })
         // Ignore a response for a branch/source the user already changed
         if (token !== this._contextToken) return
@@ -289,6 +304,7 @@ export default {
           source: this.source,
           from_branch: this.fromBranch,
           to_branch: this.source === 'branch' ? this.toBranch : 'local',
+          staged: this.source === 'local' ? this.stagedOnly : false,
           instructions: this.instructions.trim() || undefined
         })
         this.review = result.review || ''
@@ -421,6 +437,16 @@ export default {
                 <span class="badge badge-xs badge-ghost">{{ fileCount }}</span>
               </div>
 
+              <label
+                v-if="source === 'local'"
+                class="flex items-center gap-1.5 text-[11px] cursor-pointer select-none"
+                title="Review only the files staged in the index (git add): exactly what the next commit contains"
+              >
+                <input v-model="stagedOnly" type="checkbox" class="checkbox checkbox-xs" />
+                <span class="font-semibold">Only staged files</span>
+                <span class="badge badge-xs badge-ghost">default</span>
+              </label>
+
               <div class="relative">
                 <i class="fa-solid fa-magnifying-glass absolute left-2 top-1/2 -translate-y-1/2 text-[10px] opacity-40"></i>
                 <input
@@ -445,7 +471,7 @@ export default {
                   <i class="fa-solid fa-spinner animate-spin"></i> Loading changes...
                 </div>
                 <div v-else-if="!filteredFiles.length" class="p-3 text-xs opacity-50">
-                  {{ fileCount ? 'No file matches the filter' : 'No changes to validate' }}
+                  {{ emptyFilesLabel }}
                 </div>
                 <div
                   v-for="file in filteredFiles"

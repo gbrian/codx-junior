@@ -334,6 +334,25 @@ def test_local_changes_include_staged_unstaged_and_untracked(repo):
     )
 
 
+def test_local_changes_can_be_restricted_to_the_staged_files(repo):
+    """`staged_only` reviews exactly what the next commit would contain."""
+    write_file(repo, "app.py", "print('staged')\n")
+    write_file(repo, "notes.txt", "not staged\n")
+    run_git(repo, "add", "app.py")
+    # Unstaged edit on a staged file: the index is what gets reviewed
+    write_file(repo, "app.py", "print('staged')\nprint('later')\n")
+
+    engine, _session = make_engine(repo)
+    changes = engine.get_local_changes(staged_only=True)
+
+    assert changes["staged_only"] is True
+    assert changes["git_diff_cmd"] == "git diff --cached HEAD"
+    assert set(changes["branch_file_and_commits"]) == {"app.py"}
+    patch = changes["branch_file_and_commits"]["app.py"]["diff"]
+    assert "print('staged')" in patch
+    assert "later" not in patch
+
+
 def test_repo_changes_honours_the_local_sentinel(repo):
     """`to_branch=local` is the review of the working tree against a branch."""
     write_file(repo, "app.py", "print('local change')\n")
@@ -345,6 +364,24 @@ def test_repo_changes_honours_the_local_sentinel(repo):
     assert changes["base_branch"] == "main"
     assert "app.py" in changes["branch_file_and_commits"]
     assert "local change" in changes["branch_file_and_commits"]["app.py"]["diff"]
+
+
+def test_repo_changes_can_be_restricted_to_the_staged_files(repo):
+    """The change list of a local comparison honours the staged filter."""
+    write_file(repo, "app.py", "print('staged')\n")
+    write_file(repo, "notes.txt", "not staged\n")
+    run_git(repo, "add", "app.py")
+
+    engine, _session = make_engine(repo)
+    changes = engine.get_repo_changes(
+        from_branch="main", to_branch="local", staged_only=True
+    )
+
+    assert changes["compare_type"] == "local"
+    assert changes["base_branch"] == "main"
+    assert changes["staged_only"] is True
+    assert set(changes["branch_file_and_commits"]) == {"app.py"}
+    assert changes["git_diff_cmd"] == "git diff --cached main"
 
 
 # ---------------------------------------------------------------------------
@@ -366,6 +403,34 @@ def test_validator_defaults_profiles_from_changed_files(repo):
     assert context["default_profiles_source"] == "files"
     assert context["file_count"] == 1
     assert context["files"][0]["path"] == "app.py"
+
+
+def test_validator_reviews_only_the_staged_files_when_requested(repo):
+    """The staged filter keeps the unstaged files out of the review."""
+    profile = FakeProfile(
+        "py_reviewer", file_match=r"app\.py$", category="agent-validator"
+    )
+    write_file(repo, "app.py", "print('staged')\n")
+    write_file(repo, "other.py", "print('unstaged')\n")
+    run_git(repo, "add", "app.py")
+
+    engine, session = make_engine(
+        repo, profiles=[profile], engine_class=GitValidatorEngine
+    )
+    context = engine.get_validation_context(source="local", staged_only=True)
+
+    assert context["staged_only"] is True
+    assert [entry["path"] for entry in context["files"]] == ["app.py"]
+
+    result = asyncio.run(
+        engine.validate_changes(
+            profiles=["py_reviewer"], source="local", staged_only=True
+        )
+    )
+
+    assert result["success"] is True
+    assert result["staged_only"] is True
+    assert "staged local changes" in session.ai.prompts[0]
 
 
 def test_validator_runs_the_ai_with_the_selected_profile(repo):

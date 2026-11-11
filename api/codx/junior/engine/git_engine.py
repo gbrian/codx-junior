@@ -1269,7 +1269,12 @@ class GitEngine:
 
         return changes
 
-    def get_repo_changes(self, from_branch: str, to_branch: str) -> dict:
+    def get_repo_changes(
+        self,
+        from_branch: str,
+        to_branch: str,
+        staged_only: bool = False,
+    ) -> dict:
         """
         Return file changes, diffs and PR details between two branches.
 
@@ -1281,6 +1286,14 @@ class GitEngine:
         - ``from_branch="local"`` compares the working tree against *to_branch*.
 
         Each file entry includes a 'last_modification' datetime (ISO 8601).
+
+        Args:
+            from_branch: Source branch, or the ``local`` sentinel.
+            to_branch: Target/base branch, or the ``local`` sentinel.
+            staged_only: With the ``local`` sentinel, list only the files staged
+                in the index (and diff the index), i.e. exactly what the next
+                commit contains. A branch comparison has no index, so it is
+                ignored there.
         """
         # Sanitize branch names
         from_branch = self._sanitize_branch_name(from_branch)
@@ -1299,11 +1312,14 @@ class GitEngine:
                     self._sanitize_branch_name(self.get_project_current_branch())
                     or "HEAD"
                 )
-            result = self.get_local_changes(base_ref=base_branch)
+            result = self.get_local_changes(
+                base_ref=base_branch, staged_only=staged_only
+            )
             result.update({
                 "from_branch": from_branch,
                 "to_branch": to_branch,
                 "base_branch": base_branch,
+                "staged_only": bool(staged_only),
             })
             return result
 

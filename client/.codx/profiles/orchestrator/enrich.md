@@ -26,3 +26,14 @@ Work only with the base code tree rooted at `src/` of `/home/codx-junior-project
 - Never read, edit, create or revert files under `.worktrees/` (e.g. `.worktrees/mobile_redesign/client/...`).
 - All features, fixes and reviews land in the main tree only; worktrees belong to other checkouts and stay untouched.
 - If a previous change was made inside a worktree, treat main as the single source of truth and do not mirror code into the worktree.
+
+## UI: reuse Modal.vue / ConfirmDialog.vue — never a native dialog or a local copy
+
+Reuse the existing dialog components; never create a local modal copy.
+
+- `src/components/Modal.vue` is registered globally in `src/main.ts` → usable as `<modal close @close>` in any template. Props: `title`, `fullscreen`, `scope`, `close`. Slots: default (body), `header`, `footer`. It teleports itself to the app root, handles ESC and the backdrop.
+- `src/components/ConfirmDialog.vue` is the project-wide confirmation (built on `<modal>`): props `title`, `message`, `details[]`, `hint`, `icon`, `iconClass`, `confirmLabel`, `confirmIcon`, `confirmClass`, `busy`; events `confirm` / `cancel`. Focus starts on Cancel (safe choice).
+- Standard usage (see `repo/GitView.vue`, `browsers/BrowserSessionList.vue`, `RepoFileDiff.vue`): keep `confirmRequest: null` in `data`, a `confirmAction(options)` that returns a Promise and stores `{ ...options, resolve }`, `resolveConfirmation(accepted)`, and render `<ConfirmDialog v-if="confirmRequest" v-bind... @confirm="resolveConfirmation(true)" @cancel="resolveConfirmation(false)">`. Call sites: `if (!(await this.confirmAction({...}))) return`.
+- Never use native `confirm()`, `alert()` or `prompt()`: they are light-only, block the page, have no focus management and cannot show context (paths, items).
+- Destructive actions: `confirmClass: 'btn-error'` + `icon: 'fa-trash'`, `iconClass: 'text-error'`.
+- Before writing any dialog, search `src/components/**` for an existing one (`*Modal.vue`, `*Dialog.vue`) — many feature-specific ones already exist.

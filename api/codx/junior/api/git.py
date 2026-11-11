@@ -303,6 +303,8 @@ class ValidateChangesRequest(BaseModel):
     to_branch: Optional[str] = None
     paths: Optional[List[str]] = None
     instructions: Optional[str] = None
+    # Review only the files staged in the index (default) or every change
+    staged: bool = True
     max_diff_chars: int = VALIDATOR_MAX_DIFF_CHARS
 
 
@@ -644,6 +646,13 @@ def api_git_repo_changes(
     request: Request,
     from_branch: str = Query(..., description="Source branch (PR branch)"),
     to_branch: str = Query(..., description="Target branch (base)"),
+    staged: bool = Query(
+        False,
+        description=(
+            "With the `local` sentinel: list only the files staged in the index "
+            "(default: every uncommitted change). Ignored for a branch compare"
+        ),
+    ),
     user: CodxUser = Depends(get_authenticated_user),
 ):
     """
@@ -657,9 +666,11 @@ def api_git_repo_changes(
     Args:
         from_branch: Source branch (or ``local``).
         to_branch: Target/base branch (or ``local``).
+        staged: Only the staged (index) files of the local changes, i.e. exactly
+            what the next commit contains. Ignored for a branch comparison.
     """
     return _git_engine(request).get_repo_changes(
-        from_branch=from_branch, to_branch=to_branch
+        from_branch=from_branch, to_branch=to_branch, staged_only=staged
     )
 
 
@@ -678,6 +689,13 @@ def api_git_repo_validate_context(
     ),
     paths: Optional[List[str]] = Query(
         None, description="Optional local file paths to restrict the review to"
+    ),
+    staged: bool = Query(
+        True,
+        description=(
+            "Review only the staged (index) local files (default) instead of "
+            "every uncommitted change"
+        ),
     ),
     user: CodxUser = Depends(get_authenticated_user),
 ):
@@ -699,11 +717,13 @@ def api_git_repo_validate_context(
         from_branch: Base branch for local changes, or source branch.
         to_branch: Target branch for a branch comparison.
         paths: Optional local file paths to restrict the review to.
+        staged: Review only the staged (index) files of the local changes
+            (default) instead of every uncommitted change.
 
     Returns:
-        Dict with 'success', 'source', branch labels, 'stat', 'files',
-        'profiles' (lightweight entries), 'default_profiles', 'tasks' and
-        'task_since'.
+        Dict with 'success', 'source', branch labels, 'staged_only', 'stat',
+        'files', 'profiles' (lightweight entries), 'default_profiles', 'tasks'
+        and 'task_since'.
     """
     source = (source or "local").strip().lower()
     if source not in ("local", "branch"):
@@ -717,6 +737,7 @@ def api_git_repo_validate_context(
             from_branch=from_branch,
             to_branch=to_branch,
             paths=paths,
+            staged_only=staged,
         )
     except ValueError as ex:
         raise HTTPException(status_code=400, detail=str(ex))
@@ -739,12 +760,12 @@ async def api_git_repo_validate(
 
     Args:
         payload: Profiles, source (local/branch), branch pair, optional paths,
-            extra instructions and the patch budget.
+            the staged filter, extra instructions and the patch budget.
 
     Returns:
         Dict with 'success', 'review' (Markdown), 'files', 'profiles',
-        'profile_details', 'tasks', 'source', 'base_branch' and
-        'diff_truncated'.
+        'profile_details', 'tasks', 'source', 'base_branch', 'staged_only'
+        and 'diff_truncated'.
 
     Raises:
         HTTPException: 400 when there are no changes or the AI fails.
@@ -762,6 +783,7 @@ async def api_git_repo_validate(
             from_branch=payload.from_branch,
             to_branch=payload.to_branch,
             paths=payload.paths,
+            staged_only=payload.staged,
             instructions=payload.instructions or "",
             max_diff_chars=payload.max_diff_chars,
         )

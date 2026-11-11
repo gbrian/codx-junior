@@ -42,8 +42,14 @@ MAX_FIELD_LEN = 4000
 
 
 def harness_dir(codx_path: str) -> str:
-    """Return the harness folder of a project (``<project>/.codx/harness``)."""
-    return os.path.join(str(codx_path or ""), ".codx", HARNESS_DIR_NAME)
+    """
+    Return the harness folder of a project.
+
+    ``codx_path`` is the project's ``.codx`` directory (the same convention as
+    ``<codx_path>/tasks`` and ``<codx_path>/orchestration``), so the journal
+    lives at ``<project>/.codx/harness``.
+    """
+    return os.path.join(str(codx_path or ""), HARNESS_DIR_NAME)
 
 
 def audit_path(codx_path: str) -> str:

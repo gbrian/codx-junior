@@ -4,6 +4,7 @@ import ContextMenu from './ContextMenu.vue'
 import CreateFileDialog from './CreateFileDialog.vue'
 import MoveDialog from './MoveDialog.vue'
 import FileSlideShow from './FileSlideShow.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 </script>
 
 <template>
@@ -175,6 +176,14 @@ import FileSlideShow from './FileSlideShow.vue'
             <span class="text-sm font-mono flex-1 truncate" :title="entry.name">
               {{ entry.name }}
             </span>
+
+            <!-- Working tree status (see loadGitStatus) -->
+            <span
+              v-if="gitStatusFor(entry)"
+              class="text-[11px] font-bold font-mono flex-shrink-0"
+              :class="gitStatusFor(entry).color"
+              :title="gitStatusFor(entry).label"
+            >{{ gitStatusFor(entry).badge }}</span>
             
             <span class="text-xs opacity-70 flex-shrink-0" v-if="!entry.is_dir && !isContentSearching">
               {{ formatSize(entry.size) }}
@@ -244,6 +253,14 @@ import FileSlideShow from './FileSlideShow.vue'
           >
             <i class="text-4xl" :class="getFileIcon(entry)"></i>
             <span class="text-xs font-mono w-full text-center truncate">{{ entry.name }}</span>
+
+            <!-- Working tree status (see loadGitStatus) -->
+            <span
+              v-if="gitStatusFor(entry)"
+              class="badge badge-xs font-bold font-mono"
+              :class="gitStatusFor(entry).badgeClass"
+              :title="gitStatusFor(entry).label"
+            >{{ gitStatusFor(entry).badge }}</span>
 
             <span class="text-[10px] opacity-60" v-if="!entry.is_dir && !isContentSearching">
               {{ formatSize(entry.size) }}
@@ -339,6 +356,14 @@ import FileSlideShow from './FileSlideShow.vue'
               </span>
             </div>
 
+            <!-- Working tree status (see loadGitStatus) -->
+            <span
+              v-if="gitStatusFor(entry)"
+              class="absolute top-1 right-1 z-10 badge badge-xs font-bold font-mono shadow"
+              :class="gitStatusFor(entry).badgeClass"
+              :title="gitStatusFor(entry).label"
+            >{{ gitStatusFor(entry).badge }}</span>
+
             <!-- Name + size overlay -->
             <div class="absolute inset-x-0 bottom-0 px-2 py-1 bg-black/60">
               <div class="text-[11px] font-mono truncate text-white">{{ entry.name }}</div>
@@ -387,14 +412,18 @@ import FileSlideShow from './FileSlideShow.vue'
       :hasSelection="selectedEntries.length > 0"
       :isMultiSelect="selectedEntries.length > 1"
       :selectionCount="selectedEntries.length"
+      :canCreateProject="canCreateProject"
+      :gitAvailable="gitAvailable"
+      :gitStatus="contextGitStatus"
       @upload="handleContextUpload"
       @create="handleContextCreate"
+      @create-project="handleContextCreateProject"
       @rename="handleContextRename"
       @move="handleContextMove"
       @go-to-folder="handleContextGoToFolder"
       @copy-path="handleContextCopyPath"
       @copy-relative-path="handleContextCopyRelativePath"
-      @gitignore="handleContextGitignore"
+      @git-action="handleContextGitAction"
       @delete="handleContextDelete"
     />
 
@@ -413,6 +442,23 @@ import FileSlideShow from './FileSlideShow.vue'
       :isDir="createDialogIsDir"
       @create="onCreateDialogSubmit"
       @cancel="showCreateDialog = false"
+    />
+
+    <!-- Confirmation: the shared project dialog (base <modal>), replacing the
+         native confirm() — see confirmAction() -->
+    <ConfirmDialog
+      v-if="confirmRequest"
+      :title="confirmRequest.title"
+      :message="confirmRequest.message"
+      :details="confirmRequest.details"
+      :hint="confirmRequest.hint"
+      :icon="confirmRequest.icon"
+      :icon-class="confirmRequest.iconClass"
+      :confirm-label="confirmRequest.confirmLabel"
+      :confirm-icon="confirmRequest.confirmIcon"
+      :confirm-class="confirmRequest.confirmClass"
+      @confirm="resolveConfirmation(true)"
+      @cancel="resolveConfirmation(false)"
     />
 
     <!-- Move files/folders Dialog -->
@@ -439,6 +485,7 @@ import ContextMenu from './ContextMenu.vue'
 import CreateFileDialog from './CreateFileDialog.vue'
 import MoveDialog from './MoveDialog.vue'
 import FileSlideShow from './FileSlideShow.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { onFileEvent, isDirectoryAffected } from '@/utils/fileEvents'
 
 // Formats the browser can render a thumbnail / preview for.
@@ -447,6 +494,23 @@ const IMAGE_PREVIEW_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'a
 const VIDEO_PREVIEW_EXTENSIONS = ['mp4', 'webm', 'mov', 'm4v', 'ogv', 'mkv']
 const AUDIO_PREVIEW_EXTENSIONS = ['mp3', 'wav', 'ogg', 'oga', 'flac', 'aac', 'm4a', 'opus']
 const PDF_PREVIEW_EXTENSIONS = ['pdf']
+
+// Git statuses shown on the entries (see loadGitStatus). `badge` is the letter
+// rendered next to the name, `badgeClass` the DaisyUI badge used by the grid and
+// preview tiles and `color` the text colour of the letter in the list view.
+const GIT_STATUS_META = {
+  A: { code: 'A', badge: 'A', label: 'Added', color: 'text-success', badgeClass: 'badge-success' },
+  M: { code: 'M', badge: 'M', label: 'Modified', color: 'text-warning', badgeClass: 'badge-warning' },
+  D: { code: 'D', badge: 'D', label: 'Deleted', color: 'text-error', badgeClass: 'badge-error' },
+  R: { code: 'R', badge: 'R', label: 'Renamed', color: 'text-info', badgeClass: 'badge-info' },
+  C: { code: 'C', badge: 'C', label: 'Copied', color: 'text-info', badgeClass: 'badge-info' },
+  T: { code: 'T', badge: 'T', label: 'Type changed', color: 'text-warning', badgeClass: 'badge-warning' },
+  U: { code: 'U', badge: 'U', label: 'Conflict', color: 'text-error', badgeClass: 'badge-error' },
+  '?': { code: '?', badge: 'N', label: 'New (untracked)', color: 'text-success', badgeClass: 'badge-success' }
+}
+
+// A folder aggregates the statuses of its contents: the most significant wins
+const GIT_STATUS_RANK = { '?': 1, A: 2, C: 3, R: 4, T: 5, D: 6, M: 7, U: 8 }
 
 // Toolbar view modes, in cycling order
 const VIEW_MODES = ['list', 'grid', 'preview']
@@ -457,7 +521,7 @@ const FILE_EVENT_REFRESH_DELAY = 400
 
 export default {
   name: 'FileExplorer',
-  components: { ContextMenu, CreateFileDialog, MoveDialog, FileSlideShow },
+  components: { ContextMenu, CreateFileDialog, MoveDialog, FileSlideShow, ConfirmDialog },
   props: ['root-path'],
   data() {
     return {
@@ -495,6 +559,13 @@ export default {
       contextMenuVisible: false,
       contextMenuPosition: { x: 0, y: 0 },
       contextMenuEntry: null,
+      // Working tree status of the project (see loadGitStatus): indexed by
+      // absolute path, folders included.
+      gitAvailable: false,
+      gitStatusByPath: {},
+      // Absolute path of the git root, used to translate the paths reported by
+      // the API (relative to the repository) into project paths.
+      gitRepoRoot: null,
       showCreateDialog: false,
       createDialogIsDir: false,
       showMoveDialog: false,
@@ -503,6 +574,9 @@ export default {
       showSlideShow: false,
       slideShowFiles: [],
       slideShowIndex: 0,
+      // Pending confirmation handled by the shared <ConfirmDialog>: the dialog
+      // props plus the resolver of the promise returned by confirmAction().
+      confirmRequest: null,
       // Backend file events (see `utils/fileEvents`): unsubscribe function and
       // the debounce timer of the automatic refreshes.
       unsubscribeFileEvents: null,
@@ -638,6 +712,20 @@ export default {
         preview: 'Preview mode'
       }[this.nextViewMode]
     },
+    // The "New codx-junior project" action targets one folder: the selected one,
+    // or the folder being viewed when the menu was opened on the empty area.
+    canCreateProject() {
+      if (this.selectedEntries.length > 1) return false
+      if (!this.selectedEntries.length) return true
+      return !!this.selectedEntries[0].is_dir
+    },
+    // Git status of the context menu target: the selected entry, or the folder
+    // being viewed when the menu was opened on the empty area.
+    contextGitStatus() {
+      if (this.selectedEntries.length > 1) return null
+      if (this.selectedEntries.length === 1) return this.gitStatusFor(this.selectedEntries[0])
+      return this.gitStatusForPath(this.getAbsolutePath(this.currentPath))
+    },
     visibleEntries() {
       return this.entries
         .filter(e => e.name?.trim())
@@ -653,10 +741,12 @@ export default {
       this.currentPage = 0
       this.clearSelection()
       this.loadDir(this.basePath)
+      this.loadGitStatus()
     }
   },
   mounted() {
     this.loadDir(this.basePath)
+    this.loadGitStatus()
     document.addEventListener('click', this.closeContextMenu)
     // Keep the listing in sync with files changed anywhere else (a chat, the
     // terminal, another tab...). See `utils/fileEvents`.
@@ -666,6 +756,8 @@ export default {
     document.removeEventListener('click', this.closeContextMenu)
     // A drag can still be running when the explorer is unmounted
     this.endMarquee()
+    // Never leave a caller awaiting a confirmation that can no longer be shown
+    this.resolveConfirmation(false)
     this.unsubscribeFileEvents?.()
     this.unsubscribeFileEvents = null
     clearTimeout(this.fileEventRefreshTimer)
@@ -1084,6 +1176,9 @@ export default {
     refresh() {
       this.currentPage = 0
       this.previewErrors = {}
+      // The working tree status is repository wide: refreshing the listing is
+      // also the moment to pick up the changes made outside the explorer.
+      this.loadGitStatus()
       if (this.isSearching) {
         this.performSearch(this.filter)
       } else {
@@ -1143,6 +1238,126 @@ export default {
       const daysDiff = moment().diff(modified, 'days')
       return daysDiff < 5 ? modified.fromNow() : modified.format('MMM DD, YYYY')
     },
+    // ── Git status ─────────────────────────────────────────────────────────
+    /**
+     * Read the working tree status and index it by absolute path.
+     *
+     * `git status` is repository wide, so it is read once — on mount, on refresh
+     * and after every git action — instead of on each folder change: navigating
+     * the tree reuses the same map.
+     *
+     * The API reports paths relative to the **repository root**, which is the
+     * project itself or one of its parents (a checkout living inside a bigger
+     * repository), so every entry is translated with `repo_path` first.
+     */
+    async loadGitStatus() {
+      const repo = this.$project?.$api?.repo
+      if (!repo?.info) {
+        this.clearGitStatus()
+        return
+      }
+      try {
+        const info = (await repo.info()) || {}
+        const root = this.normalizePath(info.repo_path || info.project_path || this.basePath)
+        this.gitRepoRoot = root
+        this.gitAvailable = true
+        this.gitStatusByPath = this.buildGitStatusMap(info, root)
+      } catch (error) {
+        // Not a git checkout (or the repository API is unavailable): no badges
+        console.debug('Git status is not available for this project', error)
+        this.clearGitStatus()
+      }
+    },
+    clearGitStatus() {
+      this.gitAvailable = false
+      this.gitRepoRoot = null
+      this.gitStatusByPath = {}
+    },
+    /**
+     * Build `absolute path -> status` from the repository status payload.
+     *
+     * The staged list is read first and the unstaged one last, so a file changed
+     * in both places shows the working tree status (what is on disk). Each file
+     * status is also folded into its parent folders, which therefore show the
+     * most significant status of their contents.
+     */
+    buildGitStatusMap(info, root) {
+      const map = {}
+      const add = (file, staged) => {
+        const relative = this.cleanGitPath(file?.path || file?.file_name)
+        if (!relative) return
+        const path = this.normalizePath(`${root}/${relative}`)
+        const meta = GIT_STATUS_META[this.gitCodeFor(file)] || GIT_STATUS_META.M
+        const status = { ...meta, staged, unstaged: !staged }
+        map[path] = this.mergeGitStatus(map[path], status, !staged)
+
+        let parent = path.substring(0, path.lastIndexOf('/'))
+        while (parent && parent !== root && parent.startsWith(`${root}/`)) {
+          map[parent] = this.mergeGitStatus(map[parent], status)
+          parent = parent.substring(0, parent.lastIndexOf('/'))
+        }
+      }
+      ;(info.staged || []).forEach(file => add(file, true))
+      ;(info.unstaged || []).forEach(file => add(file, false))
+      return map
+    },
+    /**
+     * Combine two statuses of the same path.
+     *
+     * `preferNext` lets the working tree status win the letter when the same
+     * file appears in both the staged and the unstaged list; otherwise the most
+     * significant code wins (folders). The staged / unstaged flags are always
+     * OR-ed so the context menu knows which actions apply.
+     */
+    mergeGitStatus(current, next, preferNext = false) {
+      if (!current) return next
+      const base = preferNext || GIT_STATUS_RANK[next.code] > GIT_STATUS_RANK[current.code]
+        ? next
+        : current
+      return {
+        ...base,
+        staged: current.staged || next.staged,
+        unstaged: current.unstaged || next.unstaged
+      }
+    },
+    // Status paths can be quoted and renames carry `old -> new`
+    cleanGitPath(path) {
+      let value = String(path || '').trim()
+      if (value.includes(' -> ')) value = value.split(' -> ').pop()
+      return value.replace(/^"|"$/g, '').trim()
+    },
+    // Status code of an API entry, which exposes either a code or a status name
+    gitCodeFor(file) {
+      const code = String(file?.code || '').trim()
+      if (code) return code
+      const codes = {
+        added: 'A',
+        modified: 'M',
+        deleted: 'D',
+        renamed: 'R',
+        copied: 'C',
+        typechange: 'T',
+        conflict: 'U',
+        untracked: '?'
+      }
+      return codes[String(file?.status || '').toLowerCase()] || 'M'
+    },
+    gitStatusForPath(path) {
+      return this.gitStatusByPath[this.normalizePath(path)] || null
+    },
+    gitStatusFor(entry) {
+      return this.gitStatusForPath(this.entryPath(entry))
+    },
+    // Path relative to the repository root, as the git API expects it
+    toRepoRelativePath(path) {
+      const normalized = this.normalizePath(path)
+      const root = this.gitRepoRoot
+      if (!root) return normalized
+      if (normalized === root) return '.'
+      if (normalized.startsWith(`${root}/`)) return normalized.substring(root.length + 1)
+      return normalized
+    },
+
     onContextMenu(event) {
       // Right clicking the empty area targets the current folder
       this.clearSelection()
@@ -1168,6 +1383,27 @@ export default {
     closeContextMenu() {
       this.contextMenuVisible = false
     },
+    /**
+     * Ask for confirmation using the project's shared <ConfirmDialog> (built on
+     * the global <modal>) — same helper every other view already uses, instead
+     * of the native `confirm()` or a local dialog copy.
+     *
+     * Resolves to `true` (confirmed) or `false` (cancelled), so call sites stay
+     * linear: `if (!(await this.confirmAction({ ... }))) return`
+     */
+    confirmAction(options = {}) {
+      // Only one confirmation at a time: the previous one counts as cancelled
+      this.resolveConfirmation(false)
+      return new Promise(resolve => {
+        this.confirmRequest = { ...options, resolve }
+      })
+    },
+    // Settle the pending confirmation (no-op when there is none)
+    resolveConfirmation(accepted) {
+      const request = this.confirmRequest
+      this.confirmRequest = null
+      if (request?.resolve) request.resolve(accepted)
+    },
     handleContextUpload() {
       this.closeContextMenu()
       this.triggerUpload()
@@ -1189,6 +1425,43 @@ export default {
       this.createDialogIsDir = isDir
       this.showCreateDialog = true
     },
+    /**
+     * Open the global "New project" dialog (rendered once in App.vue) started on
+     * the folder under the cursor: the selected folder, or the folder being
+     * viewed when the menu was opened on the empty area.
+     *
+     * The dialog owns the creation (name, repository, .codx path, templates), so
+     * the explorer only hands the folder over: `$ui.showNewProject({ path })`
+     * carries it in `newProject`, and NewProject.vue prefills the location path
+     * and the project name from it.
+     */
+    handleContextCreateProject() {
+      this.closeContextMenu()
+
+      // Folder the menu was opened on: the folder under the cursor, or the
+      // folder being viewed when the menu was opened on the empty area.
+      const folder = this.contextMenuEntry?.is_dir
+        ? this.contextMenuEntry
+        : this.selectedEntries.find(entry => entry.is_dir)
+      const targetPath = folder ? this.entryPath(folder) : this.getAbsolutePath(this.currentPath)
+
+      const existing = (this.$storex.projects.allProjects || [])
+        .find(project => this.normalizePath(project.abs_project_path) === this.normalizePath(targetPath))
+      if (existing) {
+        this.$ui.addNotification({ text: `"${targetPath}" is already the project "${existing.project_name}"` })
+        return
+      }
+
+      // The dialog is rendered once at the app root (App.vue) and driven by the
+      // ui store: `{ path }` prefills the location and the project name with the
+      // folder the menu was opened on.
+      try {
+        this.$storex.ui.showNewProject({ path: targetPath })
+      } catch (error) {
+        console.error('Error opening the new project dialog', error)
+        this.error = `Could not open the new project dialog: ${error.message}`
+      }
+    },
     async onCreateDialogSubmit({ name }) {
       this.showCreateDialog = false
       const parentPath = this.getAbsolutePath(this.currentPath)
@@ -1209,6 +1482,66 @@ export default {
       } catch (error) {
         console.error('Error creating file/folder', error)
         this.error = `Failed to create ${this.createDialogIsDir ? 'folder' : 'file'}: ${error.message}`
+      }
+    },
+    // ── Git actions ─────────────────────────────────────────────────────────
+    /**
+     * Run a git operation on the selection (or on the folder being viewed when
+     * the menu was opened on the empty area), then refresh listing and badges.
+     *
+     * Paths are sent relative to the repository root, which is what the repo API
+     * resolves against; `gitignore` keeps its own handler because the backend
+     * takes `{ path, is_dir }` entries instead of a plain path list.
+     */
+    async handleContextGitAction({ action }) {
+      if (action === 'gitignore') {
+        await this.handleContextGitignore()
+        return
+      }
+      this.closeContextMenu()
+
+      const repo = this.$project?.$api?.repo
+      if (!repo) {
+        this.error = 'The repository API is not available'
+        return
+      }
+
+      const selection = this.selectedEntries.length
+        ? this.selectedEntries
+        : [{ file_path: this.getAbsolutePath(this.currentPath), is_dir: true }]
+      const paths = selection.map(entry => this.toRepoRelativePath(this.entryPath(entry)))
+      const count = paths.length
+
+      try {
+        if (action === 'stage') {
+          await repo.stage(paths)
+          this.$ui.addNotification({ text: `Staged ${count} item${count > 1 ? 's' : ''}` })
+        } else if (action === 'unstage') {
+          await repo.unstage(paths)
+          this.$ui.addNotification({ text: `Unstaged ${count} item${count > 1 ? 's' : ''}` })
+        } else if (action === 'discard') {
+          const accepted = await this.confirmAction({
+            title: 'Discard changes',
+            message: count === 1
+              ? `Roll back "${this.getRelativePath(this.entryPath(selection[0]))}" to its last committed version?`
+              : `Roll back ${count} selected items to their last committed version?`,
+            hint: 'All the uncommitted changes of these paths are lost.',
+            icon: 'fa-rotate-left',
+            iconClass: 'text-error',
+            confirmLabel: 'Discard changes',
+            confirmClass: 'btn-error'
+          })
+          if (!accepted) return
+          await repo.discard(paths)
+          this.$ui.addNotification({ text: `Rolled back ${count} item${count > 1 ? 's' : ''}` })
+        } else {
+          return
+        }
+        this.clearSelection()
+        await this.refresh()
+      } catch (error) {
+        console.error(`Error running git ${action}`, error)
+        this.error = `git ${action} failed: ${error?.response?.data?.detail || error.message}`
       }
     },
     async handleContextRename() {
@@ -1391,14 +1724,22 @@ export default {
     async handleContextDelete() {
       this.closeContextMenu()
       if (this.selectedEntries.length === 0) return
-      
+
       const count = this.selectedEntries.length
-      const message = count === 1
-        ? `Delete "${this.selectedEntries[0].name}"?`
-        : `Delete ${count} items?`
-      
-      if (!confirm(message)) return
-      
+      const accepted = await this.confirmAction({
+        title: count === 1 ? 'Delete item' : 'Delete items',
+        message: count === 1
+          ? `Delete "${this.selectedEntries[0].name}"?`
+          : `Delete ${count} selected items?`,
+        details: this.selectedEntries.map(entry => this.getProjectRelativePath(this.entryPath(entry))),
+        hint: 'This cannot be undone.',
+        icon: 'fa-trash',
+        iconClass: 'text-error',
+        confirmLabel: count === 1 ? 'Delete' : `Delete ${count} items`,
+        confirmClass: 'btn-error'
+      })
+      if (!accepted) return
+
       try {
         for (const entry of this.selectedEntries) {
           await this.$api.files.delete(this.entryPath(entry))

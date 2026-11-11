@@ -447,7 +447,6 @@ export default {
       this.$storex.browsers.openNewSessionFromLibrary(image)
     }
   },
-  inject: ['$storex'],
   mounted() {
     this.$storex.browsers.loadSessions()
   }

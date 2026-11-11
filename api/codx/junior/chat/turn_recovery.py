@@ -118,6 +118,9 @@ class ChatTurnRecovery:
         self._cycles = 0
         self._recovered = 0
         self._failed = 0
+        # Cross-process single-instance lock (uvicorn starts one recovery
+        # worker per process otherwise).
+        self._instance_lock: Optional[Any] = None
 
     # -- lifecycle --------------------------------------------------------
 
@@ -154,6 +157,10 @@ class ChatTurnRecovery:
         self._thread = None
         if thread is not None and thread.is_alive():
             thread.join(timeout=2.0)
+        from codx.junior.utils.single_instance import release_single_instance
+
+        release_single_instance(self._instance_lock)
+        self._instance_lock = None
         logger.info("Chat turn recovery stopped")
 
     @property
@@ -268,6 +275,7 @@ class ChatTurnRecovery:
         if store.cancel_requested(record.turn_id):
             if store.claim(record):
                 store.finalize(record, "cancelled", error="Stopped by user")
+                self._audit(record, "turn_cancelled", reason="Stopped by user")
             return None
 
         if record.attempts >= record.max_attempts:
@@ -279,6 +287,19 @@ class ChatTurnRecovery:
                 record,
                 f"Gave up after {record.attempts} interrupted attempt(s)",
             )
+            self._audit(
+                record,
+                "turn_failed",
+                attempts=record.attempts,
+                max_attempts=record.max_attempts,
+                error="Gave up after repeated interruptions",
+            )
+            self._notify(
+                record,
+                f"codx-junior could not finish the task in chat '{record.chat_id}': "
+                f"the turn was interrupted {record.attempts} time(s). "
+                "Send the message again to retry.",
+            )
             return "failed"
 
         if not store.claim(record):
@@ -288,6 +309,15 @@ class ChatTurnRecovery:
         record.attempts += 1
         store.mark_running(record)
         self._repair_chat(settings, record, note=None)
+        # Register the restart of the interrupted turn in the harness audit
+        # journal: an interruption must never be silent work.
+        self._audit(
+            record,
+            "turn_resumed",
+            attempt=record.attempts,
+            max_attempts=record.max_attempts,
+            chat_mode=record.chat_mode,
+        )
 
         with self._inflight_lock:
             self._inflight.add(record.turn_id)
@@ -300,6 +330,40 @@ class ChatTurnRecovery:
             except RuntimeError:  # pool shutting down
                 self._run_in_thread(settings, store, record)
         return "recovered"
+
+    def _audit(self, record: ChatTurnRecord, event_type: str, **data: Any) -> None:
+        """
+        Register a recovery transition in the harness audit journal (best effort).
+
+        Recovery is part of the harness lifecycle: an interrupted turn that is
+        resumed (or given up) must leave a trace next to the run/step events.
+        """
+        try:
+            from codx.junior.harness.audit import record_audit
+
+            record_audit(
+                record.codx_path,
+                event_type,
+                chat_id=record.chat_id,
+                turn_id=record.turn_id,
+                **data,
+            )
+        except Exception as ex:  # pragma: no cover - audit must never break recovery
+            logger.warning("Chat turn recovery: could not audit '%s': %s", event_type, ex)
+
+    def _notify(self, record: ChatTurnRecord, text: str) -> None:
+        """Notify the user about a recovery outcome (best effort)."""
+        try:
+            from codx.junior.events.event_manager import EventManager
+
+            EventManager(codx_path=record.codx_path).send_notification(
+                type="notification",
+                title="codx-junior",
+                text=text,
+                chat={"id": record.chat_id},
+            )
+        except Exception as ex:  # pragma: no cover - notifications are best effort
+            logger.warning("Chat turn recovery: could not notify: %s", ex)
 
     def _repair_chat(
         self,
@@ -355,8 +419,10 @@ class ChatTurnRecovery:
         finally:
             if error is not None:
                 self._failed += 1
+                self._audit(record, "turn_failed", error=str(error)[:500])
             else:
                 self._recovered += 1
+                self._audit(record, "turn_recovered")
             with self._inflight_lock:
                 self._inflight.discard(record.turn_id)
             # The engine finalizes the record itself. If it could not (session
@@ -532,7 +598,21 @@ def start_turn_recovery(stop_event: Any = None) -> Optional[ChatTurnRecovery]:
     with _WORKER_LOCK:
         if _WORKER is not None and _WORKER.running:
             return _WORKER
-        _WORKER = ChatTurnRecovery(stop_event=stop_event).start()
+        from codx.junior.utils.single_instance import acquire_single_instance
+
+        # uvicorn runs this startup hook once per worker process: elect exactly
+        # one recovery sweeper across them (per-turn flocks still protect the
+        # work itself).
+        instance_lock = acquire_single_instance("chat-turn-recovery")
+        if instance_lock is None:
+            logger.info(
+                "Chat turn recovery already owned by another API worker; "
+                "this process will not sweep"
+            )
+            return None
+        _WORKER = ChatTurnRecovery(stop_event=stop_event)
+        _WORKER._instance_lock = instance_lock
+        _WORKER.start()
         return _WORKER
 
 

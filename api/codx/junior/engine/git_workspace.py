@@ -494,7 +494,9 @@ class GitWorkspaceEngine(GitEngine):
             "error": "",
         }
 
-    def _local_file_patch(self, path: str, base_ref: str) -> str:
+    def _local_file_patch(
+        self, path: str, base_ref: str, staged: bool = False
+    ) -> str:
         """
         Return the patch of one working tree file against *base_ref*.
 
@@ -508,6 +510,7 @@ class GitWorkspaceEngine(GitEngine):
         Args:
             path: Repo-relative file path.
             base_ref: Ref the working tree is compared against.
+            staged: Diff the index (staged changes) instead of the worktree.
 
         Returns:
             Unified patch (empty when the file has nothing to show).
@@ -516,9 +519,11 @@ class GitWorkspaceEngine(GitEngine):
             diff = self.get_file_diff(path=path, mode="worktree")
             return (diff.get("diff") or "").strip()
 
-        result = self._run_git(
-            ["diff", "--no-color", base_ref, "--", path], cwd=self._get_repo_root()
-        )
+        args = ["diff", "--no-color"]
+        if staged:
+            args.append("--cached")
+        args += [base_ref, "--", path]
+        result = self._run_git(args, cwd=self._get_repo_root())
         return (result["output"] or "").strip()
 
     def _untracked_patch(self, path: str) -> str:
@@ -574,7 +579,10 @@ class GitWorkspaceEngine(GitEngine):
         return "\n".join(patch_lines)
 
     def get_local_changes(
-        self, base_ref: Optional[str] = None, paths: Optional[List[str]] = None
+        self,
+        base_ref: Optional[str] = None,
+        paths: Optional[List[str]] = None,
+        staged_only: bool = False,
     ) -> dict:
         """
         Return the uncommitted changes of the project compared to a ref.
@@ -589,6 +597,10 @@ class GitWorkspaceEngine(GitEngine):
             base_ref: Branch/ref the working tree is compared against. Defaults
                 to ``HEAD``.
             paths: Optional file paths to restrict the result to.
+            staged_only: List only the files staged in the index and diff the
+                index against *base_ref*, i.e. review exactly what the next
+                commit would contain. Untracked files are never staged, so they
+                are excluded too.
 
         Returns:
             Dict with 'diff', 'stat', 'repo_path', 'pr_details', 'commits',
@@ -640,15 +652,19 @@ class GitWorkspaceEngine(GitEngine):
 
         for entry in changes["staged"]:
             add_entry(entry, staged=True)
-        for entry in changes["unstaged"]:
-            add_entry(entry, staged=False)
+        if not staged_only:
+            for entry in changes["unstaged"]:
+                add_entry(entry, staged=False)
 
         # One diff for every tracked file, split per-file in memory. Spawning a
         # git process per changed file is what made the local review slow on
-        # large working trees.
-        tracked = self._run_git(
-            ["diff", "--no-color", base_ref], cwd=repo_root
-        )
+        # large working trees. With `staged_only` the index is diffed instead of
+        # the working tree, so the patch is exactly what the next commit takes.
+        diff_args = ["diff", "--no-color"]
+        if staged_only:
+            diff_args.append("--cached")
+        diff_args.append(base_ref)
+        tracked = self._run_git(diff_args, cwd=repo_root)
         tracked_diff = tracked["output"] or ""
         tracked_patches = self._split_file_patches(tracked_diff)
 
@@ -674,7 +690,9 @@ class GitWorkspaceEngine(GitEngine):
                 patch = tracked_patches.get(path)
                 if patch is None:
                     # Rare (quoted path / rename header): fall back to one diff
-                    patch = self._local_file_patch(path, base_ref)
+                    patch = self._local_file_patch(
+                        path, base_ref, staged=staged_only
+                    )
 
             last_modification = self._get_file_last_modification(path)
             local_changes[path] = {
@@ -714,9 +732,11 @@ class GitWorkspaceEngine(GitEngine):
         diff_parts += untracked_diffs
         combined_diff = "\n".join(part for part in diff_parts if part)
 
-        stat_result = self._run_git(
-            ["diff", "--shortstat", base_ref], cwd=repo_root
-        )
+        stat_args = ["diff", "--shortstat"]
+        if staged_only:
+            stat_args.append("--cached")
+        stat_args.append(base_ref)
+        stat_result = self._run_git(stat_args, cwd=repo_root)
         stat = stat_result["output"] if stat_result["ok"] else ""
         untracked_count = sum(1 for entry in entries.values() if entry["code"] == "?")
         if untracked_count:
@@ -726,7 +746,11 @@ class GitWorkspaceEngine(GitEngine):
         return {
             "diff": combined_diff,
             "stat": stat,
-            "git_diff_cmd": f"git diff {base_ref}",
+            "git_diff_cmd": (
+                f"git diff --cached {base_ref}" if staged_only
+                else f"git diff {base_ref}"
+            ),
+            "staged_only": bool(staged_only),
             "local_changes": local_changes,
             "repo_path": repo_root,
             "pr_details": pr_details,

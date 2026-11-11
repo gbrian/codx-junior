@@ -3882,6 +3882,12 @@
           "name": "MeetPeers",
           "slug": "meetpeers.md",
           "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetpeers.md"
+        },
+        {
+          "path": "/tests/meetPeers.test.mjs",
+          "name": "MeetPeers.test",
+          "slug": "meetpeers-test.md",
+          "wiki_file": "/home/codx-junior-projects/codx-junior/client/.codx/wiki/src/meetpeers-test.md"
         }
       ],
       "id": "src",

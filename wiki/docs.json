@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generated_at": 1794389188,
+  "generated_at": 1794397494,
   "project": {
     "name": "codx-junior",
     "title": "codx-junior",
@@ -21,7 +21,7 @@
     "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
     "codx_path": "/home/codx-junior-projects/codx-junior/.codx",
     "wiki_enabled": true,
-    "generated_at": 1794389155
+    "generated_at": 1794397470
   },
   "home": {
     "page": "home",
@@ -8638,7 +8638,7 @@
       "wiki_path": "/home/codx-junior-projects/codx-junior/api/wiki",
       "page_count": 875,
       "status": "ready",
-      "updated_at": 1794313805,
+      "updated_at": 1794397153,
       "wiki_url": "?project=codx-api",
       "relation": "child"
     },
@@ -8653,7 +8653,7 @@
       "wiki_path": "/home/codx-junior-projects/codx-junior/api/wiki",
       "page_count": 875,
       "status": "ready",
-      "updated_at": 1794313805,
+      "updated_at": 1794397153,
       "wiki_url": "?project=codx-api",
       "relation": "child"
     },
@@ -8728,7 +8728,7 @@
       "wiki_path": "/home/codx-junior-projects/codx-junior/client/.codx/wiki",
       "page_count": 10,
       "status": "ready",
-      "updated_at": 1794388760,
+      "updated_at": 1794397197,
       "wiki_url": "?project=codx-junior-ui",
       "relation": "child"
     },
@@ -8743,7 +8743,7 @@
       "wiki_path": "/home/codx-junior-projects/codx-junior/client/.codx/wiki",
       "page_count": 10,
       "status": "ready",
-      "updated_at": 1794388760,
+      "updated_at": 1794397197,
       "wiki_url": "?project=codx-junior-ui",
       "relation": "child"
     },
@@ -8911,7 +8911,7 @@
       "wiki_path": "/home/codx-junior-projects/codx-junior/wiki",
       "page_count": 141,
       "status": "ready",
-      "updated_at": 1794314141,
+      "updated_at": 1794397494,
       "wiki_url": "?project=codx-junior",
       "is_current": true,
       "children": [
@@ -8926,7 +8926,7 @@
           "wiki_path": "/home/codx-junior-projects/codx-junior/api/wiki",
           "page_count": 875,
           "status": "ready",
-          "updated_at": 1794313805,
+          "updated_at": 1794397153,
           "wiki_url": "?project=codx-api",
           "is_current": false,
           "children": [],
@@ -8994,7 +8994,7 @@
           "wiki_path": "/home/codx-junior-projects/codx-junior/client/.codx/wiki",
           "page_count": 10,
           "status": "ready",
-          "updated_at": 1794388760,
+          "updated_at": 1794397197,
           "wiki_url": "?project=codx-junior-ui",
           "is_current": false,
           "children": [],

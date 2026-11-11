@@ -323,11 +323,23 @@ export const repoModule = (API) => ({
   /**
    * File changes and diffs between two branches.
    *
-   * @param {Object} params - `{ from_branch, to_branch }`.
+   * Use the `local` sentinel on one side to review the uncommitted working tree
+   * against the other side. With the sentinel, `staged` restricts the list to
+   * the files staged in the index (exactly what the next commit contains); a
+   * branch comparison has no index, so the flag is not sent there.
+   *
+   * @param {Object} params - `{ from_branch, to_branch, staged }`.
+   * @param {boolean} [params.staged] - Only the staged local files.
    * @returns {Promise<Object>} Repo changes payload.
    */
-  changes({ from_branch, to_branch } = {}) {
-    return API.get(`/api/git/repo/changes${toQuery({ from_branch, to_branch })}`)
+  changes({ from_branch, to_branch, staged } = {}) {
+    return API.get(
+      `/api/git/repo/changes${toQuery({
+        from_branch,
+        to_branch,
+        staged: staged === undefined ? undefined : (staged ? 'true' : 'false')
+      })}`
+    )
   },
 
   // ── Validator (AI review) ─────────────────────────────────────────────────
@@ -349,18 +361,21 @@ export const repoModule = (API) => ({
    * @param {string} [params.from_branch] - Base (local) or source branch.
    * @param {string} [params.to_branch] - Target branch.
    * @param {string[]} [params.paths] - Local files to restrict the review to.
+   * @param {boolean} [params.staged] - Review only the staged (index) files of
+   * the local changes. Defaults to `true`; ignored for a branch comparison.
    * @returns {Promise<Object>} `{ files, profiles, default_profiles, tasks, ... }`.
    *
    * @example
    * const ctx = await api.repo.validateContext({ source: 'local' })
    * ctx.default_profiles // ['reviewer', 'VueDeveloper']
    */
-  validateContext({ source = 'local', from_branch, to_branch, paths } = {}) {
+  validateContext({ source = 'local', from_branch, to_branch, paths, staged = true } = {}) {
     const search = new URLSearchParams()
     search.append('source', source)
     if (from_branch) search.append('from_branch', from_branch)
     if (to_branch) search.append('to_branch', to_branch)
     ;(paths || []).forEach((path) => search.append('paths', path))
+    search.append('staged', staged ? 'true' : 'false')
     return API.get(`/api/git/repo/validate/context?${search.toString()}`)
   },
 
@@ -373,6 +388,8 @@ export const repoModule = (API) => ({
    * @param {string} [params.from_branch] - Base (local) or source branch.
    * @param {string} [params.to_branch] - Target branch.
    * @param {string[]} [params.paths] - Local files to restrict the review to.
+   * @param {boolean} [params.staged] - Review only the staged (index) files of
+   * the local changes. Defaults to `true`; ignored for a branch comparison.
    * @param {string} [params.instructions] - Extra reviewer instructions.
    * @param {number} [params.max_diff_chars] - Patch budget.
    * @returns {Promise<Object>} `{ success, review, files, profiles, tasks, ... }`.
@@ -386,6 +403,7 @@ export const repoModule = (API) => ({
     from_branch,
     to_branch,
     paths,
+    staged = true,
     instructions,
     max_diff_chars
   } = {}) {
@@ -395,6 +413,7 @@ export const repoModule = (API) => ({
       from_branch: from_branch || null,
       to_branch: to_branch || null,
       paths: paths || null,
+      staged,
       instructions: instructions || null,
       max_diff_chars
     })

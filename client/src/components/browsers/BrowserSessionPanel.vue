@@ -793,8 +793,7 @@ export default {
   beforeUnmount() {
     document.removeEventListener('mousedown', this.handleDocumentMousedown)
     window.removeEventListener('keydown', this.handleWindowKeydown)
-  },
-  inject: ['$storex']
+  }
 }
 </script>
 

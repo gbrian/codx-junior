@@ -56,6 +56,12 @@ export CODX_JUNIOR_API_ANALYTICS_DATA_PATH=${CODX_JUNIOR_API_ANALYTICS_DATA_PATH
 # Chat logs
 export CODX_JUNIOR_AI_RAW_LOG_PATH=${CODX_JUNIOR_AI_RAW_LOG_PATH:-/home/codx-junior/analytics/chats}
 
+# API source reload (development only)
+# uvicorn restarts on every file change when this is 1. Do NOT enable it on a
+# server where the AI agents edit the project: each edit would kill the
+# in-flight chat turns (the harness must not interrupt its own work).
+export CODX_JUNIOR_API_RELOAD=${CODX_JUNIOR_API_RELOAD:-0}
+
 # Miscellaneous
 export DEBIAN_FRONTEND=noninteractive
 # Locales

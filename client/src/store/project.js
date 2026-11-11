@@ -777,8 +777,18 @@ export const actions = actionTree(
         .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p))
       return state.activeProject
     },
-    async createNewProject(_, { project_name, git_path }) {
-      const newProject = await API.projects.create(git_path || project_name)
+    /**
+     * Create a project and make it the active one.
+     *
+     * `project_path` is the folder chosen in the new-project dialog ("Project
+     * location path"), prefilled by the file explorer when the dialog is opened
+     * from a folder: the backend creates the project THERE. Only when it is
+     * empty does `project_name` decide, which creates the project inside the
+     * default workspace folder. A repository URL takes precedence — the backend
+     * clones into `project_path` (or into the default folder).
+     */
+    async createNewProject(_, { project_name, project_path, git_path }) {
+      const newProject = await API.projects.create(git_path || project_path || project_name)
       if (!newProject) {
         return null
       }

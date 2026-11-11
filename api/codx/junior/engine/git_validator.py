@@ -108,6 +108,7 @@ class GitValidatorEngine(GitCommitMessageEngine):
         from_branch: Optional[str] = None,
         to_branch: Optional[str] = None,
         paths: Optional[List[str]] = None,
+        staged_only: bool = False,
     ) -> dict:
         """
         Return the change payload for the selected source.
@@ -117,6 +118,9 @@ class GitValidatorEngine(GitCommitMessageEngine):
             from_branch: Base branch for local changes, or the source branch.
             to_branch: Target branch when comparing refs.
             paths: Optional list of local files to restrict the review to.
+            staged_only: Review only the staged (index) files of the local
+                changes instead of every uncommitted change. A branch
+                comparison has no index, so it is ignored there.
 
         Returns:
             Payload shaped like :meth:`GitWorkspaceEngine.get_local_changes` /
@@ -144,7 +148,9 @@ class GitValidatorEngine(GitCommitMessageEngine):
                 self._sanitize_branch_name(self.get_project_current_branch())
                 or "HEAD"
             )
-        return self.get_local_changes(base_ref=base_branch, paths=paths)
+        return self.get_local_changes(
+            base_ref=base_branch, paths=paths, staged_only=staged_only
+        )
 
     def _file_entries(self, changes: dict) -> List[dict]:
         """
@@ -402,6 +408,7 @@ class GitValidatorEngine(GitCommitMessageEngine):
         from_branch: Optional[str] = None,
         to_branch: Optional[str] = None,
         paths: Optional[List[str]] = None,
+        staged_only: bool = False,
     ) -> Tuple[dict, dict, List]:
         """
         Build the validation context and return it with the raw change payload.
@@ -416,6 +423,7 @@ class GitValidatorEngine(GitCommitMessageEngine):
             from_branch=from_branch,
             to_branch=to_branch,
             paths=paths,
+            staged_only=staged_only,
         )
         files = self._file_entries(changes)
 
@@ -447,6 +455,7 @@ class GitValidatorEngine(GitCommitMessageEngine):
             "from_branch": changes.get("from_branch") or from_branch or "",
             "to_branch": changes.get("to_branch") or to_branch or "",
             "compare_type": changes.get("compare_type") or "local",
+            "staged_only": bool(changes.get("staged_only")),
             "repo_path": changes.get("repo_path") or "",
             "stat": changes.get("stat") or "",
             "files": files,
@@ -474,6 +483,7 @@ class GitValidatorEngine(GitCommitMessageEngine):
         from_branch: Optional[str] = None,
         to_branch: Optional[str] = None,
         paths: Optional[List[str]] = None,
+        staged_only: bool = False,
     ) -> dict:
         """
         Return the Validator context: changed files plus the profile selection.
@@ -483,6 +493,7 @@ class GitValidatorEngine(GitCommitMessageEngine):
             from_branch: Base branch for local changes, or the source branch.
             to_branch: Target branch for a branch comparison.
             paths: Optional local file paths to restrict the review to.
+            staged_only: Review only the staged files of the local changes.
 
         Returns:
             Dict with 'success', 'source', branch labels, 'stat', 'files'
@@ -500,6 +511,7 @@ class GitValidatorEngine(GitCommitMessageEngine):
             from_branch=from_branch,
             to_branch=to_branch,
             paths=paths,
+            staged_only=staged_only,
         )
         return context
 
@@ -588,8 +600,9 @@ class GitValidatorEngine(GitCommitMessageEngine):
         task_block = f"\n{task_block}\n" if task_block else ""
 
         if source == "local":
+            scope = "staged" if changes.get("staged_only") else "uncommitted"
             source_text = (
-                "uncommitted local changes compared against "
+                f"{scope} local changes compared against "
                 f"`{base_branch or 'HEAD'}`"
             )
         else:
@@ -654,6 +667,7 @@ One of **APPROVED**, **APPROVED WITH COMMENTS** or **CHANGES REQUESTED**, follow
         from_branch: Optional[str] = None,
         to_branch: Optional[str] = None,
         paths: Optional[List[str]] = None,
+        staged_only: bool = False,
         instructions: str = "",
         max_diff_chars: int = VALIDATOR_MAX_DIFF_CHARS,
     ) -> dict:
@@ -667,14 +681,15 @@ One of **APPROVED**, **APPROVED WITH COMMENTS** or **CHANGES REQUESTED**, follow
             from_branch: Base branch (local) or source branch.
             to_branch: Target branch for a branch comparison.
             paths: Optional local file paths to restrict the review to.
+            staged_only: Review only the staged files of the local changes.
             instructions: Extra reviewer instructions.
             max_diff_chars: Prompt budget for the patch (0 disables it).
 
         Returns:
             Dict with 'success', 'review' (Markdown), 'files', 'profiles'
             (used names), 'profile_details', 'tasks', 'source', 'base_branch',
-            'diff_truncated', 'errors' and 'fallback' (True when the AI could
-            not answer; 'review' is then empty).
+            'staged_only', 'diff_truncated', 'errors' and 'fallback' (True when
+            the AI could not answer; 'review' is then empty).
 
         Example:
             >>> result = await engine.validate_changes(profiles=["reviewer"])
@@ -686,6 +701,7 @@ One of **APPROVED**, **APPROVED WITH COMMENTS** or **CHANGES REQUESTED**, follow
             from_branch=from_branch,
             to_branch=to_branch,
             paths=paths,
+            staged_only=staged_only,
         )
 
         result = {
@@ -693,6 +709,7 @@ One of **APPROVED**, **APPROVED WITH COMMENTS** or **CHANGES REQUESTED**, follow
             "review": "",
             "fallback": False,
             "source": context["source"],
+            "staged_only": bool(context.get("staged_only")),
             "base_branch": context["base_branch"],
             "from_branch": context["from_branch"],
             "to_branch": context["to_branch"],

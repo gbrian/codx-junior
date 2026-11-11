@@ -326,6 +326,33 @@ class ChatTurnStore:
                 live.append(record.turn_id)
         return live
 
+    def chat_is_processing(self, chat_id: str) -> bool:
+        """
+        Return True when a live turn is running for *chat_id*.
+
+        Unlike :meth:`is_owned`, this is **cross-process**: the background
+        worker (orchestration tick) must not inject a supervisor round while
+        the API process is running a user turn on the same chat. The flock probe
+        sees a lock held by any process.
+
+        Args:
+            chat_id: Chat to check.
+
+        Returns:
+            True when an active turn of *chat_id* is owned by a live process.
+        """
+        if not chat_id:
+            return False
+        for record in self.find_active(chat_id):
+            if self.is_owned(record.turn_id):
+                return True
+            if self.claim(record):
+                # Free lock: orphan/not running. Release the probe.
+                self.release(record.turn_id)
+                continue
+            return True
+        return False
+
     # -- lifecycle --------------------------------------------------------
 
     def begin(

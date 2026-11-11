@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "run_id": "3a1046a8-cd62-47cb-b1ed-e5adfe3541de",
+  "name": "harness smoke test",
+  "objective": "harness smoke test",
+  "main_chat_id": "454903ef-f9bd-44d1-9817-bb1086657655",
+  "status": "completed",
+  "config": {
+    "budget_cxjcoins": 0.0,
+    "per_step_budget": 0.0,
+    "supervisor_reserve": 0.0,
+    "max_steps": 30,
+    "max_rounds": 40,
+    "max_parallel": 2,
+    "max_attempts": 2,
+    "stagnation_limit": 3,
+    "step_timeout_seconds": 1800,
+    "supervisor_timeout_seconds": 900,
+    "step_mode": "chat",
+    "supervisor_profiles": [
+      "codx-junior"
+    ],
+    "default_profiles": [],
+    "board": "Orchestration",
+    "sprint": "Run: harness smoke test",
+    "columns": {
+      "backlog": "Backlog",
+      "running": "In progress",
+      "done": "Done",
+      "blocked": "Blocked"
+    },
+    "verification": "supervisor",
+    "created_by": "gbrian"
+  },
+  "steps": [],
+  "created_at": "2026-11-11T10:54:01.999163+00:00",
+  "updated_at": "2026-11-11T10:54:23.838117+00:00",
+  "started_at": "2026-11-11T10:54:02.057687+00:00",
+  "finished_at": "2026-11-11T10:54:17.182495+00:00",
+  "rounds": 1,
+  "supervisor_rounds": 1,
+  "step_runs": 0,
+  "stagnant_rounds": 0,
+  "pending_supervisor": false,
+  "wake_requested": false,
+  "spent_cxjcoins": 0.009413850000000001,
+  "last_error": "",
+  "stop_reason": "smoke test complete",
+  "report_written": true,
+  "last_report": "## Run delivery report\n**Run:** harness smoke test (`3a1046a8-cd62-47cb-b1ed-e5adfe3541de`)  \n**Status:** `completed`  \n**Spent:** 0.0000 cxjcoins  \n**Rounds:** 1 \u00b7 **Steps:** 0% complete\n\n### Summary\nsmoke test complete\n\n### Steps\n",
+  "report_generation": 0,
+  "notification_sent": true,
+  "events": [
+    {
+      "at": "2026-11-11T10:54:19.790102+00:00",
+      "type": "report",
+      "message": "Delivery report published on the main task",
+      "data": {}
+    },
+    {
+      "at": "2026-11-11T10:54:19.826012+00:00",
+      "type": "run_completed",
+      "message": "Run completed",
+      "data": {
+        "summary": "smoke test complete"
+      }
+    }
+  ]
+}

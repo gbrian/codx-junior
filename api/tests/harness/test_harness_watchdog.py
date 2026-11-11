@@ -61,7 +61,7 @@ def test_lease_granted_once_then_cooldown(tmp_path):
     wd = HarnessWatchdog(check_seconds=60, stale_seconds=60, restart_cooldown_seconds=30)
     assert wd._acquire_restart_lease(str(tmp_path)) is True
     assert wd._acquire_restart_lease(str(tmp_path)) is False  # cooling down
-    state_path = os.path.join(tmp_path, ".codx", "harness", "watchdog.json")
+    state_path = os.path.join(tmp_path, "harness", "watchdog.json")
     state = json.load(open(state_path, encoding="utf-8"))
     # Simulate the cooldown passing (it is floored at 30 s).
     state["last_restart_attempt"] = time.time() - 60
@@ -139,7 +139,7 @@ def test_check_project_healthy_worker_no_incident(tmp_path, monkeypatch):
     store = FakeStore(active_run_ids=["r1"], present=True, age=5.0)
     _patch_store(monkeypatch, store)
     wd = HarnessWatchdog(stale_seconds=60)
-    (tmp_path / ".codx" / "orchestration").mkdir(parents=True)
+    (tmp_path / "orchestration").mkdir(parents=True)
     incident = wd._check_project(FakeSettings(tmp_path))
     assert incident is None
 
@@ -149,12 +149,12 @@ def test_check_project_stalled_worker_produces_incident(tmp_path, monkeypatch):
     _patch_store(monkeypatch, store)
     monkeypatch.setattr(watchdog, "auto_restart_enabled", lambda: False)
     wd = HarnessWatchdog(stale_seconds=60)
-    (tmp_path / ".codx" / "orchestration").mkdir(parents=True)
+    (tmp_path / "orchestration").mkdir(parents=True)
     incident = wd._check_project(FakeSettings(tmp_path))
     assert incident is not None
     assert incident["active_runs"] == ["r1"]
     # The incident must be registered in the audit journal.
-    journal = tmp_path / ".codx" / "harness" / "audit.jsonl"
+    journal = tmp_path / "harness" / "audit.jsonl"
     assert journal.is_file()
     entries = [json.loads(line) for line in journal.read_text().splitlines()]
     assert entries[0]["event"] == "worker_stalled"
@@ -169,7 +169,7 @@ def test_check_project_no_runs_means_no_incident(tmp_path, monkeypatch):
     store = FakeStore(active_run_ids=[], present=False, age=300.0)
     _patch_store(monkeypatch, store)
     wd = HarnessWatchdog(stale_seconds=60)
-    (tmp_path / ".codx" / "orchestration").mkdir(parents=True)
+    (tmp_path / "orchestration").mkdir(parents=True)
     assert wd._check_project(FakeSettings(tmp_path)) is None
 
 

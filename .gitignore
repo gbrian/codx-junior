@@ -49,3 +49,5 @@ chromium_profile
 .codx/computer_downloads/
 **/.codx/computer_downloads/
 desktop_profile/
+/website/.chrome-home/
+/website/.chrome-profile/

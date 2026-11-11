@@ -23,9 +23,9 @@ from codx.junior.harness.audit import (
 
 
 def test_path_layout(tmp_path):
-    """The journal lives in <project>/.codx/harness/audit.jsonl."""
-    assert harness_dir(str(tmp_path)) == str(tmp_path / ".codx" / "harness")
-    assert audit_path(str(tmp_path)) == str(tmp_path / ".codx" / "harness" / "audit.jsonl")
+    """The journal lives in <codx_path>/harness/audit.jsonl (codx_path = .codx)."""
+    assert harness_dir(str(tmp_path)) == str(tmp_path / "harness")
+    assert audit_path(str(tmp_path)) == str(tmp_path / "harness" / "audit.jsonl")
 
 
 def test_record_creates_folder_and_writes_line(tmp_path):

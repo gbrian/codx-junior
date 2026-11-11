@@ -62,6 +62,8 @@ appends):
 | `task_requested` | the user gave `@codx-junior` a task (chat, user, request text) |
 | `run_event` | every run transition: `run_created`, `run_started`, `step_started`, `step_finished`, `step_retried`, `run_completed`, `run_failed`, `run_stopped`, `run_budget_exhausted`, `run_stalled`, `report`, … with run id, status and message |
 | `notification_sent` | the user was notified of a terminal status |
+| `turn_resumed` / `turn_recovered` | an interrupted chat turn was resumed by the recovery worker (attempt n/m) and completed |
+| `turn_failed` / `turn_cancelled` | an interrupted turn was given up after the retry bound (the user is notified), or stopped by the user |
 | `worker_recovered` | the background worker (re)started and took over a project |
 | `worker_stalled` | the watchdog detected a dead/wedged worker with active runs |
 | `worker_restarted` / `worker_restart_failed` | supervision actions and their outcome |
@@ -91,6 +93,17 @@ Three layers guarantee the harness comes back on its own:
 Environment switches: `CODX_JUNIOR_HARNESS_WATCHDOG` (on by default),
 `CODX_JUNIOR_HARNESS_WATCHDOG_SECONDS`, `CODX_JUNIOR_HARNESS_WATCHDOG_STALE_SECONDS`,
 `CODX_JUNIOR_HARNESS_WATCHDOG_RESTART`.
+
+### Never let the API restart itself while it works
+
+The API must not run with source reload on a server where the AI agents edit
+the project: `uvicorn --reload` restarts the process on every file the agent
+writes, which interrupts the in-flight turn it is itself executing (and the
+recovery worker then has to retry it). Reload is therefore **opt-in**:
+`CODX_JUNIOR_API_RELOAD=1` (development machines only). `DEBUG=1` only raises
+verbosity. Restarts are owned by `supervisor.conf` / Docker `restart:
+unless-stopped`, and interrupted turns are resumed by the recovery worker
+(3 attempts, audited and notified).
 
 ## API
 

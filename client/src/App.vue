@@ -120,13 +120,16 @@ onMounted(() => {
 
       <!-- Global "New project" modal — opened from any launcher
            (mobile menu, sidebar AppsSection, WindowsMenu, QuickBar) through the
-           ui store flag `newProject`. -->
+           ui store flag `newProject`, and from the file explorer with
+           `$ui.showNewProject({ path })` so the dialog starts on that folder. -->
       <modal
         v-if="$ui.newProject"
         close="true"
         @close="$ui.showNewProject(false)"
       >
-        <NewProject />
+        <!-- Keyed by the requested folder, so a new request re-initialises the
+             form (and its prefilled path) instead of reusing the previous one. -->
+        <NewProject :key="String($ui.newProject?.path || 'new-project')" />
       </modal>
     </template>
   </div>

@@ -113,6 +113,9 @@ class HarnessWatchdog:
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._lock_handle: Optional[Any] = None
+        # Cross-process single-instance lock (uvicorn starts this startup hook
+        # once per worker process).
+        self._instance_lock: Optional[Any] = None
         self._cycles = 0
         self._incidents = 0
         self._restarts = 0
@@ -145,6 +148,10 @@ class HarnessWatchdog:
         self._thread = None
         if thread is not None and thread.is_alive():
             thread.join(timeout=3.0)
+        from codx.junior.utils.single_instance import release_single_instance
+
+        release_single_instance(self._instance_lock)
+        self._instance_lock = None
         logger.info("Harness watchdog stopped")
 
     @property
@@ -236,7 +243,9 @@ class HarnessWatchdog:
         project_name = str(getattr(settings, "project_name", "") or codx_path)
         if not codx_path:
             return None
-        orchestration_dir = os.path.join(codx_path, ".codx", "orchestration")
+        # ``codx_path`` is the project's ``.codx`` directory, exactly like the
+        # RunStore root: orchestration runs live at ``<codx_path>/orchestration``.
+        orchestration_dir = os.path.join(codx_path, "orchestration")
         if not os.path.isdir(orchestration_dir):
             return None
 
@@ -470,7 +479,20 @@ def start_harness_watchdog(stop_event: Any = None) -> Optional[HarnessWatchdog]:
     with _WATCHDOG_LOCK:
         if _WATCHDOG is not None and _WATCHDOG.running:
             return _WATCHDOG
-        _WATCHDOG = HarnessWatchdog(stop_event=stop_event).start()
+        from codx.junior.utils.single_instance import acquire_single_instance
+
+        # Only one API worker supervises the background process; the others
+        # must not spin their own watchdog thread.
+        instance_lock = acquire_single_instance("harness-watchdog")
+        if instance_lock is None:
+            logger.info(
+                "Harness watchdog already owned by another API worker; "
+                "this process will not watch"
+            )
+            return None
+        _WATCHDOG = HarnessWatchdog(stop_event=stop_event)
+        _WATCHDOG._instance_lock = instance_lock
+        _WATCHDOG.start()
         return _WATCHDOG
 
 

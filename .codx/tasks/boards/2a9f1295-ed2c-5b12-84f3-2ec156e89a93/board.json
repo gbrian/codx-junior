@@ -11,13 +11,13 @@
   "columns": [
     {
       "id": "todo",
-      "title": "Backlog",
+      "title": "Harness",
       "color": "#6366f1",
       "folder": "Backlog",
       "order": 0,
       "project_id": null,
       "profiles": [
-        "orchestrator"
+        "codx-junior"
       ]
     },
     {
@@ -88,7 +88,7 @@
       "profiles": []
     }
   ],
-  "last_update": "2026-11-09T09:12:40.905Z",
+  "last_update": "2026-11-11T12:13:34.210Z",
   "active": true,
   "users": [],
   "assignee": null,

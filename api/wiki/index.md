@@ -9,9 +9,6 @@ hero:
     - theme: brand
       text: "Get started"
       link: "/home"
-    - theme: alt
-      text: "Ask the assistant"
-      link: "/assistant"
 
 features:
   - title: "Overview"

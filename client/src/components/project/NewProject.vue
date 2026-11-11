@@ -95,7 +95,8 @@
 
     <!-- Advanced section (collapsible) -->
     <div class="collapse collapse-arrow border border-base-100 rounded-xl">
-      <input type="checkbox" />
+      <!-- Opened by created() when the dialog was launched on an existing folder -->
+      <input type="checkbox" v-model="showAdvanced" />
       <div class="collapse-title text-sm font-semibold flex items-center gap-2 py-2 min-h-0">
         <i class="fa-solid fa-sliders text-warning"></i> Advanced settings
       </div>
@@ -187,6 +188,10 @@ export default {
     return {
       loading: false,
       error: null,
+      // Advanced settings start open when the dialog was opened on a folder (see
+      // created()): the location path prefilled from the explorer must be
+      // visible, not hidden behind a collapse.
+      showAdvanced: false,
       formData: {
         selectedTemplate: 'blank',
         projectName: '',
@@ -317,6 +322,29 @@ Include:
 Project goal: <describe what this app will do>`
         }
       ]
+    }
+  },
+  created() {
+    /**
+     * Prefill the form from the request that opened the dialog.
+     *
+     * The shell opens it through `$ui.showNewProject(...)`:
+     *   • `true`     → a plain launcher (menu, quick bar, mobile menu)
+     *   • `{ path }` → the file explorer "New codx-junior project" action, where
+     *                  `path` is the folder the project must be created in.
+     *
+     * `$storex` is a mixin computed, so it does not exist yet inside `data()`:
+     * the request is read here, before the first render.
+     */
+    const request = this.$storex?.ui?.newProject
+    const initialPath = String((request && request.path) || '').replace(/\/+$/, '')
+    if (!initialPath) return
+
+    this.showAdvanced = true
+    this.formData.projectPath = initialPath
+    if (!this.formData.projectName) {
+      // Default name: the name of the folder the dialog was opened on
+      this.formData.projectName = initialPath.split('/').filter(Boolean).pop() || ''
     }
   },
   computed: {

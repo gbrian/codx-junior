@@ -1050,16 +1050,31 @@ class OrchestrationService:
         # "wait" (running steps owned by another live turn): nothing to do.
         return run
 
-    @staticmethod
-    def _chat_is_processing(chat_id: str) -> bool:
-        """Return True when a live cancellation token exists for *chat_id*."""
+    def _chat_is_processing(self, chat_id: str) -> bool:
+        """
+        Return True when a live turn owns *chat_id*.
+
+        The in-process cancellation registry is the fast path; it is invisible
+        to another process, so the durable turn lock (cross-process ``flock``)
+        is the authoritative check. Without it the background worker and the
+        API could run two turns on the same chat at once (the worker would
+        inject a supervisor round while the user's turn is still editing).
+        """
         if not chat_id:
             return False
         try:
             from codx.junior.ai.cancellation import CANCELLATION_REGISTRY
 
-            return CANCELLATION_REGISTRY.get(str(chat_id)) is not None
+            if CANCELLATION_REGISTRY.get(str(chat_id)) is not None:
+                return True
         except Exception:  # pragma: no cover - AI stack unavailable
+            pass
+        try:
+            from codx.junior.chat.turn_store import get_turn_store
+
+            store = get_turn_store(str(getattr(self.settings, "codx_path", "") or ""))
+            return store.chat_is_processing(str(chat_id))
+        except Exception:  # pragma: no cover - defensive
             return False
 
     def _recover_stale_steps(self, run: RunState) -> None:

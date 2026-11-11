@@ -1,0 +1,47 @@
+{
+  "id": "b879fdac-76eb-4351-a7a4-6c38794bedcc",
+  "title": "Run: harness smoke test",
+  "type": "sprint",
+  "parent_id": null,
+  "folder": "Run: harness smoke test",
+  "order": 128,
+  "columns": [
+    {
+      "id": "1513ae70-53f2-4a24-9ad9-50d2f77f97e5",
+      "title": "To do",
+      "color": "",
+      "folder": "To do",
+      "order": 0,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "7b380683-1605-4222-861b-a4e0d0829610",
+      "title": "Doing",
+      "color": "",
+      "folder": "Doing",
+      "order": 1,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "254b1203-f0cc-4cde-a112-367c878b35cd",
+      "title": "On hold",
+      "color": "",
+      "folder": "On hold",
+      "order": 2,
+      "project_id": null,
+      "profiles": []
+    },
+    {
+      "id": "155301a6-d3f7-4acc-8c8f-d3c11ed04716",
+      "title": "Done",
+      "color": "",
+      "folder": "Done",
+      "order": 3,
+      "project_id": null,
+      "profiles": []
+    }
+  ],
+  "description": ""
+}

@@ -116,7 +116,6 @@ export default {
   },
   mounted() {
     this.sidebarCollapsed = this.loadSidebarState()
-  },
-  inject: ['$storex']
+  }
 }
 </script>

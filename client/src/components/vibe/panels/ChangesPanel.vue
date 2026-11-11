@@ -159,7 +159,14 @@ import GitConflictResolver from '@/components/repo/GitConflictResolver.vue'
               />
               <div v-else-if="localReview" class="flex items-center gap-2 text-xs opacity-60">
                 <i class="fa-solid fa-laptop-file text-warning"></i>
-                <span>Reviewing uncommitted changes against the current branch</span>
+                <span>Reviewing {{ localStagedOnly ? 'staged' : 'uncommitted' }} changes against the current branch</span>
+                <label
+                  class="flex items-center gap-1 cursor-pointer select-none"
+                  title="Review only the files staged in the index (git add): exactly what the next commit contains"
+                >
+                  <input v-model="localStagedOnly" type="checkbox" class="checkbox checkbox-xs" />
+                  <span>Only staged</span>
+                </label>
               </div>
             </div>
           </div>
@@ -267,6 +274,9 @@ export default {
       // Review the uncommitted working tree against the current branch instead
       // of comparing two branches.
       localReview: false,
+      // Local review reads only the files staged in the index (same default as
+      // the Validator), so both lists describe what the next commit contains.
+      localStagedOnly: true,
       showAddProjectdropdown: false,
       // Pending merge/rebase conflict state of the selected project ("git
       // manager" surface: the chat's changes panel detects it too)
@@ -363,8 +373,13 @@ export default {
     cacheKey() {
       if (!this.selectedProjectId) return null
       // Local review: the working tree against the current branch
-      if (this.localReview) return `${this.selectedProjectId}:local`
+      if (this.localReview) return this.localCacheKey
       return `${this.selectedProjectId}:${this.fromBranch}:${this.toBranch}`
+    },
+
+    /** Cache key of the local review (the staged filter changes the payload) */
+    localCacheKey() {
+      return `${this.selectedProjectId}:local:${this.localStagedOnly ? 'staged' : 'all'}`
     },
 
     cachedRepoChanges() {
@@ -398,6 +413,10 @@ export default {
     },
     localReview() {
       this.loadChangesForProject(this.selectedProjectId, true)
+    },
+    // The staged filter narrows the local change list: reload it
+    localStagedOnly() {
+      if (this.localReview) this.loadChangesForProject(this.selectedProjectId, true)
     },
     compareRequest(value) {
       if (!value?.from || !value?.to) return
@@ -651,7 +670,9 @@ export default {
       const from = sel.from || 'main'
       const to = sel.to || 'local'
       const local = this.localReview
-      const key = local ? `${projectId}:local` : `${projectId}:${from}:${to}`
+      const key = local
+        ? `${projectId}:local:${this.localStagedOnly ? 'staged' : 'all'}`
+        : `${projectId}:${from}:${to}`
 
       if (!force && this.changesByProject[key]) return
 
@@ -663,7 +684,9 @@ export default {
           // request (which reads every worktree status).
           changes = await project.$api.repo.changes({
             from_branch: 'local',
-            to_branch: 'local'
+            to_branch: 'local',
+            // Same staged check as the Validator: only the index is reviewed
+            staged: this.localStagedOnly
           })
         } else {
           changes = await project.$api.repo.changes({
